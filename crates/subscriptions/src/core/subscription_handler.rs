@@ -332,21 +332,21 @@ impl SubscriptionWithHandler<'_> {
     }
 
     pub fn to_subscription_response(
-        &self,
+        subscription: &Subscription,
         payment: Option<subscription_types::PaymentResponseData>,
         invoice: Option<&hyperswitch_domain_models::invoice::Invoice>,
     ) -> errors::SubscriptionResult<SubscriptionResponse> {
         Ok(SubscriptionResponse::new(
-            self.subscription.id.clone(),
-            self.subscription.merchant_reference_id.clone(),
-            common_enums::SubscriptionStatus::from_str(&self.subscription.status)
+            subscription.id.clone(),
+            subscription.merchant_reference_id.clone(),
+            common_enums::SubscriptionStatus::from_str(&subscription.status)
                 .unwrap_or(common_enums::SubscriptionStatus::Created),
-            self.subscription.plan_id.clone(),
-            self.subscription.item_price_id.clone(),
-            self.subscription.profile_id.to_owned(),
-            self.subscription.merchant_id.to_owned(),
-            self.subscription.client_secret.clone().map(Secret::new),
-            self.subscription.customer_id.clone(),
+            subscription.plan_id.clone(),
+            subscription.item_price_id.clone(),
+            subscription.profile_id.to_owned(),
+            subscription.merchant_id.to_owned(),
+            subscription.client_secret.clone().map(Secret::new),
+            subscription.customer_id.clone(),
             payment,
             invoice
                 .map(
@@ -484,31 +484,5 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
         })
-    }
-}
-
-impl ForeignTryFrom<&Subscription> for SubscriptionResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(subscription: &Subscription) -> Result<Self, Self::Error> {
-        Ok(Self::new(
-            subscription.id.to_owned(),
-            subscription.merchant_reference_id.clone(),
-            common_enums::SubscriptionStatus::from_str(&subscription.status)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "status",
-                })
-                .attach_printable(format!(
-                    "unable to parse subscription status {status:?}",
-                    status = subscription.status
-                ))?,
-            subscription.plan_id.clone(),
-            subscription.item_price_id.clone(),
-            subscription.profile_id.to_owned(),
-            subscription.merchant_id.to_owned(),
-            subscription.client_secret.clone().map(Secret::new),
-            subscription.customer_id.to_owned(),
-            None,
-            None,
-        ))
     }
 }

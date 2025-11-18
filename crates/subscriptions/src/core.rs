@@ -13,10 +13,10 @@ use api_models::enums::SubscriptionStatus;
 
 use crate::{
     core::{
-        billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
-        subscription_handler::SubscriptionHandler,
+        billing_processor_handler::BillingHandler,
+        invoice_handler::InvoiceHandler,
+        subscription_handler::{SubscriptionHandler, SubscriptionWithHandler},
     },
-    helpers::ForeignTryFrom,
     state::SubscriptionState as SessionState,
 };
 
@@ -114,7 +114,11 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    let response = subscription.to_subscription_response(Some(payment), Some(&invoice))?;
+    let response = SubscriptionWithHandler::to_subscription_response(
+        &subscription.subscription,
+        Some(payment),
+        Some(&invoice),
+    )?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -464,7 +468,8 @@ pub async fn get_subscription(
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
-    let response = subscription.to_subscription_response(None, None)?;
+    let response =
+        SubscriptionWithHandler::to_subscription_response(&subscription.subscription, None, None)?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -754,7 +759,7 @@ pub async fn list_subscriptions(
 
     let mut subscriptions_resonse = Vec::new();
     for subscription in subscriptions {
-        let response = SubscriptionResponse::foreign_try_from(&subscription)
+        let response = SubscriptionWithHandler::to_subscription_response(&subscription, None, None)
             .attach_printable("subscriptions: failed to convert subscription entry to response")?;
         subscriptions_resonse.push(response);
     }
