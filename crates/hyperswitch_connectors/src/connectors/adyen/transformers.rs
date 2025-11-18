@@ -1806,22 +1806,24 @@ fn get_application_info(
 ) -> Option<ApplicationInfo> {
     item.router_data
         .request
-        .partner_merchant_identifier
+        .partner_merchant_identifier_details
         .as_ref()
-        .map(|partner_merchant_identifier| ApplicationInfo {
-            merchant_application: partner_merchant_identifier.merchant_details.as_ref().map(
-                |merchant_details| MerchantApplication {
+        .map(|partner_merchant_identifier_details| ApplicationInfo {
+            merchant_application: partner_merchant_identifier_details
+                .merchant_details
+                .as_ref()
+                .map(|merchant_details| MerchantApplication {
                     name: merchant_details.name.clone(),
                     version: merchant_details.version.clone(),
-                },
-            ),
-            external_platform: partner_merchant_identifier.partner_details.as_ref().map(
-                |platform_details| ExternalPlatform {
+                }),
+            external_platform: partner_merchant_identifier_details
+                .partner_details
+                .as_ref()
+                .map(|platform_details| ExternalPlatform {
                     name: platform_details.name.clone(),
                     version: platform_details.version.clone(),
                     integrator: platform_details.integrator.clone(),
-                },
-            ),
+                }),
         })
 }
 

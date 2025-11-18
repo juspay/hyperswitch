@@ -89,7 +89,8 @@ pub struct PaymentsAuthorizeData {
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1458,7 +1459,8 @@ pub struct SetupMandateRequestData {
     pub is_stored_credential: Option<bool>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Debug, Clone)]

@@ -933,7 +933,7 @@ impl_to_sql_from_sql_json!(MerchantApplicationDetails);
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PartnerMerchantIdentifier {
+pub struct PartnerMerchantIdentifierDetails {
     ///  Information identifying partner/external platform details
     #[schema(value_type = Option<PartnerApplicationDetails>)]
     pub partner_details: Option<PartnerApplicationDetails>,
@@ -942,4 +942,4 @@ pub struct PartnerMerchantIdentifier {
     pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
-impl_to_sql_from_sql_json!(PartnerMerchantIdentifier);
+impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);

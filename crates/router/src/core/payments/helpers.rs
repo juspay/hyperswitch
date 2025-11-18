@@ -4166,7 +4166,7 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
-            partner_merchant_identifier: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4254,7 +4254,7 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
-            partner_merchant_identifier: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4340,7 +4340,7 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
-            partner_merchant_identifier: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

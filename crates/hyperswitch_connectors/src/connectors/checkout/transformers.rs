@@ -490,7 +490,7 @@ fn build_metadata(
     let udf5 = item
         .router_data
         .request
-        .partner_merchant_identifier
+        .partner_merchant_identifier_details
         .as_ref()
         .and_then(|p| p.partner_details.as_ref())
         .and_then(|e| e.name.clone().or(e.integrator.clone()));

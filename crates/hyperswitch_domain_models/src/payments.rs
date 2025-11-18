@@ -130,7 +130,8 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<BillingDescriptor>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 impl PaymentIntent {

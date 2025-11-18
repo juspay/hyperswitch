@@ -82,7 +82,8 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -189,7 +190,8 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -483,7 +485,8 @@ pub struct PaymentIntentNew {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -828,7 +831,7 @@ impl PaymentIntentUpdateInternal {
             active_attempts_group_id: source.active_attempts_group_id,
             mit_category: None,
             billing_descriptor: source.billing_descriptor,
-            partner_merchant_identifier: source.partner_merchant_identifier,
+            partner_merchant_identifier_details: source.partner_merchant_identifier_details,
         }
     }
 }

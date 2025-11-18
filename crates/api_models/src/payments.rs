@@ -1397,8 +1397,9 @@ pub struct PaymentsRequest {
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// Information identifying partner and merchant details
-    #[schema(value_type = Option<PartnerMerchantIdentifier>)]
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7094,8 +7095,9 @@ pub struct PaymentsResponse {
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// Information identifying partner and merchant details
-    #[schema(value_type = Option<PartnerMerchantIdentifier>)]
-    pub partner_merchant_identifier: Option<common_types::payments::PartnerMerchantIdentifier>,
+    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[cfg(feature = "v2")]

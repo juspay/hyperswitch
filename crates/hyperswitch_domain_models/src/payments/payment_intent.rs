@@ -1860,7 +1860,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
-            partner_merchant_identifier: None,
+            partner_merchant_identifier_details: None,
         })
     }
     async fn convert_back(
@@ -2203,7 +2203,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
-            partner_merchant_identifier: self.partner_merchant_identifier,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 
@@ -2315,7 +2315,8 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
                 billing_descriptor: storage_model.billing_descriptor,
-                partner_merchant_identifier: storage_model.partner_merchant_identifier,
+                partner_merchant_identifier_details: storage_model
+                    .partner_merchant_identifier_details,
             })
         }
         .await
@@ -2399,7 +2400,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
-            partner_merchant_identifier: self.partner_merchant_identifier,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 }

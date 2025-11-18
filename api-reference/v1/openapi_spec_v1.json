@@ -23334,7 +23334,7 @@
           }
         }
       },
-      "PartnerMerchantIdentifier": {
+      "PartnerMerchantIdentifierDetails": {
         "type": "object",
         "description": "Information identifying partner and merchant application initiating the request",
         "properties": {
@@ -26523,10 +26523,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -27035,10 +27035,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -27703,10 +27703,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -28563,10 +28563,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -29257,10 +29257,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -29902,10 +29902,10 @@
             ],
             "nullable": true
           },
-          "partner_merchant_identifier": {
+          "partner_merchant_identifier_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PartnerMerchantIdentifier"
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
