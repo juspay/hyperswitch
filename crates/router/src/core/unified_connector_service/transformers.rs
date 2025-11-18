@@ -1435,6 +1435,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
             }
         };
 
+        // Extract connector_metadata from response if present
+        let connector_metadata = (!response.connector_metadata.is_empty())
+            .then(|| {
+                serde_json::to_value(&response.connector_metadata)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error=?e,
+                            metadata=?response.connector_metadata,
+                            "Failed to serialize connector_metadata from UCS capture response"
+                        );
+                        e
+                    })
+                    .ok()
+            })
+            .flatten();
+
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
@@ -1466,7 +1482,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                             connector_mandate_request_reference_id: None,
                         }
                     })),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
@@ -2817,6 +2833,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
+        // Extract connector_metadata from response if present
+        let connector_metadata = (!response.connector_metadata.is_empty())
+            .then(|| {
+                serde_json::to_value(&response.connector_metadata)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            serialization_error=?e,
+                            metadata=?response.connector_metadata,
+                            "Failed to serialize connector_metadata from UCS void response"
+                        );
+                        e
+                    })
+                    .ok()
+            })
+            .flatten();
+
         let response = if response.error_code.is_some() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
@@ -2875,7 +2907,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                             connector_mandate_request_reference_id: None,
                         }
                     })),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
