@@ -26,8 +26,7 @@ pub mod invoice_handler;
 pub mod payments_api_client;
 pub mod subscription_handler;
 
-pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
-pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
+pub const SUBSCRIPTIONS_MAX_LIST_COUNT: i64 = 10;
 
 pub async fn create_subscription(
     state: SessionState,
@@ -747,8 +746,8 @@ pub async fn list_subscriptions(
     let subscriptions = handler
         .list_subscriptions_by_profile_id(
             &profile_id,
-            Some(query.limit.unwrap_or(10)),
-            Some(query.offset.unwrap_or(0)),
+            Some(query.limit.unwrap_or(SUBSCRIPTIONS_MAX_LIST_COUNT)),
+            Some(query.offset.unwrap_or_default()),
         )
         .await
         .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
