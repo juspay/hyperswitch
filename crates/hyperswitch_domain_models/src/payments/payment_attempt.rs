@@ -58,7 +58,7 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-use crate::{behaviour, errors, utils::parse_enum_with_logging, ForeignIDRef};
+use crate::{behaviour, errors, ForeignIDRef};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},
@@ -2305,7 +2305,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 routing_approach: storage_model.routing_approach,
                 connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2709,7 +2709,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .unwrap_or(storage_model.merchant_id),
                 created_by: storage_model
                     .created_by
-                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
                 authorized_amount: storage_model.authorized_amount,

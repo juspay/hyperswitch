@@ -38,7 +38,6 @@ use crate::{
     payment_method_data as domain_payment_method_data,
     transformers::ForeignTryFrom,
     type_encryption::{crypto_operation, CryptoOperation},
-    utils::parse_enum_with_logging,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -432,10 +431,10 @@ impl super::behaviour::Conversion for PaymentMethod {
             vault_source_details,
             created_by: item
                 .created_by
-                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             last_modified_by: item
                 .last_modified_by
-                .map(|last_modified_by| parse_enum_with_logging::<CreatedBy>(&last_modified_by)),
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
         })
     }
 
@@ -638,10 +637,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 vault_type: storage_model.vault_type,
                 created_by: storage_model
                     .created_by
-                    .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
-                last_modified_by: storage_model.last_modified_by.map(|last_modified_by| {
-                    parse_enum_with_logging::<CreatedBy>(&last_modified_by)
-                }),
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                last_modified_by: storage_model
+                    .last_modified_by
+                    .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             })
         }
         .await

@@ -28,7 +28,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
-    utils::parse_enum_with_logging,
 };
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
@@ -2004,7 +2003,7 @@ impl DataModelExt for PaymentAttempt {
                 .unwrap_or(storage_model.merchant_id),
             created_by: storage_model
                 .created_by
-                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
@@ -2192,7 +2191,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .unwrap_or(storage_model.merchant_id),
             created_by: storage_model
                 .created_by
-                .map(|created_by| parse_enum_with_logging::<CreatedBy>(&created_by)),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
             connector_request_reference_id: storage_model.connector_request_reference_id,
