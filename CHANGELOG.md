@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0-hotfix0.1
+
+### Bug Fixes
+
+- **connector:** (REVERT PR) remove card name as mandatore field in sdk [ ADYEN] ([#10330](https://github.com/juspay/hyperswitch/pull/10330)) ([`3243bae`](https://github.com/juspay/hyperswitch/commit/3243baef642400c37d151c032e4f3c70775ad590))
+
+**Full Changelog:** [`2025.11.12.0...2025.11.12.0-hotfix0.1`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0...2025.11.12.0-hotfix0.1)
+
+- - -
+
 ## 2025.11.12.0
 
 ### Features
