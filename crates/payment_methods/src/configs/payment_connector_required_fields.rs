@@ -2354,6 +2354,7 @@ fn get_bank_redirect_required_fields(
                             RequiredField::BillingUserFirstName,
                             RequiredField::BillingUserLastName,
                             RequiredField::BillingPhone,
+                            RequiredField::BillingPhoneCountryCode,
                         ],
                         vec![],
                     ),
