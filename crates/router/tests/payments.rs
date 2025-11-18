@@ -277,7 +277,6 @@ fn connector_list() {
 #[ignore] // AWS
 async fn payments_create_core() {
     use configs::settings::Settings;
-    use hyperswitch_domain_models::platform::{Context, Platform};
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -314,7 +313,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let platform = Platform::new(
+    let platform = hyperswitch_domain_models::platform::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
         merchant_account.clone(),
@@ -568,8 +567,6 @@ async fn payments_create_core() {
 #[actix_rt::test]
 #[ignore]
 async fn payments_create_core_adyen_no_redirect() {
-    use hyperswitch_domain_models::platform::{Context, Platform};
-
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;

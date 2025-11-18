@@ -1,6 +1,8 @@
 pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore};
 
-/// Provider (business-owner side)
+/// Provider = The business owner or the governing entity in the hierarchy.
+/// In a platform connected setup this is related to platform merchant.
+/// For a standard merchant, provider and processor are the same entity.
 #[derive(Clone, Debug)]
 pub struct Provider {
     account: MerchantAccount,
@@ -12,18 +14,19 @@ impl Provider {
         Self { account, key_store }
     }
 
-    /// Get reference to the merchant account
+    /// Returns a reference to the merchant account of the provider.
     pub fn get_account(&self) -> &MerchantAccount {
         &self.account
     }
 
-    /// Get reference to the merchant key store
+    /// Returns a reference to the key store associated with the provider.
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
     }
 }
 
-/// Processor (connector side)
+/// Processor = The merchant account whose processor credentials are used
+/// to execute the operation.
 #[derive(Clone, Debug)]
 pub struct Processor {
     account: MerchantAccount,
@@ -35,18 +38,21 @@ impl Processor {
         Self { account, key_store }
     }
 
-    /// Get reference to the merchant account
+    /// Returns a reference to the merchant account of the processor.
     pub fn get_account(&self) -> &MerchantAccount {
         &self.account
     }
 
-    /// Get reference to the merchant key store
+    /// Returns a reference to the key store associated with the processor.
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
     }
 }
 
-/// Holds both provider and processor information
+/// Platform holds both Provider and Processor together.
+/// This struct makes it possible to distinguish the business owner for the org
+/// versus whose processor credentials are used for execution.
+/// For a standard merchant flow, provider == processor.
 #[derive(Clone, Debug)]
 pub struct Platform {
     provider: Box<Provider>,
@@ -54,7 +60,9 @@ pub struct Platform {
 }
 
 impl Platform {
-    // public constructor
+    /// Creates a Platform pairing from two merchant identities:
+    /// one acting as provider and one as processor
+    /// Standard merchants can pass the same account/key_store for both
     pub fn new(
         provider_account: MerchantAccount,
         provider_key_store: MerchantKeyStore,
@@ -69,12 +77,12 @@ impl Platform {
         }
     }
 
-    /// Get provider
+    /// Returns a reference to the provider.
     pub fn get_provider(&self) -> &Provider {
         &self.provider
     }
 
-    /// Get processor
+    /// Returns a reference to the processor.
     pub fn get_processor(&self) -> &Processor {
         &self.processor
     }

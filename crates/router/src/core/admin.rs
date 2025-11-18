@@ -2642,7 +2642,12 @@ async fn validate_pm_auth(
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_id.get_string_repr().to_owned(),
+            id: platform
+                .get_processor()
+                .get_account()
+                .get_id()
+                .get_string_repr()
+                .to_owned(),
         })?;
 
     for conn_choice in config.enabled_payment_methods {

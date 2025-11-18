@@ -36,7 +36,6 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
-    use hyperswitch_domain_models::platform::{Context, Platform};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -74,7 +73,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let platform = Platform::new(
+    let platform = hyperswitch_domain_models::platform::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
         merchant_account.clone(),
@@ -337,7 +336,6 @@ async fn payments_create_core() {
 async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
-    use hyperswitch_domain_models::platform::{Context, Platform};
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -377,7 +375,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
-    let platform = Platform::new(
+    let platform = hyperswitch_domain_models::platform::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
         merchant_account.clone(),

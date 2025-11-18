@@ -131,7 +131,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 let is_last_retry = retry_sync_task(
                     db,
                     connector,
-                    payment_data.payment_attempt.merchant_id.clone(), // this should be processor mid
+                    payment_data.payment_attempt.merchant_id.clone(),
                     process,
                 )
                 .await?;
