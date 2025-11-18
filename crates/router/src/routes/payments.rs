@@ -3206,28 +3206,18 @@ pub async fn payment_confirm_intent(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let operation = payments::operations::PaymentIntentConfirm;
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
 
-            Box::pin(payments::payments_core::<
-                api_types::Authorize,
-                api_models::payments::PaymentsResponse,
-                _,
-                _,
-                _,
-                PaymentConfirmData<api_types::Authorize>,
-            >(
+            Box::pin(payments::payments_execute_wrapper(
                 state,
                 req_state,
                 merchant_context,
                 auth.profile,
-                operation,
                 request,
-                payment_id,
-                payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                payment_id,
             ))
             .await
         },
@@ -3242,71 +3232,6 @@ pub async fn payment_confirm_intent(
             req.headers(),
         ),
         locking_action,
-    ))
-    .await
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodBalanceCheck, payment_id))]
-pub async fn payment_check_gift_card_balance(
-    state: web::Data<app::AppState>,
-    req: actix_web::HttpRequest,
-    json_payload: web::Json<api_models::payments::PaymentMethodBalanceCheckRequest>,
-    path: web::Path<common_utils::id_type::GlobalPaymentId>,
-) -> impl Responder {
-    let flow = Flow::PaymentMethodBalanceCheck;
-
-    let global_payment_id = path.into_inner();
-    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
-
-    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
-        global_payment_id: global_payment_id.clone(),
-        payload: json_payload.into_inner(),
-    };
-
-    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => {
-            return api::log_and_return_error_response(err);
-        }
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        internal_payload,
-        |state, auth: auth::AuthenticationData, req, req_state| async {
-            let payment_id = req.global_payment_id;
-            let request = req.payload;
-
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            Box::pin(
-                payment_method_balance::payments_check_gift_card_balance_core(
-                    state,
-                    merchant_context,
-                    auth.profile,
-                    req_state,
-                    request,
-                    header_payload.clone(),
-                    payment_id,
-                ),
-            )
-            .await
-        },
-        auth::api_or_client_auth(
-            &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-                global_payment_id,
-            )),
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
@@ -3341,13 +3266,16 @@ pub async fn payments_apply_pm_data(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(payment_method_balance::payments_apply_pm_data_core(
-                state,
-                merchant_context,
-                req_state,
-                request,
-                payment_id,
-            ))
+            Box::pin(
+                payment_method_balance::payments_check_and_apply_pm_data_core(
+                    state,
+                    merchant_context,
+                    auth.profile,
+                    req_state,
+                    request,
+                    payment_id,
+                ),
+            )
             .await
         },
         auth::api_or_client_auth(

@@ -442,3 +442,7 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 # request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[trace_header]
+header_name = "x-request-id"    # HTTP header name for request tracing
+id_reuse = "ignore_incoming"    # Policy for handling incoming request IDs: "use_incoming" or "ignore_incoming"
