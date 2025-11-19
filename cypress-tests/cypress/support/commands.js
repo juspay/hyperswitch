@@ -181,6 +181,124 @@ function storeRequestId(xRequestId, globalState) {
   }
 }
 
+// Helper function for validating diff check input
+function validateDiffCheckInput(globalState) {
+  if (!globalState) {
+    cy.task("cli_log", "ERROR: globalState parameter is required for diffCheckResult");
+    return { isValid: false, reason: "Missing globalState" };
+  }
+
+  const storedRequestIds = globalState.get("requestIds") || [];
+  if (storedRequestIds.length === 0) {
+    cy.task("cli_log", "No stored request IDs found. Skipping diff check validation.");
+    return { isValid: false, reason: "No request IDs" };
+  }
+
+  return { isValid: true, requestIds: storedRequestIds };
+}
+
+// Helper function for filtering matching validation results
+function filterMatchingResults(allResults, storedRequestIds) {
+  const matchingResults = [];
+  allResults.forEach(resultId => {
+    const isMatching = storedRequestIds.some(storedId => {
+      return resultId.includes(storedId);
+    });
+    if (isMatching) {
+      matchingResults.push(resultId);
+    }
+  });
+  return matchingResults;
+}
+
+// Helper function for safely encoding result IDs
+function encodeResultId(resultId) {
+  return encodeURIComponent(resultId);
+}
+
+// Helper function for validating comparison results
+function validateComparisonResult(comparisonResult, resultId) {
+  let validationsFailed = 0;
+
+  // Validate headerComparison
+  if (comparisonResult.headerComparison) {
+    try {
+      expect(comparisonResult.headerComparison.keyDiff, 'headerComparison.keyDiff').to.deep.equal({});
+      expect(comparisonResult.headerComparison.valueDiff, 'headerComparison.valueDiff').to.deep.equal({});
+    } catch (error) {
+      validationsFailed++;
+      cy.task("cli_log", `FAIL: headerComparison validation failed for ${resultId}: ${error.message}`);
+    }
+  }
+
+  // Validate methodComparison
+  if (comparisonResult.methodComparison) {
+    try {
+      expect(comparisonResult.methodComparison.match, 'methodComparison.match').to.be.true;
+    } catch (error) {
+      validationsFailed++;
+      cy.task("cli_log", `FAIL: methodComparison validation failed for ${resultId}: ${error.message}`);
+    }
+  }
+
+  // Validate bodyComparison
+  if (comparisonResult.bodyComparison) {
+    try {
+      expect(comparisonResult.bodyComparison.keyDiff, 'bodyComparison.keyDiff').to.deep.equal({});
+      expect(comparisonResult.bodyComparison.valueDiff, 'bodyComparison.valueDiff').to.deep.equal({});
+      expect(comparisonResult.bodyComparison.typeDiff, 'bodyComparison.typeDiff').to.deep.equal({});
+    } catch (error) {
+      validationsFailed++;
+      cy.task("cli_log", `FAIL: bodyComparison validation failed for ${resultId}: ${error.message}`);
+    }
+  }
+
+  return validationsFailed === 0;
+}
+
+// Helper function for processing individual validation results
+function processValidationResult(resultId, validationServiceUrl) {
+  const encodedResultId = encodeResultId(resultId);
+  const detailUrl = `${validationServiceUrl}/${encodedResultId}`;
+
+  return cy.request({
+    method: "GET",
+    url: detailUrl,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    timeout: 30000,
+    failOnStatusCode: false,
+  }).then((detailResponse) => {
+    if (detailResponse.status === 200) {
+      try {
+        if (detailResponse.body?.data?.data?.comparisonResult) {
+          const comparisonResult = detailResponse.body.data.data.comparisonResult;
+          const isValid = validateComparisonResult(comparisonResult, resultId);
+          return { success: isValid, resultId };
+        } else {
+          cy.task("cli_log", `FAIL: comparisonResult not found in response for ${resultId}`);
+          return { success: false, resultId };
+        }
+      } catch (error) {
+        cy.task("cli_log", `FAIL: Validation error for ${resultId}: ${error.message}`);
+        return { success: false, resultId };
+      }
+    } else {
+      cy.task("cli_log", `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`);
+      return { success: false, resultId };
+    }
+  });
+}
+
+// Helper function for cleaning up processed request IDs
+function cleanupProcessedRequestIds(globalState, matchingResults, storedRequestIds) {
+  const remainingRequestIds = storedRequestIds.filter(storedId => {
+    return !matchingResults.some(resultId => resultId.includes(storedId));
+  });
+  globalState.set("requestIds", remainingRequestIds);
+}
+
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id -> " + xRequestId);
@@ -4436,25 +4554,16 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("diffCheckResult", (globalState) => {
-  // Input validation
-  if (!globalState) {
-    cy.task("cli_log", "ERROR: globalState parameter is required for diffCheckResult");
+  // Phase 1: Input Validation
+  const validation = validateDiffCheckInput(globalState);
+  if (!validation.isValid) {
     return;
   }
 
-  // Retrieve stored request IDs
-  const storedRequestIds = globalState.get("requestIds") || [];
-
-  // Check if we have any request IDs to process
-  if (storedRequestIds.length === 0) {
-    cy.task("cli_log", "No stored request IDs found. Skipping diff check validation.");
-    return;
-  }
-
-  // Start validation
+  const storedRequestIds = validation.requestIds;
   cy.task("cli_log", `Diff check validation started for ${storedRequestIds.length} request ID(s)`);
 
-  // Main validation service API call
+  // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
 
   cy.request({
@@ -4477,141 +4586,40 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
       return;
     }
 
+    // Phase 3: Filter and Process Results
     const allResults = response.body.data;
+    const matchingResults = filterMatchingResults(allResults, storedRequestIds);
 
-    // Filter matching results
-    const matchingResults = [];
-    allResults.forEach(resultId => {
-      const isMatching = storedRequestIds.some(storedId => {
-        return resultId.includes(storedId);
-      });
-      if (isMatching) {
-        matchingResults.push(resultId);
-      }
-    });
-
-    // Handle no matches scenario
     if (matchingResults.length === 0) {
       cy.task("cli_log", "No matching results found for stored request IDs");
       return;
     }
 
-    // Initialize counters for final summary
-    let processedCount = 0;
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Function to safely encode result IDs with special characters
-    function encodeResultId(resultId) {
-      return encodeURIComponent(resultId);
-    }
-
-    // Process results and show summary
+    // Phase 4: Sequential Processing with Summary
     cy.then(() => {
-      function processNextResult(index) {
-        if (index >= matchingResults.length) {
+      function processResultsSequentially(results, index, successCount, errorCount) {
+        if (index >= results.length) {
           // Final summary
-          if (errorCount === 0) {
-            cy.task("cli_log", `Diff check validation completed: ${successCount} passed, ${errorCount} failed`);
-          } else {
-            cy.task("cli_log", `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`);
-          }
+          const message = errorCount === 0 
+            ? `Diff check validation completed: ${successCount} passed, ${errorCount} failed`
+            : `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`;
+          cy.task("cli_log", message);
 
-          // Cleanup: Remove matched request IDs from globalState
-          if (matchingResults.length > 0) {
-            const remainingRequestIds = storedRequestIds.filter(storedId => {
-              return !matchingResults.some(resultId => resultId.includes(storedId));
-            });
-            globalState.set("requestIds", remainingRequestIds);
-          }
+          // Cleanup processed request IDs
+          cleanupProcessedRequestIds(globalState, matchingResults, storedRequestIds);
           return;
         }
 
-        processedCount++;
-        const resultId = matchingResults[index];
-
-        // Individual result API calls
-        const encodedResultId = encodeResultId(resultId);
-        const detailUrl = `https://integ.hyperswitch.io/validation-service/api/results/${encodedResultId}`;
-
-        cy.request({
-          method: "GET",
-          url: detailUrl,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 30000,
-          failOnStatusCode: false,
-        }).then((detailResponse) => {
-          if (detailResponse.status === 200) {
-            // Validate response structure
-            let validationsFailed = 0;
-
-            try {
-              if (detailResponse.body?.data?.data?.comparisonResult) {
-                const comparisonResult = detailResponse.body.data.data.comparisonResult;
-
-                // Validate headerComparison
-                if (comparisonResult.headerComparison) {
-                  try {
-                    expect(comparisonResult.headerComparison.keyDiff, 'headerComparison.keyDiff').to.deep.equal({});
-                    expect(comparisonResult.headerComparison.valueDiff, 'headerComparison.valueDiff').to.deep.equal({});
-                  } catch (error) {
-                    validationsFailed++;
-                    cy.task("cli_log", `FAIL: headerComparison validation failed for ${resultId}: ${error.message}`);
-                  }
-                }
-
-                // Validate methodComparison
-                if (comparisonResult.methodComparison) {
-                  try {
-                    expect(comparisonResult.methodComparison.match, 'methodComparison.match').to.be.true;
-                  } catch (error) {
-                    validationsFailed++;
-                    cy.task("cli_log", `FAIL: methodComparison validation failed for ${resultId}: ${error.message}`);
-                  }
-                }
-
-                // Validate bodyComparison
-                if (comparisonResult.bodyComparison) {
-                  try {
-                    expect(comparisonResult.bodyComparison.keyDiff, 'bodyComparison.keyDiff').to.deep.equal({});
-                    expect(comparisonResult.bodyComparison.valueDiff, 'bodyComparison.valueDiff').to.deep.equal({});
-                    expect(comparisonResult.bodyComparison.typeDiff, 'bodyComparison.typeDiff').to.deep.equal({});
-                  } catch (error) {
-                    validationsFailed++;
-                    cy.task("cli_log", `FAIL: bodyComparison validation failed for ${resultId}: ${error.message}`);
-                  }
-                }
-
-              } else {
-                validationsFailed++;
-                cy.task("cli_log", `FAIL: comparisonResult not found in response for ${resultId}`);
-              }
-
-            } catch (error) {
-              validationsFailed++;
-              cy.task("cli_log", `FAIL: Validation error for ${resultId}: ${error.message}`);
-            }
-
-            if (validationsFailed === 0) {
-              successCount++;
-            } else {
-              errorCount++;
-            }
-
-          } else {
-            errorCount++;
-            cy.task("cli_log", `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`);
-          }
-
-          // Continue to next result
-          processNextResult(index + 1);
-        })
+        const currentResult = results[index];
+        return processValidationResult(currentResult, validationServiceUrl).then((result) => {
+          const newSuccessCount = result.success ? successCount + 1 : successCount;
+          const newErrorCount = result.success ? errorCount : errorCount + 1;
+          
+          return processResultsSequentially(results, index + 1, newSuccessCount, newErrorCount);
+        });
       }
 
-      // Start processing first result
-      processNextResult(0);
+      return processResultsSequentially(matchingResults, 0, 0, 0);
     });
   });
 });
