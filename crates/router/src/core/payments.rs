@@ -3830,7 +3830,7 @@ where
                 connector_call_type_optional,
             )
             .await?;
-        // Check if the wallet has already decrypted the token from the payment data.
+        // Check if the wallet has already decrypted the token from the payment data and enable_predecrypted_token is true.
         // If a pre-decrypted token is available, check if it is enabled in mca and use it directly to avoid redundant decryption.
 
         if let Some(predecrypted_token) =
