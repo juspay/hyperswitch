@@ -677,70 +677,25 @@ impl ConnectorSpecifications for ConnectorEnum {
     #[cfg(feature = "v1")]
     fn generate_connector_customer_reference_id(
         &self,
-        connector_customer_id: Option<String>,
         customer_id: &Option<common_utils::id_type::CustomerId>,
-        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
         match self {
-            Self::Old(connector) => connector.generate_connector_customer_reference_id(
-                connector_customer_id,
-                customer_id,
-                payment_method_info,
-                payment_attempt,
-            ),
-            Self::New(connector) => connector.generate_connector_customer_reference_id(
-                connector_customer_id,
-                customer_id,
-                payment_method_info,
-                payment_attempt,
-            ),
+            Self::Old(connector) => {
+                connector.generate_connector_customer_reference_id(customer_id, merchant_id)
+            }
+            Self::New(connector) => {
+                connector.generate_connector_customer_reference_id(customer_id, merchant_id)
+            }
         }
     }
 
     #[cfg(feature = "v2")]
     fn generate_connector_customer_reference_id(
         &self,
-        connector_customer_id: Option<String>,
         customer_id: &Option<common_utils::id_type::CustomerId>,
-        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        todo!()
-    }
-
-    #[cfg(feature = "v1")]
-    fn generate_payout_connector_customer_reference_id(
-        &self,
-        connector_customer_id: Option<String>,
-        customer_id: &Option<common_utils::id_type::CustomerId>,
-        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.generate_payout_connector_customer_reference_id(
-                connector_customer_id,
-                customer_id,
-                payment_method_info,
-                payout_attempt,
-            ),
-            Self::New(connector) => connector.generate_payout_connector_customer_reference_id(
-                connector_customer_id,
-                customer_id,
-                payment_method_info,
-                payout_attempt,
-            ),
-        }
-    }
-
-    #[cfg(feature = "v2")]
-    fn generate_payout_connector_customer_reference_id(
-        &self,
-        connector_customer_id: Option<String>,
-        customer_id: &Option<common_utils::id_type::CustomerId>,
-        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
         todo!()
     }
 

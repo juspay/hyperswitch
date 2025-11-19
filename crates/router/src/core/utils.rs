@@ -1865,15 +1865,19 @@ pub fn get_connector_customer_reference_id(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| "Failed to construct connector data")?;
 
-    connector_data
-        .connector
-        .generate_connector_customer_reference_id(
-            connector_customer_id,
-            customer_id,
-            payment_method_info,
-            payment_attempt,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+    let mandate_customer_id = payment_method_info
+        .as_ref()
+        .zip(payment_attempt.merchant_connector_id.as_ref())
+        .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .flatten();
+
+    Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+        connector_data
+            .connector
+            .generate_connector_customer_reference_id(customer_id, &payment_attempt.merchant_id)
+    }))
 }
 
 #[cfg(feature = "v2")]
@@ -1896,15 +1900,18 @@ pub fn get_payout_connector_customer_reference_id(
     payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
     payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    connector_data
-        .connector
-        .generate_payout_connector_customer_reference_id(
-            connector_customer_id,
-            customer_id,
-            payment_method_info,
-            payout_attempt,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+    let mandate_customer_id = payment_method_info
+        .as_ref()
+        .zip(payout_attempt.merchant_connector_id.as_ref())
+        .map(|(pm, mci)| pm.get_payout_connector_customer_id(mci.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .flatten();
+    Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+        connector_data
+            .connector
+            .generate_connector_customer_reference_id(customer_id, &payout_attempt.merchant_id)
+    }))
 }
 
 #[cfg(feature = "v2")]

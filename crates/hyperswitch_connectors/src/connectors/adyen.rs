@@ -3344,27 +3344,15 @@ impl ConnectorSpecifications for Adyen {
     #[cfg(feature = "v1")]
     fn generate_connector_customer_reference_id(
         &self,
-        connector_customer_id: Option<String>,
         customer_id: &Option<common_utils::id_type::CustomerId>,
-        payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let mandate_customer_id = payment_method_info
-            .as_ref()
-            .zip(payment_attempt.merchant_connector_id.as_ref())
-            .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
-            .transpose()
-            .change_context(errors::ConnectorError::ParsingFailed)?
-            .flatten();
-
-        Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
-            customer_id.as_ref().map(|cid| {
-                format!(
-                    "{}_{}",
-                    payment_attempt.merchant_id.get_string_repr(),
-                    cid.get_string_repr()
-                )
-            })
-        }))
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id.as_ref().map(|cid| {
+            format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                cid.get_string_repr()
+            )
+        })
     }
 }
