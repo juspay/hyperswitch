@@ -1943,7 +1943,7 @@ impl<F>
         match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
-                let minor_amount_captured = if status == common_enums::AttemptStatus::Charged  || status == common_enums::AttemptStatus::PartialCharged || status == common_enums::AttemptStatus::Authorized  || status == common_enums::AttemptStatus::PartiallyAuthorized {
+                let minor_amount_captured = if connector_utils::is_successful_terminal_status(status){
                         sale_response.approved_amount
                     } else {
                         None
@@ -2061,7 +2061,7 @@ impl<F>
                 };
 
                 let status = get_attempt_status(payment_flow_type, auth_response.response)?;
-                let minor_amount_captured = if status == common_enums::AttemptStatus::Charged  || status == common_enums::AttemptStatus::PartialCharged || status == common_enums::AttemptStatus::Authorized  || status == common_enums::AttemptStatus::PartiallyAuthorized {
+                let minor_amount_captured = if connector_utils::is_successful_terminal_status(status){
                         auth_response.approved_amount
                     } else {
                         None

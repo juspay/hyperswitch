@@ -1350,7 +1350,7 @@ port = 8000
 service = "dynamo"
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
-base_url = "http://127.0.0.1:8080" #Base URL
+base_url = "http://127.0.0.1:8081" #Base URL
 
 [theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used

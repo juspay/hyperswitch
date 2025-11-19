@@ -177,7 +177,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
 
         self.validate_status_for_operation(payment_intent.status)?;
 
-        let active_attempt_id = payment_intent.active_attempt_id.clone().ok_or_else(|| {
+        let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: ("active_attempt_id"),
             }
@@ -187,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                &active_attempt_id.clone(),
+                &active_attempt_id,
                 storage_scheme,
             )
             .await

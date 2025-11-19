@@ -849,12 +849,21 @@ impl PaymentIntent {
                     }
                 )
             })?;
-        let amount = self.amount_details.order_amount
-            - self
-                .amount_details
-                .amount_captured
-                .unwrap_or(MinorUnit::zero());
+        // Validate that amount_captured doesn't exceed order_amount
+        let captured_amount = self
+            .amount_details
+            .amount_captured
+            .unwrap_or(MinorUnit::zero());
 
+        if captured_amount > self.amount_details.order_amount {
+            return Err(error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::InvalidRequestData {
+                    message: "Amount captured cannot exceed the order amount".to_string()
+                }
+            ));
+        }
+
+        let amount = self.amount_details.order_amount - captured_amount;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
             amount,
             currency: self.amount_details.currency,
