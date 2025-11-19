@@ -197,6 +197,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_payment_method_data,
                     vault_source_details: vault_source_details
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
+                    created_by: None,
+                    last_modified_by: None,
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -417,6 +419,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_locker_id: Some(token_pm_resp.payment_method_id),
                     network_token_payment_method_data: pm_network_token_data_encrypted
                         .map(Into::into),
+                    last_modified_by: None,
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -839,6 +842,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
+            last_modified_by: None,
         };
         // update the db with the default payment method id
 
@@ -1048,6 +1052,7 @@ impl PaymentMethodsController for PmCards<'_> {
         if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
             let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id: Some(None),
+                last_modified_by: None,
             };
             db.update_customer_by_customer_id_merchant_id(
                 key_manager_state,
@@ -1265,6 +1270,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
                         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                             payment_method_data: pm_data_encrypted.map(Into::into),
+                            last_modified_by: None,
                         };
 
                         db.update_payment_method(
@@ -1507,6 +1513,7 @@ pub async fn add_payment_method_data(
                     if duplication_check.is_some() {
                         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                             status: Some(enums::PaymentMethodStatus::Inactive),
+                            last_modified_by: None,
                         };
 
                         db.update_payment_method(
@@ -1579,6 +1586,7 @@ pub async fn add_payment_method_data(
                             payment_method_type: req.payment_method_type,
                             network_token_locker_id: None,
                             network_token_payment_method_data: None,
+                            last_modified_by: None,
                         };
 
                         db.update_payment_method(
@@ -1614,6 +1622,7 @@ pub async fn add_payment_method_data(
                 Err(e) => {
                     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                         status: Some(enums::PaymentMethodStatus::Inactive),
+                        last_modified_by: None,
                     };
 
                     db.update_payment_method(
@@ -1825,6 +1834,7 @@ pub async fn update_customer_payment_method(
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted.map(Into::into),
+                last_modified_by: None,
             };
 
             add_card_resp
@@ -1904,6 +1914,7 @@ pub async fn update_customer_payment_method(
 
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
+            last_modified_by: None,
         };
 
         let pm = db
@@ -2251,6 +2262,7 @@ pub async fn update_payment_method_metadata_and_last_used(
     let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
         metadata: pm_metadata,
         last_used_at: common_utils::date_time::now(),
+        last_modified_by: None,
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
         .await
@@ -2271,6 +2283,7 @@ pub async fn update_payment_method_and_last_used(
         payment_method_data: payment_method_update,
         scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
+        last_modified_by: None,
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
         .await
@@ -2289,6 +2302,7 @@ pub async fn update_payment_method_connector_mandate_details(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
+        last_modified_by: None,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -2317,6 +2331,7 @@ pub async fn update_payment_method_connector_mandate_details(
 
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
+        last_modified_by: None,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)

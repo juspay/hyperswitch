@@ -2248,6 +2248,7 @@ pub async fn create_recipient_disburse_account(
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
+                            last_modified_by: None,
                         };
 
                     payout_data.payment_method = Some(

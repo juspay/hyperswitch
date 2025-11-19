@@ -1850,6 +1850,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
+                            last_modified_by: None,
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
@@ -1892,6 +1893,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
+                        // TODO: Populate created_by from authentication context once it is integrated in auth data
+                        created_by: None,
+                        last_modified_by: None, // Same as created_by on creation
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
