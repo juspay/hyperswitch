@@ -65,7 +65,6 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
-    router_response_types::RedirectForm,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
