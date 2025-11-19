@@ -107,6 +107,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -143,6 +144,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                         call_connector_action.clone(),
                         business_profile,
                         header_payload,
+                        gateway_context,
                     ))
                     .await?;
                 }
@@ -951,6 +953,7 @@ async fn call_unified_connector_service_complete_authorize(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn process_capture_flow(
     mut router_data: types::RouterData<
         api::CompleteAuthorize,
@@ -963,6 +966,7 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    gateway_context: payments::flows::gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<
         api::CompleteAuthorize,
@@ -985,6 +989,7 @@ async fn process_capture_flow(
         call_connector_action,
         business_profile,
         header_payload,
+        gateway_context,
     )
     .await;
 

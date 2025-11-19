@@ -20,7 +20,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, gateway::context as gateway_context, helpers,
+            tokenization, transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },
@@ -88,6 +89,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::ExternalVaultProxy,
