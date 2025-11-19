@@ -5540,15 +5540,6 @@ pub enum PaymentMethodDataResponse {
     MobilePayment(Box<MobilePaymentResponse>),
 }
 
-impl PaymentMethodDataResponse {
-    pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
-        match self {
-            Self::Card(card) => card.card_network.clone(),
-            _ => None,
-        }
-    }
-}
-
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -5739,6 +5730,18 @@ pub struct PaymentMethodDataResponseWithBilling {
     #[smithy(value_type = "Option<PaymentMethodDataResponse>")]
     pub payment_method_data: Option<PaymentMethodDataResponse>,
     pub billing: Option<Address>,
+}
+
+impl PaymentMethodDataResponseWithBilling {
+    pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            PaymentMethodDataResponseWithBilling {
+                payment_method_data: Some(PaymentMethodDataResponse::Card(card)),
+                ..
+            } => card.card_network.clone(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -6295,7 +6298,7 @@ pub struct ThreeDsData {
     pub card_network: Option<api_enums::CardNetwork>,
     /// Prefered 3ds Connector
     #[smithy(value_type = "Option<String>")]
-    pub preferred_3ds_connector: Option<String>,
+    pub three_ds_connector: Option<String>,
 }
 
 #[derive(
