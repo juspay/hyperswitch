@@ -7339,12 +7339,10 @@ fn get_google_pay_connector_wallet_details(
                 });
 
             google_pay_wallet_details
-                .ok()
+                .ok().and_then(|details| details.google_pay.data)
                 .and_then(
                     |google_pay_wallet_details| {
-                        match google_pay_wallet_details
-                        .google_pay
-                        .provider_details {
+                        match google_pay_wallet_details.provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
                                 match (
                                     merchant_details

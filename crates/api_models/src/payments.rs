@@ -9192,13 +9192,19 @@ pub struct SessionTokenForSimplifiedApplePay {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayWalletDetails {
-    pub google_pay: GooglePayDetails,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
     pub cards: GpayAllowedMethodsParameters,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GooglePayDetails>,
     pub enable_predecrypted_token: Option<bool>,
 }
 

@@ -1015,11 +1015,21 @@ fn create_gpay_session_token(
                     expected_format: "gpay_connector_wallets_details_format".to_string(),
                 })?;
 
+            let (provider_details, cards) = if let Some(google_pay_info) = gpay_data.google_pay.data
+            {
+                (google_pay_info.provider_details, google_pay_info.cards)
+            } else {
+                return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_wallets_details".to_string(),
+                    expected_format: "gpay_connector_wallets_details_format".to_string(),
+                }
+                .into());
+            };
             let payment_types::GooglePayProviderDetails::GooglePayMerchantDetails(gpay_info) =
-                gpay_data.google_pay.provider_details.clone();
+                provider_details.clone();
 
             let gpay_allowed_payment_methods = get_allowed_payment_methods_from_cards(
-                gpay_data,
+                cards,
                 &gpay_info.merchant_info.tokenization_specification,
                 is_billing_details_required,
             )?;
@@ -1131,7 +1141,7 @@ fn create_gpay_session_token(
 pub(crate) const CARD: &str = "CARD";
 
 fn get_allowed_payment_methods_from_cards(
-    gpay_info: payment_types::GooglePayWalletDetails,
+    gpay_cards: payment_types::GpayAllowedMethodsParameters,
     gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
     is_billing_details_required: bool,
 ) -> RouterResult<payment_types::GpayAllowedPaymentMethods> {
@@ -1151,7 +1161,7 @@ fn get_allowed_payment_methods_from_cards(
         parameters: payment_types::GpayAllowedMethodsParameters {
             billing_address_required: Some(is_billing_details_required),
             billing_address_parameters: billing_address_parameters.clone(),
-            ..gpay_info.google_pay.cards
+            ..gpay_cards
         },
         payment_method_type: CARD.to_string(),
         tokenization_specification: payment_types::GpayTokenizationSpecification {
