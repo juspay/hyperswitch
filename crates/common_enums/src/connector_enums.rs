@@ -183,6 +183,11 @@ pub enum RoutableConnectors {
     Zift,
     Plaid,
     Zsl,
+    Juspaythreedsserver,
+    CtpMastercard,
+    CtpVisa,
+    Netcetera,
+    Cardinal,
 }
 
 // A connector is an integration to fulfill payments
@@ -761,6 +766,11 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
             RoutableConnectors::Payjustnow => Self::Payjustnow,
+            RoutableConnectors::Juspaythreedsserver => Self::Juspaythreedsserver,
+            RoutableConnectors::CtpMastercard => Self::CtpMastercard,
+            RoutableConnectors::CtpVisa => Self::CtpVisa,
+            RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Cardinal => Self::Cardinal,
         }
     }
 }
