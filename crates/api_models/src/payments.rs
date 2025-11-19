@@ -5735,7 +5735,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 impl PaymentMethodDataResponseWithBilling {
     pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
         match self {
-            PaymentMethodDataResponseWithBilling {
+            Self {
                 payment_method_data: Some(PaymentMethodDataResponse::Card(card)),
                 ..
             } => card.card_network.clone(),
