@@ -1094,6 +1094,8 @@ diesel::table! {
         is_stored_credential -> Nullable<Bool>,
         authorized_amount -> Nullable<Int8>,
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
     }
 }
 
@@ -1201,6 +1203,8 @@ diesel::table! {
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
     }
 }
 

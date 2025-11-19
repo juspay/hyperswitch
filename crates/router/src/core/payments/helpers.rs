@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -77,6 +77,7 @@ use crate::core::{
     payments::{
         call_connector_service, customers,
         flows::{ConstructFlowSpecificData, Feature},
+        gateway::context as gateway_context,
         operations::ValidateResult as OperationsValidateResult,
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
@@ -4111,6 +4112,7 @@ mod tests {
             shipping_address_id: None,
             billing_address_id: None,
             mit_category: None,
+            tokenization: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now(),
@@ -4261,6 +4263,7 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            tokenization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4281,6 +4284,7 @@ mod tests {
             metadata: None,
             connector_id: None,
             mit_category: None,
+            tokenization: None,
             shipping_address_id: None,
             billing_address_id: None,
             statement_descriptor_name: None,
@@ -4864,6 +4868,7 @@ impl AttemptType {
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,
+            tokenization: None,
         }
     }
 
@@ -8511,6 +8516,19 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: None,
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     call_connector_service(
         state,
@@ -8531,6 +8549,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await
 }
@@ -8619,6 +8638,17 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids: lineage_ids.clone(),
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode,
+    };
 
     // Call Direct connector service
     let result = call_connector_service(
@@ -8640,6 +8670,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await?;
 

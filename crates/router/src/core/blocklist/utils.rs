@@ -317,7 +317,7 @@ pub async fn should_payment_be_blocked(
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint)
+            .map(|payload| payload.fingerprint_id)
         } else {
             None
         };
@@ -479,7 +479,7 @@ pub async fn generate_payment_fingerprint(
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint)
+            .map(|payload| payload.fingerprint_id)
         } else {
             logger::error!("failed to retrieve card fingerprint");
             None

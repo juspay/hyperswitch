@@ -23,7 +23,7 @@ use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
 use josekit::jwe;
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
 use crate::{
@@ -70,9 +70,13 @@ pub async fn mk_tokenization_req(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -111,7 +115,7 @@ pub async fn mk_tokenization_req(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -181,9 +185,13 @@ pub async fn generate_network_token(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -222,7 +230,7 @@ pub async fn generate_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -383,6 +391,12 @@ pub async fn get_network_token(
         customer_id,
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -417,7 +431,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -451,6 +465,12 @@ pub async fn get_network_token(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -485,7 +505,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -731,6 +751,12 @@ pub async fn check_token_status_with_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -762,7 +788,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -804,6 +830,12 @@ pub async fn check_token_status_with_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -835,7 +867,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -965,6 +997,12 @@ pub async fn delete_network_token_from_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -998,7 +1036,7 @@ pub async fn delete_network_token_from_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
