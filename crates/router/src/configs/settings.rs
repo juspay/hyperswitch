@@ -703,6 +703,7 @@ pub struct Locker {
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub external_vault_enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

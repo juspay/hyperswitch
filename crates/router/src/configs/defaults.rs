@@ -60,6 +60,7 @@ impl Default for super::settings::Locker {
             //Time to live for storage entries in locker
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
+            external_vault_enabled: false,
         }
     }
 }
