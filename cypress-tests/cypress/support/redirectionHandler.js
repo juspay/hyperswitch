@@ -168,21 +168,6 @@ function bankTransferRedirection(
               }
               verifyUrl = false;
               break;
-            case "redsys":
-              // Suppress cross-origin JavaScript errors from Redsys's website
-              cy.on("uncaught:exception", (err) => {
-                if (
-                  err.message.includes("$ is not defined")
-                ) {
-                  return false; // Prevent test failure
-                }
-                return true;
-              });
-
-              // Handle Redsys bank transfer redirection
-              cy.log("Redsys bank transfer redirection");
-              verifyUrl = false;
-              break;
             default:
               verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
