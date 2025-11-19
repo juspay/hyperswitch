@@ -46,10 +46,11 @@ function createIndividualRolloutConfig(methodFlow, globalState, configType = 'ro
   const httpsUrl = globalState.get("proxyHttps");
 
   const keySuffix = configType === 'shadow' ? '_shadow' : '';
+  const rolloutPercent = configType === 'shadow' ? 0.9 : 0.1;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
 
   const configValue = {
-    "rollout_percent": 0.1,
+    "rollout_percent": rolloutPercent,
     "http_url": httpUrl,
     "https_url": httpsUrl
   };
@@ -78,14 +79,14 @@ function createIndividualRolloutConfig(methodFlow, globalState, configType = 'ro
       expect(response.body).to.have.property("key").to.equal(key);
       expect(response.body).to.have.property("value").to.equal(value);
       return cy.task("cli_log", `PASS: ${configType} config created successfully: ${merchantId}_${connector}_${methodFlow}`).then(() => {
-        return { success: true, flow: methodFlow };
+        return cy.wrap({ success: true, flow: methodFlow });
       });
     } else {
       const errorMsg = response.body?.error?.message || 'Unknown error';
       return cy.task("cli_log", `FAIL: ${configType} config creation failed: ${merchantId}_${connector}_${methodFlow}`).then(() => {
         return cy.task("cli_log", `   Status: ${response.status}`).then(() => {
           return cy.task("cli_log", `   Error: ${errorMsg}`).then(() => {
-            return { success: false, flow: methodFlow, error: errorMsg };
+            return cy.wrap({ success: false, flow: methodFlow, error: errorMsg });
           });
         });
       });
@@ -275,18 +276,18 @@ function processValidationResult(resultId, validationServiceUrl) {
         if (detailResponse.body?.data?.data?.comparisonResult) {
           const comparisonResult = detailResponse.body.data.data.comparisonResult;
           const isValid = validateComparisonResult(comparisonResult, resultId);
-          return { success: isValid, resultId };
+          return cy.wrap({ success: isValid, resultId });
         } else {
           cy.task("cli_log", `FAIL: comparisonResult not found in response for ${resultId}`);
-          return { success: false, resultId };
+          return cy.wrap({ success: false, resultId });
         }
       } catch (error) {
         cy.task("cli_log", `FAIL: Validation error for ${resultId}: ${error.message}`);
-        return { success: false, resultId };
+        return cy.wrap({ success: false, resultId });
       }
     } else {
       cy.task("cli_log", `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`);
-      return { success: false, resultId };
+      return cy.wrap({ success: false, resultId });
     }
   });
 }
@@ -2512,7 +2513,7 @@ Cypress.Commands.add(
       body: saveCardConfirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
+      storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
@@ -2662,7 +2663,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, data, globalState) => {
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-
+    storeRequestId(response.headers["x-request-id"], globalState);
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.body.capture_method !== undefined) {
@@ -4600,7 +4601,7 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
       function processResultsSequentially(results, index, successCount, errorCount) {
         if (index >= results.length) {
           // Final summary
-          const message = errorCount === 0 
+          const message = errorCount === 0
             ? `Diff check validation completed: ${successCount} passed, ${errorCount} failed`
             : `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`;
           cy.task("cli_log", message);
@@ -4614,7 +4615,7 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
         return processValidationResult(currentResult, validationServiceUrl).then((result) => {
           const newSuccessCount = result.success ? successCount + 1 : successCount;
           const newErrorCount = result.success ? errorCount : errorCount + 1;
-          
+
           return processResultsSequentially(results, index + 1, newSuccessCount, newErrorCount);
         });
       }
