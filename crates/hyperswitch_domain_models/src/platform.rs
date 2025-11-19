@@ -1,8 +1,8 @@
 pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore};
 
 /// Provider = The business owner or the governing entity in the hierarchy.
-/// In a platform connected setup this is related to platform merchant.
-/// For a standard merchant, provider and processor are the same entity.
+/// In a platform-connected setup this is represented by the platform merchant.
+/// For a standard merchant, both provider and processor are represented by the same entity.
 #[derive(Clone, Debug)]
 pub struct Provider {
     account: MerchantAccount,
@@ -50,8 +50,7 @@ impl Processor {
 }
 
 /// Platform holds both Provider and Processor together.
-/// This struct makes it possible to distinguish the business owner for the org
-/// versus whose processor credentials are used for execution.
+/// This struct makes it possible to distinguish the business owner for the org versus whose processor credentials are used for execution.
 /// For a standard merchant flow, provider == processor.
 #[derive(Clone, Debug)]
 pub struct Platform {
@@ -62,7 +61,7 @@ pub struct Platform {
 impl Platform {
     /// Creates a Platform pairing from two merchant identities:
     /// one acting as provider and one as processor
-    /// Standard merchants can pass the same account/key_store for both
+    /// Standard merchants can pass the same account/key_store for both provider and processor
     pub fn new(
         provider_account: MerchantAccount,
         provider_key_store: MerchantKeyStore,

@@ -996,12 +996,12 @@ pub async fn payouts_list_available_filters_core(
 #[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 pub async fn get_payout_filters_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            merchant_context.get_merchant_account().get_id().to_owned(),
+            platform.get_processor().get_account().get_id().to_owned(),
             None,
         )
         .await?

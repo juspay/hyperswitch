@@ -608,7 +608,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
-    let platform = Platform::new(
+    let platform = hyperswitch_domain_models::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
         merchant_account.clone(),

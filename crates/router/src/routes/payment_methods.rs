@@ -791,7 +791,7 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| async move {
-            let platform: domain::Platform = auth.into();
+            let platform = auth.into();
             cards::PmCards {
                 state: &state,
                 platform: &platform,

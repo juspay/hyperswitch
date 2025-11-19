@@ -491,10 +491,8 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            get_payout_filters_core(state, merchant_context)
+            let platform = auth.into();
+            get_payout_filters_core(state, platform)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

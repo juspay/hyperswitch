@@ -61,9 +61,7 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            use hyperswitch_domain_models::platform::Platform;
-
-            let platform: Platform = auth.clone().into();
+            let platform = auth.clone().into();
             relay::relay_retrieve(
                 state,
                 platform,

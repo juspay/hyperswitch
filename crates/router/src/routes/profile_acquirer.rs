@@ -6,7 +6,6 @@ use super::app::AppState;
 use crate::{
     core::api_locking,
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::domain,
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -25,8 +24,8 @@ pub async fn create_profile_acquirer(
         &req,
         payload,
         |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
-            let platform: domain::Platform = auth_data.into();
-            crate::core::profile_acquirer::create_profile_acquirer(state, req, platform.clone())
+            let platform = auth_data.into();
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, platform)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -64,7 +63,7 @@ pub async fn profile_acquirer_update(
         &req,
         payload,
         |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
-            let platform: domain::Platform = auth_data.into(); // check for type annotation here
+            let platform = auth_data.into();
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,
                 profile_id.clone(),
