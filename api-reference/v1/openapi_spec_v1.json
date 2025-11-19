@@ -12607,7 +12607,7 @@
           "name": {
             "type": "string",
             "description": "name to be put in billing description",
-            "example": "John Doe",
+            "example": "The Online Retailer",
             "nullable": true
           },
           "city": {
