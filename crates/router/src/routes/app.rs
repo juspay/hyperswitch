@@ -1479,6 +1479,7 @@ impl Payouts {
                     web::resource("/filter")
                         .route(web::post().to(payouts_list_available_filters_for_merchant)),
                 )
+                .service(web::resource("/v2/filter").route(web::get().to(get_payout_filters)))
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
