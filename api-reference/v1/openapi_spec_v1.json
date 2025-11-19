@@ -34471,7 +34471,13 @@
           "zen",
           "zift",
           "plaid",
-          "zsl"
+          "zsl",
+          "juspaythreedsserver",
+          "ctp_mastercard",
+          "ctp_visa",
+          "netcetera",
+          "cardinal",
+          "threedsecureio"
         ]
       },
       "RoutingAlgorithmKind": {
