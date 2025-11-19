@@ -592,21 +592,28 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             }
         }?;
 
-        let (payment_consent, device_data, triggered_by) = if item
+        let payment_consent = if item
             .router_data
             .request
             .is_customer_initiated_mandate_payment()
         {
-            (
-                Some(PaymentConsentData {
-                    next_triggered_by: TriggeredBy::Merchant,
-                    merchant_trigger_reason: MerchantTriggeredReason::Unscheduled,
-                }),
-                Some(get_device_data(item.router_data)?),
-                None,
-            )
+            Some(PaymentConsentData {
+                next_triggered_by: TriggeredBy::Merchant,
+                merchant_trigger_reason: MerchantTriggeredReason::Unscheduled,
+            })
         } else {
-            (None, None, Some(TriggeredBy::Merchant))
+            None
+        };
+
+        let device_data = if item.router_data.request.is_mit_payment()
+            || item
+                .router_data
+                .request
+                .is_customer_initiated_mandate_payment()
+        {
+            None
+        } else {
+            Some(get_device_data(item.router_data)?)
         };
 
         let return_url = match &request.payment_method_data {
@@ -628,13 +635,16 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
 
         let customer_id = item.router_data.get_connector_customer_id()?;
 
-        let payment_consent_id = match item.router_data.request.is_mit_payment() {
-            true => Some(item.router_data.request.connector_mandate_id().ok_or(
+        let (payment_consent_id, triggered_by) = if item.router_data.request.is_mit_payment() {
+            let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "connector_mandate_id",
                 },
-            )?),
-            false => None,
+            )?;
+
+            (Some(mandate_id), Some(TriggeredBy::Merchant))
+        } else {
+            (None, None)
         };
 
         Ok(Self {
