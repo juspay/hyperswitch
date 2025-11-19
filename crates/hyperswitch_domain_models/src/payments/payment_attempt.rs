@@ -1041,6 +1041,7 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub tokenization: Option<common_enums::Tokenization>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
@@ -1271,6 +1272,18 @@ impl PaymentAttempt {
             .ok()
             .flatten()
     }
+    pub fn get_tokenization_strategy(&self) -> Option<common_enums::Tokenization> {
+        match self.setup_future_usage_applied {
+            Some(common_enums::FutureUsage::OnSession) | None => None,
+            Some(common_enums::FutureUsage::OffSession) => Some(
+                self.connector_mandate_detail
+                    .as_ref()
+                    .and_then(|detail| detail.connector_mandate_id.as_ref())
+                    .map(|_| common_enums::Tokenization::TokenizeAtPsp)
+                    .unwrap_or(common_enums::Tokenization::SkipPsp),
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1348,6 +1361,7 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub tokenization: Option<common_enums::Tokenization>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
@@ -1432,6 +1446,7 @@ pub enum PaymentAttemptUpdate {
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        tokenization: Option<common_enums::Tokenization>,
         card_discovery: Option<common_enums::CardDiscovery>,
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
@@ -1457,6 +1472,7 @@ pub enum PaymentAttemptUpdate {
     },
     ConnectorMandateDetailUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        tokenization: Option<common_enums::Tokenization>,
         updated_by: String,
     },
     VoidUpdate {
@@ -1489,6 +1505,7 @@ pub enum PaymentAttemptUpdate {
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
         payment_method_data: Option<serde_json::Value>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        tokenization: Option<common_enums::Tokenization>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
@@ -1673,9 +1690,11 @@ impl PaymentAttemptUpdate {
             },
             Self::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
+                tokenization,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
+                tokenization,
                 updated_by,
             },
             Self::PaymentMethodDetailsUpdate {
@@ -1714,6 +1733,7 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 connector_mandate_detail,
+                tokenization,
                 card_discovery,
                 routing_approach,
                 connector_request_reference_id,
@@ -1753,6 +1773,7 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
+                tokenization,
                 card_discovery,
                 routing_approach: routing_approach.map(|approach| match approach {
                     // we need to make sure Other variant is not stored in DB, in the rare case
@@ -1800,6 +1821,7 @@ impl PaymentAttemptUpdate {
                 extended_authorization_last_applied_at,
                 payment_method_data,
                 connector_mandate_detail,
+                tokenization,
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
@@ -1830,6 +1852,7 @@ impl PaymentAttemptUpdate {
                 extended_authorization_last_applied_at,
                 payment_method_data,
                 connector_mandate_detail,
+                tokenization,
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
@@ -2206,6 +2229,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            tokenization: self.tokenization,
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             extended_authorization_last_applied_at: self.extended_authorization_last_applied_at,
@@ -2308,6 +2332,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 profile_id: storage_model.profile_id,
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
+                tokenization: storage_model.tokenization,
                 request_extended_authorization: storage_model.request_extended_authorization,
                 extended_authorization_applied: storage_model.extended_authorization_applied,
                 extended_authorization_last_applied_at: storage_model
@@ -2413,6 +2438,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
+            tokenization: self.tokenization,
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
             extended_authorization_last_applied_at: self.extended_authorization_last_applied_at,
@@ -2605,6 +2631,7 @@ impl behaviour::Conversion for PaymentAttempt {
             attempts_group_id,
             is_stored_credential: None,
             authorized_amount,
+            tokenization: None,
             amount_captured,
         })
     }
@@ -2890,6 +2917,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
             network_details: None,
+            tokenization: None,
             attempts_group_id,
             is_stored_credential: None,
             authorized_amount,

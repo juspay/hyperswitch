@@ -123,6 +123,7 @@ pub enum HolderType {
 pub enum ZiftPaymentsRequest {
     Card(ZiftCardPaymentRequest),
     Mandate(ZiftMandatePaymentRequest),
+    ExternalThreeDs(ZiftExternalThreeDsPaymentRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -191,6 +192,78 @@ pub struct ZiftMandatePaymentRequest {
     phone: Option<Secret<String>>,
 }
 
+// External 3DS payment request
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZiftExternalThreeDsPaymentRequest {
+    request_type: RequestType,
+    #[serde(flatten)]
+    auth: ZiftAuthType,
+    account_type: AccountType,
+    account_number: cards::CardNumber,
+    account_accessory: Secret<String>,
+    transaction_industry_type: TransactionIndustryType,
+    holder_name: Secret<String>,
+    holder_type: HolderType,
+    amount: StringMinorUnit,
+    // 3DS authentication fields
+    authentication_status: AuthenticationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authentication_code: Option<Secret<String>>,
+    authentication_verification_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authentication_version: Option<Secret<String>>,
+    // Billing address
+    #[serde(skip_serializing_if = "Option::is_none")]
+    street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country_code: Option<CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum AuthenticationStatus {
+    #[serde(rename = "Y")]
+    Success,
+    #[serde(rename = "A")]
+    Attempted,
+    #[serde(rename = "U")]
+    Unavailable,
+}
+
+impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationData>
+    for AuthenticationStatus
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        auth_data: &hyperswitch_domain_models::router_request_types::AuthenticationData,
+    ) -> Result<Self, Self::Error> {
+        // Map authentication status based on trans_status field
+        let authentication_status = match auth_data.transaction_status {
+            Some(common_enums::TransactionStatus::Success) => Self::Success,
+            Some(common_enums::TransactionStatus::NotVerified) => Self::Attempted,
+            Some(common_enums::TransactionStatus::VerificationNotPerformed)
+            | Some(common_enums::TransactionStatus::Rejected)
+            | Some(common_enums::TransactionStatus::InformationOnly)
+            | Some(common_enums::TransactionStatus::Failure)
+            | Some(common_enums::TransactionStatus::ChallengeRequired)
+            | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | None => Self::Unavailable,
+        };
+        Ok(authentication_status)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub enum TransactionModeType {
     #[serde(rename = "P")]
@@ -211,11 +284,6 @@ pub enum TransactionCategoryType {
 impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ZiftRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(
-                errors::ConnectorError::NotImplemented("3DS Authentication".to_string()).into(),
-            );
-        }
         let auth = ZiftAuthType::try_from(&item.router_data.connector_auth_type)?;
         let request_type = if item.router_data.request.is_auto_capture()? {
             RequestType::Sale
@@ -224,26 +292,70 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
         };
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card) => {
-                let card_request = ZiftCardPaymentRequest {
-                    request_type,
-                    auth,
-                    account_number: card.card_number.clone(),
-                    account_accessory: card.get_expiry_date_as_mmyy()?,
-                    transaction_industry_type: TransactionIndustryType::CardPresent,
-                    holder_name: item.router_data.get_billing_full_name()?,
-                    amount: item.amount.to_owned(),
-                    account_type: AccountType::PaymentCard,
-                    holder_type: HolderType::Personal,
-                    csc: card.card_cvc,
-                    street: item.router_data.get_optional_billing_line1(),
-                    city: item.router_data.get_optional_billing_city(),
-                    state: item.router_data.get_optional_billing_state(),
-                    zip_code: item.router_data.get_optional_billing_zip(),
-                    country_code: item.router_data.get_optional_billing_country(),
-                    email: item.router_data.get_optional_billing_email(),
-                    phone: item.router_data.get_optional_billing_phone_number(),
-                };
-                Ok(Self::Card(card_request))
+                // Check if this is an external 3DS payment - both is_three_ds() and authentication_data must be present
+                if item.router_data.is_three_ds()
+                    && item.router_data.request.authentication_data.is_some()
+                {
+                    // Handle external 3DS authentication
+                    let auth_data = item
+                        .router_data
+                        .request
+                        .authentication_data
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "authentication_data",
+                        })?;
+
+                    let authentication_status = AuthenticationStatus::try_from(auth_data)?;
+
+                    let external_3ds_request = ZiftExternalThreeDsPaymentRequest {
+                        request_type,
+                        auth,
+                        account_number: card.card_number.clone(),
+                        account_accessory: card.get_expiry_date_as_mmyy()?,
+                        transaction_industry_type: TransactionIndustryType::CardNotPresent,
+                        holder_name: item.router_data.get_billing_full_name()?,
+                        amount: item.amount.to_owned(),
+                        account_type: AccountType::PaymentCard,
+                        holder_type: HolderType::Personal,
+                        authentication_status,
+                        authentication_code: auth_data.ds_trans_id.clone().map(Secret::new),
+                        authentication_verification_value: auth_data.cavv.clone(),
+                        authentication_version: auth_data
+                            .message_version
+                            .as_ref()
+                            .map(|v| Secret::new(v.to_string())),
+                        street: item.router_data.get_optional_billing_line1(),
+                        city: item.router_data.get_optional_billing_city(),
+                        state: item.router_data.get_optional_billing_state(),
+                        zip_code: item.router_data.get_optional_billing_zip(),
+                        country_code: item.router_data.get_optional_billing_country(),
+                        email: item.router_data.get_optional_billing_email(),
+                        phone: item.router_data.get_optional_billing_phone_number(),
+                    };
+                    Ok(Self::ExternalThreeDs(external_3ds_request))
+                } else {
+                    let card_request = ZiftCardPaymentRequest {
+                        request_type,
+                        auth,
+                        account_number: card.card_number.clone(),
+                        account_accessory: card.get_expiry_date_as_mmyy()?,
+                        transaction_industry_type: TransactionIndustryType::CardPresent,
+                        holder_name: item.router_data.get_billing_full_name()?,
+                        amount: item.amount.to_owned(),
+                        account_type: AccountType::PaymentCard,
+                        holder_type: HolderType::Personal,
+                        csc: card.card_cvc,
+                        street: item.router_data.get_optional_billing_line1(),
+                        city: item.router_data.get_optional_billing_city(),
+                        state: item.router_data.get_optional_billing_state(),
+                        zip_code: item.router_data.get_optional_billing_zip(),
+                        country_code: item.router_data.get_optional_billing_country(),
+                        email: item.router_data.get_optional_billing_email(),
+                        phone: item.router_data.get_optional_billing_phone_number(),
+                    };
+                    Ok(Self::Card(card_request))
+                }
             }
             PaymentMethodData::MandatePayment => {
                 let additional_card_details = match item

@@ -453,6 +453,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         mit_category: None,
+        tokenization: None,
         payment_channel: None,
         enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
@@ -1506,6 +1507,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         mandate_id: None,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         off_session: None,
+        tokenization: None,
         setup_mandate_details: None,
         router_return_url: Some(router_return_url.clone()),
         webhook_url,
@@ -3897,6 +3899,7 @@ where
             order_tax_amount,
             connector_mandate_id,
             mit_category: payment_intent.mit_category,
+            tokenization: payment_intent.tokenization,
             shipping_cost: payment_intent.shipping_cost,
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
@@ -4221,6 +4224,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             shipping_cost: None,
             card_discovery: pa.card_discovery,
             mit_category: pi.mit_category,
+            tokenization:pi.tokenization,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
             whole_connector_response: None,
@@ -4565,6 +4569,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             connector_testing_data: None,
             order_id: None,
             mit_category: None,
+            tokenization: None,
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
@@ -4806,6 +4811,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency,
             connector_testing_data,
             mit_category: payment_data.payment_intent.mit_category,
+            tokenization: payment_data.payment_intent.tokenization,
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
@@ -5833,6 +5839,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
             billing_descriptor,
             split_payments: payment_data.payment_intent.split_payments.clone(),
+            tokenization: payment_data.payment_intent.tokenization,
         })
     }
 }
@@ -5983,6 +5990,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .as_ref()
                 .map(router_request_types::UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
+            tokenization: payment_data.payment_intent.tokenization,
         })
     }
 }

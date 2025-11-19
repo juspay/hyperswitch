@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
 pub mod flows;
+pub mod gateway;
 pub mod helpers;
 pub mod operations;
 
@@ -22,9 +23,7 @@ use std::{
     vec::IntoIter,
 };
 
-#[cfg(feature = "v2")]
 use external_services::grpc_client;
-
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -91,6 +90,7 @@ pub use self::operations::{
 use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
+    gateway::context as gateway_context,
     operations::{BoxedOperation, Operation, PaymentResponse},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
@@ -149,7 +149,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::authentication as authentication_core,
+    core::{
+        authentication as authentication_core,
+        unified_connector_service::update_gateway_system_in_feature_metadata,
+    },
     types::{api::authentication, BrowserInformation},
 };
 
@@ -3985,6 +3988,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4147,6 +4151,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                context,
             )
             .await
     } else {
@@ -4383,83 +4388,138 @@ where
         }
     }
 
-    record_time_taken_with(|| async {
-        match execution_path {
-            // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
-            ExecutionPath::UnifiedConnectorService => {
-                process_through_ucs(
-                    &updated_state,
-                    req_state,
-                    merchant_context,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    merchant_connector_account,
-                    &connector,
-                    router_data,
-                )
-                .await
-            }
+    let is_ucs_granular_flow =
+        gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-            // Process through Direct with Shadow UCS
-            ExecutionPath::ShadowUnifiedConnectorService => {
-                process_through_direct_with_shadow_unified_connector_service(
-                    &updated_state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    shadow_ucs_call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
-                )
-                .await
-            }
+    if is_ucs_granular_flow {
+        logger::info!("Current flow is UCS Composite flow");
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
 
-            // Process through Direct gateway
-            ExecutionPath::Direct => {
-                process_through_direct(
-                    state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
-                )
-                .await
+        let execution_mode = match execution_path {
+            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            // ExecutionMode is irrelevant for Direct path in this context
+            ExecutionPath::Direct => ExecutionMode::NotApplicable,
+        };
+
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path,
+            execution_mode,
+        };
+        // Update feature metadata to track Direct routing usage for stickiness
+        update_gateway_system_in_feature_metadata(
+            payment_data,
+            gateway_context.get_gateway_system(),
+        )?;
+        call_connector_service(
+            state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
+            payment_data,
+            customer,
+            call_connector_action,
+            validate_result,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            all_keys_required,
+            merchant_connector_account,
+            router_data,
+            tokenization_action,
+            gateway_context,
+        )
+        .await
+    } else {
+        record_time_taken_with(|| async {
+            match execution_path {
+                // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
+                ExecutionPath::UnifiedConnectorService => {
+                    process_through_ucs(
+                        &updated_state,
+                        req_state,
+                        merchant_context,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        merchant_connector_account,
+                        &connector,
+                        router_data,
+                    )
+                    .await
+                }
+
+                // Process through Direct with Shadow UCS
+                ExecutionPath::ShadowUnifiedConnectorService => {
+                    process_through_direct_with_shadow_unified_connector_service(
+                        &updated_state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        shadow_ucs_call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                    )
+                    .await
+                }
+
+                // Process through Direct gateway
+                ExecutionPath::Direct => {
+                    process_through_direct(
+                        state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                    )
+                    .await
+                }
             }
-        }
-    })
-    .await
+        })
+        .await
+    }
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
@@ -4600,6 +4660,19 @@ where
         // and rely on previous status set in router_data
         // TODO: status is already set when constructing payment data, why should this be done again?
         // router_data.status = payment_data.get_payment_attempt().status;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account_type_details,
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
         router_data
             .decide_flows(
                 state,
@@ -4609,6 +4682,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5415,6 +5489,26 @@ where
         )
         .await?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    // TODO: determine execution path for proxy call connector service
+    let execution_path = ExecutionPath::Direct;
+    // Execution mode is irrelevant for Direct execution path
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -5430,6 +5524,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5543,6 +5638,20 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     let router_data = if should_continue_further {
         router_data
@@ -5554,6 +5663,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -5668,6 +5778,20 @@ where
             header_payload.clone(),
         )
         .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     let router_data = if should_continue_further {
         router_data
@@ -5679,6 +5803,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
+                gateway_context,
             )
             .await
     } else {
@@ -6203,6 +6328,19 @@ where
                 Some(header_payload.clone()),
             )
             .await?;
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+        };
 
         let res = router_data.decide_flows(
             state,
@@ -6212,6 +6350,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
+            gateway_context,
         );
 
         join_handlers.push(res);
@@ -6328,6 +6467,25 @@ where
             )
             .await?;
 
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
+
+        // TODO: determine execution path for SDK session token call.
+        let execution_path = ExecutionPath::Direct;
+        let execution_mode = ExecutionMode::NotApplicable;
+
+        let gateway_context = gateway_context::RouterGatewayContext {
+            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+            merchant_context: merchant_context.clone(),
+            header_payload: header_payload.clone(),
+            lineage_ids,
+            merchant_connector_account: merchant_connector_account.clone(),
+            execution_path,
+            execution_mode,
+        };
+
         let res = router_data.decide_flows(
             state,
             &session_connector_data.connector,
@@ -6336,6 +6494,7 @@ where
             business_profile,
             header_payload.clone(),
             return_raw_connector_response,
+            gateway_context,
         );
 
         join_handlers.push(res);

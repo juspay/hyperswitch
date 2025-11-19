@@ -1032,6 +1032,8 @@ diesel::table! {
         is_stored_credential -> Nullable<Bool>,
         authorized_amount -> Nullable<Int8>,
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1132,6 +1134,8 @@ diesel::table! {
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
