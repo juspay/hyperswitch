@@ -42,7 +42,7 @@ pub async fn profile_create(
             create_profile(state, req, platform)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
@@ -115,9 +115,16 @@ pub async fn profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
+        |state, auth_data, profile_id, _| {
+            retrieve_profile(
+                state,
+                profile_id,
+                auth_data.merchant_account.get_id().clone(),
+                auth_data.key_store,
+            )
+        },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountRead,
@@ -144,8 +151,19 @@ pub async fn profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, profile_id, _| {
-            retrieve_profile(state, profile_id, key_store)
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account,
+             key_store,
+         },
+         profile_id,
+         _| {
+            retrieve_profile(
+                state,
+                profile_id,
+                merchant_account.get_id().clone(),
+                key_store,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -191,9 +209,17 @@ pub async fn profile_update(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| update_profile(state, &profile_id, auth_data.key_store, req),
+        |state, auth_data, req, _| {
+            update_profile(
+                state,
+                &profile_id,
+                auth_data.merchant_account.get_id().clone(),
+                auth_data.key_store,
+                req,
+            )
+        },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
@@ -235,8 +261,20 @@ pub async fn profile_update(
         state,
         &req,
         payload,
-        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, req, _| {
-            update_profile(state, &profile_id, key_store, req)
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account,
+             key_store,
+         },
+         req,
+         _| {
+            update_profile(
+                state,
+                &profile_id,
+                merchant_account.get_id().clone(),
+                key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -289,9 +327,9 @@ pub async fn profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, _auth, merchant_id, _| list_profile(state, merchant_id, None),
+        |state, auth, _, _| list_profile(state, auth.merchant_account.get_id().clone(), None),
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
@@ -349,15 +387,15 @@ pub async fn profiles_list_at_profile_level(
         state,
         &req,
         merchant_id.clone(),
-        |state, auth, merchant_id, _| {
+        |state, auth, _, _| {
             list_profile(
                 state,
-                merchant_id,
+                auth.merchant_account.get_id().clone(),
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileAccountRead,
@@ -445,15 +483,15 @@ pub async fn payment_connector_list_profile(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, auth, merchant_id, _| {
+        |state, auth, _, _| {
             list_payment_connectors(
                 state,
-                merchant_id,
+                auth.merchant_account.get_id().clone(),
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,

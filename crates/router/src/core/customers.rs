@@ -214,6 +214,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None,
         })
     }
 
@@ -341,6 +344,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None,
         })
     }
 
@@ -792,6 +798,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
                 tax_registration_id: Some(redacted_encrypted_value),
+                last_modified_by: None,
             }));
 
         db.update_customer_by_global_id(
@@ -1033,6 +1040,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             connector_customer: Box::new(None),
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
+            last_modified_by: None,
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1360,6 +1368,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
+                    last_modified_by: None,
                 },
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
@@ -1482,6 +1491,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
+                    last_modified_by: None,
                 })),
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,

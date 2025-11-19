@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0
+
+### Features
+
+- **connector:** [NOVALNET] Pass Payment Metadata fields to Connector ([#10315](https://github.com/juspay/hyperswitch/pull/10315)) ([`4ab9d05`](https://github.com/juspay/hyperswitch/commit/4ab9d05c7db49488df997a68df04160fec2eec43))
+- **core:** Support skipping PSP tokenization in payment and mandate flows ([#10074](https://github.com/juspay/hyperswitch/pull/10074)) ([`5910322`](https://github.com/juspay/hyperswitch/commit/5910322f91b632043a60e5bb488fd785fb3524fd))
+- **feature:** [Zift] Add External 3DS Cards Support ([#10277](https://github.com/juspay/hyperswitch/pull/10277)) ([`9bf82ee`](https://github.com/juspay/hyperswitch/commit/9bf82eef59ff2068df6784b458f1d80e886a8b45))
+- **ucs:** Implement UCS granular flow for PSync ([#10192](https://github.com/juspay/hyperswitch/pull/10192)) ([`2583ea1`](https://github.com/juspay/hyperswitch/commit/2583ea11adb0383f6e6aac4004137215298f4e40))
+
+### Bug Fixes
+
+- **Authipay:** AuthiPay AuthType Fix ([#10246](https://github.com/juspay/hyperswitch/pull/10246)) ([`3e6d3ea`](https://github.com/juspay/hyperswitch/commit/3e6d3ea7c430cb2c17746f8fbbd869ac20ce142b))
+- **connector:** (REVERT PR) remove card name as mandatore field in sdk [ ADYEN] ([#10326](https://github.com/juspay/hyperswitch/pull/10326)) ([`372f9b4`](https://github.com/juspay/hyperswitch/commit/372f9b4d42df006ea240c92538be53d82dd5f412))
+- **router:** Read form method using getAttribute instead of property access ([#10278](https://github.com/juspay/hyperswitch/pull/10278)) ([`5923c1b`](https://github.com/juspay/hyperswitch/commit/5923c1b8a5df15b0a7868333d6f0bf31bb2c709c))
+- **routing:** Remove duplicate MCA call for each payment method type ([#10324](https://github.com/juspay/hyperswitch/pull/10324)) ([`1840199`](https://github.com/juspay/hyperswitch/commit/1840199ca697bd5d10acb311b9b1e8b458e91a22))
+- **trustpay:** Update error message handling to use error_message instead of result_code ([#10239](https://github.com/juspay/hyperswitch/pull/10239)) ([`781e392`](https://github.com/juspay/hyperswitch/commit/781e392dbb8fe172968296ecd107ad8fa86522a2))
+- Connector Metadata Extraction for Void and Capture in HS<>UCS tunnel ([#10234](https://github.com/juspay/hyperswitch/pull/10234)) ([`8675bfa`](https://github.com/juspay/hyperswitch/commit/8675bfa0fbf4c95a43c1c04bad4b3e8c79978404))
+- Update and fix failing Postman collection tests ([#10265](https://github.com/juspay/hyperswitch/pull/10265)) ([`dd40155`](https://github.com/juspay/hyperswitch/commit/dd40155c1736e64ed69eb9fc7d0583e9f3d8a866))
+
+### Refactors
+
+- **connector:** [WorldpayWPG] Refactored payout flow ([#10226](https://github.com/juspay/hyperswitch/pull/10226)) ([`7a2c48d`](https://github.com/juspay/hyperswitch/commit/7a2c48dc4074468367b68eaae08c52168e99099c))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`4c5d0b2`](https://github.com/juspay/hyperswitch/commit/4c5d0b2b311fe56314aaae61b54f03a2f2ae66b2))
+
+**Full Changelog:** [`2025.11.18.0...2025.11.19.0`](https://github.com/juspay/hyperswitch/compare/2025.11.18.0...2025.11.19.0)
+
+- - -
+
 ## 2025.11.18.0
 
 ### Features

@@ -2879,6 +2879,7 @@ async fn update_connector_mandate_details(
                         let attempt_update =
                             storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                                 connector_mandate_detail: Some(connector_mandate_reference_id),
+                                tokenization: None, // We need to handle tokenization field update in webhooks as well
                                 updated_by: platform
                                     .get_processor()
                                     .get_account()
@@ -2927,6 +2928,7 @@ async fn update_connector_mandate_details(
                 connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
+                last_modified_by: None,
             };
 
             state

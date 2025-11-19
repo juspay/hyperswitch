@@ -1075,6 +1075,7 @@ pub async fn create_payment_method_card_core(
         Err(e) => {
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(enums::PaymentMethodStatus::Inactive),
+                last_modified_by: None,
             };
 
             db.update_payment_method(
@@ -1958,6 +1959,8 @@ pub async fn create_payment_method_for_intent(
                 external_vault_source: None,
                 external_vault_token_data: None,
                 vault_type: None,
+                created_by: None,
+                last_modified_by: None,
             },
             storage_scheme,
         )
@@ -2024,6 +2027,8 @@ pub async fn create_payment_method_for_confirm(
                 external_vault_source,
                 external_vault_token_data: encrypted_external_vault_token_data,
                 vault_type,
+                created_by: None,
+                last_modified_by: None,
             },
             storage_scheme,
         )
@@ -2233,6 +2238,7 @@ pub async fn create_pm_additional_data_update(
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
+        last_modified_by: None,
     };
 
     Ok(pm_update)
@@ -2802,6 +2808,7 @@ pub async fn update_payment_method_status_internal(
 
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(status),
+        last_modified_by: None,
     };
 
     let updated_pm = db
@@ -2998,6 +3005,7 @@ pub async fn delete_payment_method_core(
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
+        last_modified_by: None,
     };
 
     db.update_payment_method(
