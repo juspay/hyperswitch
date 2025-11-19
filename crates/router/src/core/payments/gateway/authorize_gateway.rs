@@ -67,7 +67,6 @@ where
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
-        let creds_identifier = context.creds_identifier;
         let merchant_context = context.merchant_context;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
@@ -106,8 +105,6 @@ where
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct Payment Get Request")?;
 
-        let merchant_connector_id = merchant_connector_account.get_mca_id();
-
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
@@ -130,21 +127,19 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let connector_name = router_data.connector.clone();
         let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
             router_data.clone(),
             state,
             granular_authorize_request,
             header_payload,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
-                let response = client
-                    .payment_authorize_granular(
-                        granular_authorize_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .attach_printable("Failed to get payment")?;
+                let response = Box::pin(client.payment_authorize_granular(
+                    granular_authorize_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .attach_printable("Failed to get payment")?;
 
                 let payment_authorize_response = response.into_inner();
 
