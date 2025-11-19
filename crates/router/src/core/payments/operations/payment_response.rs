@@ -210,6 +210,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             merchant_connector_id.clone(),
             vault_operation.clone(),
             payment_method_info.clone(),
+            payment_data.payment_method_token.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -307,6 +308,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let payment_method_billing_address = payment_method_billing_address.cloned();
 
             let cloned_merchant_context = merchant_context.clone();
+            let payment_method_token = payment_data.payment_method_token.clone();
+
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
                 async move {
@@ -326,6 +329,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         merchant_connector_id.clone(),
                         vault_operation.clone(),
                         payment_method_info.clone(),
+                        payment_method_token.clone(),
                     ))
                     .await;
 
@@ -1290,6 +1294,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             merchant_connector_id.clone(),
             vault_operation,
             payment_method_info,
+            payment_data.payment_method_token.clone(),
         ))
         .await?;
 
