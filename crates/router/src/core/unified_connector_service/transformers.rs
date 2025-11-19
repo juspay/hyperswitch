@@ -38,7 +38,6 @@ use url::Url;
 use crate::{
     core::{errors, unified_connector_service},
     types::{
-        self as core_types,
         api,
         transformers::{self, ForeignFrom},
     },
@@ -66,7 +65,8 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     }
 }
 
-impl transformers::ForeignTryFrom<(
+impl
+    transformers::ForeignTryFrom<(
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         common_enums::CallConnectorAction,
     )> for payments_grpc::PaymentServiceAuthorizeOnlyRequest
@@ -1126,7 +1126,7 @@ impl
                 .transpose()?,
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
-            order_details: vec![]
+            order_details: vec![],
         })
     }
 }

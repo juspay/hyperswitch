@@ -10,12 +10,14 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
-use crate::core::unified_connector_service::handle_unified_connector_service_response_for_payment_authorize;
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{
+        payments::gateway::context::RouterGatewayContext, unified_connector_service,
+        unified_connector_service::handle_unified_connector_service_response_for_payment_authorize,
+    },
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom, MinorUnit},
@@ -96,12 +98,13 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let granular_authorize_request = payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
-            router_data,
-            call_connector_action,
-        ))
-        .change_context(ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to construct Payment Get Request")?;
+        let granular_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
+                router_data,
+                call_connector_action,
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to construct Payment Get Request")?;
 
         let merchant_connector_id = merchant_connector_account.get_mca_id();
 
@@ -135,26 +138,26 @@ where
             header_payload,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
                 let response = client
-                    .payment_authorize_granular(granular_authorize_request, connector_auth_metadata, grpc_headers)
+                    .payment_authorize_granular(
+                        granular_authorize_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                    )
                     .await
                     .attach_printable("Failed to get payment")?;
 
                 let payment_authorize_response = response.into_inner();
 
-                let ucs_data =
-                    handle_unified_connector_service_response_for_payment_authorize(
-                        payment_authorize_response.clone(),
-                    )
-                    .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
+                    payment_authorize_response.clone(),
+                )
+                .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response =
+                    ucs_data.router_data_response.map(|(response, status)| {
+                        router_data.status = status;
+                        response
+                    });
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_authorize_response.captured_amount;
                 router_data.minor_amount_captured = payment_authorize_response
@@ -175,8 +178,8 @@ where
                     router_data.connector_response = Some(customer_response);
                 });
 
-                    Ok((router_data, payment_authorize_response))
-                },
+                Ok((router_data, payment_authorize_response))
+            },
         ))
         .await
         .change_context(ConnectorError::ResponseHandlingFailed)?;

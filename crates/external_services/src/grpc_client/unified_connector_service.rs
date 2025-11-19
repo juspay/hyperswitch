@@ -159,8 +159,7 @@ impl UnifiedConnectorServiceClient {
         payment_authorize_only_request: payments_grpc::PaymentServiceAuthorizeOnlyRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>>
-    {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         let mut request = tonic::Request::new(payment_authorize_only_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
