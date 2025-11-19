@@ -1,10 +1,4 @@
-#![allow(
-    clippy::expect_used,
-    clippy::panic,
-    clippy::unwrap_in_result,
-    clippy::missing_panics_doc,
-    clippy::unwrap_used
-)]
+#![allow(clippy::expect_used, clippy::unwrap_in_result, clippy::unwrap_used)]
 use std::{
     collections::{HashMap, HashSet},
     env,

@@ -864,7 +864,13 @@ pub async fn payment_method_update_api(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            cards::update_customer_payment_method(state, merchant_context, req, &payment_method_id)
+            cards::update_customer_payment_method(
+                state,
+                merchant_context,
+                req,
+                &payment_method_id,
+                None,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -1040,7 +1046,6 @@ pub async fn default_payment_method_set_api(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use api_models::payment_methods::PaymentMethodListRequest;
 
     use super::*;
@@ -1555,6 +1560,40 @@ pub async fn payment_method_session_delete_saved_payment_method(
                 payment_method_session_id,
             ),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenStatusCheck))]
+pub async fn network_token_status_check_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalPaymentMethodId>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenStatusCheck;
+    let payment_method_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_method_id,
+        |state, auth: auth::AuthenticationData, payment_method_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payment_methods_routes::check_network_token_status(
+                state,
+                merchant_context,
+                payment_method_id,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

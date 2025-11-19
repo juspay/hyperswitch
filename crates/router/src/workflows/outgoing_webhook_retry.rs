@@ -19,6 +19,8 @@ use scheduler::{
     types::process_data,
     utils as scheduler_utils,
 };
+#[cfg(feature = "v1")]
+use subscriptions::workflows::invoice_sync;
 
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -383,6 +385,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         merchant_account.clone(),
         key_store.clone(),
     )));
+
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
@@ -417,6 +420,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 request,
                 AuthFlow::Client,
                 CallConnectorAction::Avoid,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             ))
@@ -453,9 +457,10 @@ async fn get_outgoing_webhook_content_and_event_type(
                 refund_id,
                 force_sync: Some(false),
                 merchant_connector_details: None,
+                all_keys_required: None,
             };
 
-            let refund = Box::pin(refund_retrieve_core_with_refund_id(
+            let (refund, _) = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
                 merchant_context.clone(),
                 None,
@@ -571,6 +576,31 @@ async fn get_outgoing_webhook_content_and_event_type(
             Ok((
                 OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 event_type,
+            ))
+        }
+        diesel_models::enums::EventClass::Subscriptions => {
+            let invoice_id = tracking_data.primary_object_id.clone();
+            let profile_id = &tracking_data.business_profile_id;
+
+            let response = Box::pin(
+                invoice_sync::InvoiceSyncHandler::form_response_for_retry_outgoing_webhook_task(
+                    state.clone().into(),
+                    &key_store,
+                    invoice_id,
+                    profile_id,
+                    &merchant_account,
+                ),
+            )
+            .await
+            .inspect_err(|e| {
+                logger::error!(
+                    "Failed to generate response for subscription outgoing webhook: {e:?}"
+                );
+            })?;
+
+            Ok((
+                OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
+                Some(EventType::InvoicePaid),
             ))
         }
     }

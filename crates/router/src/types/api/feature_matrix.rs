@@ -169,6 +169,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
                 }
+                enums::Connector::Finix => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Finix::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
@@ -270,6 +273,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Payload => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
                 }
+                enums::Connector::Payjustnow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payjustnow::new())))
+                }
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }
@@ -284,7 +290,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
                 enums::Connector::Powertranz => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Powertranz)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Powertranz::new())))
                 }
                 enums::Connector::Prophetpay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
@@ -393,6 +399,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
                 }
+                enums::Connector::Zift => Ok(ConnectorEnum::Old(Box::new(connector::Zift::new()))),
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }

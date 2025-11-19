@@ -2,9 +2,11 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
+use std::fmt::Debug;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
-use std::{fmt::Debug, str::FromStr};
 
 #[cfg(feature = "v1")]
 use api_models::open_router;
@@ -1101,7 +1103,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1288,7 +1290,7 @@ pub async fn update_window_for_elimination_routing(
 
             let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                 state.tenant.tenant_id.clone(),
-                state.request_id,
+                state.request_id.clone(),
                 payment_attempt.payment_id.get_string_repr().to_string(),
                 profile_id.to_owned(),
                 payment_attempt.merchant_id.to_owned(),
@@ -1479,7 +1481,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 let routing_events_wrapper = routing_utils::RoutingEventsWrapper::new(
                     state.tenant.tenant_id.clone(),
-                    state.request_id,
+                    state.request_id.clone(),
                     payment_attempt.payment_id.get_string_repr().to_string(),
                     profile_id.to_owned(),
                     payment_attempt.merchant_id.to_owned(),
@@ -2248,7 +2250,15 @@ pub async fn create_specific_dynamic_routing_setup(
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             let success_config = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in SuccessBasedRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2273,7 +2283,15 @@ pub async fn create_specific_dynamic_routing_setup(
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
             let elimination_config = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => config,
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
+                    config.validate().change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: "All fields in EliminationRoutingConfig cannot be null"
+                                .to_string(),
+                        },
+                    )?;
+                    config
+                }
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),
@@ -2785,53 +2803,6 @@ pub async fn redact_routing_cache(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to invalidate the routing cache")?;
-
-    Ok(())
-}
-
-pub async fn update_default_fallback_on_mca_update(
-    state: &SessionState,
-    merchant_id: &id_type::MerchantId,
-    profile_id: &id_type::ProfileId,
-    updated_mca: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-) -> RouterResult<()> {
-    let db = state.store.as_ref();
-    let merchant_id_str = merchant_id.get_string_repr();
-    let profile_id_str = profile_id.get_string_repr();
-    let txn_type = &storage::enums::TransactionType::from(updated_mca.connector_type);
-
-    let mut connectors = get_merchant_default_config(db, merchant_id_str, txn_type).await?;
-
-    let choice = routing_types::RoutableConnectorChoice {
-        choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-        connector: api_models::enums::RoutableConnectors::from_str(
-            &updated_mca.connector_name.to_string(),
-        )
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable(format!(
-            "Unable to parse RoutableConnectors from connector: {}",
-            updated_mca.connector_name
-        ))?,
-        merchant_connector_id: Some(updated_mca.get_id().clone()),
-    };
-
-    if updated_mca.disabled.unwrap_or(false)
-        || updated_mca.status == api_models::enums::ConnectorStatus::Inactive
-    {
-        // remove if disabled
-        connectors.retain(|c| c.merchant_connector_id != Some(updated_mca.get_id().clone()));
-    } else {
-        // ensure it is present if enabled
-        if !connectors.contains(&choice) {
-            connectors.push(choice);
-        }
-    }
-
-    // update merchant config
-    update_merchant_default_config(db, merchant_id_str, connectors.clone(), txn_type).await?;
-
-    // update profile config
-    update_merchant_default_config(db, profile_id_str, connectors, txn_type).await?;
 
     Ok(())
 }

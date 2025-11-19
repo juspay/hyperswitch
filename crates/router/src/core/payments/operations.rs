@@ -30,6 +30,8 @@ pub mod payment_update;
 #[cfg(feature = "v1")]
 pub mod payment_update_metadata;
 #[cfg(feature = "v1")]
+pub mod payments_extend_authorization;
+#[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
@@ -85,6 +87,7 @@ pub use self::{
     payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
+    payments_extend_authorization::PaymentExtendAuthorization,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
@@ -223,6 +226,27 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<D>>;
+
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_trackers_for_split_payments<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_id: &common_utils::id_type::GlobalPaymentId,
+        _request: &R,
+        _merchant_context: &domain::MerchantContext,
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _split_amount_data: (
+            api_models::payments::PaymentMethodData,
+            common_utils::types::MinorUnit,
+        ),
+        _attempts_group_id: &common_utils::id_type::GlobalAttemptGroupId,
+    ) -> RouterResult<GetTrackerResponse<D>> {
+        Err(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Default,
+        })?
+    }
 
     async fn validate_request_with_state(
         &self,

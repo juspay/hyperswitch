@@ -60,7 +60,7 @@ pub struct AddVaultResponse {
     #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
     #[cfg(feature = "v1")]
-    pub vault_id: String,
+    pub vault_id: hyperswitch_domain_models::router_response_types::VaultIdType,
     pub fingerprint_id: Option<String>,
 }
 
@@ -203,7 +203,6 @@ pub struct ApiPayload {
     pub service: String,
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
-    pub key_id: String,
     pub should_send_token: bool,
 }
 
@@ -321,7 +320,7 @@ pub struct NetworkTokenErrorInfo {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct NetworkTokenErrorResponse {
-    pub error_message: String,
+    pub error_message: Option<String>,
     pub error_info: NetworkTokenErrorInfo,
 }
 
@@ -344,24 +343,23 @@ pub struct CheckTokenStatus {
     pub customer_id: id_type::GlobalCustomerId,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TokenStatus {
     Active,
-    Inactive,
+    Suspended,
+    Deactivated,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CheckTokenStatusResponsePayload {
+pub struct CheckTokenStatusResponse {
+    pub token_status: TokenStatus,
     pub token_expiry_month: Secret<String>,
     pub token_expiry_year: Secret<String>,
-    pub token_status: TokenStatus,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CheckTokenStatusResponse {
-    pub payload: CheckTokenStatusResponsePayload,
+    pub card_last_4: String,
+    pub card_expiry: String,
+    pub token_last_4: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

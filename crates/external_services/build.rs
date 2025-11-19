@@ -1,4 +1,3 @@
-#[allow(clippy::expect_used)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compilation for revenue recovery protos
     #[cfg(feature = "revenue_recovery")]
@@ -6,6 +5,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let proto_base_path = router_env::workspace_path().join("proto");
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
         let recovery_proto_files = [proto_base_path.join("recovery_decider.proto")];
+
+        #[allow(clippy::expect_used, clippy::unwrap_in_result)]
         tonic_build::configure()
             .out_dir(&out_dir)
             .compile_well_known_types(true)
@@ -26,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
 
         // Compile the .proto file
+        #[allow(clippy::expect_used, clippy::unwrap_in_result)]
         tonic_build::configure()
             .out_dir(out_dir)
             .compile_protos(

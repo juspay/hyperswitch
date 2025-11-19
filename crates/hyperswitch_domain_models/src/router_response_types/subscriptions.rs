@@ -1,7 +1,6 @@
 use common_enums::Currency;
 use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
-
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: id_type::SubscriptionId,
@@ -36,8 +35,7 @@ pub enum SubscriptionStatus {
     Created,
 }
 
-#[cfg(feature = "v1")]
-impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+impl From<SubscriptionStatus> for common_enums::SubscriptionStatus {
     fn from(status: SubscriptionStatus) -> Self {
         match status {
             SubscriptionStatus::Pending => Self::Pending,
@@ -71,6 +69,27 @@ pub struct GetSubscriptionPlanPricesResponse {
 }
 
 #[derive(Debug, Clone)]
+pub struct SubscriptionPauseResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub paused_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionResumeResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancelResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub cancelled_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
 pub struct SubscriptionPlanPrices {
     pub price_id: String,
     pub plan_id: Option<String>,
@@ -82,7 +101,6 @@ pub struct SubscriptionPlanPrices {
     pub trial_period_unit: Option<PeriodUnit>,
 }
 
-#[cfg(feature = "v1")]
 impl From<SubscriptionPlanPrices> for api_models::subscription::SubscriptionPlanPrices {
     fn from(item: SubscriptionPlanPrices) -> Self {
         Self {
@@ -106,7 +124,6 @@ pub enum PeriodUnit {
     Year,
 }
 
-#[cfg(feature = "v1")]
 impl From<PeriodUnit> for api_models::subscription::PeriodUnit {
     fn from(unit: PeriodUnit) -> Self {
         match unit {
@@ -128,8 +145,28 @@ pub struct GetSubscriptionEstimateResponse {
     pub currency: Currency,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub line_items: Vec<SubscriptionLineItem>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
+impl From<GetSubscriptionEstimateResponse>
+    for api_models::subscription::EstimateSubscriptionResponse
+{
+    fn from(value: GetSubscriptionEstimateResponse) -> Self {
+        Self {
+            amount: value.total,
+            currency: value.currency,
+            plan_id: None,
+            item_price_id: None,
+            coupon_code: None,
+            customer_id: value.customer_id,
+            line_items: value
+                .line_items
+                .into_iter()
+                .map(api_models::subscription::SubscriptionLineItem::from)
+                .collect(),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct SubscriptionLineItem {
     pub item_id: String,
@@ -140,4 +177,17 @@ pub struct SubscriptionLineItem {
     pub unit_amount: Option<MinorUnit>,
     pub quantity: i64,
     pub pricing_model: Option<String>,
+}
+
+impl From<SubscriptionLineItem> for api_models::subscription::SubscriptionLineItem {
+    fn from(value: SubscriptionLineItem) -> Self {
+        Self {
+            item_id: value.item_id,
+            description: value.description,
+            item_type: value.item_type,
+            amount: value.amount,
+            currency: value.currency,
+            quantity: value.quantity,
+        }
+    }
 }

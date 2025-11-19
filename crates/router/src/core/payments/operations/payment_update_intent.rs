@@ -299,6 +299,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             active_attempt_id,
             enable_partial_authorization: enable_partial_authorization
                 .or(payment_intent.enable_partial_authorization),
+            setup_future_usage: setup_future_usage.unwrap_or(payment_intent.setup_future_usage),
             ..payment_intent
         };
 
@@ -370,7 +371,13 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 order_details: intent.order_details,
                 allowed_payment_method_types: intent.allowed_payment_method_types,
                 metadata: intent.metadata,
-                connector_metadata: intent.connector_metadata,
+                connector_metadata: intent
+                    .connector_metadata
+                    .map(|cm| cm.encode_to_value())
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize connector_metadata")?
+                    .map(masking::Secret::new),
                 feature_metadata: intent.feature_metadata,
                 payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),

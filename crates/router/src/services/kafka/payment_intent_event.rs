@@ -87,7 +87,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
-    pub active_attempts_group_id: Option<&'a String>,
+    pub active_attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -96,7 +96,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub order_details: Option<&'a Vec<Secret<OrderDetailsWithAmount>>>,
 
     pub allowed_payment_method_types: Option<&'a Vec<common_enums::PaymentMethodType>>,
-    pub connector_metadata: Option<&'a Secret<Value>>,
+    pub connector_metadata: Option<&'a api_models::payments::ConnectorMetadata>,
     pub payment_link_id: Option<&'a String>,
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,

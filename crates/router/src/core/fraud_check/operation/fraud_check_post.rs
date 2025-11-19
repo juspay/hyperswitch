@@ -271,6 +271,7 @@ where
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 HeaderPayload::default(),
             ))
             .await?;
@@ -308,6 +309,7 @@ where
                 statement_descriptor_suffix: None,
                 statement_descriptor_prefix: None,
                 merchant_connector_details: None,
+                all_keys_required: None,
             };
             let capture_response = Box::pin(payments::payments_core::<
                 Capture,
@@ -325,6 +327,7 @@ where
                 capture_request,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 HeaderPayload::default(),
             ))

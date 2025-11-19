@@ -31,6 +31,13 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{PoFulfill, PoSync},
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{PayoutFulfillType, PayoutSyncType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -73,6 +80,11 @@ impl api::Refund for Loonio {}
 impl api::RefundExecute for Loonio {}
 impl api::RefundSync for Loonio {}
 impl api::PaymentToken for Loonio {}
+impl api::Payouts for Loonio {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Loonio {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Loonio {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Loonio
@@ -587,6 +599,164 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Loonio {
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}api/v1/transactions/outgoing/send_to_interac",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.destination_currency,
+        )?;
+
+        let connector_router_data = loonio::LoonioRouterData::from((amount, req));
+        let connector_req = loonio::LoonioPayoutFulfillRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: loonio::LoonioPayoutFulfillResponse = res
+            .response
+            .parse_struct("LoonioPayoutFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Loonio {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_id",
+            },
+        )?;
+        Ok(format!(
+            "{}api/v1/transactions/{}/details",
+            connectors.loonio.base_url, transfer_id
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: loonio::LoonioPayoutSyncResponse = res
+            .response
+            .parse_struct("LoonioPayoutSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Loonio {
     async fn verify_webhook_source(
@@ -608,12 +778,21 @@ impl webhooks::IncomingWebhook for Loonio {
             .body
             .parse_struct("LoonioWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.api_transaction_id,
-            ),
-        ))
+        match webhook_body.transaction_type {
+            #[cfg(feature = "payouts")]
+            loonio::LoonioWebhookTransactionType::OutgoingNotVerified => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                        webhook_body.api_transaction_id,
+                    ),
+                ))
+            }
+            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.api_transaction_id,
+                ),
+            )),
+        }
     }
 
     fn get_webhook_event_type(
@@ -624,7 +803,10 @@ impl webhooks::IncomingWebhook for Loonio {
             .body
             .parse_struct("LoonioWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok((&webhook_body.event_code).into())
+        Ok(loonio::get_loonio_webhook_event(
+            &webhook_body.transaction_type,
+            &webhook_body.event_code,
+        ))
     }
 
     fn get_webhook_resource_object(
@@ -668,6 +850,8 @@ lazy_static! {
     };
     static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
         enums::EventClass::Payments,
+        #[cfg(feature = "payouts")]
+        enums::EventClass::Payouts,
     ];
 }
 

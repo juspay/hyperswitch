@@ -23,7 +23,7 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
-use serde_urlencoded;
+use router_env::RequestId;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 use typed_builder::TypedBuilder;
@@ -156,26 +156,33 @@ pub struct GrpcHeaders {
 pub struct GrpcHeadersUcs {
     /// Tenant id
     tenant_id: String,
+    /// Request id
+    request_id: Option<RequestId>,
     /// Lineage ids
     lineage_ids: LineageIds,
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+
+    shadow_mode: Option<bool>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), (), ())>;
+pub type GrpcHeadersUcsBuilderInitial =
+    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (Option<bool>,))>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
+    (Option<RequestId>,),
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
+    (Option<bool>,),
 )>;
 
 /// struct to represent set of Lineage ids
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
     profile_id: id_type::ProfileId,
