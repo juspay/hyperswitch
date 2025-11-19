@@ -885,10 +885,29 @@ where
 
                     let operation = Box::new(PaymentResponse);
 
+                    // Router Data clone for post update tracker
+                    let router_data_clone = router_data.clone();
+
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
+
+                    let mut payment_data = operation
+                        .to_post_update_tracker()?
+                        .update_tracker(
+                            state,
+                            payment_data,
+                            router_data_clone,
+                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_merchant_account().storage_scheme,
+                            &locale,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            routable_connectors,
+                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
+                        )
+                        .await?;
 
                     operation
                         .to_post_update_tracker()?
@@ -897,22 +916,6 @@ where
                             &router_data,
                             merchant_context,
                             &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-
-                    let mut payment_data = operation
-                        .to_post_update_tracker()?
-                        .update_tracker(
-                            state,
-                            payment_data,
-                            router_data,
-                            merchant_context.get_merchant_key_store(),
-                            merchant_context.get_merchant_account().storage_scheme,
-                            &locale,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                            routable_connectors,
-                            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
                         )
                         .await?;
@@ -1058,29 +1061,29 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    operation
-                        .to_post_update_tracker()?
-                        .save_pm_and_mandate(
-                            state,
-                            &router_data,
-                            merchant_context,
-                            &mut payment_data,
-                            &business_profile,
-                        )
-                        .await?;
-
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
                             payment_data,
-                            router_data,
+                            router_data.clone(),
                             merchant_context.get_merchant_key_store(),
                             merchant_context.get_merchant_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                            &business_profile,
+                        )
+                        .await?;
+
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data.clone(),
+                            merchant_context,
+                            &mut payment_data,
                             &business_profile,
                         )
                         .await?;
