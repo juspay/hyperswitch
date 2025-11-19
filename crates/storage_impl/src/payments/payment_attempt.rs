@@ -699,6 +699,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     network_details: payment_attempt.network_details.clone(),
                     is_stored_credential: payment_attempt.is_stored_credential,
                     authorized_amount: payment_attempt.authorized_amount,
+                    tokenization: payment_attempt.tokenization,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1913,6 +1914,7 @@ impl DataModelExt for PaymentAttempt {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            tokenization: self.tokenization,
         }
     }
 
@@ -2013,6 +2015,7 @@ impl DataModelExt for PaymentAttempt {
             network_details: storage_model.network_details,
             is_stored_credential: storage_model.is_stored_credential,
             authorized_amount: storage_model.authorized_amount,
+            tokenization: storage_model.tokenization,
         }
     }
 }
@@ -2109,6 +2112,7 @@ impl DataModelExt for PaymentAttemptNew {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            tokenization: self.tokenization,
         }
     }
 
@@ -2199,6 +2203,7 @@ impl DataModelExt for PaymentAttemptNew {
             network_details: storage_model.network_details,
             is_stored_credential: storage_model.is_stored_credential,
             authorized_amount: storage_model.authorized_amount,
+            tokenization: storage_model.tokenization,
         }
     }
 }
