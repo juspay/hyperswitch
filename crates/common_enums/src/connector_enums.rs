@@ -188,6 +188,7 @@ pub enum RoutableConnectors {
     CtpVisa,
     Netcetera,
     Cardinal,
+    Threedsecureio,
 }
 
 // A connector is an integration to fulfill payments
@@ -771,6 +772,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::CtpVisa => Self::CtpVisa,
             RoutableConnectors::Netcetera => Self::Netcetera,
             RoutableConnectors::Cardinal => Self::Cardinal,
+            RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }
     }
 }
