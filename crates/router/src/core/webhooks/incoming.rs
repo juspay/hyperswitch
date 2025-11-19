@@ -1811,10 +1811,12 @@ async fn refunds_incoming_webhook_flow(
                 refund_id: refund_id.to_owned(),
                 force_sync: Some(true),
                 merchant_connector_details: None,
+                all_keys_required: None,
             },
         ))
         .await
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
+        .0
     };
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
@@ -2879,6 +2881,7 @@ async fn update_connector_mandate_details(
                         let attempt_update =
                             storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                                 connector_mandate_detail: Some(connector_mandate_reference_id),
+                                tokenization: None, // We need to handle tokenization field update in webhooks as well
                                 updated_by: merchant_context
                                     .get_merchant_account()
                                     .storage_scheme

@@ -377,6 +377,7 @@ impl PaymentMethodsController for PmCards<'_> {
             card_network: network_token_data.card_network.clone(),
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
+            card_cvc: None,
         };
 
         logger::debug!(
@@ -4953,6 +4954,7 @@ impl TempLockerCardSupport {
             .clone()
             .expose_option()
             .unwrap_or_default();
+        let card_network = card.card_network.clone();
         let value1 = payment_methods::mk_card_value1(
             card_number,
             card_exp_year,
@@ -4961,6 +4963,7 @@ impl TempLockerCardSupport {
             None,
             None,
             None,
+            card_network,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Value1 for locker")?;

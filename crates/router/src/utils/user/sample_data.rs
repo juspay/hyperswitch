@@ -300,6 +300,7 @@ pub async fn generate_sample_data(
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
             partner_merchant_identifier_details: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
@@ -400,6 +401,7 @@ pub async fn generate_sample_data(
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,
+            tokenization: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

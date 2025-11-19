@@ -168,7 +168,7 @@ impl ConnectorCommon for Noon {
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: noon_error_response.result_code.to_string(),
-                    message: noon_error_response.class_description,
+                    message: noon_error_response.message.clone(),
                     reason: Some(noon_error_response.message),
                     attempt_status,
                     connector_transaction_id: None,

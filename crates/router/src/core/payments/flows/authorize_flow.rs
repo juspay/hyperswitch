@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{id_type, ucs_types};
+use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -24,7 +24,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, helpers, tokenization,
+            transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -203,6 +204,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -250,6 +252,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             call_connector_action.clone(),
                             business_profile,
                             header_payload,
+                            gateway_context,
                         ))
                         .await?;
                     }
@@ -873,6 +876,7 @@ impl<F>
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn process_capture_flow(
     mut router_data: types::RouterData<
         api::Authorize,
@@ -885,6 +889,7 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: domain_payments::HeaderPayload,
+    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 > {
@@ -903,6 +908,7 @@ async fn process_capture_flow(
         call_connector_action,
         business_profile,
         header_payload,
+        context,
     )
     .await;
 
@@ -1023,6 +1029,10 @@ async fn call_unified_connector_service_authorize(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_authorize_response.captured_amount;
+            router_data.minor_amount_captured = payment_authorize_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
                 .clone()
@@ -1333,6 +1343,10 @@ async fn call_unified_connector_service_repeat_payment(
                 response
             });
             router_data.response = router_data_response;
+            router_data.amount_captured = payment_repeat_response.captured_amount;
+            router_data.minor_amount_captured = payment_repeat_response
+                .minor_captured_amount
+                .map(MinorUnit::new);
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response
                 .clone()
