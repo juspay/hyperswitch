@@ -104,6 +104,7 @@ pub use crate::{
     },
     events::EventsHandler,
     services::{get_cache_store, get_store},
+    types::transformers::ForeignFrom,
 };
 use crate::{
     configs::{secrets_transformers, Settings},
@@ -611,8 +612,10 @@ impl AppState {
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
         let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
-        let mut session_state = SessionState {
-            store: store.clone(),
+        let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
+        store.set_key_manager_state(key_manager_state);
+        Ok(SessionState {
+            store,
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -635,10 +638,7 @@ impl AppState {
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
-        };
-        store.set_key_manager_state((&session_state).into());
-        session_state.set_store(store);
-        Ok(session_state)
+        })
     }
 
     pub fn process_env_mappings(
