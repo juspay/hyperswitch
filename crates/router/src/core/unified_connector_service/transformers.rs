@@ -53,7 +53,7 @@ struct WaitScreenData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct SdkUpiUriInformation {
+pub struct SdkUpiUriInformation {
     sdk_uri: String,
 }
 
