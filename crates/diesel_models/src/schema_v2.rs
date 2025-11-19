@@ -1133,9 +1133,9 @@ diesel::table! {
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
-        partner_merchant_identifier_details -> Nullable<Jsonb>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        partner_merchant_identifier_details -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
