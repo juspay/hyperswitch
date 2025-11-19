@@ -1870,7 +1870,8 @@ pub fn get_connector_customer_reference_id(
         .zip(payment_attempt.merchant_connector_id.as_ref())
         .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| "Failed to construct mandate reference")?
         .flatten();
 
     Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
@@ -1905,7 +1906,8 @@ pub fn get_payout_connector_customer_reference_id(
         .zip(payout_attempt.merchant_connector_id.as_ref())
         .map(|(pm, mci)| pm.get_payout_connector_customer_id(mci.clone()))
         .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| "Failed to construct mandate reference")?
         .flatten();
     Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
         connector_data
