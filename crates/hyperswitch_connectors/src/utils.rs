@@ -5,7 +5,7 @@ use std::{
     sync::LazyLock,
 };
 
-use api_models::payments::{self};
+use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use base64::Engine;
