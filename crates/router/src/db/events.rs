@@ -1365,6 +1365,7 @@ mod tests {
             cancellation_reason: None,
             error_code: None,
             error_message: None,
+            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,
