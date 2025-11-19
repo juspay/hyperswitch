@@ -1,9 +1,5 @@
-use api_models::{blocklist, enums as api_enums};
-use common_utils::{
-    ext_traits::{Encode, StringExt},
-    id_type,
-    request::RequestContent,
-};
+use api_models::blocklist;
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use josekit::jwe;
 use masking::{PeekInterface, StrongSecret};
