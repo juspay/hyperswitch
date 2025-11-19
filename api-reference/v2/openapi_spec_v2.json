@@ -26637,7 +26637,7 @@
             ],
             "nullable": true
           },
-          "preferred_3ds_connector": {
+          "three_ds_connector": {
             "type": "string",
             "description": "Prefered 3ds Connector",
             "nullable": true
