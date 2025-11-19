@@ -405,7 +405,7 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 // decide which fields to tokenize in vault
                 let vault_custom_data =
                     crate::core::payment_methods::get_payment_method_custom_data(
-                        vault_data,
+                        vault_data.clone(),
                         external_vault_details.vault_token_selector,
                     )?;
 
@@ -420,11 +420,14 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 )
                 .await?;
 
-                Ok(Some(
-                    external_vault_response
-                        .vault_id
-                        .get_auth_vault_token_data()?,
-                ))
+                let auth_token_data = external_vault_response
+                    .vault_id
+                    .get_auth_vault_token_data()?;
+
+                Ok(Some(merge_vault_data_with_raw_data(
+                    auth_token_data,
+                    vault_data,
+                )?))
             }
             business_profile::ExternalVaultDetails::Skip => {
                 Err(ApiErrorResponse::InternalServerError)
@@ -500,5 +503,57 @@ pub fn get_raw_authentication_token_data<F, Req>(
         authentication_details.into()
     } else {
         None
+    }
+}
+
+pub fn merge_vault_data_with_raw_data(
+    auth_token_data: api_models::authentication::AuthenticationVaultTokenData,
+    raw_data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+) -> RouterResult<api_models::authentication::AuthenticationVaultTokenData> {
+    match (auth_token_data, raw_data) {
+        (
+            api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                tokenized_card_number,
+                tokenized_card_expiry_year,
+                tokenized_card_expiry_month,
+                tokenized_card_cvc,
+            },
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details),
+        ) => Ok(
+            api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                tokenized_card_number: tokenized_card_number.or(Some(masking::Secret::new(
+                    card_details.card_number.get_card_no(),
+                ))),
+                tokenized_card_expiry_year: tokenized_card_expiry_year
+                    .or(Some(card_details.card_exp_year)),
+                tokenized_card_expiry_month: tokenized_card_expiry_month
+                    .or(Some(card_details.card_exp_month)),
+                tokenized_card_cvc: tokenized_card_cvc.or(card_details.card_cvc),
+            },
+        ),
+        (
+            api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                tokenized_payment_token,
+                tokenized_expiry_year,
+                tokenized_expiry_month,
+                tokenized_cryptogram,
+            },
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                network_token_details,
+            ),
+        ) => Ok(
+            api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                tokenized_payment_token: tokenized_payment_token.or(Some(masking::Secret::new(
+                    network_token_details.network_token.get_card_no(),
+                ))),
+                tokenized_expiry_year: tokenized_expiry_year
+                    .or(Some(network_token_details.network_token_exp_year)),
+                tokenized_expiry_month: tokenized_expiry_month
+                    .or(Some(network_token_details.network_token_exp_month)),
+                tokenized_cryptogram: tokenized_cryptogram.or(network_token_details.cryptogram),
+            },
+        ),
+        _ => Err(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unexpected behaviour, vault_type and payemnt_type doesn't match"),
     }
 }
