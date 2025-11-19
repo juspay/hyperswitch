@@ -783,24 +783,9 @@ pub fn build_unified_connector_service_payment_method(
                 card_issuing_country_alpha2: card.card_issuing_country.clone(),
             };
 
-            match payment_method_type {
-                Some(PaymentMethodType::Credit) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Credit(card_details)),
-                }),
-                Some(PaymentMethodType::Debit) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Debit(card_details)),
-                }),
-                None => {
-                    // When payment_method_type is None, use generic card
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::Card(card_details)),
-                    })
-                }
-                Some(_) => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                    "Unimplemented payment method subtype: {payment_method_type:?}"
-                ))
-                .into()),
-            }
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Card(card_details)),
+            })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
             let upi_type = match upi_data {
@@ -920,30 +905,10 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 nick_name: external_vault_card.nick_name.map(|n| n.expose()),
                 card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
             };
-            match payment_method_type {
-                Some(PaymentMethodType::Credit) => {
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::CreditProxy(card_details)),
-                    })
-                }
-                Some(PaymentMethodType::Debit) => {
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::DebitProxy(card_details)),
-                    })
-                }
-                None => {
-                    // When payment_method_type is None, use generic card proxy for auto-detection
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::CardProxy(card_details)),
-                    })
-                }
-                Some(_) => {
-                    // For unsupported payment method types, use generic card proxy
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::CardProxy(card_details)),
-                    })
-                }
-            }
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardProxy(card_details)),
+            })
         }
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
             Err(UnifiedConnectorServiceError::NotImplemented(format!(
