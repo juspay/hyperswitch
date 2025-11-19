@@ -35,12 +35,140 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
-function logRequestId(xRequestId) {
-  if (xRequestId) {
-    cy.task("cli_log", "x-request-id -> " + xRequestId);
-  } else {
-    cy.task("cli_log", "x-request-id is not available in the response headers");
+
+// Helper function for creating individual rollout config
+function createIndividualRolloutConfig(methodFlow, globalState, configType = 'rollout') {
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const connector = globalState.get("connectorId");
+  const httpUrl = globalState.get("proxyHttp");
+  const httpsUrl = globalState.get("proxyHttps");
+
+  const keySuffix = configType === 'shadow' ? '_shadow' : '';
+  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
+
+  const configValue = {
+    "rollout_percent": 0.1,
+    "http_url": httpUrl,
+    "https_url": httpsUrl
+  };
+  const value = JSON.stringify(configValue);
+
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": adminApiKey
+  };
+
+  const requestBody = {
+    key: key,
+    value: value
+  };
+
+  const url = `${baseUrl}/configs/`;
+
+  return cy.request({
+    method: "POST",
+    url: url,
+    headers: headers,
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (response.status === 200) {
+      expect(response.body).to.have.property("key").to.equal(key);
+      expect(response.body).to.have.property("value").to.equal(value);
+      return cy.task("cli_log", `PASS: ${configType} config created successfully: ${merchantId}_${connector}_${methodFlow}`).then(() => {
+        return { success: true, flow: methodFlow };
+      });
+    } else {
+      const errorMsg = response.body?.error?.message || 'Unknown error';
+      return cy.task("cli_log", `FAIL: ${configType} config creation failed: ${merchantId}_${connector}_${methodFlow}`).then(() => {
+        return cy.task("cli_log", `   Status: ${response.status}`).then(() => {
+          return cy.task("cli_log", `   Error: ${errorMsg}`).then(() => {
+            return { success: false, flow: methodFlow, error: errorMsg };
+          });
+        });
+      });
+    }
+  });
+}
+
+
+function parseMethodFlows(methodFlowInput) {
+  if (!methodFlowInput) {
+    throw new Error("methodFlow input is required");
   }
+
+  return methodFlowInput.includes(',')
+    ? methodFlowInput.split(',').map(flow => flow.trim()).filter(flow => flow.length > 0)
+    : [methodFlowInput.trim()];
+}
+
+function createUcsConfigs(globalState, flow, type) {
+  // --- Phase 1: Environment Setup & Validation ---
+  const ucsEnabled = globalState.get("ucsEnabled");
+  if (!ucsEnabled) {
+    cy.task("cli_log", `UCS ${type} config creation skipped - ucsEnabled is false or not set`);
+    return;
+  }
+
+  const httpUrl = globalState.get("proxyHttp");
+  const httpsUrl = globalState.get("proxyHttps");
+  const connector = globalState.get("connectorId");
+  const methodFlowInput = flow || globalState.get("methodFlow");
+
+  if (!httpUrl || !httpsUrl) {
+    throw new Error("Missing proxyHttp or proxyHttps in globalState");
+  }
+
+  if (!connector || !methodFlowInput) {
+    throw new Error("Missing connectorId or methodFlow in globalState");
+  }
+
+  if (!globalState) {
+    throw new Error("Missing required parameter: globalState");
+  }
+
+  // --- Phase 2: Data Preparation ---
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!merchantId || !adminApiKey || !baseUrl) {
+    throw new Error("Missing merchantId, adminApiKey, or baseUrl in globalState");
+  }
+
+  const methodFlows = parseMethodFlows(methodFlowInput);
+
+  return cy.task("cli_log", `Creating ${type} rollout config for merchant: ${merchantId}`).then(() => {
+    return cy.task("cli_log", `Processing ${methodFlows.length} flows: ${methodFlows.join(", ")}`).then(() => {
+      // --- Phase 3: Sequential Config Creation ---
+      function processFlowsSequentially(flows, index, results) {
+        if (index >= flows.length) {
+          // --- Phase 4: Final Summary ---
+          const successCount = results.filter(r => r.success).length;
+          const failureCount = results.filter(r => !r.success).length;
+          const failedConfigs = results.filter(r => !r.success);
+
+          return cy.task("cli_log", `${type} rollout config creation completed: ${successCount} success, ${failureCount} failures`).then(() => {
+            if (failedConfigs.length > 0) {
+              return cy.task("cli_log", `Failed configs: ${JSON.stringify(failedConfigs)}`);
+            }
+          });
+        }
+
+        const currentFlow = flows[index];
+        return cy.task("cli_log", `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`).then(() => {
+          return createIndividualRolloutConfig(currentFlow, globalState, type);
+        }).then((result) => {
+          results.push(result);
+          return processFlowsSequentially(flows, index + 1, results);
+        });
+      }
+
+      return processFlowsSequentially(methodFlows, 0, []);
+    });
+  });
 }
 
 function storeRequestId(xRequestId, globalState) {
@@ -52,6 +180,15 @@ function storeRequestId(xRequestId, globalState) {
     cy.task("cli_log", "x-request-id stored in global state: " + xRequestId);
   }
 }
+
+function logRequestId(xRequestId) {
+  if (xRequestId) {
+    cy.task("cli_log", "x-request-id -> " + xRequestId);
+  } else {
+    cy.task("cli_log", "x-request-id is not available in the response headers");
+  }
+}
+
 
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
@@ -116,10 +253,6 @@ Cypress.Commands.add(
         globalState.set("profileId", response.body.default_profile);
         globalState.set("publishableKey", response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
-
-        // Automatically create rollout configs after successful merchant creation
-        cy.createRolloutConfig(globalState);
-        cy.createShadowRolloutConfig(globalState);
       });
     });
   }
@@ -4202,174 +4335,11 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
 });
 
 Cypress.Commands.add("createRolloutConfig", (globalState, flow = null) => {
-  // Phase 1: Environment Setup & Validation
-  const ucsEnabled = globalState.get("ucsEnabled");
-  if (!ucsEnabled) {
-    cy.task("cli_log", "UCS rollout config creation skipped - ucsEnabled is false or not set");
-    return;
-  }
-
-  const httpUrl = globalState.get("proxyHttp");
-  const httpsUrl = globalState.get("proxyHttps");
-  const connector = globalState.get("connectorId");
-  const methodFlow = flow ? flow : globalState.get("methodFlow");
-
-  if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing required values in globalState: proxyHttp and/or proxyHttps");
-  }
-
-  if (!connector || !methodFlow) {
-    throw new Error("Missing required values in globalState: connectorId and/or methodFlow");
-  }
-
-  if (!globalState) {
-    throw new Error("Missing required parameter: globalState is required");
-  }
-
-  // Phase 2: Data Preparation
-  const merchantId = globalState.get("merchantId");
-  const adminApiKey = globalState.get("adminApiKey");
-  const baseUrl = globalState.get("baseUrl");
-
-  if (!merchantId || !adminApiKey || !baseUrl) {
-    throw new Error("Missing required values in globalState: merchantId, adminApiKey, or baseUrl");
-  }
-
-  // Log merchant ID for which config is being created
-  cy.task("cli_log", `Creating rollout config for merchant: ${merchantId}`);
-
-  // Generate key using environment-driven methodFlow
-  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
-
-  const configValue = {
-    "rollout_percent": 0.1,
-    "http_url": httpUrl,
-    "https_url": httpsUrl
-  };
-  const value = JSON.stringify(configValue);
-
-  // Phase 3: API Request Construction
-  const headers = {
-    "Content-Type": "application/json",
-    "api-key": adminApiKey
-  };
-
-  const requestBody = {
-    key: key,
-    value: value
-  };
-
-  const url = `${baseUrl}/configs/`;
-
-  // Phase 4: HTTP Request Execution
-  cy.request({
-    method: "POST",
-    url: url,
-    headers: headers,
-    body: requestBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    // Phase 5: Response Processing
-    cy.wrap(response).then(() => {
-      if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
-        cy.task("cli_log", `Rollout config created successfully for ${merchantId}_${connector}_${methodFlow}`);
-      } else {
-        const errorMsg = response.body?.error?.message || 'Unknown error';
-        cy.task("cli_log", `FAILED to create rollout config for ${merchantId}_${connector}_${methodFlow}`);
-        cy.task("cli_log", `   Status: ${response.status}`);
-        cy.task("cli_log", `   Error: ${errorMsg}`);
-        throw new Error(`Rollout config creation failed with status ${response.status}: ${errorMsg}`);
-      }
-    });
-  });
+  return createUcsConfigs(globalState, flow, "rollout");
 });
 
 Cypress.Commands.add("createShadowRolloutConfig", (globalState, flow = null) => {
-  // Phase 1: Environment Setup & Validation
-
-  const ucsEnabled = globalState.get("ucsEnabled");
-  if (!ucsEnabled) {
-    cy.task("cli_log", "UCS shadow rollout config creation skipped - ucsEnabled is false or not set");
-    return;
-  }
-
-  const httpUrl = globalState.get("proxyHttp");
-  const httpsUrl = globalState.get("proxyHttps");
-  const connector = globalState.get("connectorId");
-  const methodFlow = flow ? flow : globalState.get("methodFlow");
-
-  if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing required values in globalState: proxyHttp and/or proxyHttps");
-  }
-
-  if (!connector || !methodFlow) {
-    throw new Error("Missing required values in globalState: connectorId and/or methodFlow");
-  }
-
-  if (!globalState) {
-    throw new Error("Missing required parameter: globalState is required");
-  }
-
-  // Phase 2: Data Preparation
-  const merchantId = globalState.get("merchantId");
-  const adminApiKey = globalState.get("adminApiKey");
-  const baseUrl = globalState.get("baseUrl");
-
-  if (!merchantId || !adminApiKey || !baseUrl) {
-    throw new Error("Missing required values in globalState: merchantId, adminApiKey, or baseUrl");
-  }
-
-  // Log merchant ID for which config is being created
-  cy.task("cli_log", `Creating shadow rollout config for merchant: ${merchantId}`);
-
-  // Generate key using environment-driven methodFlow for shadow configs
-  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}_shadow`;
-
-  const configValue = {
-    "rollout_percent": 0.1,
-    "http_url": httpUrl,
-    "https_url": httpsUrl
-  };
-  const value = JSON.stringify(configValue);
-
-  // Phase 3: API Request Construction
-  const headers = {
-    "Content-Type": "application/json",
-    "api-key": adminApiKey
-  };
-
-  const requestBody = {
-    key: key,
-    value: value
-  };
-
-  const url = `${baseUrl}/configs/`;
-
-  // Phase 4: HTTP Request Execution
-  cy.request({
-    method: "POST",
-    url: url,
-    headers: headers,
-    body: requestBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    // Phase 5: Response Processing
-    cy.wrap(response).then(() => {
-      if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
-        cy.task("cli_log", `Shadow rollout config created successfully for ${merchantId}_${connector}_${methodFlow}`);
-      } else {
-        const errorMsg = response.body?.error?.message || 'Unknown error';
-        cy.task("cli_log", `FAILED to create shadow rollout config for ${merchantId}_${connector}_${methodFlow}`);
-        cy.task("cli_log", `   Status: ${response.status}`);
-        cy.task("cli_log", `   Error: ${errorMsg}`);
-        throw new Error(`Shadow rollout config creation failed with status ${response.status}: ${errorMsg}`);
-      }
-    });
-  });
+  return createUcsConfigs(globalState, flow, "shadow");
 });
 
 // DDC Race Condition Test Commands
