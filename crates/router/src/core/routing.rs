@@ -56,7 +56,9 @@ use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse},
-        metrics, utils as core_utils,
+        metrics,
+        payments::routing::get_active_mca_ids,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
@@ -2550,6 +2552,9 @@ impl RoutableConnectors {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct dsl input")?;
 
+        let active_mca_ids = get_active_mca_ids(state, key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let connectors = payments_routing::perform_cgraph_filtering(
             state,
             key_store,
@@ -2558,6 +2563,7 @@ impl RoutableConnectors {
             None,
             profile_id,
             &common_enums::TransactionType::Payment,
+            &active_mca_ids,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

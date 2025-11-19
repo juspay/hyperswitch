@@ -242,6 +242,7 @@ impl PaymentAttemptInterface for MockDb {
             network_details: payment_attempt.network_details,
             is_stored_credential: payment_attempt.is_stored_credential,
             authorized_amount: payment_attempt.authorized_amount,
+            tokenization: payment_attempt.tokenization,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

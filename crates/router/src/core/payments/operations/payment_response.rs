@@ -1982,6 +1982,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         network_transaction_id: resp_network_transaction_id,
                                         is_overcapture_enabled,
                                         authorized_amount: router_data.authorized_amount,
+                                        tokenization: payment_data
+                                            .payment_attempt
+                                            .clone()
+                                            .get_tokenization_strategy(),
                                     }),
                                 ),
                             };

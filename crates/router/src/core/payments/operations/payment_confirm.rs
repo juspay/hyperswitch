@@ -1972,7 +1972,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         payment_method_id: m_payment_method_id,
                         client_source,
                         client_version,
-                        customer_acceptance: payment_data.payment_attempt.customer_acceptance,
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone(),
                         net_amount:
                             hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                                 payment_data.payment_attempt.net_amount.get_order_amount(),
@@ -1987,9 +1990,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
                         connector_mandate_detail: payment_data
                             .payment_attempt
-                            .connector_mandate_detail,
+                            .connector_mandate_detail
+                            .clone(),
                         card_discovery,
-                        routing_approach: payment_data.payment_attempt.routing_approach,
+                        routing_approach: payment_data.payment_attempt.routing_approach.clone(),
                         connector_request_reference_id,
                         network_transaction_id: payment_data
                             .payment_attempt
@@ -1999,6 +2003,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         request_extended_authorization: payment_data
                             .payment_attempt
                             .request_extended_authorization,
+                        tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                     },
                     storage_scheme,
                 )

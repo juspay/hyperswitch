@@ -2691,6 +2691,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

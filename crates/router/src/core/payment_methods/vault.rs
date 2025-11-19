@@ -486,6 +486,7 @@ impl Vaultable for api::CardPayout {
             nickname: None,
             card_last_four: None,
             card_token: None,
+            card_network: self.card_network.clone(),
         };
 
         value1
@@ -534,7 +535,7 @@ impl Vaultable for api::CardPayout {
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.map(masking::Secret::new),
-            card_network: None,
+            card_network: value1.card_network,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -561,6 +562,7 @@ pub struct TokenizedWalletSensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "payouts")]
@@ -612,7 +614,20 @@ impl Vaultable for api::WalletPayout {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = TokenizedWalletInsensitiveValues { customer_id };
+        let value2 = match self {
+            Self::Paypal(_paypal_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
+            },
+            Self::Venmo(_venmo_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
+            },
+            Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: apple_pay_decrypt_data.card_network.clone(),
+            },
+        };
 
         value2
             .encode_to_string_of_json()
@@ -651,7 +666,7 @@ impl Vaultable for api::WalletPayout {
                             expiry_month,
                             expiry_year,
                             card_holder_name: value1.card_holder_name,
-                            card_network: None,
+                            card_network: value2.card_network,
                         })
                     }
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
