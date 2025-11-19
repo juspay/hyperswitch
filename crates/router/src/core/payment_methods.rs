@@ -3987,20 +3987,23 @@ pub async fn check_network_token_status(
         match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await
         {
             Ok(network_token_details) => {
-                let status = match network_token_details.token_status {
+                let status = match network_token_details.payload.token_status {
                     pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
                     pm_types::TokenStatus::Suspended => api_enums::TokenStatus::Suspended,
-                    pm_types::TokenStatus::Deactivated => api_enums::TokenStatus::Deactivated,
+                    pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
+                    pm_types::TokenStatus::Expired => api_enums::TokenStatus::Expired,
+                    pm_types::TokenStatus::Deleted => api_enums::TokenStatus::Deleted,
                 };
 
                 payment_methods::NetworkTokenStatusCheckResponse::SuccessResponse(
                     payment_methods::NetworkTokenStatusCheckSuccessResponse {
                         status,
-                        token_expiry_month: network_token_details.token_expiry_month,
-                        token_expiry_year: network_token_details.token_expiry_year,
-                        card_last_four: network_token_details.card_last_4,
-                        card_expiry: network_token_details.card_expiry,
-                        token_last_four: network_token_details.token_last_4,
+                        token_expiry_month: network_token_details.payload.token_expiry_month,
+                        token_expiry_year: network_token_details.payload.token_expiry_year,
+                        card_last_four: network_token_details.payload.card_last_four,
+                        card_expiry_month: network_token_details.payload.card_expiry_month,
+                        card_expiry_year: network_token_details.payload.card_expiry_year,
+                        token_last_four: network_token_details.payload.token_last_four,
                         payment_method_id,
                         customer_id: payment_method.customer_id,
                     },
