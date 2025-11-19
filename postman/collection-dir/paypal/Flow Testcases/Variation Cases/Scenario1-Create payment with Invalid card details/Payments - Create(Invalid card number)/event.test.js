@@ -1,8 +1,7 @@
-// Validate status 4xx
-pm.test("[POST]::/payments - Status code is 4xx", function () {
-  pm.response.to.be.error;
+// Validate status 2xx
+pm.test("[POST]::/payments - Status code is 2xx", function () {
+  pm.response.to.be.success;
 });
-
 // Validate if response header has matching content-type
 pm.test("[POST]::/payments - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
@@ -19,7 +18,7 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
+} catch (e) { }
 
 // pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
 if (jsonData?.payment_id) {
@@ -60,27 +59,34 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have "error"
-pm.test("[POST]::/payments - Content check if 'error' exists", function () {
-  pm.expect(typeof jsonData.error !== "undefined").to.be.true;
-});
-
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.error_type) {
+// Response body should have value "requires_confirmation" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.error_type' matches 'invalid_request'",
+    "[POST]::/payments - Content check if value for 'status' matches 'failed'",
     function () {
-      pm.expect(jsonData.error.error_type).to.eql("invalid_request");
+      pm.expect(jsonData.status).to.eql("failed");
     },
   );
 }
 
-// Response body should have message about invalid card number
-if (jsonData?.error?.message) {
+// Response body should have value "requires_confirmation" for "status"
+if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if error message contains 'invalid card number'",
+    "[POST]::/payments - Content check if value for 'error_code' matches 'VALIDATION_ERROR'",
     function () {
-      pm.expect(jsonData.error.message.toLowerCase()).to.include("invalid card number");
+      pm.expect(jsonData.error_code).to.eql("VALIDATION_ERROR");
+    },
+  );
+}
+
+// Response body should have value "requires_confirmation" for "status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments - Content check if value for 'error_message' matches 'failed'",
+    function () {
+      pm.expect(jsonData.error_message).to.eql(
+        "description - Invalid card number, field - number;",
+      );
     },
   );
 }
