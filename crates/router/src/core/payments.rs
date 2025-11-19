@@ -5903,7 +5903,7 @@ where
             .get_metadata()
             .parse_value::<api_models::payments::GooglePayWalletDetails>("GooglePayWalletDetails")
             .ok()
-            .and_then(|apple_pay_metadata| apple_pay_metadata.google_pay.enable_predecrypted_token)
+            .and_then(|metadata| metadata.google_pay.enable_predecrypted_token)
             .unwrap_or(false);
         match (pre_decrypted_token, enable_predecrypted_token) {
             (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
