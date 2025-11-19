@@ -8,6 +8,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      cy.createRolloutConfig(globalState, "card_Void");
+      cy.createShadowRolloutConfig(globalState, "card_Void");
     });
   });
 

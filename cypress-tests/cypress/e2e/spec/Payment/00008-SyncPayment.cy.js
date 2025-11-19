@@ -16,6 +16,9 @@ describe("Card - Sync payment flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+
+      cy.createRolloutConfig(globalState, "card_PSync");
+      cy.createShadowRolloutConfig(globalState, "card_PSync");
     });
   });
 

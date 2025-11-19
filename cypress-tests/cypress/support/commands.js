@@ -43,6 +43,16 @@ function logRequestId(xRequestId) {
   }
 }
 
+function storeRequestId(xRequestId, globalState) {
+  if (xRequestId && globalState) {
+    // Get existing request IDs array or initialize empty array
+    const requestIds = globalState.get("requestIds") || [];
+    requestIds.push(xRequestId);
+    globalState.set("requestIds", requestIds);
+    cy.task("cli_log", "x-request-id stored in global state: " + xRequestId);
+  }
+}
+
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
     expect(response.body.error_message, "error_message").to.be.null;
@@ -100,11 +110,16 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
+
       cy.wrap(response).then(() => {
         // Handle the response as needed
         globalState.set("profileId", response.body.default_profile);
         globalState.set("publishableKey", response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
+
+        // Automatically create rollout configs after successful merchant creation
+        cy.createRolloutConfig(globalState);
+        cy.createShadowRolloutConfig(globalState);
       });
     });
   }
@@ -1186,12 +1201,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -1672,6 +1687,7 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
@@ -2103,6 +2119,7 @@ Cypress.Commands.add(
       body: createConfirmPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
         globalState.set("clientSecret", response.body.client_secret);
@@ -2438,6 +2455,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
+    storeRequestId(response.headers["x-request-id"], globalState);
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
@@ -2473,6 +2491,7 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
@@ -2553,13 +2572,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -4182,6 +4201,177 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
+Cypress.Commands.add("createRolloutConfig", (globalState, flow = null) => {
+  // Phase 1: Environment Setup & Validation
+  const ucsEnabled = globalState.get("ucsEnabled");
+  if (!ucsEnabled) {
+    cy.task("cli_log", "UCS rollout config creation skipped - ucsEnabled is false or not set");
+    return;
+  }
+
+  const httpUrl = globalState.get("proxyHttp");
+  const httpsUrl = globalState.get("proxyHttps");
+  const connector = globalState.get("connectorId");
+  const methodFlow = flow ? flow : globalState.get("methodFlow");
+
+  if (!httpUrl || !httpsUrl) {
+    throw new Error("Missing required values in globalState: proxyHttp and/or proxyHttps");
+  }
+
+  if (!connector || !methodFlow) {
+    throw new Error("Missing required values in globalState: connectorId and/or methodFlow");
+  }
+
+  if (!globalState) {
+    throw new Error("Missing required parameter: globalState is required");
+  }
+
+  // Phase 2: Data Preparation
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!merchantId || !adminApiKey || !baseUrl) {
+    throw new Error("Missing required values in globalState: merchantId, adminApiKey, or baseUrl");
+  }
+
+  // Log merchant ID for which config is being created
+  cy.task("cli_log", `Creating rollout config for merchant: ${merchantId}`);
+
+  // Generate key using environment-driven methodFlow
+  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
+
+  const configValue = {
+    "rollout_percent": 0.1,
+    "http_url": httpUrl,
+    "https_url": httpsUrl
+  };
+  const value = JSON.stringify(configValue);
+
+  // Phase 3: API Request Construction
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": adminApiKey
+  };
+
+  const requestBody = {
+    key: key,
+    value: value
+  };
+
+  const url = `${baseUrl}/configs/`;
+
+  // Phase 4: HTTP Request Execution
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: headers,
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    // Phase 5: Response Processing
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+        cy.task("cli_log", `Rollout config created successfully for ${merchantId}_${connector}_${methodFlow}`);
+      } else {
+        const errorMsg = response.body?.error?.message || 'Unknown error';
+        cy.task("cli_log", `FAILED to create rollout config for ${merchantId}_${connector}_${methodFlow}`);
+        cy.task("cli_log", `   Status: ${response.status}`);
+        cy.task("cli_log", `   Error: ${errorMsg}`);
+        throw new Error(`Rollout config creation failed with status ${response.status}: ${errorMsg}`);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("createShadowRolloutConfig", (globalState, flow = null) => {
+  // Phase 1: Environment Setup & Validation
+
+  const ucsEnabled = globalState.get("ucsEnabled");
+  if (!ucsEnabled) {
+    cy.task("cli_log", "UCS shadow rollout config creation skipped - ucsEnabled is false or not set");
+    return;
+  }
+
+  const httpUrl = globalState.get("proxyHttp");
+  const httpsUrl = globalState.get("proxyHttps");
+  const connector = globalState.get("connectorId");
+  const methodFlow = flow ? flow : globalState.get("methodFlow");
+
+  if (!httpUrl || !httpsUrl) {
+    throw new Error("Missing required values in globalState: proxyHttp and/or proxyHttps");
+  }
+
+  if (!connector || !methodFlow) {
+    throw new Error("Missing required values in globalState: connectorId and/or methodFlow");
+  }
+
+  if (!globalState) {
+    throw new Error("Missing required parameter: globalState is required");
+  }
+
+  // Phase 2: Data Preparation
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!merchantId || !adminApiKey || !baseUrl) {
+    throw new Error("Missing required values in globalState: merchantId, adminApiKey, or baseUrl");
+  }
+
+  // Log merchant ID for which config is being created
+  cy.task("cli_log", `Creating shadow rollout config for merchant: ${merchantId}`);
+
+  // Generate key using environment-driven methodFlow for shadow configs
+  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}_shadow`;
+
+  const configValue = {
+    "rollout_percent": 0.1,
+    "http_url": httpUrl,
+    "https_url": httpsUrl
+  };
+  const value = JSON.stringify(configValue);
+
+  // Phase 3: API Request Construction
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": adminApiKey
+  };
+
+  const requestBody = {
+    key: key,
+    value: value
+  };
+
+  const url = `${baseUrl}/configs/`;
+
+  // Phase 4: HTTP Request Execution
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: headers,
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    // Phase 5: Response Processing
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+        cy.task("cli_log", `Shadow rollout config created successfully for ${merchantId}_${connector}_${methodFlow}`);
+      } else {
+        const errorMsg = response.body?.error?.message || 'Unknown error';
+        cy.task("cli_log", `FAILED to create shadow rollout config for ${merchantId}_${connector}_${methodFlow}`);
+        cy.task("cli_log", `   Status: ${response.status}`);
+        cy.task("cli_log", `   Error: ${errorMsg}`);
+        throw new Error(`Shadow rollout config creation failed with status ${response.status}: ${errorMsg}`);
+      }
+    });
+  });
+});
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",
@@ -4274,3 +4464,184 @@ Cypress.Commands.add(
     );
   }
 );
+
+Cypress.Commands.add("diffCheckResult", (globalState) => {
+  // Input validation
+  if (!globalState) {
+    cy.task("cli_log", "ERROR: globalState parameter is required for diffCheckResult");
+    return;
+  }
+
+  // Retrieve stored request IDs
+  const storedRequestIds = globalState.get("requestIds") || [];
+
+  // Check if we have any request IDs to process
+  if (storedRequestIds.length === 0) {
+    cy.task("cli_log", "No stored request IDs found. Skipping diff check validation.");
+    return;
+  }
+
+  // Start validation
+  cy.task("cli_log", `Diff check validation started for ${storedRequestIds.length} request ID(s)`);
+
+  // Main validation service API call
+  const validationServiceUrl = globalState.get("validationServiceUrl");
+
+  cy.request({
+    method: "GET",
+    url: validationServiceUrl,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    // Handle service unavailability
+    if (response.status !== 200) {
+      cy.task("cli_log", `Validation service unavailable (Status: ${response.status}). Skipping diff check validation.`);
+      return;
+    }
+
+    // Validate response structure
+    if (!response.body || !response.body.data || !Array.isArray(response.body.data)) {
+      cy.task("cli_log", "Invalid response structure from validation service");
+      return;
+    }
+
+    const allResults = response.body.data;
+
+    // Filter matching results
+    const matchingResults = [];
+    allResults.forEach(resultId => {
+      const isMatching = storedRequestIds.some(storedId => {
+        return resultId.includes(storedId);
+      });
+      if (isMatching) {
+        matchingResults.push(resultId);
+      }
+    });
+
+    // Handle no matches scenario
+    if (matchingResults.length === 0) {
+      cy.task("cli_log", "No matching results found for stored request IDs");
+      return;
+    }
+
+    // Initialize counters for final summary
+    let processedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Function to safely encode result IDs with special characters
+    function encodeResultId(resultId) {
+      return encodeURIComponent(resultId);
+    }
+
+    // Process results and show summary
+    cy.then(() => {
+      function processNextResult(index) {
+        if (index >= matchingResults.length) {
+          // Final summary
+          if (errorCount === 0) {
+            cy.task("cli_log", `Diff check validation completed: ${successCount} passed, ${errorCount} failed`);
+          } else {
+            cy.task("cli_log", `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`);
+          }
+
+          // Cleanup: Remove matched request IDs from globalState
+          if (matchingResults.length > 0) {
+            const remainingRequestIds = storedRequestIds.filter(storedId => {
+              return !matchingResults.some(resultId => resultId.includes(storedId));
+            });
+            globalState.set("requestIds", remainingRequestIds);
+          }
+          return;
+        }
+
+        processedCount++;
+        const resultId = matchingResults[index];
+
+        // Individual result API calls
+        const encodedResultId = encodeResultId(resultId);
+        const detailUrl = `https://integ.hyperswitch.io/validation-service/api/results/${encodedResultId}`;
+
+        cy.request({
+          method: "GET",
+          url: detailUrl,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+          failOnStatusCode: false,
+        }).then((detailResponse) => {
+          if (detailResponse.status === 200) {
+            // Validate response structure
+            let validationsFailed = 0;
+
+            try {
+              if (detailResponse.body?.data?.data?.comparisonResult) {
+                const comparisonResult = detailResponse.body.data.data.comparisonResult;
+
+                // Validate headerComparison
+                if (comparisonResult.headerComparison) {
+                  try {
+                    expect(comparisonResult.headerComparison.keyDiff, 'headerComparison.keyDiff').to.deep.equal({});
+                    expect(comparisonResult.headerComparison.valueDiff, 'headerComparison.valueDiff').to.deep.equal({});
+                  } catch (error) {
+                    validationsFailed++;
+                    cy.task("cli_log", `FAIL: headerComparison validation failed for ${resultId}: ${error.message}`);
+                  }
+                }
+
+                // Validate methodComparison
+                if (comparisonResult.methodComparison) {
+                  try {
+                    expect(comparisonResult.methodComparison.match, 'methodComparison.match').to.be.true;
+                  } catch (error) {
+                    validationsFailed++;
+                    cy.task("cli_log", `FAIL: methodComparison validation failed for ${resultId}: ${error.message}`);
+                  }
+                }
+
+                // Validate bodyComparison
+                if (comparisonResult.bodyComparison) {
+                  try {
+                    expect(comparisonResult.bodyComparison.keyDiff, 'bodyComparison.keyDiff').to.deep.equal({});
+                    expect(comparisonResult.bodyComparison.valueDiff, 'bodyComparison.valueDiff').to.deep.equal({});
+                    expect(comparisonResult.bodyComparison.typeDiff, 'bodyComparison.typeDiff').to.deep.equal({});
+                  } catch (error) {
+                    validationsFailed++;
+                    cy.task("cli_log", `FAIL: bodyComparison validation failed for ${resultId}: ${error.message}`);
+                  }
+                }
+
+              } else {
+                validationsFailed++;
+                cy.task("cli_log", `FAIL: comparisonResult not found in response for ${resultId}`);
+              }
+
+            } catch (error) {
+              validationsFailed++;
+              cy.task("cli_log", `FAIL: Validation error for ${resultId}: ${error.message}`);
+            }
+
+            if (validationsFailed === 0) {
+              successCount++;
+            } else {
+              errorCount++;
+            }
+
+          } else {
+            errorCount++;
+            cy.task("cli_log", `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`);
+          }
+
+          // Continue to next result
+          processNextResult(index + 1);
+        })
+      }
+
+      // Start processing first result
+      processNextResult(0);
+    });
+  });
+});
