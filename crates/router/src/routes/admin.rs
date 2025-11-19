@@ -528,7 +528,7 @@ pub async fn connector_create(
             create_connector(state, req, merchant_context, auth_data.profile_id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
@@ -602,13 +602,13 @@ pub async fn connector_retrieve(
         |state, auth, req, _| {
             retrieve_connector(
                 state,
-                req.merchant_id,
+                auth.merchant_account.get_id().clone(),
                 auth.profile_id,
                 req.merchant_connector_id,
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be ProfileConnectorRead, but since this API responds with
@@ -714,9 +714,11 @@ pub async fn connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
+        |state, auth, _, _| {
+            list_payment_connectors(state, auth.merchant_account.get_id().clone(), None)
+        },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
@@ -746,15 +748,15 @@ pub async fn connector_list_profile(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, auth, merchant_id, _| {
+        |state, auth, _, _| {
             list_payment_connectors(
                 state,
-                merchant_id,
+                auth.merchant_account.get_id().clone(),
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ProfileConnectorRead,
@@ -791,14 +793,14 @@ pub async fn connector_update(
         |state, auth, req, _| {
             update_connector(
                 state,
-                &merchant_id,
+                auth.merchant_account.get_id().clone(),
                 auth.profile_id,
                 &merchant_connector_id,
                 req,
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
@@ -831,7 +833,7 @@ pub async fn connector_update(
         state,
         &req,
         payload,
-        |state, _, req, _| update_connector(state, &merchant_id, None, &id, req),
+        |state, _, req, _| update_connector(state, merchant_id.clone(), None, &id, req),
         auth::auth_type(
             &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
