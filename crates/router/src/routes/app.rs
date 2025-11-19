@@ -1805,7 +1805,8 @@ impl MerchantAccount {
                     .service(
                         web::resource("")
                             .route(web::get().to(admin::retrieve_merchant_account))
-                            .route(web::put().to(admin::update_merchant_account)),
+                            .route(web::put().to(admin::update_merchant_account))
+                            .route(web::delete().to(admin::delete_merchant_account)),
                     )
                     .service(
                         web::resource("/profiles").route(web::get().to(profiles::profiles_list)),
