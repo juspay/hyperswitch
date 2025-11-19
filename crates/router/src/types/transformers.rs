@@ -2171,6 +2171,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            test_mode: None,
         }
     }
 }
