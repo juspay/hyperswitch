@@ -187,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
-                &active_attempt_id,
+                active_attempt_id,
                 storage_scheme,
             )
             .await
