@@ -699,6 +699,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::EventClass,
         api_models::enums::EventType,
         api_models::enums::DecoupledAuthenticationType,
+        api_models::enums::Tokenization,
         api_models::enums::AuthenticationStatus,
         api_models::enums::UpdateActiveAttempt,
         api_models::admin::MerchantAccountResponse,

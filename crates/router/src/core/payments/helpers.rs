@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -77,6 +77,7 @@ use crate::core::{
     payments::{
         call_connector_service, customers,
         flows::{ConstructFlowSpecificData, Feature},
+        gateway::context as gateway_context,
         operations::ValidateResult as OperationsValidateResult,
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
@@ -4107,6 +4108,7 @@ mod tests {
             shipping_address_id: None,
             billing_address_id: None,
             mit_category: None,
+            tokenization: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now(),
@@ -4257,6 +4259,7 @@ mod tests {
             enable_partial_authorization: None,
             enable_overcapture: None,
             billing_descriptor: None,
+            tokenization: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4277,6 +4280,7 @@ mod tests {
             metadata: None,
             connector_id: None,
             mit_category: None,
+            tokenization: None,
             shipping_address_id: None,
             billing_address_id: None,
             statement_descriptor_name: None,
@@ -4860,6 +4864,7 @@ impl AttemptType {
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,
+            tokenization: None,
         }
     }
 
@@ -8507,6 +8512,19 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: None,
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     call_connector_service(
         state,
@@ -8527,6 +8545,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await
 }
@@ -8615,6 +8634,17 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        merchant_context: merchant_context.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids: lineage_ids.clone(),
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode,
+    };
 
     // Call Direct connector service
     let result = call_connector_service(
@@ -8636,6 +8666,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await?;
 
@@ -8749,84 +8780,5 @@ where
             router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
             Ok(())
         }
-    }
-}
-
-/// A formatted string key in the format "payment_methods_{customer_id}_{locker_id}"
-#[cfg(feature = "v1")]
-pub fn construct_payment_method_key_for_locking(
-    customer_id: &id_type::CustomerId,
-    locker_id: &str,
-) -> String {
-    format!(
-        "payment_methods_{}_{}",
-        customer_id.get_string_repr(),
-        locker_id
-    )
-}
-
-#[cfg(feature = "v1")]
-pub async fn perform_payment_method_duplication_check(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
-    payment_method_id: &str,
-    customer_id: &id_type::CustomerId,
-    card_detail: &api::CardDetailFromLocker,
-) -> RouterResult<Option<payment_methods::transformers::DataDuplicationCheck>> {
-    let db = &*state.store;
-    let existing_pm_by_locker_id = db
-        .find_payment_method_by_locker_id_customer_id_merchant_id(
-            &(state.into()),
-            merchant_context.get_merchant_key_store(),
-            payment_method_id,
-            customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await;
-
-    let duplication_check = match &existing_pm_by_locker_id {
-        Ok(pm) => {
-            //check for duplication
-            let card_decrypted = pm
-                .payment_method_data
-                .clone()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
-                .and_then(|pmd| match pmd {
-                    api::PaymentMethodsData::Card(card) => {
-                        Some(api::CardDetailFromLocker::from(card))
-                    }
-                    _ => None,
-                })
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to obtain decrypted token object from db")?;
-
-            // Use the duplication check function to compare card details
-            check_for_duplication_of_card_data(card_detail, &card_decrypted)
-        }
-        Err(err) => {
-            logger::error!(
-                "Error fetching existing payment method for locker_id: {}, customer_id: {}: {:?}",
-                payment_method_id,
-                customer_id.get_string_repr(),
-                err
-            );
-            None
-        }
-    };
-
-    Ok(duplication_check)
-}
-
-#[cfg(feature = "v1")]
-pub fn check_for_duplication_of_card_data(
-    card_details: &api::CardDetailFromLocker,
-    card_decrypted: &api::CardDetailFromLocker,
-) -> Option<payment_methods::transformers::DataDuplicationCheck> {
-    if card_details.eq(card_decrypted) {
-        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated)
-    } else {
-        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
     }
 }
