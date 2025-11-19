@@ -1,9 +1,5 @@
 pub mod context;
 pub mod psync_gateway;
-pub mod session_token_gateway;
-pub mod access_token_create_gateway;
-pub mod connector_customer_create_gateway;
-pub mod payment_method_token_gateway;
 pub mod authorize_gateway;
 
 use std::sync;
