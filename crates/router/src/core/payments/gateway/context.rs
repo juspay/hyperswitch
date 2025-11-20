@@ -6,7 +6,7 @@
 
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{merchant_context::MerchantContext, payments::HeaderPayload};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Platform};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -19,7 +19,7 @@ use crate::core::payments::helpers;
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
     /// Merchant context (merchant_id, profile_id, etc.)
-    pub merchant_context: MerchantContext,
+    pub platform: Platform,
 
     /// Header payload (x-reference-id, etc.)
     pub header_payload: HeaderPayload,
@@ -46,7 +46,7 @@ pub struct RouterGatewayContext {
 impl RouterGatewayContext {
     /// Create a new router gateway context
     pub fn new(
-        merchant_context: MerchantContext,
+        platform: Platform,
         header_payload: HeaderPayload,
         lineage_ids: LineageIds,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
@@ -57,7 +57,7 @@ impl RouterGatewayContext {
         creds_identifier: Option<String>,
     ) -> Self {
         Self {
-            merchant_context,
+            platform,
             header_payload,
             lineage_ids,
             merchant_connector_account,

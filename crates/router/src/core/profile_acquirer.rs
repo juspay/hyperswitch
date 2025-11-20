@@ -13,12 +13,12 @@ use crate::{
 pub async fn create_profile_acquirer(
     state: SessionState,
     request: profile_acquirer::ProfileAcquirerCreate,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
     let key_manager_state: KeyManagerState = (&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_key_store = platform.get_processor().get_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(
@@ -110,11 +110,11 @@ pub async fn update_profile_acquirer_config(
     profile_id: common_utils::id_type::ProfileId,
     profile_acquirer_id: common_utils::id_type::ProfileAcquirerId,
     request: profile_acquirer::ProfileAcquirerUpdate,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = (&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_key_store = platform.get_processor().get_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)

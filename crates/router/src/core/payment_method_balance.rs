@@ -37,7 +37,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_check_gift_card_balance_core(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     _req_state: &ReqState,
     payment_method_data: api_models::payments::BalanceCheckPaymentMethodData,
@@ -47,12 +47,12 @@ pub async fn payments_check_gift_card_balance_core(
 
     let key_manager_state = &state.into();
 
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_intent = db
         .find_payment_intent_by_id(
             key_manager_state,
             payment_id,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await
@@ -81,7 +81,7 @@ pub async fn payments_check_gift_card_balance_core(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
                 state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 Some(&gift_card_connector_id),
             )
             .await
@@ -199,7 +199,7 @@ pub async fn payments_check_gift_card_balance_core(
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_check_and_apply_pm_data_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     _req_state: ReqState,
     req: ApplyPaymentMethodDataRequest,
@@ -207,12 +207,12 @@ pub async fn payments_check_and_apply_pm_data_core(
 ) -> RouterResponse<CheckAndApplyPaymentMethodDataResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_intent = db
         .find_payment_intent_by_id(
             key_manager_state,
             &payment_id,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await
@@ -257,7 +257,7 @@ pub async fn payments_check_and_apply_pm_data_core(
                 None => {
                     match payments_check_gift_card_balance_core(
                         &state,
-                        &merchant_context,
+                        &platform,
                         &profile,
                         &_req_state,
                         pm.clone(),
