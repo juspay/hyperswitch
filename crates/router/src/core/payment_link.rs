@@ -724,8 +724,18 @@ pub fn get_payment_link_config_based_on_priority(
                     .domain_name
                     .clone()
                     .map(|d_name| {
-                        logger::info!("domain name set to custom domain https://{:?}", d_name);
-                        format!("https://{d_name}")
+                        let is_dev =
+                            matches!(router_env::env::which(), router_env::Env::Development);
+                        let scheme = if is_dev { "http" } else { "https" };
+
+                        logger::info!(
+                            "domain name set to custom domain {}://{:?} (env = {:?})",
+                            scheme,
+                            d_name,
+                            router_env::env::which()
+                        );
+
+                        format!("{scheme}://{d_name}")
                     })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
@@ -777,7 +787,13 @@ pub fn get_payment_link_config_based_on_priority(
             }
             (true, false) => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.test_mode =true".to_string()
+                    message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.test_mode = true".to_string()
+                }
+                .into(),
+            )}
+            (false, true) => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot set payment_link_config.test_mode = true in Production".to_string()
                 }
                 .into(),
             )}
