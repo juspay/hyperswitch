@@ -4,8 +4,8 @@ use common_utils::{errors::CustomResult, id_type};
 use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
-    payment_methods::PaymentMethodUpdate,
+    api::ApplicationResponse, errors::api_error_response as errors,
+    payment_methods::PaymentMethodUpdate, platform,
 };
 use masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
@@ -23,14 +23,13 @@ pub async fn update_payment_methods(
     state: &SessionState,
     payment_methods: Vec<pm_api::UpdatePaymentMethodRecord>,
     merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
+    platform: &platform::Platform,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodUpdateResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
 
     for record in payment_methods {
         let update_res =
-            update_payment_method_record(state, record.clone(), merchant_id, merchant_context)
-                .await;
+            update_payment_method_record(state, record.clone(), merchant_id, platform).await;
         let res = match update_res {
             Ok(ApplicationResponse::Json(response)) => Ok(response),
             Err(e) => Err(e.to_string()),
@@ -47,7 +46,7 @@ pub async fn update_payment_method_record(
     state: &SessionState,
     req: pm_api::UpdatePaymentMethodRecord,
     merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
+    platform: &platform::Platform,
 ) -> CustomResult<
     ApplicationResponse<pm_api::PaymentMethodRecordUpdateResponse>,
     errors::ApiErrorResponse,
@@ -71,9 +70,9 @@ pub async fn update_payment_method_record(
     let payment_method = db
         .find_payment_method(
             &state.into(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_method_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -104,7 +103,7 @@ pub async fn update_payment_method_record(
                         Some(
                             create_encrypted_data(
                                 &key_manager_state,
-                                merchant_context.get_merchant_key_store(),
+                                platform.get_processor().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
                             )
                             .await
@@ -132,9 +131,9 @@ pub async fn update_payment_method_record(
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &state.into(),
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -157,8 +156,8 @@ pub async fn update_payment_method_record(
                     &state.into(),
                     &payment_method.customer_id,
                     merchant_id,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -259,17 +258,20 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
+                last_modified_by: None,
             }
         }
         _ => {
             if updated_payment_method_data.is_some() {
                 PaymentMethodUpdate::PaymentMethodDataUpdate {
                     payment_method_data: updated_payment_method_data,
+                    last_modified_by: None,
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     status,
+                    last_modified_by: None,
                 }
             }
         }
@@ -278,10 +280,10 @@ pub async fn update_payment_method_record(
     let response = db
         .update_payment_method(
             &state.into(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             payment_method,
             pm_update,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -298,8 +300,8 @@ pub async fn update_payment_method_record(
                     merchant_id.clone(),
                     customer_data,
                     customer_update,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -403,6 +405,7 @@ fn build_connector_customer_update(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize connector customer data")?,
             )),
+            last_modified_by: None,
         },
     )
 }

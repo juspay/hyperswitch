@@ -1,6 +1,5 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
-use common_enums;
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use masking::Secret;
 use serde::{Deserialize, Serialize};

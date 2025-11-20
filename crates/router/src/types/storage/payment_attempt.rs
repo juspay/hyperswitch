@@ -124,7 +124,6 @@ impl AttemptStatusExt for enums::AttemptStatus {
     feature = "dummy_connector"
 ))]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
@@ -232,6 +231,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: None,
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
 
         let store = state
@@ -329,6 +329,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores
@@ -439,6 +440,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores

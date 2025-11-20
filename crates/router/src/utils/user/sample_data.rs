@@ -58,10 +58,12 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
+        merchant_from_db.clone(),
+        key_store.clone(),
         merchant_from_db.clone(),
         key_store,
-    )));
+    );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
@@ -77,7 +79,7 @@ pub async fn generate_sample_data(
             key_manager_state,
             business_country_default,
             business_label_default.as_ref(),
-            &merchant_context,
+            &platform,
             req.profile_id.as_ref(),
             &*state.store,
             false,
@@ -108,7 +110,7 @@ pub async fn generate_sample_data(
                 .store
                 .list_profile_by_merchant_id(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                     merchant_id,
                 )
                 .await
@@ -299,6 +301,8 @@ pub async fn generate_sample_data(
             enable_partial_authorization: None,
             enable_overcapture: None,
             mit_category: None,
+            billing_descriptor: None,
+            tokenization: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -398,6 +402,7 @@ pub async fn generate_sample_data(
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,
+            tokenization: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

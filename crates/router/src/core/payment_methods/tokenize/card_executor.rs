@@ -431,6 +431,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None, // Same as created_by on creation
         };
 
         db.insert_customer(
@@ -557,6 +560,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
+                card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             }),
             metadata: None,
             customer_id: Some(customer_id.clone()),
@@ -574,10 +578,12 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         };
         PmCards {
             state: self.state,
-            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            platform: &domain::Platform::new(
                 self.merchant_account.clone(),
                 self.key_store.clone(),
-            ))),
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ),
         }
         .create_payment_method(
             &payment_method_create,

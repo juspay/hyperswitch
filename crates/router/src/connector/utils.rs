@@ -2422,7 +2422,6 @@ pub fn get_card_details(
 
 #[cfg(test)]
 mod error_code_error_message_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     struct TestConnector;

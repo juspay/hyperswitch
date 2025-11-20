@@ -211,6 +211,7 @@ pub struct PaymentAttemptBatchNew {
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub tokenization: Option<common_enums::Tokenization>,
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
@@ -315,6 +316,7 @@ impl PaymentAttemptBatchNew {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            tokenization: self.tokenization,
         }
     }
 }
