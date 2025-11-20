@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
+    payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
@@ -851,9 +852,17 @@ fn get_instruction_details(
                     .map(|m| m.initial_transaction_id)
             });
 
+        let transaction_type = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Installment) => InstructionType::Installment,
+            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
+                InstructionType::Unscheduled
+            }
+        };
+
         return Some(Instruction {
             mode: InstructionMode::Repeated,
-            transaction_type: InstructionType::Unscheduled,
+            transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
             initial_transaction_id,
             create_registration: None,
