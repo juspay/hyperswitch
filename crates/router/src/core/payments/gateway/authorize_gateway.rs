@@ -72,24 +72,6 @@ where
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
         let merchant_order_reference_id = header_payload.x_reference_id.clone();
-        let is_ucs_psync_disabled = state
-            .conf
-            .grpc_client
-            .unified_connector_service
-            .as_ref()
-            .is_some_and(|config| {
-                config
-                    .ucs_psync_disabled_connectors
-                    .contains(&connector_enum)
-            });
-
-        if is_ucs_psync_disabled {
-            logger::info!(
-                "UCS PSync call disabled for connector: {}, skipping UCS call",
-                connector_name
-            );
-            return Ok(router_data.clone());
-        }
         let client = state
             .grpc_client
             .unified_connector_service_client
