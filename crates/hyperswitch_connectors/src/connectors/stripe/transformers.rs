@@ -2470,7 +2470,7 @@ pub fn get_stripe_compatible_connect_account_header(
             }
         }
 
-        // Only CIT payments
+        // CIT payments
         (None, Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object))) => {
             if split_payment_object.charge_type
                 == PaymentChargeType::Stripe(StripeChargeType::Direct)
