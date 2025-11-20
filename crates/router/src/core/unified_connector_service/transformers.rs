@@ -29,6 +29,7 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
+use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
@@ -1723,6 +1724,112 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
     }
 }
 
+impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
+    for payments_grpc::apple_wallet::payment_data::PaymentData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        payment_data: &common_types::payments::ApplePayPaymentData,
+    ) -> Result<Self, Self::Error> {
+        match payment_data {
+            common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => Ok(
+                payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(
+                    encrypted_data.clone(),
+                ),
+            ),
+            common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                let application_primary_account_number = CardNumber::from_str(
+                    &decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                )
+                .change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?;
+                Ok(
+                    payments_grpc::apple_wallet::payment_data::PaymentData::DecryptedData(
+                        payments_grpc::ApplePayPredecryptData {
+                            application_primary_account_number: Some(
+                                application_primary_account_number,
+                            ),
+                            application_expiration_month: Some(
+                                decrypted_data
+                                    .application_expiration_month
+                                    .clone()
+                                    .expose()
+                                    .into(),
+                            ),
+                            application_expiration_year: Some(
+                                decrypted_data
+                                    .application_expiration_year
+                                    .clone()
+                                    .expose()
+                                    .into(),
+                            ),
+                            payment_data: Some(payments_grpc::ApplePayCryptogramData {
+                                online_payment_cryptogram: Some(
+                                    decrypted_data
+                                        .payment_data
+                                        .online_payment_cryptogram
+                                        .clone()
+                                        .expose()
+                                        .into(),
+                                ),
+                                eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
+                            }),
+                        },
+                    ),
+                )
+            }
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
+    for payments_grpc::google_wallet::tokenization_data::TokenizationData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        tokenization_data: &common_types::payments::GpayTokenizationData,
+    ) -> Result<Self, Self::Error> {
+        match tokenization_data {
+            common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => Ok(
+                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(
+                    payments_grpc::GpayEncryptedTokenizationData {
+                        token_type: encrypted_data.token_type.clone(),
+                        token: encrypted_data.token.clone(),
+                    },
+                ),
+            ),
+            common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                let application_primary_account_number = CardNumber::from_str(
+                    &decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                )
+                .change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?;
+                Ok(payments_grpc::google_wallet::tokenization_data::TokenizationData::DecryptedData(
+                    payments_grpc::GPayPredecryptData {
+                        card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
+                        card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
+                        application_primary_account_number: Some(application_primary_account_number),
+                        cryptogram: decrypted_data.cryptogram.clone().map(|cryptogram| cryptogram.expose().into()),
+                        eci_indicator: decrypted_data.eci_indicator.clone(),
+                    }
+                ))
+            }
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {
@@ -2563,6 +2670,17 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+
         Ok(Self {
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
@@ -2604,6 +2722,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                     )
                 })?,
             state,
+            merchant_account_metadata,
         })
     }
 }
@@ -2633,6 +2752,17 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
 
         Ok(Self {
             request_ref_id,
@@ -2672,6 +2802,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         .unwrap_or_default()
                 })
                 .unwrap_or_default(),
+            merchant_account_metadata,
         })
     }
 }
