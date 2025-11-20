@@ -64,10 +64,8 @@ where
         ConnectorError,
     > {
         let connector_name = router_data.connector.clone();
-        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
-            .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
-        let merchant_context = context.merchant_context;
+        let platform = context.platform;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -90,7 +88,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &merchant_context,
+                &platform,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
