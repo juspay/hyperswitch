@@ -2462,7 +2462,15 @@ pub fn get_stripe_compatible_connect_account_header(
         }
 
         // Only MIT : when no split payments is provided, uses previous transfer_account_id
-        (Some(cit), _) => cit.transfer_account_id.clone(),
+        (Some(cit), _) => {
+            if split_payment_object.charge_type
+                == PaymentChargeType::Stripe(StripeChargeType::Direct)
+            {
+                Some(cit.transfer_account_id.clone())
+            } else {
+                None
+            }
+        }
 
         // Only CIT payments
         (None, Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object))) => {
