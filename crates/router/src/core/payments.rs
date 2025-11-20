@@ -4406,7 +4406,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
         call_connector_service(
-            updated_state,
+            &updated_state,
             req_state,
             platform,
             connector,
