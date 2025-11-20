@@ -4375,7 +4375,7 @@ where
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
     if is_ucs_granular_flow {
-        logger::info!("Current flow is UCS Composite flow");
+        logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -4403,7 +4403,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
         call_connector_service(
-            state,
+            updated_state,
             req_state,
             platform,
             connector,
