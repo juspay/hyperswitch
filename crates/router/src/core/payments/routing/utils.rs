@@ -1472,7 +1472,32 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
-pub async fn select_routing_result<T>(
+// pub async fn select_routing_result<T>(
+//     state: &SessionState,
+//     business_profile: &business_profile::Profile,
+//     hyperswitch_result: T,
+//     de_result: T,
+// ) -> T {
+//     let routing_result_source: Option<api_routing::RoutingResultSource> = state
+//         .store
+//         .find_config_by_key(&format!(
+//             "routing_result_source_{0}",
+//             business_profile.get_id().get_string_repr()
+//         ))
+//         .await
+//         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
+//         .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
+//     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
+//         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
+//         de_result
+//     } else {
+//         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+//         hyperswitch_result
+//     }
+// }
+use std::fmt::Debug;
+
+pub async fn select_routing_result<T: Debug>(
     state: &SessionState,
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
@@ -1486,14 +1511,21 @@ pub async fn select_routing_result<T>(
         ))
         .await
         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
-    if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
+        .unwrap_or(None);
+
+    let result = if let Some(api_routing::RoutingResultSource::DecisionEngine) =
+        routing_result_source
+    {
         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
         de_result
     } else {
         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
         hyperswitch_result
-    }
+    };
+
+    println!(">>>>>>>>>> routing result: {:?}", result);
+
+    result
 }
 pub trait DecisionEngineErrorsInterface {
     fn get_error_message(&self) -> String;
