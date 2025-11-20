@@ -841,7 +841,7 @@ impl
 
                 PaymentIntentUpdate::ConfirmIntentPostUpdate {
                     status,
-                    amount_captured: intent_amount_captured,
+                    amount_captured: intent_amount_captured.clone(),
                     updated_by: storage_scheme.to_string(),
                     feature_metadata: updated_feature_metadata,
                 }
@@ -851,7 +851,7 @@ impl
                     .get_intent_error_response_status_for_db_update(payment_data, error.clone());
                 PaymentIntentUpdate::ConfirmIntentPostUpdate {
                     status,
-                    amount_captured,
+                    amount_captured: intent_amount_captured,
                     updated_by: storage_scheme.to_string(),
                     feature_metadata: updated_feature_metadata,
                 }
@@ -1013,22 +1013,29 @@ impl
         let base_status =
             common_enums::IntentStatus::from(self.get_attempt_status_for_db_update(payment_data));
 
-        // Check for special processing case with partial authorization and split payments
-        if self.status == common_enums::enums::AttemptStatus::Pending
-            && payment_data
-                .payment_intent
-                .active_attempts_group_id
-                .is_some()
-            && payment_data
-                .payment_intent
-                .enable_partial_authorization
-                .map(|val| *val)
-                .unwrap_or(false)
-        {
-            common_enums::IntentStatus::PartiallyCapturedAndProcessing
-        } else {
-            base_status
-        }
+        let amount_captured = self.get_captured_amount(payment_data);
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
+
+        let has_captured_amount = intent_amount_captured
+            .map(|amt| amt > MinorUnit::zero())
+            .unwrap_or(false);
+
+        // If it's a partial authorization flow, we need to adjust the intent status accordingly
+        (payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount)
+            .then(|| match self.status {
+                common_enums::enums::AttemptStatus::Pending => {
+                    common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                }
+                status if status.is_payment_terminal_failure() => {
+                    common_enums::IntentStatus::PartiallyCaptured
+                }
+                _ => base_status,
+            })
+            .unwrap_or(base_status)
     }
 
     fn get_intent_error_response_status_for_db_update(
@@ -1047,28 +1054,29 @@ impl
         };
         // Step 2: Check if amount was captured
         let amount_captured = self.get_captured_amount(payment_data);
-        let has_captured_amount = amount_captured
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
+
+        let has_captured_amount = intent_amount_captured
             .map(|amt| amt > MinorUnit::zero())
             .unwrap_or(false);
 
         // Step 3: Map to intent status based on both attempt_status and amount_captured
-        if has_captured_amount {
-            match attempt_status {
+
+        (payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount)
+            .then(|| match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
-                    // 5xx errors with captured amount
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing
                 }
-                common_enums::enums::AttemptStatus::Failure => {
-                    // 4xx or other failures with captured amount
+                status if status.is_payment_terminal_failure() => {
                     common_enums::IntentStatus::PartiallyCaptured
                 }
-                // For any other attempt status, use default conversion
                 _ => common_enums::IntentStatus::from(attempt_status),
-            }
-        } else {
-            // No amount captured - use default conversion
-            common_enums::IntentStatus::from(attempt_status)
-        }
+            })
+            .unwrap_or(common_enums::IntentStatus::from(attempt_status))
     }
 
     fn get_amount_capturable(
@@ -1443,22 +1451,29 @@ impl
         let base_status =
             common_enums::IntentStatus::from(self.get_attempt_status_for_db_update(payment_data));
 
-        // Check for special processing case with partial authorization and split payments
-        if self.status == common_enums::enums::AttemptStatus::Pending
-            && payment_data
-                .payment_intent
-                .active_attempts_group_id
-                .is_some()
-            && payment_data
-                .payment_intent
-                .enable_partial_authorization
-                .map(|val| *val)
-                .unwrap_or(false)
-        {
-            common_enums::IntentStatus::PartiallyCapturedAndProcessing
-        } else {
-            base_status
-        }
+        let amount_captured = self.get_captured_amount(payment_data);
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
+
+        let has_captured_amount = intent_amount_captured
+            .map(|amt| amt > MinorUnit::zero())
+            .unwrap_or(false);
+
+        // If it's a partial authorization flow, we need to adjust the intent status accordingly
+        (payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount)
+            .then(|| match self.status {
+                common_enums::enums::AttemptStatus::Pending => {
+                    common_enums::IntentStatus::PartiallyCapturedAndProcessing
+                }
+                status if status.is_payment_terminal_failure() => {
+                    common_enums::IntentStatus::PartiallyCaptured
+                }
+                _ => base_status,
+            })
+            .unwrap_or(base_status)
     }
 
     fn get_intent_error_response_status_for_db_update(
@@ -1478,29 +1493,27 @@ impl
 
         // Step 2: Check if amount was captured
         let amount_captured = self.get_captured_amount(payment_data);
-
-        let has_captured_amount = amount_captured
+        let intent_amount_captured = payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amount| amount + amount_captured.unwrap_or(MinorUnit::zero()))
+            .or(amount_captured);
+        let has_captured_amount = intent_amount_captured
             .map(|amt| amt > MinorUnit::zero())
             .unwrap_or(false);
-
         // Step 3: Map to intent status based on both attempt_status and amount_captured
-        if has_captured_amount {
-            match attempt_status {
+        (payment_data.payment_intent.is_partial_authorization_flow()
+            && has_captured_amount)
+            .then(|| match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
-                    // 5xx errors with captured amount
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing
                 }
-                common_enums::enums::AttemptStatus::Failure => {
-                    // 4xx or other failures with captured amount
+                status if status.is_payment_terminal_failure() => {
                     common_enums::IntentStatus::PartiallyCaptured
                 }
-                // For any other attempt status, use default conversion
                 _ => common_enums::IntentStatus::from(attempt_status),
-            }
-        } else {
-            // No amount captured - use default conversion
-            common_enums::IntentStatus::from(attempt_status)
-        }
+            })
+            .unwrap_or(common_enums::IntentStatus::from(attempt_status))
     }
 
     fn get_payment_attempt_update(

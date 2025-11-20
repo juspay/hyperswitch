@@ -183,15 +183,12 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await;
 
                 // unlocking the token
-                let intent_status = payment_intent.status;
-                if intent_status == common_enums::IntentStatus::Succeeded {
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                        state,
-                        &connector_customer_id,
-                        &payment_intent.id
+                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    state,
+                    &connector_customer_id,
+                    &payment_intent.id
                 )
-                    .await;
-                }
+                .await;
 
                 let payments_response = psync_response
                     .clone()
@@ -329,15 +326,12 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await;
 
                 // unlocking the token
-                let intent_status = payment_intent.status;
-                if intent_status == common_enums::IntentStatus::Failed {
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                        state,
-                        &connector_customer_id,
-                        &payment_intent.id
+                let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    state,
+                    &connector_customer_id,
+                    &payment_intent.id
                 )
-                    .await;
-                }
+                .await;
 
                 // Reopen calculate workflow on payment failure
                 Box::pin(reopen_calculate_workflow_on_payment_failure(

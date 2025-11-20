@@ -313,6 +313,13 @@ impl PaymentIntent {
                     .or_else(|| self.statement_descriptor_suffix.clone()),
             })
     }
+
+    #[cfg(feature = "v2")]
+    pub fn is_partial_authorization_flow(&self) -> bool {
+        self.enable_partial_authorization
+            .map(|val| *val)
+            .unwrap_or(false)
+    }
 }
 
 #[cfg(feature = "v2")]

@@ -198,6 +198,39 @@ impl AttemptStatus {
         }
     }
 
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
