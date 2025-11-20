@@ -1502,8 +1502,7 @@ impl
             .map(|amt| amt > MinorUnit::zero())
             .unwrap_or(false);
         // Step 3: Map to intent status based on both attempt_status and amount_captured
-        (payment_data.payment_intent.is_partial_authorization_flow()
-            && has_captured_amount)
+        (payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount)
             .then(|| match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing

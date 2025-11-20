@@ -571,8 +571,9 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
         } else {
             let required_conversion_type = common_utils::types::StringMajorUnitForConnector;
             let minor_amount_captured: Option<MinorUnit> =
-                if connector_utils::is_successful_terminal_status(status) {
-                    item.response
+                match connector_utils::is_successful_terminal_status(status) {
+                    true => item
+                        .response
                         .payment_detail
                         .and_then(|details| {
                             details.amount.map(|amount| {
@@ -584,9 +585,8 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                             })
                         })
                         .transpose()
-                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?
-                } else {
-                    None
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                    false => None,
                 };
 
             Ok(Self {
@@ -1943,10 +1943,9 @@ impl<F>
         match (item.response.sale_response.as_ref(), item.response.authorization_response.as_ref()) {
             (Some(sale_response), None) => {
                 let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
-                let minor_amount_captured = if connector_utils::is_successful_terminal_status(status){
-                        sale_response.approved_amount
-                    } else {
-                        None
+                let minor_amount_captured = match connector_utils::is_successful_terminal_status(status) {
+                        true => sale_response.approved_amount,
+                        false => None,
                     };
 
                 // While making an authorize flow call to WorldpayVantiv, if Account Updater is enabled then we well get new card token info in response.
@@ -2061,10 +2060,9 @@ impl<F>
                 };
 
                 let status = get_attempt_status(payment_flow_type, auth_response.response)?;
-                let minor_amount_captured = if connector_utils::is_successful_terminal_status(status){
-                        auth_response.approved_amount
-                    } else {
-                        None
+                let minor_amount_captured = match connector_utils::is_successful_terminal_status(status){
+                        true => auth_response.approved_amount,
+                        false => None,
                     };
                 if connector_utils::is_payment_failure(status) {
                     let network_decline_code = item

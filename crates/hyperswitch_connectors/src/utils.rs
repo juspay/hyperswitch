@@ -443,12 +443,12 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
 
 pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
     match status {
-        AttemptStatus::Authorized
-        | AttemptStatus::Charged
+        AttemptStatus::Charged
         | AttemptStatus::PartialCharged
-        | AttemptStatus::PartiallyAuthorized
         | AttemptStatus::PartialChargedAndChargeable => true,
         AttemptStatus::Started
+        | AttemptStatus::Authorized
+        | AttemptStatus::PartiallyAuthorized
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
