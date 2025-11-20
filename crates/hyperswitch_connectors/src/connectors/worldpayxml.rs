@@ -245,8 +245,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-      //  Ok(format!("https://webhook.site/434c26a0-8ca4-4898-88e7-3b32662f0ddf") )
-      Ok(self.base_url(connectors).to_owned())
+        //  Ok(format!("https://webhook.site/434c26a0-8ca4-4898-88e7-3b32662f0ddf") )
+        Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(

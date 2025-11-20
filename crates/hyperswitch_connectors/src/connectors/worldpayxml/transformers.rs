@@ -316,27 +316,27 @@ pub struct WorldpayxmlShopper {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WPGBrowserData {
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub accept_header: Option<String>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent_header: Option<String>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub http_accept_language: Option<String>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub http_referer: Option<String>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time_zone: Option<i32>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_language: Option<String>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_java_enabled: Option<bool>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_java_script_enabled: Option<bool>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_colour_depth: Option<u8>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_screen_height: Option<u32>,
-     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_screen_width: Option<u32>,
 }
 
@@ -613,7 +613,10 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
         .address
         .as_ref()
         .and_then(|address| address.get_optional_line1());
-    let postal_code_option = data.address.as_ref().and_then(|address| address.get_optional_zip());
+    let postal_code_option = data
+        .address
+        .as_ref()
+        .and_then(|address| address.get_optional_zip());
     let country_code_option = data
         .address
         .as_ref()
