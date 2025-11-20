@@ -1631,12 +1631,7 @@ pub async fn list_payment_methods_for_session(
 
     let customer_payment_methods = match payment_method_session.customer_id {
         Some(customer_id) => {
-            list_customer_payment_methods_core(
-                &state,
-                &merchant_context,
-                &customer_id,
-            )
-            .await?
+            list_customer_payment_methods_core(&state, &merchant_context, &customer_id).await?
         }
         None => Vec::new(),
     };
@@ -3143,7 +3138,7 @@ pub async fn payment_methods_session_create(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    if let(Some(customer_id)) = &request.customer_id {
+    if let (Some(customer_id)) = &request.customer_id {
         db.find_customer_by_global_id(
             key_manager_state,
             customer_id,
@@ -3516,7 +3511,10 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let customer_id = payment_method_session.customer_id.clone().get_required_value("customer_id")?;
+    let customer_id = payment_method_session
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
 
     let create_payment_method_request = get_payment_method_create_request(
         request
