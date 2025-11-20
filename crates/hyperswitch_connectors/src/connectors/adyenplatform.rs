@@ -487,7 +487,7 @@ impl ConnectorSpecifications for Adyenplatform {
         None
     }
     #[cfg(feature = "v1")]
-    fn generate_connector_customer_reference_id(
+    fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,
         merchant_id: &common_utils::id_type::MerchantId,

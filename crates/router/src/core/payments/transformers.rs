@@ -1881,7 +1881,7 @@ where
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
-        connector_customer: core_utils::get_connector_customer_reference_id(
+        connector_customer: core_utils::get_connector_customer_id(
             &state.conf,
             connector_id,
             payment_data.connector_customer_id.clone(),

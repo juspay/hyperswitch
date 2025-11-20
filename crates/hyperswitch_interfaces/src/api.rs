@@ -542,7 +542,7 @@ pub trait ConnectorSpecifications {
 
     #[cfg(feature = "v1")]
     /// Generate connector customer reference ID for payments
-    fn generate_connector_customer_reference_id(
+    fn generate_connector_customer_id(
         &self,
         _customer_id: &Option<common_utils::id_type::CustomerId>,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -552,7 +552,7 @@ pub trait ConnectorSpecifications {
 
     #[cfg(feature = "v2")]
     /// Generate connector customer reference ID for payments
-    fn generate_connector_customer_reference_id(
+    fn generate_connector_customer_id(
         &self,
         _customer_id: &Option<common_utils::id_type::CustomerId>,
         _merchant_id: &common_utils::id_type::MerchantId,

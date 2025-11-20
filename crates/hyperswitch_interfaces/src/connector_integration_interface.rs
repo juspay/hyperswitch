@@ -675,23 +675,23 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     #[cfg(feature = "v1")]
-    fn generate_connector_customer_reference_id(
+    fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> Option<String> {
         match self {
             Self::Old(connector) => {
-                connector.generate_connector_customer_reference_id(customer_id, merchant_id)
+                connector.generate_connector_customer_id(customer_id, merchant_id)
             }
             Self::New(connector) => {
-                connector.generate_connector_customer_reference_id(customer_id, merchant_id)
+                connector.generate_connector_customer_id(customer_id, merchant_id)
             }
         }
     }
 
     #[cfg(feature = "v2")]
-    fn generate_connector_customer_reference_id(
+    fn generate_connector_customer_id(
         &self,
         customer_id: &Option<common_utils::id_type::CustomerId>,
         merchant_id: &common_utils::id_type::MerchantId,

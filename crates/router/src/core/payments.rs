@@ -4037,7 +4037,7 @@ where
 
     #[cfg(feature = "v1")]
     if let Some(connector_customer_id) = {
-        core_utils::get_connector_customer_reference_id(
+        core_utils::get_connector_customer_id(
             &state.conf,
             &connector.connector_name.to_string(),
             payment_data.get_connector_customer_id(),

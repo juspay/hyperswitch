@@ -156,7 +156,7 @@ pub async fn construct_payout_router_data<'a, F>(
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
-        connector_customer: get_payout_connector_customer_reference_id(
+        connector_customer: get_payout_connector_customer_id(
             connector_data,
             connector_customer_id.clone(),
             &customer_details.to_owned().map(|c| c.customer_id),
@@ -1848,7 +1848,7 @@ pub fn get_connector_request_reference_id(
 }
 
 #[cfg(feature = "v1")]
-pub fn get_connector_customer_reference_id(
+pub fn get_connector_customer_id(
     conf: &Settings,
     connector_name: &str,
     connector_customer_id: Option<String>,
@@ -1863,7 +1863,7 @@ pub fn get_connector_customer_reference_id(
         payment_attempt.merchant_connector_id.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| "Failed to construct connector data")?;
+    .attach_printable("Failed to construct connector data")?;
 
     let mandate_customer_id = payment_method_info
         .as_ref()
@@ -1871,18 +1871,18 @@ pub fn get_connector_customer_reference_id(
         .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to construct mandate reference")?
+        .attach_printable("Failed to construct mandate reference")?
         .flatten();
 
     Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
         connector_data
             .connector
-            .generate_connector_customer_reference_id(customer_id, &payment_attempt.merchant_id)
+            .generate_connector_customer_id(customer_id, &payment_attempt.merchant_id)
     }))
 }
 
 #[cfg(feature = "v2")]
-pub fn get_connector_customer_reference_id(
+pub fn get_connector_customer_id(
     conf: &Settings,
     connector_name: &str,
     connector_customer_id: Option<String>,
@@ -1894,7 +1894,7 @@ pub fn get_connector_customer_reference_id(
 }
 
 #[cfg(feature = "v1")]
-pub fn get_payout_connector_customer_reference_id(
+pub fn get_payout_connector_customer_id(
     connector_data: &api::ConnectorData,
     connector_customer_id: Option<String>,
     customer_id: &Option<common_utils::id_type::CustomerId>,
@@ -1907,17 +1907,17 @@ pub fn get_payout_connector_customer_reference_id(
         .map(|(pm, mci)| pm.get_payout_connector_customer_id(mci.clone()))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| "Failed to construct mandate reference")?
+        .attach_printable("Failed to construct mandate reference")?
         .flatten();
     Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
         connector_data
             .connector
-            .generate_connector_customer_reference_id(customer_id, &payout_attempt.merchant_id)
+            .generate_connector_customer_id(customer_id, &payout_attempt.merchant_id)
     }))
 }
 
 #[cfg(feature = "v2")]
-pub fn get_payout_connector_customer_reference_id(
+pub fn get_payout_connector_customer_id(
     connector_data: &api::ConnectorData,
     connector_customer_id: Option<String>,
     customer_id: &Option<common_utils::id_type::CustomerId>,
