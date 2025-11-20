@@ -388,6 +388,10 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
         tax_registration_id -> Nullable<Bytea>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
@@ -1231,6 +1235,10 @@ diesel::table! {
         external_vault_source -> Nullable<Varchar>,
         #[max_length = 64]
         vault_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
