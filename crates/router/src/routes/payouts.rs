@@ -19,7 +19,7 @@ use crate::{
         authentication::{self as auth},
         authorization::permissions::Permission,
     },
-    types::{api::payouts as payout_types, domain, transformers::ForeignTryFrom},
+    types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
 
 /// Payouts - Create
@@ -48,10 +48,8 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_create_core(state, merchant_context, req)
+            let platform = auth.into();
+            payouts_create_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -84,10 +82,8 @@ pub async fn payouts_retrieve(
         &req,
         payout_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_retrieve_core(state, merchant_context, auth.profile_id, req)
+            let platform = auth.clone().into();
+            payouts_retrieve_core(state, platform, auth.profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -132,10 +128,8 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_update_core(state, merchant_context, req)
+            let platform = auth.into();
+            payouts_update_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -181,10 +175,8 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_confirm_core(state, merchant_context, req)
+            let platform = auth.into();
+            payouts_confirm_core(state, platform, req)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -210,10 +202,8 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_cancel_core(state, merchant_context, req)
+            let platform = auth.into();
+            payouts_cancel_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -241,10 +231,8 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_fulfill_core(state, merchant_context, req)
+            let platform = auth.into();
+            payouts_fulfill_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -272,10 +260,8 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_list_core(state, merchant_context, None, req)
+            let platform = auth.into();
+            payouts_list_core(state, platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -309,12 +295,10 @@ pub async fn payouts_list_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             payouts_list_core(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )
@@ -351,10 +335,8 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_filtered_list_core(state, merchant_context, None, req)
+            let platform = auth.into();
+            payouts_filtered_list_core(state, platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -388,12 +370,10 @@ pub async fn payouts_list_by_filter_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             payouts_filtered_list_core(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )
@@ -430,10 +410,8 @@ pub async fn payouts_list_available_filters_for_merchant(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payouts_list_available_filters_core(state, merchant_context, None, req)
+            let platform = auth.into();
+            payouts_list_available_filters_core(state, platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -467,12 +445,10 @@ pub async fn payouts_list_available_filters_for_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             payouts_list_available_filters_core(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )
@@ -515,10 +491,8 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            get_payout_filters_core(state, merchant_context)
+            let platform = auth.into();
+            get_payout_filters_core(state, platform)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

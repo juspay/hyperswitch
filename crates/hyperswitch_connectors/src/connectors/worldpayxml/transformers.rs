@@ -195,10 +195,10 @@ struct OrderStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Payment {
+pub struct Payment {
     payment_method: String,
     amount: WorldpayXmlAmount,
-    last_event: LastEvent,
+    pub last_event: LastEvent,
     #[serde(rename = "AuthorisationId")]
     authorisation_id: Option<AuthorisationId>,
     scheme_response: Option<SchemeResponse>,
@@ -270,7 +270,7 @@ struct AuthorisationId {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum LastEvent {
+pub enum LastEvent {
     Authorised,
     Refused,
     Cancelled,
@@ -278,9 +278,11 @@ enum LastEvent {
     Settled,
     SentForAuthorisation,
     SentForRefund,
+    SentForFastRefund,
     Refunded,
     RefundRequested,
     RefundFailed,
+    RefundedByMerchant,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -739,6 +741,8 @@ fn get_attempt_status(
         LastEvent::Refunded
         | LastEvent::SentForRefund
         | LastEvent::RefundRequested
+        | LastEvent::SentForFastRefund
+        | LastEvent::RefundedByMerchant
         | LastEvent::RefundFailed => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -748,7 +752,10 @@ fn get_attempt_status(
 fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refunded => Ok(enums::RefundStatus::Success),
-        LastEvent::SentForRefund | LastEvent::RefundRequested => Ok(enums::RefundStatus::Pending),
+        LastEvent::SentForRefund
+        | LastEvent::RefundRequested
+        | LastEvent::SentForFastRefund
+        | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Pending),
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
         LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
         LastEvent::Authorised
@@ -1626,6 +1633,52 @@ impl CardAddress {
         match addr {
             Some(a) => WorldpayxmlAddress::is_empty_option(&a.address),
             None => true,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayXmlWebhookBody {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub notify: Notify,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Notify {
+    pub order_status_event: OrderStatusEvent,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderStatusEvent {
+    #[serde(rename = "@orderCode")]
+    pub order_code: String,
+    pub payment: Payment,
+}
+
+pub fn get_payout_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
+    match status {
+        LastEvent::SentForRefund
+        | LastEvent::RefundedByMerchant
+        | LastEvent::SentForFastRefund
+        | LastEvent::RefundRequested => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        LastEvent::Refunded => api_models::webhooks::IncomingWebhookEvent::PayoutSuccess,
+        LastEvent::Cancelled => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
+        LastEvent::Refused | LastEvent::RefundFailed => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutFailure
+        }
+        LastEvent::Authorised
+        | LastEvent::Settled
+        | LastEvent::Captured
+        | LastEvent::SentForAuthorisation => {
+            api_models::webhooks::IncomingWebhookEvent::EventNotSupported
         }
     }
 }

@@ -41,7 +41,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -58,7 +58,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -79,7 +79,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -91,7 +91,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -183,7 +183,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -243,7 +243,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -339,7 +339,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
                     merchant_connector_account,
-                    merchant_context,
+                    platform,
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct request metadata")?;
@@ -385,7 +385,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         // Extract and store access token if present
                         if let Some(access_token) = get_access_token_from_ucs_response(
                             state,
-                            merchant_context,
+                            platform,
                             &connector_name,
                             merchant_connector_id.as_ref(),
                             creds_identifier.clone(),
@@ -395,7 +395,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         {
                             if let Err(error) = set_access_token_for_ucs(
                                 state,
-                                merchant_context,
+                                platform,
                                 &connector_name,
                                 access_token,
                                 merchant_connector_id.as_ref(),

@@ -6853,6 +6853,10 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
 
+    #[schema(example = "Insufficient Funds")]
+    #[smithy(value_type = "Option<String>")]
+    pub error_reason: Option<String>,
+
     /// error code unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
     #[smithy(value_type = "Option<String>")]
