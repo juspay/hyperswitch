@@ -896,15 +896,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        match get_stripe_compatible_connect_account_header(&req)? {
-            Some(id) => {
-                let mut customer_account_header = vec![(
-                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    id.into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-            None => (),
+        if let Some(id) = get_stripe_compatible_connect_account_header(req)? {
+            let mut customer_account_header = vec![(
+                STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                id.into_masked(),
+            )];
+            header.append(&mut customer_account_header);
         }
         Ok(header)
     }
