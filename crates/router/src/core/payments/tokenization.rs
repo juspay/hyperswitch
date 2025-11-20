@@ -1556,6 +1556,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 mandate_metadata,
                 connector_mandate_status: Some(ConnectorMandateStatus::Active),
                 connector_mandate_request_reference_id,
+                connector_customer_id: None,
             },
         );
         Some(CommonMandateReference {
@@ -1596,6 +1597,7 @@ pub fn update_connector_mandate_details(
                     connector_mandate_status: Some(ConnectorMandateStatus::Active),
                     connector_mandate_request_reference_id: connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
 
                 payment_mandate_reference
@@ -1609,6 +1611,7 @@ pub fn update_connector_mandate_details(
                         mandate_metadata: mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
                         connector_mandate_request_reference_id,
+                        connector_customer_id: None,
                     });
 
                 let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
@@ -1654,6 +1657,7 @@ pub fn update_connector_mandate_details_status(
                     connector_mandate_request_reference_id: pm
                         .connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
                 *pm = update_rec
             });

@@ -965,6 +965,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1036,6 +1037,7 @@ common_utils::impl_to_sql_from_sql_json!(PaymentsTokenReference);
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PayoutsMandateReferenceRecord {
     pub transfer_method_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
