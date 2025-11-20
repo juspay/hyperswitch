@@ -728,7 +728,7 @@ pub struct VoltErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct Errors {
     #[serde(rename = "type")]
-    pub _type: String,
+    pub error_type: String,
     pub property_path: String,
     pub message: String,
 }

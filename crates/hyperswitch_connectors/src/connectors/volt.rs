@@ -55,6 +55,8 @@ use crate::{
     utils::{self},
 };
 
+const X_VOLT_API_VERSION: &str = "X-Volt-Api-Version";
+const X_VOLT_INITIATION_CHANNEL: &str = "X-Volt-Initiation-Channel";
 const VOLT_VERSION: &str = "1";
 const VOLT_INITIATION_CHANNEL: &str = "hosted";
 
@@ -120,9 +122,9 @@ where
                 headers::IDEMPOTENCY_KEY.to_string(),
                 uuid::Uuid::new_v4().to_string().into(),
             ),
-            (headers::X_VOLT_API_VERSION.to_string(), VOLT_VERSION.into()),
+            (X_VOLT_API_VERSION.to_string(), VOLT_VERSION.into()),
             (
-                headers::X_VOLT_INITIATION_CHANNEL.to_string(),
+                X_VOLT_INITIATION_CHANNEL.to_string(),
                 VOLT_INITIATION_CHANNEL.into(),
             ),
         ];
