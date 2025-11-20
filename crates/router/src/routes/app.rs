@@ -26,7 +26,9 @@ use external_services::{
 use hyperswitch_interfaces::{
     crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
+    helpers as interfaces_helpers,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    types as interfaces_types,
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
@@ -200,8 +202,9 @@ impl SessionState {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.clone();
         let shadow_mode = match unified_connector_service_execution_mode {
-            ExecutionMode::Primary => false,
-            ExecutionMode::Shadow => true,
+            ExecutionMode::Primary => Some(false),
+            ExecutionMode::Shadow => Some(true),
+            ExecutionMode::NotApplicable => None,
         };
 
         // Extract proxy configuration from session state
@@ -210,7 +213,7 @@ impl SessionState {
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
-            .shadow_mode(Some(shadow_mode))
+            .shadow_mode(shadow_mode)
             .proxy_config(proxy_config)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -289,6 +292,12 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+}
+
+impl interfaces_helpers::GetComparisonServiceConfig for SessionState {
+    fn get_comparison_service_config(&self) -> Option<interfaces_types::ComparisonServiceConfig> {
+        self.conf.comparison_service.clone()
     }
 }
 
@@ -827,18 +836,11 @@ impl Payments {
                     web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
+                .service(web::scope("/payment-methods").service(
+                    web::resource("").route(web::get().to(payments::list_payment_methods)),
+                ))
                 .service(
-                    web::scope("/payment-methods")
-                        .service(
-                            web::resource("").route(web::get().to(payments::list_payment_methods)),
-                        )
-                        .service(
-                            web::resource("/check-balance")
-                                .route(web::post().to(payments::payment_check_gift_card_balance)),
-                        ),
-                )
-                .service(
-                    web::resource("/apply-payment-method-data")
+                    web::resource("/eligibility/check-balance-and-apply-pm-data")
                         .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
@@ -1518,6 +1520,7 @@ impl Payouts {
                     web::resource("/filter")
                         .route(web::post().to(payouts_list_available_filters_for_merchant)),
                 )
+                .service(web::resource("/v2/filter").route(web::get().to(get_payout_filters)))
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
@@ -3193,12 +3196,12 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
-            .service(web::resource("/status/{token_id}").route(
+            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
-            .service(web::resource("/redis-data/{token_id}").route(
+            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
                 web::get().to(
                     super::revenue_recovery_redis::get_revenue_recovery_redis_data,
                 ),

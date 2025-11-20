@@ -126,6 +126,7 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Hyperswitch".to_string()),
         statement_descriptor_suffix: Some("Hyperswitch".to_string()),
+        three_ds_data: None,
         ..<_>::default()
     };
 
@@ -214,6 +215,7 @@ async fn payments_create_core() {
         order_tax_amount: None,
         connector_mandate_id: None,
         mit_category: None,
+        tokenization: None,
         shipping_cost: None,
         card_discovery: None,
         force_3ds_challenge: None,
@@ -423,6 +425,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
+        three_ds_data: None,
         ..Default::default()
     };
 
@@ -511,6 +514,7 @@ async fn payments_create_core_adyen_no_redirect() {
             extended_authorization_last_applied_at: None,
             order_tax_amount: None,
             mit_category: None,
+            tokenization: None,
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,

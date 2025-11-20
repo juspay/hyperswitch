@@ -503,6 +503,38 @@ fn http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody>
     HttpResponse::Ok().body(response)
 }
 
+/// Payouts - Available filters for Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
+    let flow = Flow::PayoutsFilter;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            get_payout_filters_core(state, merchant_context)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 pub fn populate_browser_info_for_payouts(
     req: &HttpRequest,
     payload: &mut payout_types::PayoutCreateRequest,

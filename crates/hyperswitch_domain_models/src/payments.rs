@@ -31,6 +31,8 @@ use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+#[cfg(feature = "v2")]
+pub mod split_payments;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
@@ -130,6 +132,7 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 impl PaymentIntent {
@@ -393,6 +396,44 @@ impl AmountDetails {
         })
     }
 
+    pub fn create_split_attempt_amount_details(
+        &self,
+        confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
+        split_amount: MinorUnit,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = split_amount;
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            common_enums::TaxCalculationOverride::Skip => {
+                self.tax_details.as_ref().and_then(|tax_details| {
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                })
+            }
+            common_enums::TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        })
+    }
+
     pub fn proxy_create_attempt_amount_details(
         &self,
         _confirm_intent_request: &api_models::payments::ProxyPaymentsRequest,
@@ -495,7 +536,7 @@ pub struct PaymentIntent {
     /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
     /// The ID of the active attempt group for the payment intent
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -564,7 +605,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
 
     /// Indicates if the redirection has to open in the iframe
@@ -852,9 +893,33 @@ impl PaymentIntent {
         self.amount_details.currency
     }
 
+    pub fn supports_split_payments(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+    }
+
     pub fn is_split_payment(&self) -> bool {
         self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
-            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::AttemptsGroupID
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::GroupID
+    }
+
+    pub fn is_succeeded(&self) -> bool {
+        match self.status {
+            common_enums::IntentStatus::Succeeded => true,
+            common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Conflicted => false,
+        }
     }
 }
 

@@ -52,6 +52,7 @@ pub struct ConnectorAuthentication {
     pub dwolla: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
     pub elavon: Option<HeaderKey>,
+    pub envoy: Option<HeaderKey>,
     pub facilitapay: Option<BodyKey>,
     pub finix: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,

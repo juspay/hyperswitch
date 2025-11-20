@@ -98,36 +98,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v1")]
-    async fn find_payment_method_by_locker_id_customer_id_merchant_id(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        locker_id: &str,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, Self::Error> {
-        let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
-            state,
-            key_store,
-            storage_scheme,
-            PaymentMethod::find_by_locker_id_customer_id_merchant_id(
-                &conn,
-                locker_id,
-                customer_id,
-                merchant_id,
-            ),
-            FindResourceBy::LookupId(format!(
-                "payment_method_locker_{locker_id}_customer_{}_merchant_{}",
-                customer_id.get_string_repr(),
-                merchant_id.get_string_repr()
-            )),
-        )
-        .await
-    }
-
     // not supported in kv
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
@@ -205,7 +175,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_new.clone().insert(&conn),
             payment_method,
             InsertResourceParams {
-                insertable: kv::Insertable::PaymentMethod(payment_method_new.clone()),
+                insertable: kv::Insertable::PaymentMethod(Box::new(payment_method_new.clone())),
                 reverse_lookups,
                 key,
                 identifier,
@@ -485,31 +455,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
-    async fn find_payment_method_by_locker_id_customer_id_merchant_id(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        locker_id: &str,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, Self::Error> {
-        let conn = pg_connection_read(self).await?;
-        self.call_database(
-            state,
-            key_store,
-            PaymentMethod::find_by_locker_id_customer_id_merchant_id(
-                &conn,
-                locker_id,
-                customer_id,
-                merchant_id,
-            ),
-        )
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -734,6 +679,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
+            last_modified_by: None,
         };
         self.call_database(
             state,
@@ -815,31 +761,6 @@ impl PaymentMethodInterface for MockDb {
             key_store,
             payment_methods,
             |pm| pm.locker_id == Some(locker_id.to_string()),
-            "cannot find payment method".to_string(),
-        )
-        .await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_method_by_locker_id_customer_id_merchant_id(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        locker_id: &str,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, Self::Error> {
-        let payment_methods = self.payment_methods.lock().await;
-        self.get_resource::<PaymentMethod, _>(
-            state,
-            key_store,
-            payment_methods,
-            |pm| {
-                pm.locker_id == Some(locker_id.to_string())
-                    && pm.customer_id == *customer_id
-                    && pm.merchant_id == *merchant_id
-            },
             "cannot find payment method".to_string(),
         )
         .await
@@ -1037,6 +958,7 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_update = PaymentMethodUpdate::StatusUpdate {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
+            last_modified_by: None,
         };
         let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
             .apply_changeset(

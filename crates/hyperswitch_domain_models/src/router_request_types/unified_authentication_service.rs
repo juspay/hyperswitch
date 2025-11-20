@@ -86,6 +86,8 @@ pub struct TransactionDetails {
     pub currency: Option<common_enums::Currency>,
     pub device_channel: Option<DeviceChannel>,
     pub message_category: Option<super::authentication::MessageCategory>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +143,16 @@ pub struct PostAuthenticationDetails {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
+    pub raw_card_details: Option<RawCardDetails>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -186,4 +198,38 @@ pub struct ThreeDsMetaData {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PostAuthenticationDetails>
+    for Option<api_models::authentication::AuthenticationVaultTokenData>
+{
+    fn from(item: PostAuthenticationDetails) -> Self {
+        match (item.raw_card_details, item.token_details) {
+            (Some(card_data), _) => Some(
+                api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                    tokenized_card_number: Secret::new(card_data.pan.get_card_no()),
+                    tokenized_card_expiry_year: card_data.expiration_year,
+                    tokenized_card_expiry_month: card_data.expiration_month,
+                    tokenized_card_cvc: card_data.card_security_code,
+                },
+            ),
+            (None, Some(network_token_data)) => {
+                let token_cryptogram = item
+                    .dynamic_data_details
+                    .and_then(|data| data.dynamic_data_value);
+                Some(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                        tokenized_payment_token: Secret::new(
+                            network_token_data.payment_token.get_card_no(),
+                        ),
+                        tokenized_expiry_year: network_token_data.token_expiration_year,
+                        tokenized_expiry_month: network_token_data.token_expiration_month,
+                        tokenized_cryptogram: token_cryptogram,
+                    },
+                )
+            }
+            (None, None) => None,
+        }
+    }
 }

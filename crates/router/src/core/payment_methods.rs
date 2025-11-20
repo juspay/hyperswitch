@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
@@ -779,6 +780,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_network: card_network.clone(),
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
+                        card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
                         payment_method: Some(payment_method),
@@ -1074,6 +1076,7 @@ pub async fn create_payment_method_card_core(
         Err(e) => {
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(enums::PaymentMethodStatus::Inactive),
+                last_modified_by: None,
             };
 
             db.update_payment_method(
@@ -1961,6 +1964,8 @@ pub async fn create_payment_method_for_intent(
                 external_vault_source: None,
                 external_vault_token_data: None,
                 vault_type: None,
+                created_by: None,
+                last_modified_by: None,
             },
             storage_scheme,
         )
@@ -2027,6 +2032,8 @@ pub async fn create_payment_method_for_confirm(
                 external_vault_source,
                 external_vault_token_data: encrypted_external_vault_token_data,
                 vault_type,
+                created_by: None,
+                last_modified_by: None,
             },
             storage_scheme,
         )
@@ -2236,6 +2243,7 @@ pub async fn create_pm_additional_data_update(
         connector_mandate_details: connector_mandate_details_update,
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
+        last_modified_by: None,
     };
 
     Ok(pm_update)
@@ -2319,6 +2327,7 @@ pub async fn vault_payment_method_external(
         Some(pmd.clone()),
         None,
         None,
+        None,
     )
     .await?;
 
@@ -2366,6 +2375,7 @@ pub async fn vault_payment_method_external_v1(
     pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    should_generate_multiple_tokens: Option<bool>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let router_data = core_utils::construct_vault_router_data(
         state,
@@ -2374,10 +2384,11 @@ pub async fn vault_payment_method_external_v1(
         Some(pmd.clone()),
         None,
         None,
+        should_generate_multiple_tokens,
     )
     .await?;
 
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault insert api call",
@@ -2394,24 +2405,41 @@ pub async fn vault_payment_method_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        ExternalVaultInsertFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
-
-    let router_data_resp = services::execute_connector_processing_step(
+    access_token::create_access_token(
         state,
-        connector_integration,
-        &old_router_data,
-        payments_core::CallConnectorAction::Trigger,
-        None,
-        None,
+        &connector_data,
+        merchant_account,
+        &mut old_router_data,
     )
-    .await
-    .to_vault_failed_response()?;
+    .await?;
 
-    get_vault_response_for_insert_payment_method_data(router_data_resp)
+    if old_router_data.response.is_ok() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            ExternalVaultInsertFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments_core::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+
+        get_vault_response_for_insert_payment_method_data(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_vault_response_for_insert_payment_method_data<F>(
@@ -2424,7 +2452,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 fingerprint_id,
             } => {
                 #[cfg(feature = "v2")]
-                let vault_id = domain::VaultId::generate(connector_vault_id);
+                let vault_id = domain::VaultId::generate(connector_vault_id.get_single_vault_id()?);
                 #[cfg(not(feature = "v2"))]
                 let vault_id = connector_vault_id;
 
@@ -2794,6 +2822,7 @@ pub async fn update_payment_method_status_internal(
 
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(status),
+        last_modified_by: None,
     };
 
     let updated_pm = db
@@ -2995,6 +3024,7 @@ pub async fn delete_payment_method_core(
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
+        last_modified_by: None,
     };
 
     db.update_payment_method(

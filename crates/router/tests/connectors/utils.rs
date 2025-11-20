@@ -1012,6 +1012,7 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
         };
         Self(data)
     }

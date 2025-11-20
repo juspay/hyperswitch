@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+use strum::IntoEnumIterator;
 pub mod access_token;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
@@ -9,9 +11,9 @@ use std::{
     vec::IntoIter,
 };
 
-#[cfg(feature = "olap")]
-use api_models::payments as payment_enums;
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
+#[cfg(feature = "olap")]
+use api_models::{admin::MerchantConnectorInfo, payments as payment_enums};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -988,6 +990,72 @@ pub async fn payouts_list_available_filters_core(
             currency: filters.currency,
             status: filters.status,
             payout_method: filters.payout_method,
+        },
+    ))
+}
+
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+pub async fn get_payout_filters_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+) -> RouterResponse<api::PayoutListFiltersV2> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(
+            state,
+            merchant_context.get_merchant_account().get_id().to_owned(),
+            None,
+        )
+        .await?
+    {
+        data
+    } else {
+        return Err(errors::ApiErrorResponse::InternalServerError.into());
+    };
+
+    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
+    let mut payout_method_map: HashSet<api_enums::PayoutType> = HashSet::new();
+
+    merchant_connector_accounts
+        .iter()
+        .filter(|&merchant_connector_account| {
+            merchant_connector_account.connector_type == api_enums::ConnectorType::PayoutProcessor
+        })
+        .for_each(|merchant_connector_account| {
+            // populate connector map
+            merchant_connector_account
+                .connector_label
+                .as_ref()
+                .map(|label| {
+                    let info = merchant_connector_account.to_merchant_connector_info(label);
+                    connector_map
+                        .entry(merchant_connector_account.get_connector_name().to_string())
+                        .or_default()
+                        .push(info);
+                });
+
+            // populate payout method type map
+            merchant_connector_account
+                .payment_methods_enabled
+                .as_ref()
+                .map(|payout_methods_enabled| {
+                    payout_methods_enabled
+                        .iter()
+                        .for_each(|payout_method_enabled| {
+                            if let Ok(payout_type) = api_enums::PayoutType::foreign_try_from(
+                                payout_method_enabled.payment_method,
+                            ) {
+                                payout_method_map.insert(payout_type);
+                            }
+                        });
+                });
+        });
+
+    Ok(services::ApplicationResponse::Json(
+        api::PayoutListFiltersV2 {
+            connector: connector_map,
+            currency: api_enums::Currency::iter().collect(),
+            status: api_enums::PayoutStatus::iter().collect(),
+            payout_method: payout_method_map.into_iter().collect(),
         },
     ))
 }
@@ -2180,6 +2248,7 @@ pub async fn create_recipient_disburse_account(
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
+                            last_modified_by: None,
                         };
 
                     payout_data.payment_method = Some(
