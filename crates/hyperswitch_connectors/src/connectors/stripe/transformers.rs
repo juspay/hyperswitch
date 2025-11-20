@@ -2472,7 +2472,13 @@ pub fn get_stripe_compatible_connect_account_header(
 
         // Only CIT payments
         (None, Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object))) => {
-            Some(split_payment_object.transfer_account_id.clone())
+            if split_payment_object.charge_type
+                == PaymentChargeType::Stripe(StripeChargeType::Direct)
+            {
+                Some(split_payment_object.transfer_account_id.clone())
+            } else {
+                None
+            }
         }
         (None, _) => None,
     };
