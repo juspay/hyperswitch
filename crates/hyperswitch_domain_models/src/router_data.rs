@@ -440,9 +440,9 @@ pub enum PaymentMethodToken {
 
 impl PaymentMethodToken {
     pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
-        match self{
+        match self {
             Self::Token(secret_token) => Some(secret_token.clone()),
-            _ => None
+            _ => None,
         }
     }
 }
