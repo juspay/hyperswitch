@@ -713,8 +713,8 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     result: Vec<T>,
     flow: String,
 ) {
-    let is_equal = if de_result.is_empty() {
-        false
+    let is_equal = if de_result.is_empty() && result.is_empty() {
+        true
     } else {
         de_result
             .iter()
@@ -1511,7 +1511,8 @@ where
             "decision_engine_euclid: Using Decision Engine routing result"
         );
 
-        if de_result.clone().into_iter().next().is_none() {
+        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+        if  is_de_result_empty {
             logger::debug!(
                 business_profile_id=?business_profile.get_id(),
                 "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"

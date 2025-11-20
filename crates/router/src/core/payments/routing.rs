@@ -549,7 +549,7 @@ pub async fn perform_static_routing_v1(
             backend_input.clone(),
             business_profile,
             payment_id,
-            get_merchant_fallback_config().await?,
+            fallback_config,
         )
         .await
         .map_err(|e|
