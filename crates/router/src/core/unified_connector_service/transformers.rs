@@ -95,16 +95,6 @@ impl
             })
             .ok();
 
-        let encoded_data = router_data
-            .request
-            .encoded_data
-            .as_ref()
-            .map(|data| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::EncodedData(
-                    data.to_string(),
-                )),
-            });
-
         let connector_ref_id = router_data
             .request
             .connector_reference_id
@@ -141,7 +131,8 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            transaction_id: connector_transaction_id.or(encoded_data),
+            transaction_id: connector_transaction_id,
+            encoded_data: router_data.request.encoded_data.clone(),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
@@ -2785,6 +2776,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                     )
                 })?,
             state,
+            merchant_account_metadata,
             refund_metadata: router_data
                 .request
                 .refund_connector_metadata
@@ -2802,7 +2794,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         .unwrap_or_default()
                 })
                 .unwrap_or_default(),
-            merchant_account_metadata,
         })
     }
 }
