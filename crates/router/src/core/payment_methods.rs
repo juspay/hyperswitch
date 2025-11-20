@@ -3134,7 +3134,7 @@ pub async fn payment_methods_session_create(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
 
-    let billing = encrypted_data 
+    let billing = encrypted_data
         .billing
         .as_ref()
         .map(|data| {
