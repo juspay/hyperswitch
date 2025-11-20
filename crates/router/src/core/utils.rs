@@ -156,7 +156,13 @@ pub async fn construct_payout_router_data<'a, F>(
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
-        connector_customer: connector_customer_id,
+        connector_customer: get_payout_connector_customer_id(
+            connector_data,
+            connector_customer_id.clone(),
+            &customer_details.to_owned().map(|c| c.customer_id),
+            &payout_data.payment_method,
+            &payout_data.payout_attempt,
+        )?,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
             .get_string_repr()
@@ -1838,6 +1844,86 @@ pub fn get_connector_request_reference_id(
     merchant_id: &common_utils::id_type::MerchantId,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub fn get_connector_customer_id(
+    conf: &Settings,
+    connector_name: &str,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct connector data")?;
+
+    let mandate_customer_id = payment_method_info
+        .as_ref()
+        .zip(payment_attempt.merchant_connector_id.as_ref())
+        .map(|(pm, mci)| pm.get_payment_connector_customer_id(mci.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct mandate reference")?
+        .flatten();
+
+    Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+        connector_data
+            .connector
+            .generate_connector_customer_id(customer_id, &payment_attempt.merchant_id)
+    }))
+}
+
+#[cfg(feature = "v2")]
+pub fn get_connector_customer_id(
+    conf: &Settings,
+    connector_name: &str,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub fn get_payout_connector_customer_id(
+    connector_data: &api::ConnectorData,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let mandate_customer_id = payment_method_info
+        .as_ref()
+        .zip(payout_attempt.merchant_connector_id.as_ref())
+        .map(|(pm, mci)| pm.get_payout_connector_customer_id(mci.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct mandate reference")?
+        .flatten();
+    Ok(mandate_customer_id.or(connector_customer_id).or_else(|| {
+        connector_data
+            .connector
+            .generate_connector_customer_id(customer_id, &payout_attempt.merchant_id)
+    }))
+}
+
+#[cfg(feature = "v2")]
+pub fn get_payout_connector_customer_id(
+    connector_data: &api::ConnectorData,
+    connector_customer_id: Option<String>,
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+    payment_method_info: &Option<hyperswitch_domain_models::payment_methods::PaymentMethod>,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> Option<String> {
     todo!()
 }
 
