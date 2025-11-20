@@ -863,6 +863,8 @@ pub struct PaymentLinkConfigRequest {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     pub payment_button_colour: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub payment_button_text_colour: Option<String>,
