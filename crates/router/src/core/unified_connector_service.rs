@@ -856,6 +856,42 @@ pub fn build_unified_connector_service_payment_method(
                         language_preference: mifinity_data.language_preference,
                     })),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
+                    apple_pay_wallet_data
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
+                        payment_data: Some(payments_grpc::apple_wallet::PaymentData {
+                            payment_data: Some(payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(&apple_pay_wallet_data.payment_data)?),
+                        }),
+                        payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
+                            display_name: apple_pay_wallet_data.payment_method.display_name,
+                            network: apple_pay_wallet_data.payment_method.network,
+                            r#type: apple_pay_wallet_data.payment_method.pm_type,
+                        }),
+                        transaction_identifier: apple_pay_wallet_data.transaction_identifier,
+                    })),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                    google_pay_wallet_data,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
+                        r#type: google_pay_wallet_data.pm_type,
+                        description: google_pay_wallet_data.description,
+                        info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
+                            card_network: google_pay_wallet_data.info.card_network,
+                            card_details: google_pay_wallet_data.info.card_details,
+                            assurance_details: google_pay_wallet_data.info.assurance_details.map(|details| {
+                                payments_grpc::google_wallet::payment_method_info::AssuranceDetails {
+                                    card_holder_authenticated: details.card_holder_authenticated,
+                                    account_verified: details.account_verified,
+                                }
+                            }),
+                        }),
+                        tokenization_data: Some(payments_grpc::google_wallet::TokenizationData {
+                            tokenization_data: Some(payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from(&google_pay_wallet_data.tokenization_data)?),
+                        }),
+                    })),
+                }),
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
