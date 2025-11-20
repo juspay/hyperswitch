@@ -678,6 +678,9 @@ pub struct AuthenticationSyncResponse {
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthTokenData>,
 
+    /// The payment_method_data for insensitive details
+    pub payment_method_data: Option<AuthPaymentMethodData>,
+
     /// Billing address.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -739,6 +742,60 @@ pub struct AuthenticationSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
+pub enum AuthPaymentMethodData {
+    Network {
+        /// Token id for network_token
+        #[schema(value_type = String)]
+        payment_token: Option<masking::Secret<String>>,
+
+        /// Token id for tavv
+        #[schema(value_type = String)]
+        token_cryptogram: Option<masking::Secret<String>>,
+
+        /// Token id for token_expiration_month
+        #[schema(value_type = String)]
+        token_expiration_month: Option<masking::Secret<String>>,
+
+        /// Token id for token_expiration_year
+        #[schema(value_type = String)]
+        token_expiration_year: Option<masking::Secret<String>>,
+
+        /// auth_token_type
+        #[serde(rename = "type")]
+        payment_method_type: AuthPaymentMethodType,
+    },
+    Card {
+        /// card number for card
+        #[schema(value_type = String)]
+        card_number: Option<masking::Secret<String>>,
+
+        /// card cvc
+        #[schema(value_type = String)]
+        card_cvc: Option<masking::Secret<String>>,
+
+        /// card_expiry_month
+        #[schema(value_type = String)]
+        card_expiry_month: Option<masking::Secret<String>>,
+
+        /// card_expiry_year
+        #[schema(value_type = String)]
+        card_expiry_year: Option<masking::Secret<String>>,
+
+        /// auth_token_type
+        #[serde(rename = "type")]
+        payment_method_type: AuthPaymentMethodType,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthPaymentMethodType {
+    CardData,
+    NetworkTokenData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
 pub enum AuthTokenData {
     Network {
         /// Token id for network_token
@@ -751,11 +808,11 @@ pub enum AuthTokenData {
 
         /// Token id for token_expiration_month
         #[schema(value_type = String)]
-        token_expiration_month: masking::Secret<String>,
+        token_expiration_month: Option<masking::Secret<String>>,
 
         /// Token id for token_expiration_year
         #[schema(value_type = String)]
-        token_expiration_year: masking::Secret<String>,
+        token_expiration_year: Option<masking::Secret<String>>,
 
         /// auth_token_type
         #[serde(rename = "type")]
@@ -772,11 +829,11 @@ pub enum AuthTokenData {
 
         /// card_expiry_month
         #[schema(value_type = String)]
-        card_expiry_month: masking::Secret<String>,
+        card_expiry_month: Option<masking::Secret<String>>,
 
         /// card_expiry_year
         #[schema(value_type = String)]
-        card_expiry_year: masking::Secret<String>,
+        card_expiry_year: Option<masking::Secret<String>>,
 
         /// auth_token_type
         #[serde(rename = "type")]
