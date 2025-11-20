@@ -574,7 +574,10 @@ pub async fn perform_static_routing_v1(
         "evaluate_routing".to_string(),
     );
 
-    println!(">>>>>>>>>> euclid routing result: {:?}", routable_connectors);
+    println!(
+        ">>>>>>>>>> euclid routing result: {:?}",
+        routable_connectors
+    );
     println!(">>>>>>>>>> de routing result: {:?}", de_evaluated_connector);
 
     Ok((
