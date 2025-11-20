@@ -1,15 +1,13 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use actix_http::header::{HeaderMap, AUTHORIZATION};
 use api_models::{
     oidc::{
-        AuthCodeData, Jwk, JwksResponse, OidcAuthorizeQuery, OidcDiscoveryResponse,
-        OidcTokenRequest, OidcTokenResponse,
+        AuthCodeData, Jwk, JwksResponse, OidcAuthorizeRequest, OidcDiscoveryResponse,
+        OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
     },
     payments::RedirectionResponse,
 };
-use base64::Engine;
-use common_utils::ext_traits::StringExt;
+use common_utils::{ext_traits::StringExt, pii};
 use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
@@ -18,16 +16,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    consts::{
-        oidc::{
-            AUTH_CODE_LENGTH, AUTH_CODE_TTL, CLAIM_AUD, CLAIM_EMAIL, CLAIM_EMAIL_VERIFIED,
-            CLAIM_EXP, CLAIM_IAT, CLAIM_ISS, CLAIM_SUB, GRANT_TYPE_AUTHORIZATION_CODE,
-            ID_TOKEN_TTL, REDIS_AUTH_CODE_PREFIX, RESPONSE_MODE_QUERY, RESPONSE_TYPE_CODE,
-            SCOPE_EMAIL, SCOPE_OPENID, SIGNING_ALG_RS256, SUBJECT_TYPE_PUBLIC,
-            TOKEN_AUTH_METHOD_CLIENT_SECRET_BASIC,
-        },
-        BASE64_ENGINE,
-    },
+    consts::oidc::{AUTH_CODE_LENGTH, AUTH_CODE_TTL, ID_TOKEN_TTL, REDIS_AUTH_CODE_PREFIX},
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::{api::ApplicationResponse, authentication::UserFromToken},
@@ -36,38 +25,13 @@ use crate::{
 
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
-    // Backend URL for most endpoints (token, jwks, issuer)
-    let backend_base_url = state.conf.user.base_url.clone();
+    let backend_base_url = state.tenant.base_url.clone();
+    let frontend_base_url = get_base_url(&state).to_string();
 
-    // Frontend URL only for authorization endpoint (where user gets redirected)
-    let frontend_base_url = get_base_url(&state);
-
-    let discovery_response = OidcDiscoveryResponse {
-        issuer: backend_base_url.clone(),
-        authorization_endpoint: format!("{}/oauth2/authorize", frontend_base_url),
-        token_endpoint: format!("{}/oauth2/token", backend_base_url),
-        jwks_uri: format!("{}/oauth2/jwks", backend_base_url),
-        response_types_supported: vec![RESPONSE_TYPE_CODE.to_string()],
-        response_modes_supported: vec![RESPONSE_MODE_QUERY.to_string()],
-        subject_types_supported: vec![SUBJECT_TYPE_PUBLIC.to_string()],
-        id_token_signing_alg_values_supported: vec![SIGNING_ALG_RS256.to_string()],
-        grant_types_supported: vec![GRANT_TYPE_AUTHORIZATION_CODE.to_string()],
-        scopes_supported: vec![SCOPE_OPENID.to_string(), SCOPE_EMAIL.to_string()],
-        token_endpoint_auth_methods_supported: vec![
-            TOKEN_AUTH_METHOD_CLIENT_SECRET_BASIC.to_string()
-        ],
-        claims_supported: vec![
-            CLAIM_AUD.to_string(),
-            CLAIM_EMAIL.to_string(),
-            CLAIM_EMAIL_VERIFIED.to_string(),
-            CLAIM_EXP.to_string(),
-            CLAIM_IAT.to_string(),
-            CLAIM_ISS.to_string(),
-            CLAIM_SUB.to_string(),
-        ],
-    };
-
-    Ok(ApplicationResponse::Json(discovery_response))
+    Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
+        backend_base_url,
+        frontend_base_url,
+    )))
 }
 
 /// Build JWKS response with public keys (all keys for token validation)
@@ -87,7 +51,7 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
             kty: "RSA".to_string(),
             kid: key_config.kid.clone(),
             key_use: "sig".to_string(),
-            alg: SIGNING_ALG_RS256.to_string(),
+            alg: SigningAlgorithm::Rs256.to_string(),
             n,
             e,
         };
@@ -101,28 +65,13 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
 }
 
 pub fn validate_authorize_params(
-    payload: &OidcAuthorizeQuery,
+    payload: &OidcAuthorizeRequest,
     state: &SessionState,
 ) -> error_stack::Result<(), ApiErrorResponse> {
-    if payload.response_type != RESPONSE_TYPE_CODE {
-        return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "response_type is not supported by the authorization server".to_string(),
-        }));
-    }
-    if !payload.scope.split_whitespace().any(|s| s == SCOPE_OPENID) {
+    if !payload.scope.contains(&Scope::Openid) {
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
             message: "invalid_scope: The requested scope is invalid, unknown, or malformed"
                 .to_string(),
-        }));
-    }
-    if payload.state.is_none() {
-        return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "state parameter is required".to_string(),
-        }));
-    }
-    if payload.nonce.is_none() {
-        return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "nonce parameter is required".to_string(),
         }));
     }
     let client = state
@@ -146,7 +95,7 @@ pub fn validate_authorize_params(
 async fn generate_and_store_authorization_code(
     state: &SessionState,
     user_id: &str,
-    payload: &OidcAuthorizeQuery,
+    payload: &OidcAuthorizeRequest,
 ) -> error_stack::Result<String, ApiErrorResponse> {
     let user_from_db = state
         .global_store
@@ -155,7 +104,9 @@ async fn generate_and_store_authorization_code(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch user from database")?;
 
-    let user_email = user_from_db.email.peek().to_string();
+    let user_email = pii::Email::try_from(user_from_db.email.peek().to_string())
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse user email")?;
 
     let auth_code =
         common_utils::crypto::generate_cryptographically_secure_random_string(AUTH_CODE_LENGTH);
@@ -188,21 +139,22 @@ pub fn build_oidc_redirect_url(
     auth_code: &str,
     state: &str,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let mut url = Url::parse(redirect_uri)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse redirect_uri")?;
+    let mut url = Url::parse(redirect_uri).map_err(|_| {
+        report!(ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid redirect_uri in OIDC authorize request")
+    })?;
 
     url.query_pairs_mut()
         .append_pair("code", auth_code)
         .append_pair("state", state);
 
-    Ok(url.to_string())
+    Ok(url.into())
 }
 
 #[cfg(feature = "v1")]
 pub async fn process_authorize_request(
     state: SessionState,
-    payload: OidcAuthorizeQuery,
+    payload: OidcAuthorizeRequest,
     user: Option<UserFromToken>,
 ) -> RouterResponse<()> {
     // Validate all parameters
@@ -220,13 +172,7 @@ pub async fn process_authorize_request(
 
     let auth_code = generate_and_store_authorization_code(&state, &user.user_id, &payload).await?;
 
-    let state_param = payload.state.as_ref().ok_or_else(|| {
-        report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "state parameter is required".to_string(),
-        })
-    })?;
-
-    let redirect_url = build_oidc_redirect_url(&payload.redirect_uri, &auth_code, state_param)?;
+    let redirect_url = build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)?;
 
     Ok(ApplicationResponse::JsonForRedirection(
         RedirectionResponse {
@@ -239,115 +185,39 @@ pub async fn process_authorize_request(
     ))
 }
 
-pub fn parse_basic_auth(
-    headers: &HeaderMap,
-) -> error_stack::Result<(String, String), ApiErrorResponse> {
-    let auth_header = headers
-        .get(AUTHORIZATION)
-        .ok_or_else(|| {
-            report!(ApiErrorResponse::OidcTokenError {
-                message: "invalid_client: Missing Authorization header".to_string(),
-            })
-        })?
-        .to_str()
-        .change_context(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Invalid Authorization header encoding".to_string(),
-        })
-        .attach_printable("Failed to convert Authorization header to string")?;
-
-    // Check for "Basic " prefix
-    let base64_credentials = auth_header.strip_prefix("Basic ").ok_or_else(|| {
-        report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Invalid Authorization header format. Expected Basic auth."
-                .to_string(),
-        })
-    })?;
-
-    // Decode base64
-    let decoded = BASE64_ENGINE.decode(base64_credentials).change_context(
-        ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Failed to decode Basic auth credentials".to_string(),
-        },
-    )?;
-
-    // Convert to UTF-8 string
-    let credentials =
-        String::from_utf8(decoded).change_context(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Invalid credentials encoding".to_string(),
-        })?;
-
-    let (client_id, client_secret) = credentials.split_once(':').ok_or_else(|| {
-        report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Invalid credentials format. Expected client_id:client_secret"
-                .to_string(),
-        })
-    })?;
-    let client_id = client_id.trim();
-    let client_secret = client_secret.trim();
-
-    if client_id.is_empty() {
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: client_id cannot be empty".to_string(),
-        }));
-    }
-
-    if client_secret.is_empty() {
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: client_secret cannot be empty".to_string(),
-        }));
-    }
-
-    Ok((client_id.to_string(), client_secret.to_string()))
-}
-
-fn validate_oidc_client_credentials(
+fn validate_token_request(
     state: &SessionState,
-    basic_client_id: &str,
-    basic_client_secret: &str,
+    authenticated_client_id: &str,
     request_client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<(), ApiErrorResponse> {
-    let oidc_client = state.conf.oidc.get_client(basic_client_id).ok_or_else(|| {
-        report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Unknown client_id".to_string(),
-        })
-    })?;
-    if basic_client_secret != oidc_client.client_secret.peek() {
+    if redirect_uri.is_empty() {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_client: Invalid client_secret".to_string(),
+            message: "invalid_request: redirect_uri is required".to_string(),
         }));
     }
-    if basic_client_id != request_client_id {
+
+    if authenticated_client_id != request_client_id {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             message:
                 "invalid_request: client_id mismatch between Authorization header and request body"
                     .to_string(),
         }));
     }
-    if oidc_client.redirect_uri != redirect_uri {
+
+    let registered_client = state
+        .conf
+        .oidc
+        .get_client(request_client_id)
+        .ok_or_else(|| {
+            report!(ApiErrorResponse::OidcTokenError {
+                message: "invalid_client: Unknown client_id".to_string(),
+            })
+        })?;
+
+    if registered_client.redirect_uri != redirect_uri {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             message: "invalid_request: The redirect_uri provided does not match a registered redirect_uri for this client".to_string(),
-        }));
-    }
-
-    Ok(())
-}
-
-fn validate_token_request_params(
-    grant_type: &str,
-    redirect_uri: &str,
-) -> error_stack::Result<(), ApiErrorResponse> {
-    if grant_type != GRANT_TYPE_AUTHORIZATION_CODE {
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: format!(
-                "unsupported_grant_type: grant_type must be '{}'",
-                GRANT_TYPE_AUTHORIZATION_CODE
-            ),
-        }));
-    }
-    if redirect_uri.is_empty() {
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_request: redirect_uri is required".to_string(),
         }));
     }
 
@@ -402,22 +272,16 @@ async fn validate_and_consume_authorization_code(
 /// ID Token Claims structure
 #[derive(Debug, Serialize, Deserialize)]
 struct IdTokenClaims {
-    #[serde(rename = "iss")]
-    issuer: String,
-    #[serde(rename = "sub")]
-    subject: String,
-    #[serde(rename = "aud")]
-    audience: String,
-    #[serde(rename = "iat")]
-    issued_at: u64,
-    #[serde(rename = "exp")]
-    expires_at: u64,
-    #[serde(rename = "email")]
-    email: String,
-    #[serde(rename = "email_verified")]
-    email_verified: bool,
-    #[serde(rename = "nonce", skip_serializing_if = "Option::is_none")]
-    nonce: Option<String>,
+    iss: String,
+    sub: String,
+    aud: String,
+    iat: u64,
+    exp: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email_verified: Option<bool>,
+    nonce: String,
 }
 
 async fn generate_id_token(
@@ -440,14 +304,16 @@ async fn generate_id_token(
             .attach_printable("Token expiration time overflow")
     })?;
 
+    let include_email_claims = auth_code_data.scope.contains(&Scope::Email);
+
     let claims = IdTokenClaims {
-        issuer: state.conf.user.base_url.clone(),
-        subject: auth_code_data.sub.clone(),
-        audience: auth_code_data.client_id.clone(),
-        issued_at: now,
-        expires_at: exp,
-        email: auth_code_data.email.clone(),
-        email_verified: true,
+        iss: state.conf.user.base_url.clone(),
+        sub: auth_code_data.sub.clone(),
+        aud: auth_code_data.client_id.clone(),
+        iat: now,
+        exp,
+        email: include_email_claims.then(|| auth_code_data.email.clone()),
+        email_verified: include_email_claims.then_some(true),
         nonce: auth_code_data.nonce.clone(),
     };
 
@@ -474,18 +340,14 @@ async fn generate_id_token(
 pub async fn process_token_request(
     state: SessionState,
     payload: OidcTokenRequest,
-    headers: HeaderMap,
+    client_id: String,
 ) -> RouterResponse<OidcTokenResponse> {
-    let (basic_client_id, basic_client_secret) = parse_basic_auth(&headers)?;
-    validate_oidc_client_credentials(
+    validate_token_request(
         &state,
-        &basic_client_id,
-        &basic_client_secret,
+        &client_id,
         &payload.client_id,
         &payload.redirect_uri,
     )?;
-
-    validate_token_request_params(&payload.grant_type, &payload.redirect_uri)?;
 
     let auth_code_data = validate_and_consume_authorization_code(
         &state,
