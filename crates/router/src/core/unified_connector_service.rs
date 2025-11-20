@@ -1230,6 +1230,12 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     })
 }
 
+pub fn handle_unified_connector_service_response_for_session_token_create(
+    response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
+    todo!()
+}
+
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
