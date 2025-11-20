@@ -206,7 +206,7 @@ async fn get_payment_method_amount_split(
 pub(crate) async fn split_payments_execute_core(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     request: payments_api::PaymentsConfirmIntentRequest,
     header_payload: HeaderPayload,
@@ -219,8 +219,8 @@ pub(crate) async fn split_payments_execute_core(
         .find_payment_intent_by_id(
             key_manager_state,
             &payment_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -239,8 +239,9 @@ pub(crate) async fn split_payments_execute_core(
     // has attempted a split payment for this intent
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::AttemptGroupUpdate {
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
             active_attempt_id_type: enums::ActiveAttemptIDType::GroupID,
@@ -252,8 +253,8 @@ pub(crate) async fn split_payments_execute_core(
             key_manager_state,
             payment_intent,
             payment_intent_update,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -288,7 +289,7 @@ pub(crate) async fn split_payments_execute_core(
                 &state,
                 &payment_id,
                 &request,
-                &merchant_context,
+                &platform,
                 &profile,
                 &header_payload,
                 (payment_method_data, amount),
@@ -306,7 +307,7 @@ pub(crate) async fn split_payments_execute_core(
         ) = Box::pin(payments_operation_core(
             &state,
             req_state.clone(),
-            merchant_context.clone(),
+            platform.clone(),
             &profile,
             operation,
             request.clone(),
@@ -323,8 +324,9 @@ pub(crate) async fn split_payments_execute_core(
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
-                updated_by: merchant_context
-                    .get_merchant_account()
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
@@ -334,8 +336,8 @@ pub(crate) async fn split_payments_execute_core(
                     key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -380,7 +382,7 @@ pub(crate) async fn split_payments_execute_core(
                 &state,
                 &payment_id,
                 &request,
-                &merchant_context,
+                &platform,
                 &profile,
                 &header_payload,
                 (payment_method_data.to_owned(), amount.to_owned()),
@@ -398,7 +400,7 @@ pub(crate) async fn split_payments_execute_core(
         ) = Box::pin(payments_operation_core(
             &state,
             req_state.clone(),
-            merchant_context.clone(),
+            platform.clone(),
             &profile,
             operation,
             request.clone(),
@@ -415,8 +417,9 @@ pub(crate) async fn split_payments_execute_core(
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
-                updated_by: merchant_context
-                    .get_merchant_account()
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
@@ -426,8 +429,8 @@ pub(crate) async fn split_payments_execute_core(
                     key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -449,8 +452,9 @@ pub(crate) async fn split_payments_execute_core(
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
             status: split_pm_response_data.get_intent_status(),
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
         };
@@ -460,8 +464,8 @@ pub(crate) async fn split_payments_execute_core(
             key_manager_state,
             payment_intent,
             payment_intent_update,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -472,7 +476,7 @@ pub(crate) async fn split_payments_execute_core(
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
-        &merchant_context,
+        &platform,
         &profile,
         Some(connector_response_data),
     )

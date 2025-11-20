@@ -1970,7 +1970,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge,
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|cb| cb.to_string()),
+            created_by: created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             payment_channel: None,
@@ -1983,6 +1983,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
         })
     }
     async fn convert_back(
@@ -2228,7 +2229,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
@@ -2240,6 +2241,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: self.enable_partial_authorization,
+            tokenization: None,
         })
     }
 }
@@ -2309,7 +2311,7 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -2325,6 +2327,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
         })
     }
 
@@ -2436,6 +2439,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
                 billing_descriptor: storage_model.billing_descriptor,
+                tokenization: storage_model.tokenization,
             })
         }
         .await
@@ -2503,7 +2507,7 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -2519,6 +2523,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
         })
     }
 }

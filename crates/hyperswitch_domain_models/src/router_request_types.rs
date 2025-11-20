@@ -94,6 +94,7 @@ pub struct PaymentsAuthorizeData {
     pub is_stored_credential: Option<bool>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -821,6 +822,7 @@ pub struct CompleteAuthorizeData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub is_stored_credential: Option<bool>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1465,6 +1467,7 @@ pub struct SetupMandateRequestData {
     pub is_stored_credential: Option<bool>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[derive(Debug, Clone)]
