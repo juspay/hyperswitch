@@ -1530,14 +1530,12 @@ async fn payouts_incoming_webhook_flow(
     ))
     .await?;
 
-    // only update if the payout is in non-terminal status
-    // if source verified, update the payout attempt and trigger outgoing webhook
-    // if not source verified, do a payout retrieve call and update the status
-    match (
+    let payout_webhook_action = get_payout_webhook_action(
         payout_attempt.status.is_non_terminal_status(),
         source_verified,
-    ) {
-        (true, true) => {
+    );
+    match payout_webhook_action {
+        PaoyoutWebhookAction::UpdateStatus => {
             let status = common_enums::PayoutStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed payout status mapping from event type")?;
@@ -1619,7 +1617,7 @@ async fn payouts_incoming_webhook_flow(
                 status: payout_data.payout_attempt.status,
             })
         }
-        (true, false) => {
+        PaoyoutWebhookAction::RetrieveStatus => {
             metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
             // Form connector data
             let connector_data = match &payout_attempt.connector {
@@ -1654,10 +1652,30 @@ async fn payouts_incoming_webhook_flow(
                 status: payout_data.payout_attempt.status,
             })
         }
-        (false, true) | (false, false) => Ok(WebhookResponseTracker::Payout {
+        PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
             status: payout_data.payout_attempt.status,
         }),
+    }
+}
+
+enum PaoyoutWebhookAction {
+    UpdateStatus,
+    RetrieveStatus,
+    NoAction,
+}
+
+// only update if the payout is in non-terminal status
+// if source verified, update the payout attempt and trigger outgoing webhook
+// if not source verified, do a payout retrieve call and update the status
+fn get_payout_webhook_action(
+    is_terminal_status: bool,
+    is_source_verified: bool,
+) -> PaoyoutWebhookAction {
+    match (is_terminal_status, is_source_verified) {
+        (true, true) => PaoyoutWebhookAction::UpdateStatus,
+        (true, false) => PaoyoutWebhookAction::RetrieveStatus,
+        (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
     }
 }
 
