@@ -97,6 +97,7 @@ mod paystack;
 mod paytm;
 mod payu;
 mod peachpayments;
+mod peachpaymentsdemo;
 mod phonepe;
 mod placetopay;
 mod plaid;
