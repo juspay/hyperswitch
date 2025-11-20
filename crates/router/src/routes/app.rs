@@ -1479,6 +1479,7 @@ impl Payouts {
                     web::resource("/filter")
                         .route(web::post().to(payouts_list_available_filters_for_merchant)),
                 )
+                .service(web::resource("/v2/filter").route(web::get().to(get_payout_filters)))
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
@@ -2815,6 +2816,10 @@ impl User {
                 )
                 .service(
                     web::resource("/user/resend_invite").route(web::post().to(user::resend_invite)),
+                )
+                .service(
+                    web::resource("/terminate_accept_invite")
+                        .route(web::post().to(user::terminate_accept_invite)),
                 )
                 .service(
                     web::resource("/accept_invite_from_email")

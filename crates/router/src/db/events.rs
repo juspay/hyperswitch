@@ -1225,10 +1225,12 @@ mod tests {
             )
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            merchant_account,
+        let platform = domain::Platform::new(
+            merchant_account.clone(),
             merchant_key_store.clone(),
-        )));
+            merchant_account.clone(),
+            merchant_key_store.clone(),
+        );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 
         let business_profile_to_insert = domain::Profile::from(domain::ProfileSetter {
@@ -1365,6 +1367,7 @@ mod tests {
             cancellation_reason: None,
             error_code: None,
             error_message: None,
+            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,
@@ -1434,7 +1437,7 @@ mod tests {
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let merchant_context_clone = merchant_context.clone();
+            let platform_clone = platform.clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
@@ -1442,7 +1445,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    merchant_context_clone,
+                    platform_clone,
                     business_profile_clone,
                     event_type,
                     event_class,
@@ -1477,7 +1480,7 @@ mod tests {
                 &business_profile.merchant_id,
                 &primary_object_id.clone(),
                 &initial_attempt_id.clone(),
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await?;
 
