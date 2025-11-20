@@ -2,8 +2,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use api_models::{
     oidc::{
-        AuthCodeData, Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeRequest,
-        OidcDiscoveryResponse, OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
+        AuthCodeData, Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError,
+        OidcAuthorizeRequest, OidcDiscoveryResponse, OidcTokenError, OidcTokenRequest,
+        OidcTokenResponse, Scope, SigningAlgorithm,
     },
     payments::RedirectionResponse,
 };
@@ -26,11 +27,11 @@ use crate::{
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
-    let frontend_base_url = get_base_url(&state).to_string();
+    let frontend_base_url = get_base_url(&state);
 
     Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
         backend_base_url,
-        frontend_base_url,
+        frontend_base_url.into(),
     )))
 }
 
@@ -69,8 +70,8 @@ pub fn validate_authorize_params(
 ) -> error_stack::Result<(), ApiErrorResponse> {
     if !payload.scope.contains(&Scope::Openid) {
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "invalid_scope: The requested scope is invalid, unknown, or malformed"
-                .to_string(),
+            error: OidcAuthorizationError::InvalidScope,
+            description: "Missing required 'openid' scope".into(),
         }));
     }
     let client = state
@@ -79,12 +80,15 @@ pub fn validate_authorize_params(
         .get_client(&payload.client_id)
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcAuthorizationError {
-                message: "unauthorized_client: Unknown or unregistered client_id".to_string(),
+                error: OidcAuthorizationError::UnauthorizedClient,
+                description: "Unknown client_id".into(),
             })
         })?;
-    if client.redirect_uri != payload.redirect_uri {
+
+    if client.redirect_uri.trim() != payload.redirect_uri.trim() {
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            message: "invalid_request: The redirect_uri provided does not match a registered redirect_uri for this client".to_string(),
+            error: OidcAuthorizationError::InvalidRequest,
+            description: "redirect_uri mismatch".into(),
         }));
     }
 
@@ -138,16 +142,18 @@ pub fn build_oidc_redirect_url(
     auth_code: &str,
     state: &str,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let mut url = Url::parse(redirect_uri).map_err(|_| {
+    let base_url = Url::parse(redirect_uri).map_err(|_| {
         report!(ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid redirect_uri in OIDC authorize request")
     })?;
 
-    url.query_pairs_mut()
-        .append_pair("code", auth_code)
-        .append_pair("state", state);
+    let url = Url::parse_with_params(base_url.as_str(), &[("code", auth_code), ("state", state)])
+        .map_err(|_| {
+        report!(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build redirect URL with query parameters")
+    })?;
 
-    Ok(url.into())
+    Ok(url.to_string())
 }
 
 #[cfg(feature = "v1")]
@@ -158,12 +164,12 @@ pub async fn process_authorize_request(
 ) -> RouterResponse<()> {
     // Validate all parameters
     validate_authorize_params(&payload, &state)?;
-    // TODO: TO handle users who are not already logged in
+    // TODO: Handle users who are not already logged in
     let user = match user {
         None => {
             return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-                message: "login_required: No active session found. Please log in to continue."
-                    .to_string(),
+                error: OidcAuthorizationError::AccessDenied,
+                description: "User not authenticated".into(),
             }));
         }
         Some(user) => user,
@@ -190,17 +196,19 @@ fn validate_token_request(
     request_client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<(), ApiErrorResponse> {
-    if redirect_uri.is_empty() {
+    let redirect_uri_trimmed = redirect_uri.trim();
+
+    if redirect_uri_trimmed.is_empty() {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_request: redirect_uri is required".to_string(),
+            error: OidcTokenError::InvalidRequest,
+            description: "redirect_uri is required".into(),
         }));
     }
 
     if authenticated_client_id != request_client_id {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message:
-                "invalid_request: client_id mismatch between Authorization header and request body"
-                    .to_string(),
+            error: OidcTokenError::InvalidRequest,
+            description: "client_id mismatch".into(),
         }));
     }
 
@@ -210,13 +218,15 @@ fn validate_token_request(
         .get_client(request_client_id)
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcTokenError {
-                message: "invalid_client: Unknown client_id".to_string(),
+                error: OidcTokenError::InvalidClient,
+                description: "Unknown client_id".into(),
             })
         })?;
 
-    if registered_client.redirect_uri != redirect_uri {
+    if registered_client.redirect_uri.trim() != redirect_uri_trimmed {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_request: The redirect_uri provided does not match a registered redirect_uri for this client".to_string(),
+            error: OidcTokenError::InvalidRequest,
+            description: "redirect_uri mismatch".into(),
         }));
     }
 
@@ -241,8 +251,8 @@ async fn validate_and_consume_authorization_code(
         .attach_printable("Failed to fetch authorization code from Redis")?
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcTokenError {
-                message: "invalid_grant: The provided authorization code is invalid or has expired"
-                    .to_string(),
+                error: OidcTokenError::InvalidGrant,
+                description: "Invalid or expired authorization code".into(),
             })
         })?;
 
@@ -253,14 +263,18 @@ async fn validate_and_consume_authorization_code(
 
     if auth_code_data.client_id != client_id {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_grant: client_id mismatch with authorization code".to_string(),
+            error: OidcTokenError::InvalidGrant,
+            description: "client_id mismatch".into(),
         }));
     }
-    if auth_code_data.redirect_uri != redirect_uri {
+
+    if auth_code_data.redirect_uri.trim() != redirect_uri.trim() {
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            message: "invalid_grant: redirect_uri mismatch with authorization code".to_string(),
+            error: OidcTokenError::InvalidGrant,
+            description: "redirect_uri mismatch".into(),
         }));
     }
+
     if let Err(err) = redis_conn.delete_key(&redis_key.as_str().into()).await {
         tracing::error!("Failed to delete authorization code from Redis: {:?}", err);
     }
@@ -280,7 +294,8 @@ struct IdTokenClaims {
     email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     email_verified: Option<bool>,
-    nonce: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    nonce: Option<String>,
 }
 
 async fn generate_id_token(
@@ -311,7 +326,7 @@ async fn generate_id_token(
         aud: auth_code_data.client_id.clone(),
         iat: now,
         exp,
-        email: include_email_claims.then(|| auth_code_data.email.clone()),
+        email: include_email_claims.then_some(auth_code_data.email.clone()),
         email_verified: include_email_claims.then_some(true),
         nonce: auth_code_data.nonce.clone(),
     };
@@ -360,7 +375,7 @@ pub async fn process_token_request(
 
     Ok(ApplicationResponse::Json(OidcTokenResponse {
         id_token,
-        token_type: "Bearer".to_string(),
+        token_type: "Bearer".into(),
         expires_in: ID_TOKEN_TTL,
     }))
 }

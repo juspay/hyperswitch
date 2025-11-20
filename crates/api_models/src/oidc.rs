@@ -221,6 +221,55 @@ pub enum Claim {
     Sub,
 }
 
+/// OIDC Authorization Error as per RFC 6749
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OidcAuthorizationError {
+    InvalidRequest,
+    UnauthorizedClient,
+    AccessDenied,
+    UnsupportedResponseType,
+    InvalidScope,
+    ServerError,
+    TemporarilyUnavailable,
+}
+
+/// OIDC Token Error as per RFC 6749
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OidcTokenError {
+    InvalidRequest,
+    InvalidClient,
+    InvalidGrant,
+    UnauthorizedClient,
+    UnsupportedGrantType,
+    InvalidScope,
+}
+
 /// OpenID Connect Discovery Response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcDiscoveryResponse {
@@ -377,7 +426,7 @@ pub struct OidcAuthorizeRequest {
 
     /// String value used to associate a Client session with an ID Token
     #[schema(example = "nonce_abc123")]
-    pub nonce: String,
+    pub nonce: Option<String>,
 }
 
 /// Authorization Code Data stored in Redis
@@ -387,7 +436,7 @@ pub struct AuthCodeData {
     pub client_id: String,
     pub redirect_uri: String,
     pub scope: Vec<Scope>,
-    pub nonce: String,
+    pub nonce: Option<String>,
     pub email: pii::Email,
 }
 
