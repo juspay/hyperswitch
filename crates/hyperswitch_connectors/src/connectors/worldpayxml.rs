@@ -245,7 +245,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_owned())
+      //  Ok(format!("https://webhook.site/434c26a0-8ca4-4898-88e7-3b32662f0ddf") )
+      Ok(self.base_url(connectors).to_owned())
     }
 
     fn get_request_body(
@@ -261,6 +262,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -347,6 +349,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayxml::worldpayxml_constants::XML_VERSION,
@@ -434,6 +437,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -518,6 +522,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -605,6 +610,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayxml::worldpayxml_constants::XML_VERSION,
@@ -687,6 +693,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -1047,5 +1054,23 @@ impl ConnectorSpecifications for Worldpayxml {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(&WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            let max_payment_reference_id_length =
+                worldpayxml::worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
+        }
     }
 }

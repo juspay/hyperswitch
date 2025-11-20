@@ -7,6 +7,13 @@ use common_enums::CardNetwork;
 use common_utils::pii;
 use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    address::Address,
+    router_flow_types::payouts::{PoCancel, PoFulfill},
+    router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
+};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -18,12 +25,6 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    router_flow_types::payouts::{PoCancel, PoFulfill},
-    router_response_types::PayoutsResponseData,
-    types::PayoutsRouterData,
-};
 use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -34,8 +35,8 @@ use crate::{
         PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        self as connector_utils, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -58,6 +59,7 @@ pub mod worldpayxml_constants {
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const WORLDPAYXML_DOC_TYPE: &str = r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
+    pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 64;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -294,6 +296,73 @@ struct Order {
     description: String,
     amount: WorldpayXmlAmount,
     payment_details: PaymentDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shopper: Option<WorldpayxmlShopper>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_address: Option<WorldpayxmlPayinAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_address: Option<WorldpayxmlPayinAddress>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlShopper {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper_email_address: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser: Option<WPGBrowserData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WPGBrowserData {
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub accept_header: Option<String>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent_header: Option<String>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_accept_language: Option<String>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_referer: Option<String>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_zone: Option<i32>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_language: Option<String>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_java_enabled: Option<bool>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_java_script_enabled: Option<bool>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_colour_depth: Option<u8>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_screen_height: Option<u32>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_screen_width: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorldpayxmlPayinAddress {
+    address: WorldpayxmlAddressData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorldpayxmlAddressData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address3: Option<Secret<String>>,
+    postal_code: Secret<String>,
+    city: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    country_code: common_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -415,14 +484,22 @@ pub struct WorldpayxmlPayoutConnectorMetadataObject {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum Action {
+    Authorise,
+    Sale,
     Refund,
 }
 
-impl TryFrom<&Card> for PaymentDetails {
+impl TryFrom<(&Card, Option<enums::CaptureMethod>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(card_data: &Card) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card_data, capture_method): (&Card, Option<enums::CaptureMethod>),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            action: None,
+            action: if connector_utils::is_manual_capture(capture_method) {
+                Some(Action::Authorise)
+            } else {
+                Some(Action::Sale)
+            },
             payment_method: PaymentMethod::CardSSL(CardSSL {
                 card_number: card_data.card_number.clone(),
                 expiry_date: ExpiryDate {
@@ -450,10 +527,28 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
         let auth = WorldpayxmlAuthType::try_from(&authorize_data.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let order_code = authorize_data
+        let order_code = if authorize_data
             .router_data
             .connector_request_reference_id
-            .to_owned();
+            .len()
+            <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+        {
+            Ok(authorize_data
+                .router_data
+                .connector_request_reference_id
+                .clone())
+        } else {
+            Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Worldpayxml".to_string(),
+                field_name: "order_code".to_string(),
+                max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+                received_length: authorize_data
+                    .router_data
+                    .connector_request_reference_id
+                    .len(),
+            })
+        }?;
+
         let capture_delay = if authorize_data.router_data.request.is_auto_capture()? {
             Some(AutoCapture::On)
         } else {
@@ -475,7 +570,20 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             exponent,
             value: authorize_data.amount.to_owned(),
         };
-        let payment_details = PaymentDetails::try_from(card_data)?;
+        let shopper = get_shopper_details(&authorize_data.router_data);
+        let billing_address = authorize_data
+            .router_data
+            .get_optional_billing()
+            .and_then(get_address_details);
+        let shipping_address = authorize_data
+            .router_data
+            .get_optional_shipping()
+            .and_then(get_address_details);
+
+        let payment_details = PaymentDetails::try_from((
+            card_data,
+            authorize_data.router_data.request.capture_method,
+        ))?;
         let submit = Some(Submit {
             order: Order {
                 order_code,
@@ -483,6 +591,9 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
                 description,
                 amount,
                 payment_details,
+                shopper,
+                billing_address,
+                shipping_address,
             },
         });
 
@@ -494,6 +605,76 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             inquiry: None,
             modify: None,
         })
+    }
+}
+
+fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
+    let address1_option = data
+        .address
+        .as_ref()
+        .and_then(|address| address.get_optional_line1());
+    let postal_code_option = data.address.as_ref().and_then(|address| address.get_optional_zip());
+    let country_code_option = data
+        .address
+        .as_ref()
+        .and_then(|address| address.get_optional_country());
+    let city_option = data
+        .address
+        .as_ref()
+        .and_then(|address| address.get_optional_city());
+
+    if let (Some(address1), Some(postal_code), Some(country_code), Some(city), Some(address_data)) = (
+        address1_option,
+        postal_code_option,
+        country_code_option,
+        city_option,
+        data.address.as_ref(),
+    ) {
+        Some(WorldpayxmlPayinAddress {
+            address: WorldpayxmlAddressData {
+                first_name: address_data.get_optional_first_name(),
+                last_name: address_data.get_optional_last_name(),
+                address1,
+                address2: address_data.get_optional_line2(),
+                address3: address_data.get_optional_line2(),
+                postal_code,
+                city,
+                state: address_data.get_optional_state(),
+                country_code,
+            },
+        })
+    } else {
+        None
+    }
+}
+
+fn get_shopper_details(item: &PaymentsAuthorizeRouterData) -> Option<WorldpayxmlShopper> {
+    let shopper_email = item.request.email.clone();
+    let browser_info = item
+        .request
+        .browser_info
+        .as_ref()
+        .map(|browser_info| WPGBrowserData {
+            accept_header: browser_info.accept_header.clone(),
+            http_accept_language: browser_info.accept_language.clone(),
+            http_referer: browser_info.referer.clone(),
+            browser_language: browser_info.language.clone(),
+            browser_java_enabled: browser_info.java_enabled,
+            browser_java_script_enabled: browser_info.java_script_enabled,
+            browser_colour_depth: browser_info.color_depth,
+            browser_screen_height: browser_info.screen_height,
+            browser_screen_width: browser_info.screen_width,
+            user_agent_header: browser_info.user_agent.clone(),
+            time_zone: browser_info.time_zone,
+        });
+
+    if shopper_email.is_some() || browser_info.is_some() {
+        Some(WorldpayxmlShopper {
+            shopper_email_address: shopper_email,
+            browser: browser_info,
+        })
+    } else {
+        None
     }
 }
 
@@ -1359,6 +1540,9 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
                 description,
                 amount,
                 payment_details,
+                shopper: None,
+                billing_address: None,
+                shipping_address: None,
             },
         });
 
