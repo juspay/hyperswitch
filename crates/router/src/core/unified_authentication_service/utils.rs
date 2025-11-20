@@ -506,10 +506,12 @@ pub fn get_raw_authentication_token_data<F, Req>(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn merge_vault_data_with_raw_data(
     auth_token_data: api_models::authentication::AuthenticationVaultTokenData,
     raw_data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 ) -> RouterResult<api_models::authentication::AuthenticationVaultTokenData> {
+    // if token_data is present, fill it first with token data ,if not then populate it with raw data
     match (auth_token_data, raw_data) {
         (
             api_models::authentication::AuthenticationVaultTokenData::CardToken {
