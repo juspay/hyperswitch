@@ -105,10 +105,7 @@ pub async fn delete_tokenized_data_core(
 
     // Retrieve the tokenization record
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(
-            token_id,
-            platform.get_processor().get_key_store(),
-        )
+        .get_entity_id_vault_id_by_token_id(token_id, platform.get_processor().get_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound {
             id: token_id.get_string_repr().to_string(),

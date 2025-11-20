@@ -10553,10 +10553,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -11164,10 +11161,7 @@ pub async fn payments_submit_eligibility(
         .attach_printable("'profile_id' not set in payment intent")?;
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

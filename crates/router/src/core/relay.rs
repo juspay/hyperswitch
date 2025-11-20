@@ -263,10 +263,7 @@ pub async fn relay<T: RelayInterface>(
     let relay_domain = T::get_domain_models(req, merchant_id, profile.get_id());
 
     let relay_record = db
-        .insert_relay(
-            platform.get_processor().get_key_store(),
-            relay_domain,
-        )
+        .insert_relay(platform.get_processor().get_key_store(), relay_domain)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert a relay record in db")?;
@@ -316,10 +313,7 @@ pub async fn relay_retrieve(
     })?;
 
     let relay_record_result = db
-        .find_relay_by_id(
-            platform.get_processor().get_key_store(),
-            relay_id,
-        )
+        .find_relay_by_id(platform.get_processor().get_key_store(), relay_id)
         .await;
 
     let relay_record = match relay_record_result {

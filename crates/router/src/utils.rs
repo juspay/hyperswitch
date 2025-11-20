@@ -1239,10 +1239,7 @@ pub async fn trigger_refund_outgoing_webhook(
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1312,10 +1309,7 @@ pub async fn trigger_payouts_webhook(
     let profile_id = &payout_response.profile_id;
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

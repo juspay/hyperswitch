@@ -176,10 +176,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(
-            new_event,
-            platform.get_processor().get_key_store(),
-        )
+        .insert_event(new_event, platform.get_processor().get_key_store())
         .await;
 
     let event = match event_insert_result {

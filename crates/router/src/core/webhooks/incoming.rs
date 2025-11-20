@@ -925,10 +925,7 @@ async fn process_webhook_business_logic(
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1664,13 +1661,10 @@ async fn relay_refunds_incoming_webhook_flow(
                     })
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                db.find_relay_by_id(
-                    platform.get_processor().get_key_store(),
-                    &relay_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable("Failed to fetch the relay record")?
+                db.find_relay_by_id(platform.get_processor().get_key_store(), &relay_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+                    .attach_printable("Failed to fetch the relay record")?
             }
             webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => db
                 .find_relay_by_profile_id_connector_reference_id(

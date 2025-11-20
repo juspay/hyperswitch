@@ -105,10 +105,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_profile_by_merchant_id(
-                    platform.get_processor().get_key_store(),
-                    merchant_id,
-                )
+                .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?

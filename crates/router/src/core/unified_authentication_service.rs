@@ -681,10 +681,7 @@ pub async fn authentication_create_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1044,10 +1041,7 @@ pub async fn authentication_eligibility_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1303,10 +1297,7 @@ pub async fn authentication_authenticate_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1774,10 +1765,7 @@ pub async fn authentication_sync_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

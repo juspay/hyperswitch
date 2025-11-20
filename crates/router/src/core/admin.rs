@@ -2669,10 +2669,7 @@ pub async fn retrieve_connector(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let mca = store
-        .find_merchant_connector_account_by_id(
-            &id,
-            platform.get_processor().get_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&id, platform.get_processor().get_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -2929,10 +2926,7 @@ pub async fn delete_connector(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let mca = db
-        .find_merchant_connector_account_by_id(
-            &id,
-            platform.get_processor().get_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&id, platform.get_processor().get_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -3611,10 +3605,7 @@ pub async fn create_profile(
     let profile_id = business_profile.get_id().to_owned();
 
     let business_profile = db
-        .insert_business_profile(
-            platform.get_processor().get_key_store(),
-            business_profile,
-        )
+        .insert_business_profile(platform.get_processor().get_key_store(), business_profile)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(

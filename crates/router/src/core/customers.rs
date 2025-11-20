@@ -525,12 +525,9 @@ pub async fn retrieve_customer(
 
     let address = match &response.address_id {
         Some(address_id) => Some(api_models::payments::AddressDetails::from(
-            db.find_address_by_address_id(
-                address_id,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .switch()?,
+            db.find_address_by_address_id(address_id, platform.get_processor().get_key_store())
+                .await
+                .switch()?,
         )),
         None => None,
     };
