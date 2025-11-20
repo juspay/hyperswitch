@@ -228,6 +228,44 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
     }
 }
 
+impl ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            // For session token creation, we typically return a successful response with the session token
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::SessionTokenResponse {
+                    session_token: response.session_token.clone(),
+                },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 

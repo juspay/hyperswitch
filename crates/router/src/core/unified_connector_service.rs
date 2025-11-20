@@ -38,6 +38,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
+use hyperswitch_interfaces::helpers::ForeignTryFrom;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -66,8 +67,8 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
-        transformers::{ForeignFrom, ForeignTryFrom},
-        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
+        transformers::ForeignFrom, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
+        UcsSetupMandateResponseData,
     },
 };
 
@@ -1234,9 +1235,14 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 }
 
 pub fn handle_unified_connector_service_response_for_session_token_create(
-    response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
-    todo!()
+    response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(

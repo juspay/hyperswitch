@@ -11,7 +11,6 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
 };
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
@@ -20,7 +19,7 @@ use crate::{
     },
     routes::SessionState,
     services::logger,
-    types::{self, transformers::ForeignTryFrom, MinorUnit},
+    types::{self, transformers::ForeignTryFrom},
 };
 
 // =============================================================================
@@ -59,7 +58,7 @@ where
             types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
         >,
-        call_connector_action: CallConnectorAction,
+        _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
@@ -67,12 +66,8 @@ where
         RouterData<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        let connector_name = router_data.connector.clone();
-        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
-            .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
-        let creds_identifier = context.creds_identifier;
-        let merchant_context = context.merchant_context;
+        let platform = context.platform;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -90,12 +85,10 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Session Create Request")?;
 
-        let merchant_connector_id = merchant_connector_account.get_mca_id();
-
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &merchant_context,
+                &platform,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -114,7 +107,6 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let connector_name = router_data.connector.clone();
         let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
             router_data.clone(),
             state,
@@ -143,7 +135,8 @@ where
                     response
                 });
                 router_data.response = router_data_response;
-                router_data.session_token = Some(payment_session_token_response.session_token);
+                router_data.session_token =
+                    Some(payment_session_token_response.session_token.clone());
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, payment_session_token_response))
