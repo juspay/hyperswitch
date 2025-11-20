@@ -74,10 +74,10 @@ const billingAddress = {
 const payment_method_data = {
   card: {
     last4: "0083",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "CITIBANK SINGAPORE LTD.",
+    card_issuing_country: "SINGAPORE",
     card_isin: "414746",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -92,10 +92,10 @@ const payment_method_data = {
 const payment_method_data_failed = {
   card: {
     last4: "0002",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
