@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.20.0
+
+### Features
+
+- **metrics:** Add injector service metrics and observability ([#9945](https://github.com/juspay/hyperswitch/pull/9945)) ([`5e89187`](https://github.com/juspay/hyperswitch/commit/5e89187c496dcd31f969ff4aa791615fd057aa72))
+- **payouts:** Add payout filter v2 ([#9971](https://github.com/juspay/hyperswitch/pull/9971)) ([`d4eb08d`](https://github.com/juspay/hyperswitch/commit/d4eb08d92192c0ff0c27b335733ac3fde5dbc0a6))
+- **vsaas:** Add `created_by` and `last_modified_by` tracking fields to customers and payment_methods tables ([#10250](https://github.com/juspay/hyperswitch/pull/10250)) ([`b54606d`](https://github.com/juspay/hyperswitch/commit/b54606dd3cc48030ee4d6715ca418bb4ff9a8bf3))
+
+### Bug Fixes
+
+- **authentication:** Fix connector and profile CRUD authentication and authorization ([#10002](https://github.com/juspay/hyperswitch/pull/10002)) ([`76928bc`](https://github.com/juspay/hyperswitch/commit/76928bc0bfe6e86ee70bd196cbe8c34e16a91a18))
+- **nmi:** Pass only the payment data in the setup mandate call ([#10333](https://github.com/juspay/hyperswitch/pull/10333)) ([`085be82`](https://github.com/juspay/hyperswitch/commit/085be82b45ad8bc7abac300c44510758b75ca24c))
+- **payment_methods:** Fix error deserialization for network tokenization service ([#10170](https://github.com/juspay/hyperswitch/pull/10170)) ([`e35884e`](https://github.com/juspay/hyperswitch/commit/e35884ee383000f5bf82ae9ffab644fe092515b6))
+- Add tenant-id in headers for generating fingerprint request ([#10182](https://github.com/juspay/hyperswitch/pull/10182)) ([`58acf7a`](https://github.com/juspay/hyperswitch/commit/58acf7aecdfecc0990c40d0ac2e201e93be927e2))
+- Make AWS KMS key_id optional for flexible encryption workflows ([#10274](https://github.com/juspay/hyperswitch/pull/10274)) ([`2a9b0d1`](https://github.com/juspay/hyperswitch/commit/2a9b0d1f710fb9f1424dc727b2d0624afab7751d))
+
+**Full Changelog:** [`2025.11.19.0...2025.11.20.0`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0...2025.11.20.0)
+
+- - -
+
 ## 2025.11.19.0
 
 ### Features
