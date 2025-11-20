@@ -1,7 +1,5 @@
 use api_models::enums as api_enums;
-use common_utils::{
-    ext_traits::OptionExt, fp_utils::when, pii::Email, types::keymanager::KeyManagerState,
-};
+use common_utils::{ext_traits::OptionExt, fp_utils::when, pii::Email};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 use router_env::logger;
@@ -276,7 +274,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         self.state
             .store
             .find_payment_method(
-                &self.state.into(),
                 self.key_store,
                 payment_method_id,
                 self.merchant_account.storage_scheme,
@@ -355,10 +352,8 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
 
         // Fetch customer
         let db = &*self.state.store;
-        let key_manager_state: &KeyManagerState = &self.state.into();
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 &payment_method.customer_id,
                 self.merchant_account.get_id(),
                 self.key_store,
@@ -399,11 +394,11 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),
+            last_modified_by: None,
         };
         self.state
             .store
             .update_payment_method(
-                &self.state.into(),
                 self.key_store,
                 payment_method,
                 payment_method_update,

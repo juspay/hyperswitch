@@ -34,6 +34,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Walley => Self::Walley,
             enums::PayLaterType::Atome => Self::Atome,
             enums::PayLaterType::Breadpay => Self::Breadpay,
+            enums::PayLaterType::Payjustnow => Self::Payjustnow,
         }
     }
 }
@@ -77,6 +78,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
             enums::BankDebitType::Sepa => Self::Sepa,
+            enums::BankDebitType::SepaGuarenteedDebit => Self::SepaGuarenteedDebit,
             enums::BankDebitType::Bacs => Self::Bacs,
             enums::BankDebitType::Becs => Self::Becs,
         }
@@ -242,6 +244,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
     Ok(match dir_value {
         dir::DirValue::PaymentMethod(pm) => EuclidValue::PaymentMethod(pm),
         dir::DirValue::CardBin(ci) => EuclidValue::CardBin(ci),
+        dir::DirValue::ExtendedCardBin(ecb) => EuclidValue::ExtendedCardBin(ecb),
         dir::DirValue::CardType(ct) => EuclidValue::PaymentMethodType(ct.into()),
         dir::DirValue::CardNetwork(cn) => EuclidValue::CardNetwork(cn),
         dir::DirValue::MetaData(md) => EuclidValue::Metadata(md),

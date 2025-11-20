@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::Connector;
@@ -56,6 +57,8 @@ pub enum PayoutConnectors {
     Paypal,
     Stripe,
     Wise,
+    Worldpay,
+    Worldpayxml,
 }
 
 #[cfg(feature = "v2")]
@@ -85,6 +88,8 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -105,6 +110,8 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -118,6 +125,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Loonio => Ok(Self::Loonio),
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
@@ -125,6 +133,8 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -419,9 +429,11 @@ mod test {
     PartialEq,
     Eq,
     ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RetryAction {
     /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,

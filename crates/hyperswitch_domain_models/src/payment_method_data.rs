@@ -273,6 +273,7 @@ pub enum PayLaterData {
     AlmaRedirect {},
     AtomeRedirect {},
     BreadpayRedirect {},
+    PayjustnowRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -706,6 +707,30 @@ pub enum GiftCardData {
     BhnCardNetwork(BHNGiftCardDetails),
 }
 
+impl GiftCardData {
+    /// Returns a key that uniquely identifies the gift card. Used in
+    /// Payment Method Balance Check Flow for storing the balance
+    /// data in Redis.
+    ///
+    pub fn get_payment_method_key(
+        &self,
+    ) -> Result<Secret<String>, error_stack::Report<common_utils::errors::ValidationError>> {
+        match self {
+            Self::Givex(givex) => Ok(givex.number.clone()),
+            Self::PaySafeCard {} =>
+            // Generate a validation error here as we don't support balance check flow for it
+            {
+                Err(error_stack::Report::new(
+                    common_utils::errors::ValidationError::InvalidValue {
+                        message: "PaySafeCard doesn't support balance check flow".to_string(),
+                    },
+                ))
+            }
+            Self::BhnCardNetwork(bhn) => Ok(bhn.account_number.clone()),
+        }
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct GiftCardDetails {
@@ -751,6 +776,10 @@ pub enum BankDebitData {
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
+        iban: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+    },
+    SepaGuarenteedBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
@@ -847,12 +876,12 @@ pub struct NetworkTokenData {
     pub eci: Option<String>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenDetails {
     pub network_token: cards::NetworkToken,
     pub network_token_exp_month: Secret<String>,
     pub network_token_exp_year: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>, //since network token is tied to card, so its issuer will be same as card issuer
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<payment_methods::CardType>,
@@ -1372,6 +1401,9 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect {},
             api_models::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect {},
             api_models::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect {},
+            api_models::payments::PayLaterData::PayjustnowRedirect {} => {
+                Self::PayjustnowRedirect {}
+            }
         }
     }
 }
@@ -1711,6 +1743,14 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 iban,
                 bank_account_holder_name,
             },
+            api_models::payments::BankDebitData::SepaGuarenteedBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Self::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            },
             api_models::payments::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
@@ -1761,6 +1801,15 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 iban,
                 bank_account_holder_name,
             } => Self::Sepa(Box::new(
+                payment_additional_types::SepaBankDebitAdditionalData {
+                    iban: MaskedIban::from(iban),
+                    bank_account_holder_name,
+                },
+            )),
+            BankDebitData::SepaGuarenteedBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => Self::SepaGuarenteedDebit(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
                     iban: MaskedIban::from(iban),
                     bank_account_holder_name,
@@ -2099,6 +2148,7 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
+            Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
         }
     }
 }
@@ -2140,6 +2190,9 @@ impl GetPaymentMethodType for BankDebitData {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::SepaGuarenteedBankDebit { .. } => {
+                api_enums::PaymentMethodType::SepaGuarenteedDebit
+            }
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
         }
@@ -2268,6 +2321,16 @@ impl From<Card> for ExtendedCardInfo {
 
 impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: ApplePayWalletData) -> Self {
+        let (card_exp_month, card_exp_year) = match item
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+        {
+            Some(token) => (
+                Some(token.application_expiration_month.clone()),
+                Some(token.application_expiration_year.clone()),
+            ),
+            None => (None, None),
+        };
         Self {
             last4: item
                 .payment_method
@@ -2281,16 +2344,30 @@ impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.payment_method.network,
             card_type: Some(item.payment_method.pm_type),
+            card_exp_month,
+            card_exp_year,
         }
     }
 }
 
 impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
     fn from(item: GooglePayWalletData) -> Self {
+        let (card_exp_month, card_exp_year) = match item
+            .tokenization_data
+            .get_decrypted_google_pay_payment_data_optional()
+        {
+            Some(token) => (
+                Some(token.card_exp_month.clone()),
+                Some(token.card_exp_year.clone()),
+            ),
+            None => (None, None),
+        };
         Self {
             last4: item.info.card_details,
             card_network: item.info.card_network,
             card_type: Some(item.pm_type),
+            card_exp_month,
+            card_exp_year,
         }
     }
 }
@@ -2476,7 +2553,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-#[cfg(feature = "v2")]
 impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
     fn from(item: NetworkTokenDetails) -> Self {
         Self {
@@ -2556,6 +2632,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_number: card_data.card_number.clone(),
             card_exp_month: card_data.card_exp_month.clone(),
             card_exp_year: card_data.card_exp_year.clone(),
+            card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2573,6 +2650,7 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_number: network_token_data.token_number.clone(),
             card_exp_month: network_token_data.token_exp_month.clone(),
             card_exp_year: network_token_data.token_exp_year.clone(),
+            card_cvc: None,
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
@@ -2609,6 +2687,7 @@ impl
                 card_issuer,
                 card_issuing_country,
                 card_type,
+                ..
             },
             card_token_data,
             co_badged_card_data,

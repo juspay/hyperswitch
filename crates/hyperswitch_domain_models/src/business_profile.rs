@@ -14,14 +14,17 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ExternalVaultConnectorDetails, ProfileUpdateInternal, WebhookDetails,
+    self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
+    BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
+    ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
+    behaviour::Conversion,
     errors::api_error_response,
+    merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -59,6 +62,7 @@ pub struct Profile {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
+    pub is_l2_l3_enabled: bool,
     pub version: common_enums::ApiVersion,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
@@ -219,6 +223,7 @@ pub struct ProfileSetter {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
+    pub is_l2_l3_enabled: bool,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
@@ -285,6 +290,7 @@ impl From<ProfileSetter> for Profile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
+            is_l2_l3_enabled: value.is_l2_l3_enabled,
             version: common_types::consts::API_VERSION,
             dynamic_routing_algorithm: value.dynamic_routing_algorithm,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
@@ -357,6 +363,7 @@ pub struct ProfileGeneralUpdate {
         Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub is_l2_l3_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
@@ -445,6 +452,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    is_l2_l3_enabled,
                     dynamic_routing_algorithm,
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
@@ -509,6 +517,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    is_l2_l3_enabled,
                     dynamic_routing_algorithm,
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
@@ -595,6 +604,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -653,6 +663,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -711,6 +722,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -769,6 +781,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -827,6 +840,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -885,6 +899,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -943,6 +958,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                is_l2_l3_enabled: None,
             },
         }
     }
@@ -950,7 +966,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Profile {
+impl Conversion for Profile {
     type DstType = diesel_models::business_profile::Profile;
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
@@ -998,6 +1014,7 @@ impl super::behaviour::Conversion for Profile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            is_l2_l3_enabled: Some(self.is_l2_l3_enabled),
             version: self.version,
             dynamic_routing_algorithm: self.dynamic_routing_algorithm,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
@@ -1121,6 +1138,7 @@ impl super::behaviour::Conversion for Profile {
             outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
+            is_l2_l3_enabled: item.is_l2_l3_enabled.unwrap_or(false),
             version: item.version,
             dynamic_routing_algorithm: item.dynamic_routing_algorithm,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
@@ -1195,6 +1213,7 @@ impl super::behaviour::Conversion for Profile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            is_l2_l3_enabled: Some(self.is_l2_l3_enabled),
             version: self.version,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
@@ -1724,6 +1743,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     should_collect_cvv_during_payment: None,
                     tax_connector_id: None,
                     is_tax_connector_enabled: None,
+                    is_l2_l3_enabled: None,
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
@@ -1782,6 +1802,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_l2_l3_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
@@ -1838,6 +1859,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 should_collect_cvv_during_payment: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_l2_l3_enabled: None,
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
@@ -1873,6 +1895,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_recon_enabled: None,
                 applepay_verified_domains: None,
                 payment_link_config: None,
+                is_l2_l3_enabled: None,
                 session_expiry: None,
                 authentication_connector_details: None,
                 payout_link_config: None,
@@ -1928,6 +1951,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 is_recon_enabled: None,
                 applepay_verified_domains: None,
+                is_l2_l3_enabled: None,
                 payment_link_config: None,
                 session_expiry: None,
                 authentication_connector_details: None,
@@ -1978,6 +2002,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 modified_at: now,
                 return_url: None,
                 enable_payment_response_hash: None,
+                is_l2_l3_enabled: None,
                 payment_response_hash_key: None,
                 redirect_to_merchant_with_http_post: None,
                 webhook_details: None,
@@ -2067,6 +2092,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 max_auto_retries_enabled: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                is_l2_l3_enabled: None,
                 three_ds_decision_manager_config: None,
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
@@ -2126,6 +2152,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_manager_config: Some(three_ds_decision_manager_config),
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
+                is_l2_l3_enabled: None,
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: None,
                 merchant_business_country: None,
@@ -2184,6 +2211,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
                 is_debit_routing_enabled: None,
+                is_l2_l3_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -2223,6 +2251,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_collect_billing_details_from_wallet_connector: None,
                 always_collect_shipping_details_from_wallet_connector: None,
                 routing_algorithm_id: None,
+                is_l2_l3_enabled: None,
                 payout_routing_algorithm_id: None,
                 order_fulfillment_time: None,
                 order_fulfillment_time_origin: None,
@@ -2258,7 +2287,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for Profile {
+impl Conversion for Profile {
     type DstType = diesel_models::business_profile::Profile;
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
@@ -2332,6 +2361,7 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
+            is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
         })
@@ -2500,9 +2530,62 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             merchant_category_code: self.merchant_category_code,
+            is_l2_l3_enabled: None,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
         })
     }
+}
+
+#[async_trait::async_trait]
+pub trait ProfileInterface
+where
+    Profile: Conversion<DstType = storage_types::Profile, NewDstType = storage_types::ProfileNew>,
+{
+    type Error;
+    async fn insert_business_profile(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        business_profile: Profile,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_profile_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn find_business_profile_by_profile_name_merchant_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        profile_name: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn update_profile_by_profile_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        current_state: Profile,
+        profile_update: ProfileUpdate,
+    ) -> CustomResult<Profile, Self::Error>;
+
+    async fn delete_profile_by_profile_id_merchant_id(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    async fn list_profile_by_merchant_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<Vec<Profile>, Self::Error>;
 }

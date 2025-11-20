@@ -58,6 +58,7 @@ pub enum PayLaterType {
     Flexiti,
     Atome,
     Breadpay,
+    Payjustnow,
 }
 
 #[derive(
@@ -371,6 +372,7 @@ pub enum UpiType {
 pub enum BankDebitType {
     Ach,
     Sepa,
+    SepaGuarenteedDebit,
     Bacs,
     Becs,
 }

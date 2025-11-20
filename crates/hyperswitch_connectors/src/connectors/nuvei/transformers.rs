@@ -113,6 +113,9 @@ trait NuveiAuthorizePreprocessingCommon {
         Ok(None)
     }
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -198,6 +201,37 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
+                merchant_phone: descriptor.phone.clone(),
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -275,6 +309,37 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        if let Some(descriptor) = self.billing_descriptor.as_ref() {
+            if let Some(phone) = descriptor.phone.as_ref() {
+                if phone.clone().expose().len() > 13 {
+                    //Nuvei allows max 13 characters for merchant phone in dynamic descriptor
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Nuvei".to_string(),
+                        field_name: "dynamic_descriptor.merchant_phone".to_string(),
+                        max_length: 13,
+                        received_length: phone.clone().expose().len(),
+                    }
+                    .into());
+                }
+            }
+
+            let dynamic_descriptor = NuveiDynamicDescriptor {
+                merchant_name: descriptor.name.as_ref().map(|name| {
+                    Secret::new(name.clone().expose().trim().chars().take(25).collect())
+                    //Nuvei allows max 25 characters for merchant name in dynamic descriptor
+                }),
+                merchant_phone: descriptor.phone.clone(),
+            };
+
+            Ok(Some(dynamic_descriptor))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -351,6 +416,12 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
         StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
+
+    fn get_dynamic_descriptor(
+        &self,
+    ) -> Result<Option<NuveiDynamicDescriptor>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
     }
 }
 
@@ -458,6 +529,14 @@ pub enum IsRebilling {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct NuveiDynamicDescriptor {
+    pub merchant_name: Option<Secret<String>>,
+    pub merchant_phone: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
     pub session_token: Secret<String>,
@@ -484,6 +563,7 @@ pub struct NuveiPaymentsRequest {
     pub items: Option<Vec<NuveiItem>>,
     pub is_partial_approval: Option<PartialApprovalFlag>,
     pub external_scheme_details: Option<ExternalSchemeDetails>,
+    pub dynamic_descriptor: Option<NuveiDynamicDescriptor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -1134,9 +1214,11 @@ fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
     is_rebilling: Option<IsRebilling>,
     brand: Option<String>,
+    user_token_id: Option<CustomerId>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
         is_rebilling,
+        user_token_id,
         payment_option: PaymentOption {
             card: Some(Card {
                 brand,
@@ -1175,12 +1257,17 @@ where
     } else {
         None
     };
-
+    let user_token_id = if item.request.is_customer_initiated_mandate_payment() {
+        item.request.get_customer_id_optional()
+    } else {
+        None
+    };
     if let Ok(PaymentMethodToken::GooglePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_google_pay_decrypt_data(
             token,
             is_rebilling,
             Some(gpay_data.info.card_network.clone()),
+            user_token_id,
         );
     }
 
@@ -1189,9 +1276,11 @@ where
             gpay_predecrypt_data,
             is_rebilling,
             Some(gpay_data.info.card_network.clone()),
+            user_token_id,
         ),
         GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
+            user_token_id,
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
@@ -1247,9 +1336,11 @@ fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
     is_rebilling: Option<IsRebilling>,
     network: String,
+    user_token_id: Option<CustomerId>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
         is_rebilling,
+        user_token_id,
         payment_option: PaymentOption {
             card: Some(Card {
                 brand: Some(network),
@@ -1303,11 +1394,17 @@ where
     } else {
         None
     };
+    let user_token_id = if item.request.is_customer_initiated_mandate_payment() {
+        item.request.get_customer_id_optional()
+    } else {
+        None
+    };
     if let Ok(PaymentMethodToken::ApplePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_apple_pay_decrypt_data(
             token,
             is_rebilling,
             apple_pay_data.payment_method.network.clone(),
+            user_token_id,
         );
     }
     match apple_pay_data.payment_data {
@@ -1316,11 +1413,13 @@ where
                 apple_pay_predecrypt_data,
                 is_rebilling,
                 apple_pay_data.payment_method.network.clone(),
+                user_token_id,
             )
         }
 
         ApplePayPaymentData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
+            user_token_id,
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
@@ -1657,12 +1756,11 @@ where
     })
 }
 fn get_l2_l3_items(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
-        data.order_details
-            .as_ref()
+        data.get_order_details()
             .map_or(Ok(None), |order_details_list| {
                 // Map each order to a Result<NuveiItem>
                 let results: Vec<Result<NuveiItem, error_stack::Report<errors::ConnectorError>>> =
@@ -1716,24 +1814,24 @@ fn get_l2_l3_items(
 }
 
 fn get_amount_details(
-    l2_l3_data: &Option<L2L3Data>,
+    l2_l3_data: &Option<Box<L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
     l2_l3_data.as_ref().map_or(Ok(None), |data| {
         let total_tax = data
-            .order_tax_amount
+            .get_order_tax_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_shipping = data
-            .shipping_cost
+            .get_shipping_cost()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_discount = data
-            .discount_amount
+            .get_discount_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         let total_handling = data
-            .duty_amount
+            .get_duty_amount()
             .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
             .transpose()?;
         Ok(Some(NuveiAmountDetails {
@@ -1744,7 +1842,6 @@ fn get_amount_details(
         }))
     })
 }
-
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
     Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
@@ -1861,10 +1958,13 @@ where
                 | PayLaterData::WalleyRedirect {}
                 | PayLaterData::AlmaRedirect {}
                 | PayLaterData::AtomeRedirect {}
-                | PayLaterData::BreadpayRedirect {} => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nuvei"),
-                )
-                .into()),
+                | PayLaterData::BreadpayRedirect {}
+                | PayLaterData::PayjustnowRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
+                }
             },
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
@@ -1929,6 +2029,9 @@ where
         } else {
             request_data.device_details.clone()
         };
+
+        let dynamic_descriptor = item.request.get_dynamic_descriptor()?;
+
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
@@ -1946,6 +2049,7 @@ where
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
             external_scheme_details: request_data.external_scheme_details,
+            dynamic_descriptor,
             ..request
         })
     }
@@ -2470,7 +2574,8 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
             }),
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
-            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
+            | api_models::payouts::PayoutMethodData::BankRedirect(_)
+            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )
@@ -2557,6 +2662,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: None,
                     error_message: None,
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -2570,6 +2676,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     should_add_next_step_to_process_tracker: false,
                     error_code: Some(error_response_data.err_code.to_string()),
                     error_message: error_response_data.reason.clone(),
+                    payout_connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -3331,6 +3438,11 @@ where
 
         let (amount_captured, minor_amount_capturable) =
             get_amount_captured(response.get_partial_approval(), transaction_type.clone())?;
+
+        if bypass_error_for_no_payments_found(response.err_code) {
+            return Ok(item.data);
+        };
+
         Ok(Self {
             status,
             response: if let Some(err) = build_error_response(ErrorResponseParams {
@@ -3449,6 +3561,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if bypass_error_for_no_payments_found(item.response.err_code) {
+            return Ok(item.data);
+        };
         let txn_id = item
             .response
             .transaction_details
@@ -3668,9 +3783,8 @@ pub enum ChargebackStatus {
 
 /// Represents a Chargeback webhook notification from the Nuvei Control Panel.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct ChargebackNotification {
-    pub client_id: Option<i64>,
     pub client_name: Option<String>,
     pub event_date_u_t_c: Option<String>,
     pub event_correlation_id: Option<String>,
@@ -3685,10 +3799,11 @@ pub struct ChargebackNotification {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChargebackData {
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub date: Option<time::PrimitiveDateTime>,
-    pub chargeback_status_category: ChargebackStatusCategory,
+    pub chargeback_status_category: Option<ChargebackStatusCategory>,
     #[serde(rename = "Type")]
-    pub webhook_type: ChargebackType,
+    pub webhook_type: Option<ChargebackType>,
     pub status: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: String,
@@ -3698,8 +3813,9 @@ pub struct ChargebackData {
     pub chargeback_reason_category: Option<String>,
     pub reason_message: Option<String>,
     pub dispute_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub dispute_due_date: Option<time::PrimitiveDateTime>,
-    pub dispute_event_id: Option<i64>,
+    pub dispute_event_id: Option<String>,
     pub dispute_unified_status_code: Option<DisputeUnifiedStatusCode>,
 }
 
@@ -4152,80 +4268,127 @@ pub fn map_notification_to_event_for_payout(
     }
 }
 
+pub fn get_dispute_stage(
+    chargeback_data: &ChargebackData,
+) -> Result<common_enums::DisputeStage, error_stack::Report<errors::ConnectorError>> {
+    let dispute_stage = chargeback_data
+        .dispute_unified_status_code
+        .clone()
+        .map(common_enums::DisputeStage::from)
+        .or(match chargeback_data.webhook_type {
+            Some(ChargebackType::Retrieval) => Some(common_enums::DisputeStage::PreDispute),
+            Some(ChargebackType::Chargeback) | None => None,
+        })
+        .or(match chargeback_data.chargeback_status_category {
+            Some(ChargebackStatusCategory::Cancelled)
+            | Some(ChargebackStatusCategory::Duplicate) => {
+                Some(common_enums::DisputeStage::DisputeReversal)
+            }
+            Some(ChargebackStatusCategory::Regular) => Some(common_enums::DisputeStage::Dispute),
+            Some(ChargebackStatusCategory::RdrRefund) => {
+                Some(common_enums::DisputeStage::PreDispute)
+            }
+            Some(ChargebackStatusCategory::SoftCb) => {
+                Some(common_enums::DisputeStage::PreArbitration)
+            }
+            None => None,
+        });
+
+    dispute_stage.ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
+}
+
 pub fn map_dispute_notification_to_event(
-    dispute_code: DisputeUnifiedStatusCode,
+    chargeback_data: &ChargebackData,
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
-    match dispute_code {
-        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
-        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
-        }
-        DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
-        | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
-        | DisputeUnifiedStatusCode::Rdr
-        | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
-        | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
-        | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
-        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
-        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
-        | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
-        | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
-        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
-        | DisputeUnifiedStatusCode::McCollaborationExpired
-        | DisputeUnifiedStatusCode::InquiryExpired
-        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
-        }
-        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
-        | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
-        | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
-        | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
-        }
-        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
-        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
-        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
-        | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
-        }
+    let event_code = chargeback_data
+        .dispute_unified_status_code
+        .as_ref()
+        .and_then(|code| match code {
+            DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+            | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+            }
+            DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+            | DisputeUnifiedStatusCode::Rdr
+            | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+            | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+            | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+            | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+            | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::McCollaborationExpired
+            | DisputeUnifiedStatusCode::InquiryExpired
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
+            }
+            DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
+            }
+            DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+            | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+            | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+            | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
+                Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+            }
 
-        DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
-        | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
-        | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
-        | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
-        | DisputeUnifiedStatusCode::InquiryUpdated => {
-            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-        }
-    }
+            DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+            | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+            | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+            | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+            | DisputeUnifiedStatusCode::InquiryUpdated => None,
+        });
+
+    event_code
+        .or_else(|| {
+            chargeback_data
+                .chargeback_status_category
+                .as_ref()
+                .and_then(|code| match code {
+                    ChargebackStatusCategory::Cancelled | ChargebackStatusCategory::Duplicate => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+                    }
+                    ChargebackStatusCategory::RdrRefund => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+                    }
+                    _ => None,
+                })
+        })
+        .ok_or(errors::ConnectorError::WebhookEventTypeNotFound.into())
 }
 
 impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
@@ -4290,5 +4453,14 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             // --- DisputeReversal ---
             DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Self::DisputeReversal,
         }
+    }
+}
+/// bypass error state when psync is called immediately and psp returns no payments found
+/// https://docs.nuvei.com/documentation/integration/response-handling/
+fn bypass_error_for_no_payments_found(err_code: Option<i64>) -> bool {
+    match err_code {
+        //No transaction details returned for the provided ID.
+        Some(9146) => true,
+        _ => false,
     }
 }

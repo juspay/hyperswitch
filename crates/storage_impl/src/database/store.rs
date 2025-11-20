@@ -1,11 +1,14 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
-use common_utils::DbConnectionParams;
+use common_utils::{
+    types::{keymanager, TenantConfig},
+    DbConnectionParams,
+};
 use diesel::PgConnection;
 use error_stack::ResultExt;
 
 use crate::{
-    config::{Database, TenantConfig},
+    config::Database,
     errors::{StorageError, StorageResult},
 };
 
@@ -19,6 +22,7 @@ pub trait DatabaseStore: Clone + Send + Sync {
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
+        key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self>;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;
@@ -39,6 +43,7 @@ impl DatabaseStore for Store {
         config: Database,
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
+        _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
         Ok(Self {
             master_pool: diesel_make_pg_pool(&config, tenant_config.get_schema(), test_transaction)
@@ -84,6 +89,7 @@ impl DatabaseStore for ReplicaStore {
         config: (Database, Database),
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
+        _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
         let (master_config, replica_config) = config;
         let master_pool =

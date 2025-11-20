@@ -95,6 +95,24 @@ pub struct AcceptInviteFromEmailRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ValidateOnlyQueryParam {
+    pub status_check: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum InvitationAcceptanceStatus {
+    AlreadyAccepted,
+    SuccessfullyAccepted,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum AcceptInviteResponse {
+    Token(TokenResponse),
+    Status(InvitationAcceptanceStatus),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchOrganizationRequest {
     pub org_id: id_type::OrganizationId,
 }
@@ -240,7 +258,7 @@ pub struct SkipTwoFactorAuthQueryParam {
     pub skip_two_factor_auth: Option<bool>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct TokenResponse {
     pub token: Secret<String>,
     pub token_type: TokenPurpose,
@@ -351,6 +369,17 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub auth_method: AuthConfig,
     pub allow_signup: bool,
     pub email_domain: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateUserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
+    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
+    pub auth_type: common_enums::UserAuthType,
+    pub email_domain: Option<String>,
+    pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

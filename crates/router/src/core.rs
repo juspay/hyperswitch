@@ -27,8 +27,6 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
-#[cfg(feature = "v2")]
-pub mod gift_card;
 pub mod gsm;
 pub mod health_check;
 #[cfg(feature = "v1")]
@@ -36,8 +34,14 @@ pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_link;
+#[cfg(feature = "v2")]
+pub mod payment_method_balance;
 pub mod payment_methods;
 pub mod payments;
+
+#[cfg(feature = "v2")]
+pub mod split_payments;
+
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]
@@ -59,8 +63,6 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
-#[cfg(feature = "v1")]
-pub mod subscription;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
