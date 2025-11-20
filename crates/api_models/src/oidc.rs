@@ -1,6 +1,7 @@
 use common_utils::{events::ApiEventMetric, pii};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use utoipa::ToSchema;
 
 const RESPONSE_TYPES_SUPPORTED: &[ResponseType] = &[ResponseType::Code];
 const RESPONSE_MODES_SUPPORTED: &[ResponseMode] = &[ResponseMode::Query];
@@ -32,6 +33,7 @@ const CLAIMS_SUPPORTED: &[Claim] = &[
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -41,7 +43,16 @@ pub enum ResponseType {
 
 /// OIDC Response Mode
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -51,7 +62,16 @@ pub enum ResponseMode {
 
 /// OIDC Subject Type
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -61,12 +81,59 @@ pub enum SubjectType {
 
 /// OIDC Signing Algorithm
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
 )]
 pub enum SigningAlgorithm {
     #[serde(rename = "RS256")]
     #[strum(serialize = "RS256")]
     Rs256,
+}
+
+/// JWK Key Type
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
+)]
+pub enum KeyType {
+    #[serde(rename = "RSA")]
+    #[strum(serialize = "RSA")]
+    Rsa,
+}
+
+/// JWK Key Use
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum KeyUse {
+    Sig,
 }
 
 /// OIDC Grant Type
@@ -81,6 +148,7 @@ pub enum SigningAlgorithm {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -100,6 +168,7 @@ pub enum GrantType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -110,7 +179,16 @@ pub enum Scope {
 
 /// OIDC Token Endpoint Authentication Method
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -120,7 +198,16 @@ pub enum TokenAuthMethod {
 
 /// OIDC Claim
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -134,25 +221,62 @@ pub enum Claim {
     Sub,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// OpenID Connect Discovery Response
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcDiscoveryResponse {
+    /// The issuer identifier for the OpenID Provider
+    #[schema(example = "https://sandbox.hyperswitch.io")]
     pub issuer: String,
+
+    /// URL of the authorization endpoint
+    #[schema(example = "https://app.hyperswitch.io/oauth2/authorize")]
     pub authorization_endpoint: String,
+
+    /// URL of the token endpoint
+    #[schema(example = "https://sandbox.hyperswitch.io/oauth2/token")]
     pub token_endpoint: String,
+
+    /// URL of the JSON Web Key Set document
+    #[schema(example = "https://sandbox.hyperswitch.io/oauth2/jwks")]
     pub jwks_uri: String,
+
+    /// List of OAuth 2.0 response_type values supported
     pub response_types_supported: Vec<ResponseType>,
+
+    /// List of OAuth 2.0 response_mode values supported
     pub response_modes_supported: Vec<ResponseMode>,
+
+    /// List of Subject Identifier types supported
     pub subject_types_supported: Vec<SubjectType>,
+
+    /// List of JWS signing algorithms supported for ID Tokens
     pub id_token_signing_alg_values_supported: Vec<SigningAlgorithm>,
+
+    /// List of OAuth 2.0 grant type values supported
     pub grant_types_supported: Vec<GrantType>,
+
+    /// List of OAuth 2.0 scope values supported
     pub scopes_supported: Vec<Scope>,
+
+    /// List of Client Authentication methods supported by the token endpoint
     pub token_endpoint_auth_methods_supported: Vec<TokenAuthMethod>,
+
+    /// List of Claim Names supported
     pub claims_supported: Vec<Claim>,
+
+    /// Whether the claims parameter is supported
     #[serde(default)]
+    #[schema(example = false)]
     pub claims_parameter_supported: bool,
+
+    /// Whether the request parameter is supported
     #[serde(default)]
+    #[schema(example = false)]
     pub request_parameter_supported: bool,
+
+    /// Whether the request_uri parameter is supported
     #[serde(default)]
+    #[schema(example = false)]
     pub request_uri_parameter_supported: bool,
 }
 
@@ -183,20 +307,34 @@ impl OidcDiscoveryResponse {
 }
 
 /// JWKS (JSON Web Key Set) response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct JwksResponse {
+    /// Array of JSON Web Keys
     pub keys: Vec<Jwk>,
 }
 
 /// JSON Web Key (JWK) for RSA public key
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Jwk {
-    pub kty: String,
+    /// Key type
+    pub kty: KeyType,
+
+    /// Key ID
+    #[schema(example = "key-1")]
     pub kid: String,
+
+    /// Public key use
     #[serde(rename = "use")]
-    pub key_use: String,
-    pub alg: String,
+    pub key_use: KeyUse,
+
+    /// Algorithm
+    pub alg: SigningAlgorithm,
+
+    /// RSA public key modulus
     pub n: String,
+
+    /// RSA public key exponent
+    #[schema(example = "AQAB")]
     pub e: String,
 }
 
@@ -215,15 +353,30 @@ where
         .collect()
 }
 
-/// OIDC Authorization Request body
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// OIDC Authorization Request
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcAuthorizeRequest {
+    /// OAuth 2.0 Response Type value
     pub response_type: ResponseType,
+
+    /// OAuth 2.0 Client Identifier
+    #[schema(example = "client_abc123")]
     pub client_id: String,
+
+    /// Redirection URI to which the response will be sent
+    #[schema(example = "https://example.com/callback")]
     pub redirect_uri: String,
+
+    /// OpenID Connect scope values
     #[serde(deserialize_with = "deserialize_scope_vec")]
     pub scope: Vec<Scope>,
+
+    /// Opaque value used to maintain state between request and callback
+    #[schema(example = "state_xyz789")]
     pub state: String,
+
+    /// String value used to associate a Client session with an ID Token
+    #[schema(example = "nonce_abc123")]
     pub nonce: String,
 }
 
@@ -239,23 +392,39 @@ pub struct AuthCodeData {
 }
 
 /// OIDC Token Request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenRequest {
+    /// OAuth 2.0 Grant Type value
     pub grant_type: GrantType,
+
+    /// Authorization code received from the authorization server
+    #[schema(example = "auth_code_xyz789")]
     pub code: String,
+
+    /// Redirection URI that was used in the authorization request
+    #[schema(example = "https://example.com/callback")]
     pub redirect_uri: String,
+
+    /// OAuth 2.0 Client Identifier
+    #[schema(example = "client_abc123")]
     pub client_id: String,
 }
 
 /// OIDC Token Response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenResponse {
+    /// ID Token value associated with the authenticated session
     pub id_token: String,
+
+    /// OAuth 2.0 Token Type value
+    #[schema(example = "Bearer")]
     pub token_type: String,
+
+    /// Expiration time of the ID Token in seconds since the response was generated
+    #[schema(example = 3600)]
     pub expires_in: u64,
 }
 
-// Event metric implementations for OIDC types
 impl ApiEventMetric for OidcDiscoveryResponse {}
 impl ApiEventMetric for JwksResponse {}
 impl ApiEventMetric for OidcAuthorizeRequest {}

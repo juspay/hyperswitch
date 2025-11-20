@@ -2,8 +2,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use api_models::{
     oidc::{
-        AuthCodeData, Jwk, JwksResponse, OidcAuthorizeRequest, OidcDiscoveryResponse,
-        OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
+        AuthCodeData, Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeRequest,
+        OidcDiscoveryResponse, OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
     },
     payments::RedirectionResponse,
 };
@@ -41,17 +41,16 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
     let mut jwks = Vec::new();
 
     for key_config in oidc_keys {
-        let private_key_pem = key_config.private_key.peek();
-
-        let (n, e) = common_utils::crypto::extract_rsa_public_key_components(private_key_pem)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to extract public key from private key")?;
+        let (n, e) =
+            common_utils::crypto::extract_rsa_public_key_components(&key_config.private_key)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to extract public key from private key")?;
 
         let jwk = Jwk {
-            kty: "RSA".to_string(),
+            kty: KeyType::Rsa,
             kid: key_config.kid.clone(),
-            key_use: "sig".to_string(),
-            alg: SigningAlgorithm::Rs256.to_string(),
+            key_use: KeyUse::Sig,
+            alg: SigningAlgorithm::Rs256,
             n,
             e,
         };
