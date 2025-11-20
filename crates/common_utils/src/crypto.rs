@@ -734,13 +734,14 @@ pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 /// Extract RSA public key components (n, e) from a private key PEM for JWKS
 /// Returns base64url-encoded modulus and exponent
 pub fn extract_rsa_public_key_components(
-    private_key_pem: &str,
+    private_key_pem: &Secret<String>,
 ) -> CustomResult<(String, String), errors::CryptoError> {
     use base64::Engine;
+    use masking::PeekInterface;
     use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
 
-    let parsed_pem =
-        pem::parse(private_key_pem).change_context(errors::CryptoError::EncodingFailed)?;
+    let pem_str = private_key_pem.peek();
+    let parsed_pem = pem::parse(pem_str).change_context(errors::CryptoError::EncodingFailed)?;
 
     let private_key = match parsed_pem.tag() {
         "PRIVATE KEY" => rsa::RsaPrivateKey::from_pkcs8_der(parsed_pem.contents())

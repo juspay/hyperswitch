@@ -1,6 +1,7 @@
-use api_models::oidc::{Jwk, JwksResponse, OidcDiscoveryResponse, SigningAlgorithm};
+use api_models::oidc::{
+    Jwk, JwksResponse, KeyType, KeyUse, OidcDiscoveryResponse, SigningAlgorithm,
+};
 use error_stack::ResultExt;
-use masking::PeekInterface;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse},
@@ -27,17 +28,16 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
     let mut jwks = Vec::new();
 
     for key_config in oidc_keys {
-        let private_key_pem = key_config.private_key.peek();
-
-        let (n, e) = common_utils::crypto::extract_rsa_public_key_components(private_key_pem)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to extract public key from private key")?;
+        let (n, e) =
+            common_utils::crypto::extract_rsa_public_key_components(&key_config.private_key)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to extract public key from private key")?;
 
         let jwk = Jwk {
-            kty: "RSA".to_string(),
+            kty: KeyType::Rsa,
             kid: key_config.kid.clone(),
-            key_use: "sig".to_string(),
-            alg: SigningAlgorithm::Rs256.to_string(),
+            key_use: KeyUse::Sig,
+            alg: SigningAlgorithm::Rs256,
             n,
             e,
         };
