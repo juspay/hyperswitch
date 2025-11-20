@@ -479,7 +479,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .request
                 .metadata
                 .as_ref()
-                .map(|val| convert_value_map_to_hashmap(val))
+                .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
             browser_info,
@@ -554,7 +554,7 @@ impl
             .request
             .metadata
             .as_ref()
-            .map(|val| convert_value_map_to_hashmap(val))
+            .map(convert_value_map_to_hashmap)
             .transpose()?
             .unwrap_or_default();
         let authentication_data = router_data
@@ -680,7 +680,7 @@ impl
             .request
             .metadata
             .as_ref()
-            .map(|val| convert_value_map_to_hashmap(val))
+            .map(convert_value_map_to_hashmap)
             .transpose()?
             .unwrap_or_default();
         let setup_future_usage = router_data
@@ -902,7 +902,7 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .map(|val| convert_value_map_to_hashmap(val))
+                .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
@@ -1102,7 +1102,7 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .map(|val| convert_value_map_to_hashmap(val))
+                .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
@@ -2449,7 +2449,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .request
             .connector_metadata
             .as_ref()
-            .map(|metadata| convert_value_map_to_hashmap(metadata))
+            .map(convert_value_map_to_hashmap)
             .transpose()?
             .unwrap_or_default();
 
@@ -2664,7 +2664,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .request
                 .metadata
                 .as_ref()
-                .map(|val| convert_value_map_to_hashmap(val))
+                .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
             state: None,
