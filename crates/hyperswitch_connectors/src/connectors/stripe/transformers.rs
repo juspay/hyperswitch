@@ -2410,28 +2410,29 @@ pub fn get_stripe_compatible_connect_account_header(
     request: &PaymentsAuthorizeRouterData,
 ) -> Result<Option<String>, error_stack::Report<ConnectorError>> {
     let cit_metadata = request
-            .request
-            .mandate_id
-            .as_ref()
-            .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-            .and_then(|reference_id| match reference_id {
-                payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                    mandate_data.get_mandate_metadata()
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
+        .and_then(|reference_id| match reference_id {
+            payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                mandate_data.get_mandate_metadata()
+            }
+            _ => None,
+        })
+        .and_then(|secret_value| {
+            let json_value = secret_value.clone().expose();
+            match serde_json::from_value::<StripeSplitPaymentRequest>(json_value.clone()) {
+                Ok(val) => Some(val),
+                Err(err) => {
+                    router_env::logger::info!(
+                        "STRIPE: Picking stripe splitpayment from metadata {:?}",
+                        err
+                    );
+                    None
                 }
-                _ => None,
-            })
-            .and_then(|secret_value| {
-                let json_value = secret_value.clone().expose();
-                match serde_json::from_value::<StripeSplitPaymentRequest>(json_value.clone()) {
-                    Ok(val) => Some(val),
-                    Err(err) => {
-                        router_env::logger::info!(
-                            "STRIPE: Picking merchant_account_id and merchant_config_currency from payments request: {:?}", err
-                        );
-                        None
-                    }
-                }
-            });
+            }
+        });
 
     let split_payment_new = request.request.split_payments.clone();
 
