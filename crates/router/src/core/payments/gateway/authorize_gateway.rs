@@ -63,7 +63,6 @@ where
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        let connector_name = router_data.connector.clone();
         let merchant_connector_account = context.merchant_connector_account;
         let platform = context.platform;
         let lineage_ids = context.lineage_ids;
