@@ -215,6 +215,12 @@ impl
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
             state,
+            payment_method_token: router_data
+                .payment_method_token
+                .as_ref()
+                .and_then(|pmt| pmt.get_payment_method_token())
+                .map(ExposeInterface::expose),
+            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data

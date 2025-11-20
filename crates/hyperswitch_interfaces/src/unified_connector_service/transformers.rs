@@ -281,6 +281,8 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
+            payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }
     }
 }
