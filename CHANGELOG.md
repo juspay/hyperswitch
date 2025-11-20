@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0-hotfix4
+
+### Bug Fixes
+
+- **connectors:** [Adyen] Connector customer for mit ([#10374](https://github.com/juspay/hyperswitch/pull/10374)) ([`efb4502`](https://github.com/juspay/hyperswitch/commit/efb4502ca7182d6148bcf1bc77fa41b54cc36eae))
+
+**Full Changelog:** [`2025.11.12.0-hotfix3...2025.11.12.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0-hotfix3...2025.11.12.0-hotfix4)
+
+- - -
+
 ## 2025.11.12.0-hotfix3
 
 ### Bug Fixes
