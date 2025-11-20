@@ -13,11 +13,11 @@ use crate::{
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
-    let frontend_base_url = get_base_url(&state).to_string();
+    let frontend_base_url = get_base_url(&state);
 
     Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
         backend_base_url,
-        frontend_base_url,
+        frontend_base_url.into(),
     )))
 }
 
