@@ -3670,7 +3670,7 @@ pub async fn retrieve_profile(
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
     let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, &merchant_id, &profile_id)
+        .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4089,7 +4089,7 @@ pub async fn update_profile(
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
     let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, &merchant_id, profile_id)
+        .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
