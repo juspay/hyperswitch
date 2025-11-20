@@ -1,6 +1,7 @@
+use std::str::FromStr;
+
 use common_utils::{events::ApiEventMetric, pii};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 const RESPONSE_TYPES_SUPPORTED: &[ResponseType] = &[ResponseType::Code];
 const RESPONSE_MODES_SUPPORTED: &[ResponseMode] = &[ResponseMode::Query];
