@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v2")]
@@ -9,6 +9,7 @@ use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use async_trait::async_trait;
+use base64::Engine;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
@@ -39,6 +40,7 @@ use crate::core::errors::UserResult;
 use crate::core::metrics;
 use crate::{
     configs::settings,
+    consts::BASE64_ENGINE,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -126,6 +128,9 @@ pub enum AuthenticationType {
         org_id: id_type::OrganizationId,
         user_id: String,
     },
+    BasicAuth {
+        username: String,
+    },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
@@ -193,6 +198,7 @@ impl AuthenticationType {
             | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
+            | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
@@ -365,6 +371,54 @@ pub struct ApiKeyAuth {
 
 pub struct NoAuth;
 
+pub trait BasicAuthProvider {
+    type Identity;
+
+    fn get_credentials<A>(
+        state: &A,
+        username: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo;
+}
+
+#[derive(Debug, Default)]
+pub struct BasicAuth<P> {
+    _marker: PhantomData<P>,
+}
+
+impl<P> BasicAuth<P> {
+    pub const fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+pub struct OidcAuthProvider;
+
+impl BasicAuthProvider for OidcAuthProvider {
+    type Identity = String;
+
+    fn get_credentials<A>(
+        state: &A,
+        username: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo,
+    {
+        let session = state.session_state();
+        let client = session.conf.oidc.get_client(username).ok_or_else(|| {
+            report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Unknown client_id in Basic auth")
+        })?;
+
+        Ok((client.client_id.clone(), client.client_secret.clone()))
+    }
+}
+
+pub const OIDC_CLIENT_AUTH: BasicAuth<OidcAuthProvider> = BasicAuth::<OidcAuthProvider>::new();
+
 #[cfg(feature = "partial-auth")]
 impl GetAuthType for ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
@@ -413,6 +467,35 @@ where
         _state: &A,
     ) -> RouterResult<(Option<T>, AuthenticationType)> {
         Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
+impl<A, P> AuthenticateAndFetch<P::Identity, A> for BasicAuth<P>
+where
+    A: SessionStateInfo + Sync,
+    P: BasicAuthProvider + Send + Sync,
+    P::Identity: Clone,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(P::Identity, AuthenticationType)> {
+        let (username, password) = parse_basic_auth_credentials(request_headers)?;
+
+        let (identity, stored_secret) = P::get_credentials(state, &username)?;
+        if password.as_str() != stored_secret.peek() {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Invalid credentials"));
+        }
+
+        Ok((
+            identity.clone(),
+            AuthenticationType::BasicAuth {
+                username: username.clone(),
+            },
+        ))
     }
 }
 
@@ -4657,6 +4740,44 @@ pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+fn parse_basic_auth_credentials(headers: &HeaderMap) -> RouterResult<(String, String)> {
+    let auth_header = headers
+        .get(headers::AUTHORIZATION)
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Missing Authorization header")
+        })?
+        .to_str()
+        .change_context(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Invalid Authorization header encoding")?;
+    let b64 = auth_header.strip_prefix("Basic ").ok_or_else(|| {
+        report!(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Expected Basic authentication")
+    })?;
+
+    // Decode base64
+    let decoded = BASE64_ENGINE
+        .decode(b64)
+        .change_context(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Failed to decode Base64 Basic credentials")?;
+    let creds = String::from_utf8(decoded)
+        .change_context(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Basic credentials contained invalid UTF-8")?;
+    let (raw_user, raw_pass) = creds.split_once(':').ok_or_else(|| {
+        report!(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Expected format: username:password")
+    })?;
+    let user = raw_user.trim();
+    let pass = raw_pass.trim();
+
+    if user.is_empty() || pass.is_empty() {
+        return Err(report!(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Username and password cannot be empty"));
+    }
+
+    Ok((user.to_string(), pass.to_string()))
 }
 
 pub fn auth_type<'a, T, A>(
