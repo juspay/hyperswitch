@@ -17,7 +17,10 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
+    grpc_client::{
+        unified_connector_service::{ConfigOverride, ProxyConfigOverride},
+        GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial,
+    },
     superposition::SuperpositionClient,
 };
 use hyperswitch_interfaces::{
@@ -157,6 +160,39 @@ impl SessionState {
             request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
+
+    /// Extracts and serializes proxy configuration from SessionState for UCS headers
+    fn build_proxy_config_override(&self) -> Option<String> {
+        let proxy = &self.conf.proxy;
+
+        // Only build proxy config if at least one field is present
+        if proxy.http_url.is_some() || proxy.https_url.is_some() {
+            router_env::logger::debug!("Building proxy config override for UCS headers");
+            let proxy_override = ProxyConfigOverride {
+                http_url: proxy.http_url.clone(),
+                https_url: proxy.https_url.clone(),
+                mitm_proxy_enabled: proxy.mitm_enabled,
+                idle_pool_connection_timeout: proxy.idle_pool_connection_timeout,
+            };
+
+            let config_override = ConfigOverride {
+                proxy: Some(proxy_override),
+            };
+
+            // Serialize to JSON
+            serde_json::to_string(&config_override)
+                .inspect_err(|err| {
+                    router_env::logger::warn!(
+                        serialization_error=?err,
+                        "Failed to serialize proxy config for UCS header"
+                    );
+                })
+                .ok()
+        } else {
+            None
+        }
+    }
+
     pub fn get_grpc_headers_ucs(
         &self,
         unified_connector_service_execution_mode: ExecutionMode,
@@ -167,10 +203,15 @@ impl SessionState {
             ExecutionMode::Primary => false,
             ExecutionMode::Shadow => true,
         };
+
+        // Extract proxy configuration from session state
+        let proxy_config = self.build_proxy_config_override();
+
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(Some(shadow_mode))
+            .proxy_config(proxy_config)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {

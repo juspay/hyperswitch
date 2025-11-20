@@ -99,6 +99,31 @@ pub struct VgsMetadata {
     pub certificate: Secret<String>,
 }
 
+/// Proxy configuration override for UCS
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ProxyConfigOverride {
+    /// HTTP proxy URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_url: Option<String>,
+    /// HTTPS proxy URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub https_url: Option<String>,
+    /// Whether MITM proxy is enabled
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mitm_proxy_enabled: Option<bool>,
+    /// Idle pool connection timeout in seconds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub idle_pool_connection_timeout: Option<u64>,
+}
+
+/// Config override wrapper for x-config-override header
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ConfigOverride {
+    /// Proxy configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<ProxyConfigOverride>,
+}
+
 impl UnifiedConnectorServiceClient {
     /// Builds the connection to the gRPC service
     pub async fn build_connections(config: &GrpcClientSettings) -> Option<Self> {
@@ -618,6 +643,18 @@ pub fn build_unified_connector_service_grpc_headers(
                 common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
                 &shadow_mode.to_string(),
             )?,
+        );
+    }
+
+    // Add proxy configuration override header if present
+    if let Some(ref proxy_config) = grpc_headers.proxy_config {
+        metadata.append(
+            consts::CONFIG_OVERRIDE,
+            parse(consts::CONFIG_OVERRIDE, proxy_config)?,
+        );
+        logger::debug!(
+            proxy_config_header = ?proxy_config,
+            "Added x-config-override header with proxy configuration to UCS request"
         );
     }
 

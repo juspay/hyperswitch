@@ -96,6 +96,9 @@ pub mod consts {
 
     /// Header key for sending the merchant reference id to UCS
     pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
+
+    /// Header key for sending configuration overrides (like proxy settings) to UCS
+    pub(crate) const CONFIG_OVERRIDE: &str = "x-config-override";
 }
 
 /// Metrics for interactions with external systems.

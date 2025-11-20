@@ -166,11 +166,20 @@ pub struct GrpcHeadersUcs {
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
 
     shadow_mode: Option<bool>,
+    /// Proxy configuration override (pre-serialized JSON)
+    proxy_config: Option<String>,
 }
 
-/// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (Option<bool>,))>;
+/// Type aliase for GrpcHeaders builder in initial stage (with proxy_config set from SessionState)
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+    (Option<String>,),
+)>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
@@ -179,6 +188,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
     (Option<bool>,),
+    (Option<String>,),
 )>;
 
 /// struct to represent set of Lineage ids

@@ -391,7 +391,7 @@ where
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
-        ExecutionPath::ShadowUnifiedConnectorService => {
+        ExecutionPath::ShadowUnifiedConnectorService | ExecutionPath::UnifiedConnectorService => {
             // For shadow UCS, use rollout_result for proxy configuration since it takes priority
             match &rollout_result.proxy_override {
                 Some(proxy_override) => {
