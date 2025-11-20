@@ -3116,7 +3116,6 @@ pub async fn payment_methods_session_create(
 
     if let (Some(customer_id)) = &request.customer_id {
         db.find_customer_by_global_id(
-            key_manager_state,
             customer_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
