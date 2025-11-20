@@ -893,10 +893,9 @@ pub trait ConnectorAccessTokenSuffix {
         router_data: &RouterData<F, Req, Res>,
         merchant_connector_id_or_connector_name: String,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "access_token_{}_{}",
-            router_data.merchant_id.get_string_repr(),
-            merchant_connector_id_or_connector_name
+        Ok(common_utils::access_token::get_default_access_token_key(
+            &router_data.merchant_id,
+            merchant_connector_id_or_connector_name,
         ))
     }
 }

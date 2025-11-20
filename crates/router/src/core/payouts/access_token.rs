@@ -54,7 +54,6 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         .connector_name
         .supports_access_token_for_payout(payout_type)
     {
-        let merchant_id = platform.get_processor().get_account().get_id();
         let store = &*state.store;
 
         let key = connector

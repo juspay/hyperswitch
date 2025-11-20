@@ -1117,10 +1117,9 @@ impl ConnectorAccessTokenSuffix for Santander {
                 merchant_connector_id_or_connector_name,
                 key
             )),
-            None => Ok(format!(
-                "access_token_{}_{}",
-                router_data.merchant_id.get_string_repr(),
-                merchant_connector_id_or_connector_name
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                &router_data.merchant_id,
+                merchant_connector_id_or_connector_name,
             )),
         }
     }
