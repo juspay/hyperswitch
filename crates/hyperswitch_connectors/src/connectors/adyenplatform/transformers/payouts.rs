@@ -459,11 +459,11 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
         let request = &raw_payment.item.router_data.request;
 
         match raw_payment.raw_payout_method_data {
-            payouts::PayoutMethodData::Wallet(_) | payouts::PayoutMethodData::BankRedirect(_) => {
-                Err(ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
-                ))?
-            }
+            payouts::PayoutMethodData::Wallet(_)
+            | payouts::PayoutMethodData::BankRedirect(_)
+            | payouts::PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
+            ))?,
             payouts::PayoutMethodData::Card(c) => {
                 let card_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &c).try_into()?;
@@ -689,14 +689,16 @@ pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
     pub tracking: Option<AdyenplatformTrackingData>,
+    pub reason: Option<String>,
     pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformTrackingData {
-    status: TrackingStatus,
-    estimated_arrival_time: Option<String>,
+    pub status: TrackingStatus,
+    pub reason: Option<String>,
+    pub estimated_arrival_time: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

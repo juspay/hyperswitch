@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::Connector;
@@ -57,6 +58,7 @@ pub enum PayoutConnectors {
     Stripe,
     Wise,
     Worldpay,
+    Worldpayxml,
 }
 
 #[cfg(feature = "v2")]
@@ -87,6 +89,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -108,6 +111,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -130,6 +134,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -424,9 +429,11 @@ mod test {
     PartialEq,
     Eq,
     ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RetryAction {
     /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,

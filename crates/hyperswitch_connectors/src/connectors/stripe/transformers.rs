@@ -224,6 +224,8 @@ pub struct PaymentIntentRequest {
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -269,6 +271,8 @@ pub struct SetupIntentRequest {
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -821,7 +825,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Bluecode
             | enums::PaymentMethodType::SepaGuarenteedDebit
-            | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::Payjustnow => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1134,7 +1139,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect {}
-            | PayLaterData::BreadpayRedirect {} => Err(ConnectorError::NotImplemented(
+            | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayjustnowRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
         }
@@ -1889,7 +1895,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_method,
             billing_address,
             payment_method_types,
-            setup_future_usage,
+            mut setup_future_usage,
         ) = if payment_method_token.is_some() {
             (None, None, StripeBillingAddress::default(), None, None)
         } else {
@@ -2172,11 +2178,36 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None) => None,
         };
 
+        let is_moto = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::Card { .. }
+        ) && item.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
+        setup_future_usage = match (setup_future_usage, is_moto) {
+            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
+            _ => setup_future_usage,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
-            statement_descriptor: item.request.statement_descriptor.clone(),
+            statement_descriptor_suffix: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            statement_descriptor: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
             meta_data,
             return_url: item
                 .request
@@ -2198,8 +2229,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.split_payments.as_ref(),
                 item.request.setup_future_usage,
                 item.request.customer_acceptance.as_ref(),
+                is_moto,
             ) {
-                (Some(_), Some(usage), Some(_)) => Some(usage),
+                (_, Some(enums::FutureUsage::OnSession), _, Some(true)) => None,
+                (Some(_), Some(usage), Some(_), _) => Some(usage),
                 _ => setup_future_usage,
             },
 
@@ -2207,6 +2240,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
         })
     }
 }
@@ -2280,18 +2314,36 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::Card { .. }
+        ) && item.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
+        let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
+            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
+            _ => item.request.setup_future_usage,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
-            usage: item.request.setup_future_usage,
+            usage: setup_future_usage,
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
             meta_data,
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
         })
     }
 }
@@ -2501,7 +2553,8 @@ pub struct PaymentIntentResponse {
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<Secret<String>>,
-    pub created: i32,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created: Option<PrimitiveDateTime>,
     pub customer: Option<Secret<String>>,
     pub payment_method: Option<Secret<String>>,
     pub description: Option<String>,
@@ -2629,8 +2682,16 @@ impl StripeChargeEnum {
                     match payment_method_details {
                         StripePaymentMethodDetailsResponse::Card { card } => card
                             .overcapture
-                            .as_ref()
-                            .and_then(|overcapture| overcapture.maximum_amount_capturable),
+                            .clone()
+                            .filter(|overcapture| {
+                                matches!(
+                                    overcapture.status,
+                                    Some(StripeOvercaptureStatus::Available)
+                                )
+                            })
+                            .and_then(|overcapture_data| {
+                                overcapture_data.maximum_amount_capturable
+                            }),
                         _ => None,
                     }
                 } else {
@@ -2768,19 +2829,34 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
     }
 }
 
-impl From<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseData {
-    fn from(item: &AdditionalPaymentMethodDetails) -> Self {
-        Self {
-            extended_authentication_applied: item.extended_authorization.as_ref().map(
-                |extended_authorization| {
-                    primitive_wrappers::ExtendedAuthorizationAppliedBool::from(matches!(
-                        extended_authorization.status,
-                        Some(StripeExtendedAuthorizationStatus::Enabled)
-                    ))
-                },
+fn get_extended_authorization_data(
+    item: &AdditionalPaymentMethodDetails,
+    created_at: Option<PrimitiveDateTime>,
+) -> Option<ExtendedAuthorizationResponseData> {
+    match item
+        .extended_authorization
+        .as_ref()
+        .map(|extended_authorization| {
+            matches!(
+                extended_authorization.status,
+                Some(StripeExtendedAuthorizationStatus::Enabled)
+            )
+        }) {
+        Some(true) => Some(ExtendedAuthorizationResponseData {
+            extended_authentication_applied: Some(
+                primitive_wrappers::ExtendedAuthorizationAppliedBool::from(true),
             ),
             capture_before: item.capture_before,
-        }
+            extended_authorization_last_applied_at: created_at,
+        }),
+        Some(false) => Some(ExtendedAuthorizationResponseData {
+            extended_authentication_applied: Some(
+                primitive_wrappers::ExtendedAuthorizationAppliedBool::from(false),
+            ),
+            capture_before: None,
+            extended_authorization_last_applied_at: None,
+        }),
+        None => None,
     }
 }
 
@@ -2880,6 +2956,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
+    created_at: Option<PrimitiveDateTime>,
 ) -> Option<ConnectorResponseData> {
     let is_overcapture_enabled = stripe_charge_enum.get_overcapture_status();
     let additional_payment_method_details =
@@ -2895,9 +2972,12 @@ fn extract_payment_method_connector_response_from_latest_charge(
     let additional_payment_method_data = additional_payment_method_details
         .as_ref()
         .map(AdditionalPaymentMethodConnectorResponse::from);
-    let extended_authorization_data = additional_payment_method_details
-        .as_ref()
-        .map(ExtendedAuthorizationResponseData::from);
+    let extended_authorization_data =
+        additional_payment_method_details
+            .as_ref()
+            .and_then(|additional_payment_methods_details| {
+                get_extended_authorization_data(additional_payment_methods_details, created_at)
+            });
 
     if additional_payment_method_data.is_some()
         || extended_authorization_data.is_some()
@@ -2907,6 +2987,7 @@ fn extract_payment_method_connector_response_from_latest_charge(
             additional_payment_method_data,
             is_overcapture_enabled,
             extended_authorization_data,
+            None,
         ))
     } else {
         None
@@ -3023,11 +3104,16 @@ where
             })
         };
 
-        let connector_response_data = item
-            .response
-            .latest_charge
-            .as_ref()
-            .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let connector_response_data =
+            item.response
+                .latest_charge
+                .as_ref()
+                .and_then(|latest_charge| {
+                    extract_payment_method_connector_response_from_latest_charge(
+                        latest_charge,
+                        item.response.created,
+                    )
+                });
 
         let minor_amount_capturable = item
             .response
@@ -3294,11 +3380,16 @@ where
 
         let status = AttemptStatus::from(item.response.status.to_owned());
 
-        let connector_response_data = item
-            .response
-            .latest_charge
-            .as_ref()
-            .and_then(extract_payment_method_connector_response_from_latest_charge);
+        let connector_response_data =
+            item.response
+                .latest_charge
+                .as_ref()
+                .and_then(|latest_charge| {
+                    extract_payment_method_connector_response_from_latest_charge(
+                        latest_charge,
+                        item.response.created,
+                    )
+                });
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
@@ -3356,6 +3447,8 @@ where
 
 impl<F, T> TryFrom<ResponseRouterData<F, SetupIntentResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
+where
+    T: SplitPaymentData,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -3372,10 +3465,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, SetupIntentResponse, T, PaymentsRespons
             // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
             let connector_mandate_id = Some(payment_method_id.clone());
             let payment_method_id = Some(payment_method_id);
+
+            let mandate_metadata: Option<Secret<Value>> =
+                match item.data.request.get_split_payment_data() {
+                    Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_data)) => {
+                        Some(Secret::new(serde_json::json!({
+                            "transfer_account_id": stripe_split_data.transfer_account_id,
+                            "charge_type": stripe_split_data.charge_type,
+                            "application_fees": stripe_split_data.application_fees,
+                        })))
+                    }
+                    _ => None,
+                };
+
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
-                mandate_metadata: None,
+                mandate_metadata,
                 connector_mandate_request_reference_id: None,
             }
         });
@@ -4799,7 +4905,6 @@ where
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
-    #![allow(clippy::unwrap_used)]
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
     use masking::Secret;

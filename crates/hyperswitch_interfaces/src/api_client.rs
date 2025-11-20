@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use masking::Maskable;
 use reqwest::multipart::Form;
-use router_env::{instrument, logger, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, logger, tracing, RequestId};
 use serde_json::json;
 
 use crate::{
@@ -31,7 +31,6 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     metrics, types,
     types::Proxy,
-    unified_connector_service,
 };
 
 /// A trait representing a converter for connector names to their corresponding enum variants.
@@ -165,8 +164,14 @@ where
             };
             connector_integration.handle_response(req, None, response)
         }
-        common_enums::CallConnectorAction::UCSHandleResponse(transform_data_bytes) => {
-            handle_ucs_response(router_data, transform_data_bytes)
+        common_enums::CallConnectorAction::UCSConsumeResponse(_)
+        | common_enums::CallConnectorAction::UCSHandleResponse(_) => {
+            Err(ConnectorError::ProcessingStepFailed(Some(
+                "CallConnectorAction UCSHandleResponse/UCSConsumeResponse used in Direct gateway system flow. These actions are only valid in UCS gateway system"
+                    .to_string()
+                    .into(),
+            ))
+            .into())
         }
         common_enums::CallConnectorAction::Avoid => Ok(router_data),
         common_enums::CallConnectorAction::StatusUpdate {
@@ -442,69 +447,6 @@ where
             }
         }
     }
-}
-
-/// Handle UCS webhook response processing
-pub fn handle_ucs_response<T, Req, Resp>(
-    router_data: RouterData<T, Req, Resp>,
-    transform_data_bytes: Vec<u8>,
-) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
-where
-    T: Clone + Debug + 'static,
-    Req: Debug + Clone + 'static,
-    Resp: Debug + Clone + 'static,
-{
-    let webhook_transform_data: unified_connector_service::WebhookTransformData =
-        serde_json::from_slice(&transform_data_bytes)
-            .change_context(ConnectorError::ResponseDeserializationFailed)
-            .attach_printable("Failed to deserialize UCS webhook transform data")?;
-
-    let webhook_content = webhook_transform_data
-        .webhook_content
-        .ok_or(ConnectorError::ResponseDeserializationFailed)
-        .attach_printable("UCS webhook transform data missing webhook_content")?;
-
-    let payment_get_response = match webhook_content.content {
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
-            Ok(payments_response)
-        },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
-            Err(ConnectorError::ProcessingStepFailed(Some("UCS webhook contains refund response but payment processing was expected".to_string().into())).into())
-        },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
-            Err(ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
-        },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
-            Err(ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete transformation but payment processing was expected".to_string().into())).into())
-        },
-        None => {
-            Err(ConnectorError::ResponseDeserializationFailed)
-                .attach_printable("UCS webhook content missing payments_response")
-        }
-    }?;
-
-    let (router_data_response, status_code) =
-        unified_connector_service::handle_unified_connector_service_response_for_payment_get(
-            payment_get_response.clone(),
-        )
-        .change_context(ConnectorError::ProcessingStepFailed(None))
-        .attach_printable("Failed to process UCS webhook response using PSync handler")?;
-
-    let mut updated_router_data = router_data;
-    let router_data_response = router_data_response.map(|(response, status)| {
-        updated_router_data.status = status;
-        response
-    });
-
-    let _ = router_data_response.map_err(|error_response| {
-        updated_router_data.response = Err(error_response);
-    });
-    updated_router_data.raw_connector_response = payment_get_response
-        .raw_connector_response
-        .map(masking::Secret::new);
-    updated_router_data.connector_http_status_code = Some(status_code);
-
-    Ok(updated_router_data)
 }
 
 /// Calls the connector API and handles the response

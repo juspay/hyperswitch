@@ -153,7 +153,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
             description: None,
             return_url: None,
-            setup_future_usage: None,
+            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,

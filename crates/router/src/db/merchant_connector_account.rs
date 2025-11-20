@@ -137,7 +137,6 @@ mod merchant_connector_account_cache_tests {
         },
     };
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v1")]
     async fn test_connector_profile_id_cache() {
@@ -159,7 +158,6 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
@@ -324,7 +322,6 @@ mod merchant_connector_account_cache_tests {
             .is_none())
     }
 
-    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     #[cfg(feature = "v2")]
     async fn test_connector_profile_id_cache() {
@@ -345,7 +342,6 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");

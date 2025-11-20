@@ -7,11 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{
-    ext_traits::ConfigExt,
-    id_type,
-    types::{user::EmailThemeConfig, Url},
-};
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -34,7 +30,7 @@ pub use hyperswitch_interfaces::{
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
-    types::Proxy,
+    types::{ComparisonServiceConfig, Proxy},
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
@@ -179,6 +175,7 @@ pub struct Settings<S: SecretState> {
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
 }
@@ -207,13 +204,6 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ComparisonServiceConfig {
-    pub url: Url,
-    pub enabled: bool,
-    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -856,6 +846,22 @@ pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct TraceHeaderConfig {
+    pub header_name: String,
+    pub id_reuse_strategy: router_env::IdReuse,
+}
+
+impl Default for TraceHeaderConfig {
+    fn default() -> Self {
+        Self {
+            header_name: common_utils::consts::X_REQUEST_ID.to_string(),
+            id_reuse_strategy: router_env::IdReuse::IgnoreIncoming,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct WebhooksSettings {
@@ -1443,7 +1449,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::{HashMap, HashSet};
 
     use serde::de::{
@@ -1536,7 +1541,6 @@ mod hashmap_deserialization_test {
 
 #[cfg(test)]
 mod hashset_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::HashSet;
 
     use serde::de::{

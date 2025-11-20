@@ -48,6 +48,25 @@ fn generate_struct_impl(
         .map(|doc| quote! { Some(#doc.to_string()) })
         .unwrap_or(quote! { None });
 
+    // Count flattened vs non-flattened fields to determine shape type
+    let flattened_fields: Vec<_> = fields.iter().filter(|f| f.flatten).collect();
+    let non_flattened_fields: Vec<_> = fields.iter().filter(|f| !f.flatten).collect();
+
+    // Use smart runtime inspection for structs with only a single flattened field
+    let should_use_smart_generation =
+        non_flattened_fields.is_empty() && flattened_fields.len() == 1;
+
+    if should_use_smart_generation {
+        // Generate smart logic that determines union vs structure at runtime based on the flattened type
+        return generate_union_from_flattened_struct(
+            name,
+            namespace,
+            flattened_fields[0],
+            &struct_doc_expr,
+        );
+    }
+
+    // Otherwise, generate Structure (existing logic)
     let field_implementations = fields.iter().map(|field| {
         let field_name = &field.name;
         let value_type = &field.value_type;
@@ -141,6 +160,12 @@ fn generate_struct_impl(
                         SmithyConstraint::HttpQuery(name) => quote! {
                             smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
                         },
+                        SmithyConstraint::JsonName(name) => quote! {
+                            smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                        },
+                        SmithyConstraint::EnumValue(value) => quote! {
+                            smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                        },
                     })
                     .collect::<Vec<_>>();
 
@@ -194,6 +219,142 @@ fn generate_struct_impl(
     Ok(expanded)
 }
 
+fn generate_union_from_flattened_struct(
+    name: &syn::Ident,
+    namespace: &str,
+    flattened_field: &SmithyField,
+    struct_doc_expr: &proc_macro2::TokenStream,
+) -> syn::Result<TokenStream2> {
+    let value_type = &flattened_field.value_type;
+
+    // Extract the inner type from Option<T> if it's an optional type
+    let inner_type = if value_type.starts_with("Option<") && value_type.ends_with('>') {
+        let start_idx = "Option<".len();
+        let end_idx = value_type.len() - 1;
+        &value_type[start_idx..end_idx]
+    } else {
+        value_type
+    };
+
+    let inner_type_ident = syn::parse_str::<syn::Type>(inner_type).unwrap();
+
+    let expanded = quote! {
+        impl smithy_core::SmithyModelGenerator for #name {
+            fn generate_smithy_model() -> smithy_core::SmithyModel {
+                let mut shapes = std::collections::HashMap::new();
+                let mut members = std::collections::HashMap::new();
+
+                // Get the flattened model and determine if it's actually an enum/union
+                let flattened_model = <#inner_type_ident as smithy_core::SmithyModelGenerator>::generate_smithy_model();
+                let flattened_struct_name = stringify!(#inner_type_ident).to_string();
+
+                // Check if the flattened type is actually an enum or union
+                let mut is_flattened_enum_or_union = false;
+
+                // Find the target shape in the flattened model
+                for (shape_name, shape) in flattened_model.shapes.clone() {
+                    if shape_name == flattened_struct_name {
+                        match &shape {
+                            smithy_core::SmithyShape::Union { .. } |
+                            smithy_core::SmithyShape::Enum { .. } => {
+                                is_flattened_enum_or_union = true;
+                            },
+                            smithy_core::SmithyShape::Structure { .. } => {
+                                is_flattened_enum_or_union = false;
+                            },
+                            _ => {
+                                is_flattened_enum_or_union = false;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if is_flattened_enum_or_union {
+                    // Generate as Union: flattened type is enum/union
+                    for (shape_name, shape) in flattened_model.shapes {
+                        if shape_name == flattened_struct_name {
+                            match shape {
+                                smithy_core::SmithyShape::Union { members: flattened_members, .. } => {
+                                    // If the flattened type is already a union, use its members
+                                    members.extend(flattened_members);
+                                },
+                                smithy_core::SmithyShape::Enum { values, .. } => {
+                                    // If the flattened type is an enum, convert enum values to union members
+                                    for (enum_name, enum_value) in values {
+                                        members.insert(enum_name, smithy_core::SmithyMember {
+                                            target: "smithy.api#Unit".to_string(),
+                                            documentation: enum_value.documentation,
+                                            traits: vec![],
+                                        });
+                                    }
+                                },
+                                _ => {
+                                    // Fallback case
+                                    members.insert("value".to_string(), smithy_core::SmithyMember {
+                                        target: flattened_struct_name.clone(),
+                                        documentation: None,
+                                        traits: vec![],
+                                    });
+                                }
+                            }
+                        } else {
+                            // Add all other shapes from the flattened model
+                            shapes.insert(shape_name, shape);
+                        }
+                    }
+
+                    // Create the union shape
+                    let shape = smithy_core::SmithyShape::Union {
+                        members,
+                        documentation: #struct_doc_expr,
+                        traits: vec![]
+                    };
+
+                    shapes.insert(stringify!(#name).to_string(), shape);
+                } else {
+                    // Generate as Structure: flattened type is struct, merge fields
+                    for (shape_name, shape) in flattened_model.shapes {
+                        if shape_name == flattened_struct_name {
+                            match shape {
+                                smithy_core::SmithyShape::Structure { members: flattened_members, .. } => {
+                                    members.extend(flattened_members);
+                                }
+                                _ => {
+                                    // Fallback - add as single field
+                                    members.insert("value".to_string(), smithy_core::SmithyMember {
+                                        target: flattened_struct_name.clone(),
+                                        documentation: None,
+                                        traits: vec![],
+                                    });
+                                }
+                            }
+                        } else {
+                            shapes.insert(shape_name, shape);
+                        }
+                    }
+
+                    // Create the structure shape
+                    let shape = smithy_core::SmithyShape::Structure {
+                        members,
+                        documentation: #struct_doc_expr,
+                        traits: vec![]
+                    };
+
+                    shapes.insert(stringify!(#name).to_string(), shape);
+                }
+
+                smithy_core::SmithyModel {
+                    namespace: #namespace.to_string(),
+                    shapes
+                }
+            }
+        }
+    };
+
+    Ok(expanded)
+}
+
 fn generate_enum_impl(
     name: &syn::Ident,
     namespace: &str,
@@ -209,10 +370,22 @@ fn generate_enum_impl(
         .map(|doc| quote! { Some(#doc.to_string()) })
         .unwrap_or(quote! { None });
 
-    // Check if this is a string enum (all variants are unit variants) or a union
+    // Check if this is a tagged enum, string enum, or union
     let is_string_enum = variants.iter().all(|v| v.fields.is_empty());
+    let has_nested_value_type = variants.iter().any(|v| v.nested_value_type);
+    let is_tagged_enum = serde_enum_attrs.tag.is_some() && !is_string_enum;
 
-    if is_string_enum {
+    if is_tagged_enum {
+        // Generate tagged enum as a structure with tag field + all variant fields as optional
+        // Plus a separate enum for the variants
+        generate_tagged_enum_impl(
+            name,
+            namespace,
+            &variants,
+            &serde_enum_attrs,
+            &enum_doc_expr,
+        )
+    } else if is_string_enum && !has_nested_value_type {
         // Generate as Smithy enum
         let variant_implementations = variants
             .iter()
@@ -234,11 +407,68 @@ fn generate_enum_impl(
                     quote! { #variant_name.to_string() }
                 };
 
+                // Generate traits for enum value
+                let traits = if variant.constraints.is_empty() {
+                    quote! { vec![] }
+                } else {
+                    let trait_tokens = variant
+                        .constraints
+                        .iter()
+                        .map(|constraint| match constraint {
+                            SmithyConstraint::Pattern(pattern) => quote! {
+                                smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                            },
+                            SmithyConstraint::Range(min, max) => {
+                                let min_expr =
+                                    min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr =
+                                    max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                quote! {
+                                    smithy_core::SmithyTrait::Range {
+                                        min: #min_expr,
+                                        max: #max_expr
+                                    }
+                                }
+                            }
+                            SmithyConstraint::Length(min, max) => {
+                                let min_expr =
+                                    min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                let max_expr =
+                                    max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                quote! {
+                                    smithy_core::SmithyTrait::Length {
+                                        min: #min_expr,
+                                        max: #max_expr
+                                    }
+                                }
+                            }
+                            SmithyConstraint::Required => quote! {
+                                smithy_core::SmithyTrait::Required
+                            },
+                            SmithyConstraint::HttpLabel => quote! {
+                                smithy_core::SmithyTrait::HttpLabel
+                            },
+                            SmithyConstraint::HttpQuery(name) => quote! {
+                                smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                            },
+                            SmithyConstraint::JsonName(name) => quote! {
+                                smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                            },
+                            SmithyConstraint::EnumValue(value) => quote! {
+                                smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                            },
+                        })
+                        .collect::<Vec<_>>();
+
+                    quote! { vec![#(#trait_tokens),*] }
+                };
+
                 quote! {
                     enum_values.insert(#transformed_name, smithy_core::SmithyEnumValue {
                         name: #transformed_name,
                         documentation: #variant_doc,
                         is_default: false,
+                        traits: #traits,
                     });
                 }
             })
@@ -281,9 +511,108 @@ fn generate_enum_impl(
                     .map(|doc| quote! { Some(#doc.to_string()) })
                     .unwrap_or(quote! { None });
 
-                let target_type_expr = if variant.fields.is_empty() {
-                    // If there are no fields with `value_type`, this variant should be skipped.
-                    return None;
+                let target_type_expr = if variant.nested_value_type {
+                    // Force nested structure creation when nested_value_type is specified
+                    // This works for both empty and non-empty variants
+                    let nested_struct_members = variant.fields.iter().map(|field| {
+                        let field_name = &field.name;
+                        let field_value_type = &field.value_type;
+                        let field_doc = field
+                            .documentation
+                            .as_ref()
+                            .map(|doc| quote! { Some(#doc.to_string()) })
+                            .unwrap_or(quote! { None });
+
+                        let mut field_constraints = field.constraints.clone();
+                        if !field.optional && !field_constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+                            field_constraints.push(SmithyConstraint::Required);
+                        }
+
+                        let field_traits = if field_constraints.is_empty() {
+                            quote! { vec![] }
+                        } else {
+                            let trait_tokens = field_constraints
+                                .iter()
+                                .map(|constraint| match constraint {
+                                    SmithyConstraint::Pattern(pattern) => quote! {
+                                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                                    },
+                                    SmithyConstraint::Range(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Range {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Length(min, max) => {
+                                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                                        quote! {
+                                            smithy_core::SmithyTrait::Length {
+                                                min: #min_expr,
+                                                max: #max_expr
+                                            }
+                                        }
+                                    },
+                                    SmithyConstraint::Required => quote! {
+                                        smithy_core::SmithyTrait::Required
+                                    },
+                                    SmithyConstraint::HttpLabel => quote! {
+                                        smithy_core::SmithyTrait::HttpLabel
+                                    },
+                                    SmithyConstraint::HttpQuery(name) => quote! {
+                                        smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::JsonName(name) => quote! {
+                                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::EnumValue(value) => quote! {
+                                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                                    },
+                                })
+                                .collect::<Vec<_>>();
+
+                            quote! { vec![#(#trait_tokens),*] }
+                        };
+
+                        quote! {
+                            {
+                                let (field_target, field_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                                shapes.extend(field_shapes);
+                                nested_members.insert(#field_name.to_string(), smithy_core::SmithyMember {
+                                    target: field_target,
+                                    documentation: #field_doc,
+                                    traits: #field_traits,
+                                });
+                            }
+                        }
+                    });
+
+                    quote! {
+                        {
+                            let nested_struct_name = format!("{}NestedType", #variant_name);
+                            let mut nested_members = std::collections::HashMap::new();
+                            #(#nested_struct_members)*
+                            let nested_shape = smithy_core::SmithyShape::Structure {
+                                members: nested_members,
+                                documentation: None,
+                                traits: vec![],
+                            };
+                            shapes.insert(nested_struct_name.clone(), nested_shape);
+                            nested_struct_name
+                        }
+                    }
+                } else if variant.fields.is_empty() {
+                    // If there are no fields but variant has a value_type, use that
+                    if let Some(variant_value_type) = &variant.value_type {
+                        quote! { #variant_value_type.to_string() }
+                    } else {
+                        // If there are no fields and no variant value_type, this variant should be skipped
+                        return None;
+                    }
                 } else if variant.fields.len() == 1 {
                     // Single field - reference the type directly instead of creating a wrapper
                     let field = &variant.fields[0];
@@ -352,6 +681,12 @@ fn generate_enum_impl(
                                     },
                                     SmithyConstraint::HttpQuery(name) => quote! {
                                         smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::JsonName(name) => quote! {
+                                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                                    },
+                                    SmithyConstraint::EnumValue(value) => quote! {
+                                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
                                     },
                                 })
                                 .collect::<Vec<_>>();
@@ -437,6 +772,188 @@ fn generate_enum_impl(
     }
 }
 
+fn generate_tagged_enum_impl(
+    name: &syn::Ident,
+    namespace: &str,
+    variants: &[SmithyEnumVariant],
+    serde_enum_attrs: &SerdeEnumAttributes,
+    enum_doc_expr: &proc_macro2::TokenStream,
+) -> syn::Result<TokenStream2> {
+    let tag_field_name = serde_enum_attrs.tag.as_ref().unwrap();
+    let variants_enum_name = format!("{}EnumVariants", name);
+
+    // Collect all unique fields from all variants
+    let mut all_fields = std::collections::HashMap::new();
+
+    for variant in variants {
+        for field in &variant.fields {
+            // Make all variant fields optional by wrapping in Option<> if not already
+            let optional_type = if field.optional {
+                field.value_type.clone()
+            } else {
+                format!("Option<{}>", field.value_type)
+            };
+
+            all_fields.insert(
+                field.name.clone(),
+                (
+                    optional_type,
+                    field.documentation.clone(),
+                    field.constraints.clone(),
+                ),
+            );
+        }
+    }
+
+    // Generate field implementations for the main structure
+    let field_implementations = all_fields.iter().map(|(field_name, (value_type, documentation, constraints))| {
+        let field_doc = documentation
+            .as_ref()
+            .map(|doc| quote! { Some(#doc.to_string()) })
+            .unwrap_or(quote! { None });
+
+        let traits = if constraints.is_empty() {
+            quote! { vec![] }
+        } else {
+            let trait_tokens = constraints
+                .iter()
+                .map(|constraint| match constraint {
+                    SmithyConstraint::Pattern(pattern) => quote! {
+                        smithy_core::SmithyTrait::Pattern { pattern: #pattern.to_string() }
+                    },
+                    SmithyConstraint::Range(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Range {
+                                min: #min_expr,
+                                max: #max_expr
+                            }
+                        }
+                    },
+                    SmithyConstraint::Length(min, max) => {
+                        let min_expr = min.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        let max_expr = max.map(|v| quote! { Some(#v) }).unwrap_or(quote! { None });
+                        quote! {
+                            smithy_core::SmithyTrait::Length {
+                                min: #min_expr,
+                                max: #max_expr
+                            }
+                        }
+                    },
+                    SmithyConstraint::Required => quote! {
+                        smithy_core::SmithyTrait::Required
+                    },
+                    SmithyConstraint::HttpLabel => quote! {
+                        smithy_core::SmithyTrait::HttpLabel
+                    },
+                    SmithyConstraint::HttpQuery(name) => quote! {
+                        smithy_core::SmithyTrait::HttpQuery { name: #name.to_string() }
+                    },
+                    SmithyConstraint::JsonName(name) => quote! {
+                        smithy_core::SmithyTrait::JsonName { name: #name.to_string() }
+                    },
+                    SmithyConstraint::EnumValue(value) => quote! {
+                        smithy_core::SmithyTrait::EnumValue { value: #value.to_string() }
+                    },
+                })
+                .collect::<Vec<_>>();
+
+            quote! { vec![#(#trait_tokens),*] }
+        };
+
+        quote! {
+            {
+                let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
+                shapes.extend(new_shapes);
+                members.insert(#field_name.to_string(), smithy_core::SmithyMember {
+                    target: target_type,
+                    documentation: #field_doc,
+                    traits: #traits,
+                });
+            }
+        }
+    });
+
+    // Generate variant enum values
+    let variant_implementations = variants
+        .iter()
+        .map(|variant| {
+            let variant_name = &variant.name;
+            let variant_doc = variant
+                .documentation
+                .as_ref()
+                .map(|doc| quote! { Some(#doc.to_string()) })
+                .unwrap_or(quote! { None });
+
+            // Apply serde rename transformation if specified
+            let rename_all = serde_enum_attrs.rename_all.as_deref();
+            let transformed_name = if let Some(rename_pattern) = rename_all {
+                let transformed = transform_variant_name(variant_name, Some(rename_pattern));
+                quote! { #transformed.to_string() }
+            } else {
+                quote! { #variant_name.to_string() }
+            };
+
+            quote! {
+                enum_values.insert(#transformed_name, smithy_core::SmithyEnumValue {
+                    name: #transformed_name,
+                    documentation: #variant_doc,
+                    is_default: false,
+                    traits: vec![],
+                });
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let expanded = quote! {
+        impl smithy_core::SmithyModelGenerator for #name {
+            fn generate_smithy_model() -> smithy_core::SmithyModel {
+                let mut shapes = std::collections::HashMap::new();
+                let mut members = std::collections::HashMap::new();
+
+                // Add all variant fields as optional members
+                #(#field_implementations;)*
+
+                // Add the tag field - required and references the variants enum
+                members.insert(#tag_field_name.to_string(), smithy_core::SmithyMember {
+                    target: #variants_enum_name.to_string(),
+                    documentation: Some("Discriminator field for the tagged enum".to_string()),
+                    traits: vec![smithy_core::SmithyTrait::Required],
+                });
+
+                // Create the main structure
+                let main_shape = smithy_core::SmithyShape::Structure {
+                    members,
+                    documentation: #enum_doc_expr,
+                    traits: vec![]
+                };
+
+                shapes.insert(stringify!(#name).to_string(), main_shape);
+
+                // Create the variants enum
+                let mut enum_values = std::collections::HashMap::new();
+                #(#variant_implementations)*
+
+                let variants_shape = smithy_core::SmithyShape::Enum {
+                    values: enum_values,
+                    documentation: Some(format!("Enum variants for {}", stringify!(#name))),
+                    traits: vec![]
+                };
+
+                shapes.insert(#variants_enum_name.to_string(), variants_shape);
+
+                smithy_core::SmithyModel {
+                    namespace: #namespace.to_string(),
+                    shapes
+                }
+            }
+        }
+    };
+
+    Ok(expanded)
+}
+
 fn extract_namespace_and_mixin(attrs: &[Attribute]) -> syn::Result<(String, bool)> {
     for attr in attrs {
         if attr.path().is_ident("smithy") {
@@ -482,10 +999,17 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
                     let documentation = extract_documentation(&field.attrs);
                     let optional = value_type.trim().starts_with("Option<");
 
+                    // Apply JsonName trait if field has serde rename
+                    let mut constraints = field_attrs.constraints;
+                    if let Some(rename_value) = &serde_attrs.rename {
+                        // Add JsonName constraint for serde rename
+                        constraints.push(SmithyConstraint::JsonName(rename_value.clone()));
+                    }
+
                     smithy_fields.push(SmithyField {
                         name: field_name,
                         value_type,
-                        constraints: field_attrs.constraints,
+                        constraints,
                         documentation,
                         optional,
                         flatten: serde_attrs.flatten,
@@ -513,6 +1037,7 @@ fn extract_enum_variants(
         let variant_name = variant.ident.to_string();
         let documentation = extract_documentation(&variant.attrs);
         let variant_attrs = parse_smithy_field_attributes(&variant.attrs)?;
+        let variant_serde_attrs = parse_serde_attributes(&variant.attrs)?;
 
         // Extract fields from the variant
         let fields = match &variant.fields {
@@ -568,11 +1093,20 @@ fn extract_enum_variants(
             }
         };
 
+        // Apply EnumValue trait if variant has serde rename
+        let mut constraints = variant_attrs.constraints;
+        if let Some(rename_value) = &variant_serde_attrs.rename {
+            // Add EnumValue constraint for serde rename
+            constraints.push(SmithyConstraint::EnumValue(rename_value.clone()));
+        }
+
         smithy_variants.push(SmithyEnumVariant {
             name: variant_name,
             fields,
-            constraints: variant_attrs.constraints,
+            constraints,
             documentation,
+            nested_value_type: variant_attrs.nested_value_type,
+            value_type: variant_attrs.value_type,
         });
     }
 
@@ -583,16 +1117,21 @@ fn extract_enum_variants(
 struct SmithyFieldAttributes {
     value_type: Option<String>,
     constraints: Vec<SmithyConstraint>,
+    nested_value_type: bool,
 }
 
 #[derive(Default)]
 struct SerdeAttributes {
     flatten: bool,
+    tag: Option<String>,
+    rename: Option<String>,
 }
 
 #[derive(Default)]
 struct SerdeEnumAttributes {
     rename_all: Option<String>,
+    tag: Option<String>,
+    rename: Option<String>,
 }
 
 fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
@@ -600,16 +1139,88 @@ fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttributes> {
 
     for attr in attrs {
         if attr.path().is_ident("serde") {
-            if let Ok(list) = attr.meta.require_list() {
-                if list.path.is_ident("serde") {
-                    for item in list.tokens.clone() {
-                        if let Some(ident) = item.to_string().split_whitespace().next() {
-                            if ident == "flatten" {
-                                serde_attributes.flatten = true;
-                            }
+            // Use more robust parsing that handles all serde attributes
+            let parse_result = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("flatten") {
+                    serde_attributes.flatten = true;
+                } else if meta.path.is_ident("tag") {
+                    // Parse and capture the tag attribute
+                    if let Ok(value) = meta.value() {
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_attributes.tag = Some(lit_str.value());
                         }
                     }
+                } else if meta.path.is_ident("rename_all") {
+                    // Parse and ignore the rename_all attribute for structs
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("content") {
+                    // Parse and ignore the content attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("rename") {
+                    // Parse and capture the rename attribute
+                    if let Ok(value) = meta.value() {
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_attributes.rename = Some(lit_str.value());
+                        }
+                    }
+                } else if meta.path.is_ident("deny_unknown_fields") {
+                    // Handle deny_unknown_fields (no value needed)
+                } else if meta.path.is_ident("skip_serializing") {
+                    // Handle skip_serializing
+                } else if meta.path.is_ident("skip_deserializing") {
+                    // Handle skip_deserializing
+                } else if meta.path.is_ident("skip_serializing_if") {
+                    // Handle skip_serializing_if
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<syn::Expr>();
+                    }
+                } else if meta.path.is_ident("default") {
+                    // Handle default attribute
+                    if meta.value().is_ok() {
+                        let _ = meta.value().and_then(|v| v.parse::<syn::Expr>());
+                    }
+                } else if meta.path.is_ident("untagged") {
+                    // Handle untagged (flag attribute)
+                } else if meta.path.is_ident("bound") {
+                    // Handle bound attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("with") {
+                    // Handle with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("serialize_with") {
+                    // Handle serialize_with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("deserialize_with") {
+                    // Handle deserialize_with attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
+                } else if meta.path.is_ident("alias") {
+                    // Handle alias attribute
+                    if let Ok(value) = meta.value() {
+                        let _ = value.parse::<Lit>();
+                    }
                 }
+                // Silently ignore any other serde attributes to prevent parsing errors
+                Ok(())
+            });
+
+            // If parsing failed, provide a more helpful error message
+            if let Err(e) = parse_result {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    format!("Failed to parse serde attribute: {}. This may be due to multiple serde attributes on separate lines. Consider consolidating them into a single #[serde(...)] attribute.", e)
+                ));
             }
         }
     }
@@ -631,9 +1242,11 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                         }
                     }
                 } else if meta.path.is_ident("tag") {
-                    // Parse and ignore the tag attribute
+                    // Parse and capture the tag attribute
                     if let Ok(value) = meta.value() {
-                        let _ = value.parse::<Lit>();
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.tag = Some(lit_str.value());
+                        }
                     }
                 } else if meta.path.is_ident("content") {
                     // Parse and ignore the content attribute
@@ -641,9 +1254,11 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
                         let _ = value.parse::<Lit>();
                     }
                 } else if meta.path.is_ident("rename") {
-                    // Parse and ignore the rename attribute (used for enum renaming)
+                    // Parse and capture the rename attribute (used for enum renaming)
                     if let Ok(value) = meta.value() {
-                        let _ = value.parse::<Lit>();
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.rename = Some(lit_str.value());
+                        }
                     }
                 } else if meta.path.is_ident("deny_unknown_fields") {
                     // Handle deny_unknown_fields (no value needed)
@@ -837,6 +1452,8 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
                                 .push(SmithyConstraint::HttpQuery(lit_str.value()));
                         }
                     }
+                } else if meta.path.is_ident("nested_value_type") {
+                    field_attributes.nested_value_type = true;
                 }
                 Ok(())
             })?;

@@ -49,9 +49,9 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
-        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
-        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
-        RecurringMandatePaymentData, RouterData,
+        BillingDetails, ConnectorAuthType, ConnectorResponseData, CustomerInfo, ErrorResponse,
+        GooglePayPaymentMethodDetails, GooglePayPredecryptDataInternal, L2L3Data, OrderInfo,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData, TaxInfo,
     },
     router_data_v2::{
         AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
@@ -74,11 +74,12 @@ pub use hyperswitch_domain_models::{
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -721,6 +722,30 @@ pub struct PspTokenResult {
     pub token: Result<String, ErrorResponse>,
 }
 
+/// Data extracted from UCS response
+pub struct UcsAuthorizeResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsRepeatPaymentResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsSetupMandateResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
@@ -1250,7 +1275,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             currency: data.request.currency,
             payment_method_data: data.request.payment_method_data.clone(),
             confirm: data.request.confirm,
-            statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
             mandate_id: data.request.mandate_id.clone(),
             setup_future_usage: data.request.setup_future_usage,
             off_session: data.request.off_session,
@@ -1261,7 +1285,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             amount: 0,
             order_tax_amount: Some(MinorUnit::zero()),
             minor_amount: MinorUnit::new(0),
-            statement_descriptor: None,
             capture_method: None,
             webhook_url: None,
             complete_authorize_url: None,
@@ -1295,6 +1318,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             enable_overcapture: None,
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
+            billing_descriptor: data.request.billing_descriptor.clone(),
+            tokenization: None,
         }
     }
 }

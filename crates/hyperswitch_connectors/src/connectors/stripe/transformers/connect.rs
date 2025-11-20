@@ -1,4 +1,3 @@
-use api_models;
 use common_enums::{enums, Currency};
 use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
@@ -452,6 +451,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
             api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via BankRedirect are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into())
+            }
+            api_models::payouts::PayoutMethodData::Passthrough(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payouts via Passthrough are not supported".to_string(),
                     connector: "stripe",
                 }
                 .into())
