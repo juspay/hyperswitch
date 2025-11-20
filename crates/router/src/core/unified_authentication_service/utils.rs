@@ -424,7 +424,7 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                     .vault_id
                     .get_auth_vault_token_data()?;
 
-                Ok(Some(merge_vault_data_with_raw_data(
+                Ok(Some(merge_vault_data_with_insensitive_raw_data(
                     auth_token_data,
                     vault_data,
                 )?))
@@ -507,11 +507,11 @@ pub fn get_raw_authentication_token_data<F, Req>(
 }
 
 #[cfg(feature = "v1")]
-pub fn merge_vault_data_with_raw_data(
+pub fn merge_vault_data_with_insensitive_raw_data(
     auth_token_data: api_models::authentication::AuthenticationVaultTokenData,
     raw_data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 ) -> RouterResult<api_models::authentication::AuthenticationVaultTokenData> {
-    // if token_data is present, fill it first with token data ,if not then populate it with raw data
+    // if token_data is present, fill it first with token data ,if not then populate it with insensitive raw data
     match (auth_token_data, raw_data) {
         (
             api_models::authentication::AuthenticationVaultTokenData::CardToken {
@@ -523,14 +523,12 @@ pub fn merge_vault_data_with_raw_data(
             hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details),
         ) => Ok(
             api_models::authentication::AuthenticationVaultTokenData::CardToken {
-                tokenized_card_number: tokenized_card_number.or(Some(masking::Secret::new(
-                    card_details.card_number.get_card_no(),
-                ))),
+                tokenized_card_number,
                 tokenized_card_expiry_year: tokenized_card_expiry_year
                     .or(Some(card_details.card_exp_year)),
                 tokenized_card_expiry_month: tokenized_card_expiry_month
                     .or(Some(card_details.card_exp_month)),
-                tokenized_card_cvc: tokenized_card_cvc.or(card_details.card_cvc),
+                tokenized_card_cvc,
             },
         ),
         (
@@ -545,14 +543,12 @@ pub fn merge_vault_data_with_raw_data(
             ),
         ) => Ok(
             api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                tokenized_payment_token: tokenized_payment_token.or(Some(masking::Secret::new(
-                    network_token_details.network_token.get_card_no(),
-                ))),
+                tokenized_payment_token,
                 tokenized_expiry_year: tokenized_expiry_year
                     .or(Some(network_token_details.network_token_exp_year)),
                 tokenized_expiry_month: tokenized_expiry_month
                     .or(Some(network_token_details.network_token_exp_month)),
-                tokenized_cryptogram: tokenized_cryptogram.or(network_token_details.cryptogram),
+                tokenized_cryptogram,
             },
         ),
         _ => Err(ApiErrorResponse::InternalServerError)

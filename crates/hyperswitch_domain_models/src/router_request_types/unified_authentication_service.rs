@@ -208,24 +208,19 @@ impl From<PostAuthenticationDetails>
         match (item.raw_card_details, item.token_details) {
             (Some(card_data), _) => Some(
                 api_models::authentication::AuthenticationVaultTokenData::CardToken {
-                    tokenized_card_number: Some(Secret::new(card_data.pan.get_card_no())),
+                    tokenized_card_number: None, // Do not populate sensitive data
                     tokenized_card_expiry_year: Some(card_data.expiration_year),
                     tokenized_card_expiry_month: Some(card_data.expiration_month),
-                    tokenized_card_cvc: card_data.card_security_code,
+                    tokenized_card_cvc: None, // Do not populate sensitive data
                 },
             ),
             (None, Some(network_token_data)) => {
-                let token_cryptogram = item
-                    .dynamic_data_details
-                    .and_then(|data| data.dynamic_data_value);
                 Some(
                     api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                        tokenized_payment_token: Some(Secret::new(
-                            network_token_data.payment_token.get_card_no(),
-                        )),
+                        tokenized_payment_token: None, // Do not populate sensitive data
                         tokenized_expiry_year: Some(network_token_data.token_expiration_year),
                         tokenized_expiry_month: Some(network_token_data.token_expiration_month),
-                        tokenized_cryptogram: token_cryptogram,
+                        tokenized_cryptogram: None, // Do not populate sensitive data
                     },
                 )
             }

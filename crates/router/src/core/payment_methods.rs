@@ -2390,54 +2390,59 @@ pub fn get_payment_method_custom_data(
                 .map(|field| field.token_type.to_string())
                 .collect();
 
-            match payment_method_vaulting_data {
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details) => {
-                    let mut json_data = serde_json::to_value(card_details)
-                        .map_err(|_| {
-                            logger::error!("Error Parsing the CardDetail to Value");
-                            errors::ApiErrorResponse::InternalServerError
-                        })?
-                        .as_object()
-                        .cloned()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Value to Object")?;
+            if keys_set.is_empty() {
+                // edge case where no token to vault is present
+                Ok(payment_method_vaulting_data.into())
+            } else {
+                match payment_method_vaulting_data {
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details) => {
+                        let mut json_data = serde_json::to_value(card_details)
+                            .map_err(|_| {
+                                logger::error!("Error Parsing the CardDetail to Value");
+                                errors::ApiErrorResponse::InternalServerError
+                            })?
+                            .as_object()
+                            .cloned()
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to parse Value to Object")?;
 
-                    json_data.retain(|key, _value| keys_set.contains(key));
+                        json_data.retain(|key, _value| keys_set.contains(key));
 
-                    let custom_card_detail: hyperswitch_domain_models::vault::CardCustomData = serde_json::from_value(
-                        serde_json::Value::Object(json_data)
-                    )
-                        .map_err(|_| {
-                            logger::error!("Error Parsing the Value to CardCustomData");
-                            errors::ApiErrorResponse::InternalServerError
-                        })?;
-                    Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::CardData(custom_card_detail))
-                }
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(network_token_details) => {
-                    let mut json_data = serde_json::to_value(network_token_details)
-                        .map_err(|_| {
-                            logger::error!("Error Parsing the NetworkTokenDetails to Value");
-                            errors::ApiErrorResponse::InternalServerError
-                        })?
-                        .as_object()
-                        .cloned()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Value to Object")?;
+                        let custom_card_detail: hyperswitch_domain_models::vault::CardCustomData = serde_json::from_value(
+                            serde_json::Value::Object(json_data)
+                        )
+                            .map_err(|_| {
+                                logger::error!("Error Parsing the Value to CardCustomData");
+                                errors::ApiErrorResponse::InternalServerError
+                            })?;
+                        Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::CardData(custom_card_detail))
+                    }
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(network_token_details) => {
+                        let mut json_data = serde_json::to_value(network_token_details)
+                            .map_err(|_| {
+                                logger::error!("Error Parsing the NetworkTokenDetails to Value");
+                                errors::ApiErrorResponse::InternalServerError
+                            })?
+                            .as_object()
+                            .cloned()
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to parse Value to Object")?;
 
-                    json_data.retain(|key, _value| keys_set.contains(key));
+                        json_data.retain(|key, _value| keys_set.contains(key));
 
-                    let custom_network_token_detail: hyperswitch_domain_models::vault::NetworkTokenCustomData = serde_json::from_value(
-                        serde_json::Value::Object(json_data)
-                    )
-                        .map_err(|_| {
-                            logger::error!("Error Parsing the Value to NetworkTokenCustomData");
-                            errors::ApiErrorResponse::InternalServerError
-                        })?;
-                    Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::NetworkTokenData(custom_network_token_detail))
-                }
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(_) => {
-                    Err(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unexpected Behaviour, Card Number variant is not supported for Custom Tokenization")?
+                        let custom_network_token_detail: hyperswitch_domain_models::vault::NetworkTokenCustomData = serde_json::from_value(
+                            serde_json::Value::Object(json_data)
+                        )
+                            .map_err(|_| {
+                                logger::error!("Error Parsing the Value to NetworkTokenCustomData");
+                                errors::ApiErrorResponse::InternalServerError
+                            })?;
+                        Ok(hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData::NetworkTokenData(custom_network_token_detail))
+                    }
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(_) => {
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unexpected Behaviour, Card Number variant is not supported for Custom Tokenization")?
+                    }
                 }
             }
         }
