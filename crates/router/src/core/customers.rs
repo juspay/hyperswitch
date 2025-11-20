@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
@@ -217,6 +218,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None,
         })
     }
 
@@ -348,6 +352,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None,
         })
     }
 
@@ -590,6 +597,8 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -615,6 +624,56 @@ pub async fn list_customers(
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
+}
+
+#[instrument(skip(state))]
+pub async fn list_customers_with_count(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequestWithConstraints,
+) -> errors::CustomerResponse<customers::CustomerListResponse> {
+    let db = state.store.as_ref();
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request
+            .limit
+            .map(|l| *l)
+            .unwrap_or_else(|| *CustomerListLimit::default()),
+        offset: request.offset,
+        customer_id: request.customer_id,
+        time_range: request.time_range,
+    };
+
+    let domain_customers = db
+        .list_customers_by_merchant_id_with_count(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
+        .await
+        .switch()?;
+
+    #[cfg(feature = "v1")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(feature = "v2")]
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            total_count: domain_customers.1,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -755,6 +814,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
                 tax_registration_id: Some(redacted_encrypted_value),
+                last_modified_by: None,
             }));
 
         db.update_customer_by_global_id(
@@ -1006,6 +1066,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             connector_customer: Box::new(None),
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
+            last_modified_by: None,
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1337,6 +1398,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
+                    last_modified_by: None,
                 },
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
@@ -1463,6 +1525,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
+                    last_modified_by: None,
                 })),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,

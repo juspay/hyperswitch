@@ -28,6 +28,7 @@ where
 {
     let batches = divide(tasks, settings);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
+    logger::info!("Adding {} batches to stream", batches.len());
     #[allow(clippy::as_conversions)]
     metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
@@ -379,6 +380,23 @@ pub fn get_pcr_payments_retry_schedule_time(
     // TODO: check if the current scheduled time is not more than the configured timerange
 
     // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(retry_count, &mapping.frequencies)
+    }
+}
+
+pub fn get_subscription_invoice_sync_retry_schedule_time(
+    mapping: process_data::SubscriptionInvoiceSyncPTMapping,
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {

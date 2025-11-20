@@ -65,6 +65,8 @@ pub struct MockDb {
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
+    pub hyperswitch_ai_interactions:
+        Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
 }
 
 impl MockDb {
@@ -113,6 +115,7 @@ impl MockDb {
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
             themes: Default::default(),
+            hyperswitch_ai_interactions: Default::default(),
         })
     }
 
@@ -227,6 +230,13 @@ impl MockDb {
         } else {
             Err(StorageError::ValueNotFound(error_message).into())
         }
+    }
+
+    pub fn master_key(&self) -> &[u8] {
+        &[
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ]
     }
 }
 

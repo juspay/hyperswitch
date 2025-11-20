@@ -51,6 +51,9 @@ pub struct PreProcessing;
 pub struct IncrementalAuthorization;
 
 #[derive(Debug, Clone)]
+pub struct ExtendAuthorization;
+
+#[derive(Debug, Clone)]
 pub struct PostProcessing;
 
 #[derive(Debug, Clone)]
@@ -93,3 +96,5 @@ pub enum NextActionFlows {
     PostAuthenticate,
     Authorize,
 }
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheck;

@@ -277,6 +277,137 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             merchant_connector_details,
             external_vault_pmd: None,
             redirect_response: None,
+            webhook_url: request
+                .webhook_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_string()),
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
+
+        Ok(get_trackers_response)
+    }
+
+    #[instrument(skip_all)]
+    async fn get_trackers_for_split_payments<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &id_type::GlobalPaymentId,
+        request: &PaymentsConfirmIntentRequest,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        split_amount_data: (
+            api_models::payments::PaymentMethodData,
+            common_utils::types::MinorUnit,
+        ),
+        attempts_group_id: &id_type::GlobalAttemptGroupId,
+    ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+
+        let payment_intent = db
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
+        self.validate_status_for_operation(payment_intent.status)?;
+
+        let cell_id = state.conf.cell_information.id.clone();
+
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
+                    hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment intent details".to_string())?;
+
+        let encrypted_data =
+             hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::from_encryptable(batch_encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting payment intent details")?;
+
+        let payment_attempt_domain_model =
+            crate::core::split_payments::create_domain_model_for_split_payment(
+                &payment_intent,
+                cell_id,
+                storage_scheme,
+                request,
+                encrypted_data,
+                split_amount_data.1,
+                attempts_group_id,
+            )
+            .await?;
+
+        let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+            db.insert_payment_attempt(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                payment_attempt_domain_model,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not insert payment attempt")?;
+
+        let payment_method_data =
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(
+                split_amount_data.0,
+            );
+
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
+        let payment_data = PaymentConfirmData {
+            flow: std::marker::PhantomData,
+            payment_intent,
+            payment_attempt,
+            payment_method_data: Some(payment_method_data),
+            payment_address,
+            mandate_data: None,
+            payment_method: None,
+            merchant_connector_details,
+            external_vault_pmd: None,
+            webhook_url: request
+                .webhook_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_string()),
+            redirect_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -556,6 +687,60 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
         Ok(connector_data)
     }
+
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &PaymentConfirmData<F>,
+    ) -> RouterResult<payments::TokenizationAction> {
+        let connector = payment_data.payment_attempt.connector.to_owned();
+
+        let is_connector_mandate_flow = payment_data
+            .mandate_data
+            .as_ref()
+            .and_then(|mandate_details| mandate_details.mandate_reference_id.as_ref())
+            .map(|mandate_reference| match mandate_reference {
+                api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+                api_models::payments::MandateReferenceId::NetworkMandateId(_)
+                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            })
+            .unwrap_or(false);
+
+        let tokenization_action = match connector {
+            Some(_) if is_connector_mandate_flow => {
+                payments::TokenizationAction::SkipConnectorTokenization
+            }
+            Some(connector) => {
+                let payment_method = payment_data
+                    .payment_attempt
+                    .get_payment_method()
+                    .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method not found")?;
+                let payment_method_type: Option<common_enums::PaymentMethodType> =
+                    payment_data.payment_attempt.get_payment_method_type();
+
+                let mandate_flow_enabled = payment_data.payment_intent.setup_future_usage;
+
+                let is_connector_tokenization_enabled =
+                    payments::is_payment_method_tokenization_enabled_for_connector(
+                        state,
+                        &connector,
+                        payment_method,
+                        payment_method_type,
+                        mandate_flow_enabled,
+                    )?;
+
+                if is_connector_tokenization_enabled {
+                    payments::TokenizationAction::TokenizeInConnector
+                } else {
+                    payments::TokenizationAction::SkipConnectorTokenization
+                }
+            }
+            None => payments::TokenizationAction::SkipConnectorTokenization,
+        };
+
+        Ok(tokenization_action)
+    }
 }
 
 #[async_trait]
@@ -639,7 +824,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     })?,
                     authentication_type,
                     payment_method_id : payment_method.get_id().clone(),
-                    payment_token: payment_data.payment_attempt.payment_token.clone()
+                    payment_token: payment_data.payment_attempt.payment_token.clone(),
+                    connector_request_reference_id,
                 }
             }
             None => {

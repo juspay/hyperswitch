@@ -7,7 +7,7 @@ pub use api_models::payments::{
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials,
+    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -23,14 +23,15 @@ pub use api_models::{
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
-        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
-        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
+        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
+        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
+        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
@@ -57,11 +58,11 @@ pub use hyperswitch_interfaces::api::payments::{
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
-    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
-    PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2,
-    PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2,
-    PaymentVoidV2, PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
-    TaxCalculationV2,
+    PaymentAuthorizeV2, PaymentCaptureV2, PaymentExtendAuthorizationV2,
+    PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2,
+    PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
+    PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+    PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
 };
 use crate::core::errors;
 
@@ -135,8 +136,6 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
-
     use super::*;
 
     #[allow(dead_code)]

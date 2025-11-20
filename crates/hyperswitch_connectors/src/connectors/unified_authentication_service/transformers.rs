@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
         authentication::{AuthNFlowType, ChallengeParams},
         unified_authentication_service::{
             AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
-            TokenDetails, UasAuthenticationResponseData,
+            RawCardDetails, TokenDetails, UasAuthenticationResponseData,
         },
     },
     types::{
@@ -108,7 +108,7 @@ impl<F, T>
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
-    pub payment_data_type: Option<String>,
+    pub payment_data_type: Option<common_enums::PaymentMethodType>,
     pub encrypted_src_card_details: Option<String>,
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
@@ -143,6 +143,8 @@ pub enum MessageCategory {
 pub struct ThreeDSData {
     pub preferred_protocol_version: common_utils::types::SemanticVersion,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -410,6 +412,7 @@ pub struct AuthenticationDetails {
     pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
     pub trans_status: Option<common_enums::TransactionStatus>,
+    pub raw_card_details: Option<UasRawCardDetails>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -418,6 +421,15 @@ pub struct UasTokenDetails {
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasRawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -473,6 +485,15 @@ impl<F, T>
                             payment_account_reference: token_details.payment_account_reference,
                             token_expiration_month: token_details.token_expiration_month,
                             token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
+                    raw_card_details: item.response.authentication_details.raw_card_details.map(
+                        |raw_card_details| RawCardDetails {
+                            pan: raw_card_details.pan,
+                            expiration_month: raw_card_details.expiration_month,
+                            expiration_year: raw_card_details.expiration_year,
+                            card_security_code: raw_card_details.card_security_code,
+                            payment_account_reference: raw_card_details.payment_account_reference,
                         },
                     ),
                     dynamic_data_details: item
@@ -655,6 +676,11 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     NoKey,
 }
 
@@ -664,6 +690,15 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self::HeaderKey {
                 api_key: api_key.clone(),
+            }),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self::SignatureKey {
+                api_key: api_key.clone(),
+                key1: key1.clone(),
+                api_secret: api_secret.clone(),
             }),
             ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -812,15 +847,16 @@ pub struct ThreeDsAuthDetails {
     pub acs_trans_id: String,
     pub acs_reference_number: String,
     pub acs_operator_id: Option<String>,
-    pub ds_reference_number: String,
+    pub ds_reference_number: Option<String>,
     pub ds_trans_id: String,
     pub sdk_trans_id: Option<String>,
     pub trans_status: common_enums::TransactionStatus,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedEnum>,
-    pub message_type: String,
-    pub message_version: String,
+    pub message_type: Option<String>,
+    pub message_version: Option<String>,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
@@ -888,6 +924,16 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .message_version
                 .clone(),
             threeds_method_comp_ind: item.router_data.request.threeds_method_comp_ind.clone(),
+            force_3ds_challenge: item
+                .router_data
+                .request
+                .transaction_details
+                .force_3ds_challenge,
+            psd2_sca_exemption_type: item
+                .router_data
+                .request
+                .transaction_details
+                .psd2_sca_exemption_type,
         };
 
         let device_details = DeviceDetails {
@@ -962,16 +1008,16 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             UnifiedAuthenticationServiceAuthenticateResponse::Success(auth_response) => {
-                let authn_flow_type = match auth_response
-                    .three_ds_auth_response
-                    .acs_challenge_mandated
-                {
-                    Some(ACSChallengeMandatedEnum::Y) => {
+                let authn_flow_type = match auth_response.three_ds_auth_response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: auth_response.three_ds_auth_response.acs_url.clone(),
                             challenge_request: auth_response
                                 .three_ds_auth_response
                                 .challenge_request,
+                            challenge_request_key: auth_response
+                                .three_ds_auth_response
+                                .challenge_request_key,
                             acs_reference_number: Some(
                                 auth_response.three_ds_auth_response.acs_reference_number,
                             ),
@@ -986,7 +1032,7 @@ impl<F, T>
                                 .acs_signed_content,
                         }))
                     }
-                    Some(ACSChallengeMandatedEnum::N) | None => AuthNFlowType::Frictionless,
+                    _ => AuthNFlowType::Frictionless,
                 };
                 Ok(UasAuthenticationResponseData::Authentication {
                     authentication_details: hyperswitch_domain_models::router_request_types::unified_authentication_service::AuthenticationDetails {

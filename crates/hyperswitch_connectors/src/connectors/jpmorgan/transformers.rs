@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCancelData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -19,7 +19,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsCancelResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         get_unimplemented_payment_method_error_message, CardData, RouterData as OtherRouterData,
     },
@@ -738,18 +738,12 @@ pub struct CardCancelResponse {
     pub card_type_name: Secret<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<JpmorganCancelResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            JpmorganCancelResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<JpmorganCancelResponse>,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.response_status {
             JpmorganResponseStatus::Success => common_enums::AttemptStatus::Voided,

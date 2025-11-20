@@ -431,6 +431,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None, // Same as created_by on creation
         };
 
         db.insert_customer(
@@ -557,6 +560,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
+                card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
             }),
             metadata: None,
             customer_id: Some(customer_id.clone()),
@@ -596,6 +600,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             network_token_details.1.clone(),
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
+            Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
         )
         .await
     }

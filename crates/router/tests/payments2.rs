@@ -1,10 +1,4 @@
-#![allow(
-    clippy::expect_used,
-    clippy::unwrap_in_result,
-    clippy::unwrap_used,
-    clippy::print_stdout,
-    unused_imports
-)]
+#![allow(clippy::unwrap_in_result)]
 
 mod utils;
 
@@ -42,7 +36,6 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
-    use db::domain::merchant_context;
     use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
@@ -133,6 +126,7 @@ async fn payments_create_core() {
         }),
         statement_descriptor_name: Some("Hyperswitch".to_string()),
         statement_descriptor_suffix: Some("Hyperswitch".to_string()),
+        three_ds_data: None,
         ..<_>::default()
     };
 
@@ -217,8 +211,11 @@ async fn payments_create_core() {
         merchant_order_reference_id: None,
         capture_before: None,
         extended_authorization_applied: None,
+        extended_authorization_last_applied_at: None,
         order_tax_amount: None,
         connector_mandate_id: None,
+        mit_category: None,
+        tokenization: None,
         shipping_cost: None,
         card_discovery: None,
         force_3ds_challenge: None,
@@ -230,6 +227,12 @@ async fn payments_create_core() {
         payment_channel: None,
         network_transaction_id: None,
         enable_partial_authorization: None,
+        is_overcapture_enabled: None,
+        enable_overcapture: None,
+        network_details: None,
+        is_stored_credential: None,
+        request_extended_authorization: None,
+        billing_descriptor: None,
     };
 
     let expected_response =
@@ -250,6 +253,7 @@ async fn payments_create_core() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
@@ -421,6 +425,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
+        three_ds_data: None,
         ..Default::default()
     };
 
@@ -506,7 +511,10 @@ async fn payments_create_core_adyen_no_redirect() {
             merchant_order_reference_id: None,
             capture_before: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             order_tax_amount: None,
+            mit_category: None,
+            tokenization: None,
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
@@ -519,6 +527,12 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_channel: None,
             network_transaction_id: None,
             enable_partial_authorization: None,
+            is_overcapture_enabled: None,
+            enable_overcapture: None,
+            network_details: None,
+            is_stored_credential: None,
+            request_extended_authorization: None,
+            billing_descriptor: None,
         },
         vec![],
     ));
@@ -538,6 +552,7 @@ async fn payments_create_core_adyen_no_redirect() {
         req,
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))

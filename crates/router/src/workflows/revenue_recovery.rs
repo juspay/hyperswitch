@@ -2,13 +2,17 @@
 use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
-use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
+use api_models::{
+    enums::{CardNetwork, RevenueRecoveryAlgorithmType},
+    payments::PaymentsGetIntentRequest,
+};
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::AsyncExt,
     ext_traits::{StringExt, ValueExt},
     id_type,
+    pii::PhoneNumberStrategy,
 };
 #[cfg(feature = "v2")]
 use diesel_models::types::BillingConnectorPaymentMethodDetails;
@@ -80,6 +84,8 @@ use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
+#[cfg(feature = "v2")]
+const TOTAL_SLOTS_IN_MONTH: i32 = 720;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
@@ -232,6 +238,7 @@ pub(crate) async fn extract_data_and_perform_action(
         retry_algorithm: profile
             .revenue_recovery_retry_algorithm_type
             .unwrap_or(tracking_data.revenue_recovery_retry),
+        psync_data: None,
     };
     Ok(pcr_payment_data)
 }
@@ -313,7 +320,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_network_str = card_network.map(|network| network.to_string());
 
-    let card_issuer_str = card_info.card_issuer.clone();
+    let card_issuer_str = card_info
+        .card_issuer
+        .clone()
+        .filter(|card_issuer| !card_issuer.is_empty());
 
     let card_funding_str = match card_info.card_type.as_deref() {
         Some("card") => None,
@@ -371,10 +381,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: Some(start_time_proto),
-        retry_count: Some(
-            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
-                .into(),
-        ),
+        retry_count: Some(token_with_retry_info.total_30_day_retries.into()),
         merchant_id,
         invoice_amount,
         invoice_currency,
@@ -433,6 +440,42 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         logger::debug!("Recovery decider client is not configured");
         Ok(None)
     }
+}
+
+#[cfg(feature = "v2")]
+async fn should_force_schedule_due_to_missed_slots(
+    state: &SessionState,
+    card_network: Option<CardNetwork>,
+    token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
+) -> CustomResult<bool, StorageError> {
+    // Check monthly retry remaining first
+    let has_monthly_retries = token_with_retry_info.monthly_retry_remaining >= 1;
+
+    // If no monthly retries available, don't force schedule
+    if !has_monthly_retries {
+        return Ok(false);
+    }
+
+    Ok(RedisTokenManager::find_nearest_date_from_current(
+        &token_with_retry_info.token_status.daily_retry_history,
+    )
+    // Filter: only consider entries with actual retries (retry_count > 0)
+    .filter(|(_, retry_count)| *retry_count > 0)
+    .map(|(most_recent_date, _retry_count)| {
+        let threshold_hours = TOTAL_SLOTS_IN_MONTH
+            / state
+                .conf
+                .revenue_recovery
+                .card_config
+                .get_network_config(card_network.clone())
+                .max_retry_count_for_thirty_day;
+
+        // Calculate time difference since last retry and compare with threshold
+        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc()).whole_hours()
+            > threshold_hours.into()
+    })
+    // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
+    .unwrap_or(false))
 }
 
 #[cfg(feature = "v2")]
@@ -514,15 +557,77 @@ pub struct ScheduledToken {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug)]
+struct TokenProcessResult {
+    scheduled_token: Option<ScheduledToken>,
+    force_scheduled: bool,
+}
+
+#[cfg(feature = "v2")]
+pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
+    let now_utc = time::OffsetDateTime::now_utc();
+
+    let scheduled_offset_dt = scheduled_time.assume_utc();
+    let difference = scheduled_offset_dt - now_utc;
+
+    difference.whole_seconds()
+}
+
+#[cfg(feature = "v2")]
+pub async fn update_token_expiry_based_on_schedule_time(
+    state: &SessionState,
+    connector_customer_id: &str,
+    delayed_schedule_time: time::PrimitiveDateTime,
+) -> CustomResult<(), errors::ProcessTrackerError> {
+    let expiry_buffer = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .redis_ttl_buffer_in_seconds;
+
+    let expiry_time = calculate_difference_in_seconds(delayed_schedule_time) + expiry_buffer;
+    RedisTokenManager::update_connector_customer_lock_ttl(
+        state,
+        connector_customer_id,
+        expiry_time,
+    )
+    .await
+    .change_context(errors::ProcessTrackerError::ERedisError(
+        errors::RedisError::RedisConnectionError.into(),
+    ));
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub enum PaymentProcessorTokenResponse {
+    /// Token HardDecline
+    HardDecline,
+
+    /// Token can be retried at this specific time
+    ScheduledTime {
+        scheduled_time: time::PrimitiveDateTime,
+    },
+
+    /// Token locked or unavailable, next attempt possible
+    NextAvailableTime {
+        next_available_time: time::PrimitiveDateTime,
+    },
+
+    /// No retry info available / nothing to do yet
+    None,
+}
+
+#[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mut scheduled_time = None;
-
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
             logger::error!("Monitoring type found for Revenue Recovery retry payment");
@@ -537,11 +642,67 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .await
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            scheduled_time = Some(time);
+            let payment_processor_token = payment_intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+                .map(|recovery_metadata| {
+                    recovery_metadata
+                        .billing_connector_payment_details
+                        .payment_processor_token
+                        .clone()
+                });
+
+            let payment_processor_tokens_details =
+                RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+                    state,
+                    connector_customer_id,
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::ERedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+            // Get the token info from redis
+            let payment_processor_tokens_details_with_retry_info = payment_processor_token
+                .as_ref()
+                .and_then(|t| payment_processor_tokens_details.get(t));
+
+            // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
+            match payment_processor_tokens_details_with_retry_info {
+                None => {
+                    payment_processor_token_response = PaymentProcessorTokenResponse::None;
+                    logger::debug!("No payment processor token found for cascading retry");
+                }
+                Some(payment_token) => {
+                    if payment_token.token_status.is_hard_decline.unwrap_or(false) {
+                        payment_processor_token_response =
+                            PaymentProcessorTokenResponse::HardDecline;
+                    } else if payment_token.retry_wait_time_hours > 0 {
+                        let utc_schedule_time: time::OffsetDateTime =
+                            time::OffsetDateTime::now_utc()
+                                + time::Duration::hours(payment_token.retry_wait_time_hours);
+                        let next_available_time = time::PrimitiveDateTime::new(
+                            utc_schedule_time.date(),
+                            utc_schedule_time.time(),
+                        );
+
+                        payment_processor_token_response =
+                            PaymentProcessorTokenResponse::NextAvailableTime {
+                                next_available_time,
+                            };
+                    } else {
+                        payment_processor_token_response =
+                            PaymentProcessorTokenResponse::ScheduledTime {
+                                scheduled_time: time,
+                            };
+                    }
+                }
+            }
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
-            scheduled_time = get_best_psp_token_available_for_smart_retry(
+            payment_processor_token_response = get_best_psp_token_available_for_smart_retry(
                 state,
                 connector_customer_id,
                 payment_intent,
@@ -550,10 +711,40 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time =
-        scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
-    Ok(delayed_schedule_time)
+    match &mut payment_processor_token_response {
+        PaymentProcessorTokenResponse::HardDecline => {
+            logger::debug!("Token is hard declined");
+        }
+
+        PaymentProcessorTokenResponse::ScheduledTime { scheduled_time } => {
+            // Add random delay to schedule time
+            *scheduled_time = add_random_delay_to_schedule_time(state, *scheduled_time);
+
+            // Log the scheduled retry time at debug level
+            logger::info!("Retry scheduled at {:?}", scheduled_time);
+
+            // Update token expiry based on schedule time
+            update_token_expiry_based_on_schedule_time(
+                state,
+                connector_customer_id,
+                *scheduled_time,
+            )
+            .await;
+        }
+
+        PaymentProcessorTokenResponse::NextAvailableTime {
+            next_available_time,
+        } => {
+            logger::info!("Next available retry at {:?}", next_available_time);
+        }
+
+        PaymentProcessorTokenResponse::None => {
+            logger::debug!("No retry info available");
+        }
+    }
+
+    Ok(payment_processor_token_response)
 }
 
 #[cfg(feature = "v2")]
@@ -561,9 +752,9 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
-    let locked = RedisTokenManager::lock_connector_customer_status(
+    let locked_acquired = RedisTokenManager::lock_connector_customer_status(
         state,
         connector_customer_id,
         &payment_intent.id,
@@ -573,10 +764,48 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match !locked {
-        true => Ok(None),
-
+    match locked_acquired {
         false => {
+            let token_details =
+                RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+                    state,
+                    connector_customer_id,
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::ERedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+            // Check token with schedule time in Redis
+            let token_info_with_schedule_time = token_details
+                .values()
+                .find(|info| info.token_status.scheduled_at.is_some());
+
+            // Check for hard decline if info is none
+            let hard_decline_status = token_details
+                .values()
+                .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+
+            let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
+
+            if hard_decline_status {
+                payment_processor_token_response = PaymentProcessorTokenResponse::HardDecline;
+            } else {
+                payment_processor_token_response = match token_info_with_schedule_time
+                    .as_ref()
+                    .and_then(|t| t.token_status.scheduled_at)
+                {
+                    Some(scheduled_time) => PaymentProcessorTokenResponse::NextAvailableTime {
+                        next_available_time: scheduled_time,
+                    },
+                    None => PaymentProcessorTokenResponse::None,
+                };
+            }
+
+            Ok(payment_processor_token_response)
+        }
+
+        true => {
             // Get existing tokens from Redis
             let existing_tokens =
                 RedisTokenManager::get_connector_customer_payment_processor_tokens(
@@ -588,20 +817,24 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-            // TODO: Insert into payment_intent_feature_metadata (DB operation)
+            let active_tokens: HashMap<_, _> = existing_tokens
+                .into_iter()
+                .filter(|(_, token_status)| token_status.is_active != Some(false))
+                .collect();
 
-            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
+            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
 
-            let best_token_time = call_decider_for_payment_processor_tokens_select_closet_time(
-                state,
-                &result,
-                payment_intent,
-                connector_customer_id,
-            )
-            .await
-            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            let payment_processor_token_response =
+                call_decider_for_payment_processor_tokens_select_closest_time(
+                    state,
+                    &result,
+                    payment_intent,
+                    connector_customer_id,
+                )
+                .await
+                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(best_token_time)
+            Ok(payment_processor_token_response)
         }
     }
 }
@@ -611,7 +844,7 @@ pub async fn calculate_smart_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+) -> Result<(Option<time::PrimitiveDateTime>, bool), errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
     let current_time = time::OffsetDateTime::now_utc();
     let future_time = current_time + time::Duration::hours(wait_hours);
@@ -622,13 +855,57 @@ pub async fn calculate_smart_retry_time(
         nanos: 0,
     });
 
-    get_schedule_time_for_smart_retry(
+    let token = token_with_retry_info
+        .token_status
+        .payment_processor_token_details
+        .payment_processor_token
+        .clone();
+
+    let masked_token: Secret<_, PhoneNumberStrategy> = Secret::new(token);
+
+    let card_info = token_with_retry_info
+        .token_status
+        .payment_processor_token_details
+        .clone();
+
+    let card_network = card_info.card_network.clone();
+
+    // Check if the last retry is not done within defined slot, force the retry to next slot
+    if should_force_schedule_due_to_missed_slots(state, card_network.clone(), token_with_retry_info)
+        .await
+        .unwrap_or(false)
+    {
+        let schedule_offset = state
+            .conf
+            .revenue_recovery
+            .recovery_timestamp
+            .unretried_invoice_schedule_time_offset_seconds;
+        let scheduled_time =
+            time::OffsetDateTime::now_utc() + time::Duration::seconds(schedule_offset);
+        logger::info!(
+            "Skipping Decider call, forcing a schedule for the token:- '{:?}' to time:- {}",
+            masked_token,
+            scheduled_time
+        );
+        return Ok((
+            Some(time::PrimitiveDateTime::new(
+                scheduled_time.date(),
+                scheduled_time.time(),
+            )),
+            true,
+        )); // force_scheduled = true
+    }
+
+    // Normal smart retry path
+    let schedule_time = get_schedule_time_for_smart_retry(
         state,
         payment_intent,
         future_timestamp,
         token_with_retry_info,
     )
-    .await
+    .await?;
+
+    Ok((schedule_time, false)) // force_scheduled = false
 }
 
 #[cfg(feature = "v2")]
@@ -636,7 +913,7 @@ async fn process_token_for_retry(
     state: &SessionState,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
     payment_intent: &PaymentIntent,
-) -> Result<Option<ScheduledToken>, errors::ProcessTrackerError> {
+) -> Result<TokenProcessResult, errors::ProcessTrackerError> {
     let token_status: &PaymentProcessorTokenStatus = &token_with_retry_info.token_status;
     let inserted_by_attempt_id = &token_status.inserted_by_attempt_id;
 
@@ -648,60 +925,83 @@ async fn process_token_for_retry(
                 "Skipping decider call due to hard decline token inserted by attempt_id: {}",
                 inserted_by_attempt_id.get_string_repr()
             );
-            Ok(None)
+            Ok(TokenProcessResult {
+                scheduled_token: None,
+                force_scheduled: false,
+            })
         }
         false => {
-            let schedule_time =
+            let (schedule_time, force_scheduled) =
                 calculate_smart_retry_time(state, payment_intent, token_with_retry_info).await?;
-            Ok(schedule_time.map(|schedule_time| ScheduledToken {
-                token_details: token_status.payment_processor_token_details.clone(),
-                schedule_time,
-            }))
+
+            Ok(TokenProcessResult {
+                scheduled_token: schedule_time.map(|schedule_time| ScheduledToken {
+                    token_details: token_status.payment_processor_token_details.clone(),
+                    schedule_time,
+                }),
+                force_scheduled,
+            })
         }
     }
 }
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
+pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
     state: &SessionState,
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    tracing::debug!("Filtered  payment attempts based on payment tokens",);
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
-    for token_with_retry_info in processor_tokens.values() {
-        let token_details = &token_with_retry_info
-            .token_status
-            .payment_processor_token_details;
-        let error_code = token_with_retry_info.token_status.error_code.clone();
+    // Check for successful token
+    let mut token_with_none_error_code = processor_tokens.values().find(|token| {
+        token.token_status.error_code.is_none()
+            && !token.token_status.is_hard_decline.unwrap_or(false)
+    });
 
-        match error_code {
-            None => {
-                let utc_schedule_time =
-                    time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+    match token_with_none_error_code {
+        Some(token_with_retry_info) => {
+            let token_details = &token_with_retry_info
+                .token_status
+                .payment_processor_token_details;
 
-                let schedule_time = time::PrimitiveDateTime::new(
-                    utc_schedule_time.date(),
-                    utc_schedule_time.time(),
-                );
-                tokens_with_schedule_time = vec![ScheduledToken {
-                    token_details: token_details.clone(),
-                    schedule_time,
-                }];
-                tracing::debug!(
-                    "Found payment processor token with no error code scheduling it for {schedule_time}",
-                );
-                break;
-            }
-            Some(_) => {
-                process_token_for_retry(state, token_with_retry_info, payment_intent)
-                    .await?
-                    .map(|token_with_schedule_time| {
-                        tokens_with_schedule_time.push(token_with_schedule_time)
-                    });
+            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+            let schedule_time =
+                time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
+
+            tokens_with_schedule_time = vec![ScheduledToken {
+                token_details: token_details.clone(),
+                schedule_time,
+            }];
+
+            tracing::debug!(
+                "Found payment processor token with no error code, scheduling it for {schedule_time}",
+            );
+        }
+
+        None => {
+            // Flag to track if we found a force-scheduled token
+            let mut force_scheduled_found = false;
+
+            for token_with_retry_info in processor_tokens.values() {
+                let result =
+                    process_token_for_retry(state, token_with_retry_info, payment_intent).await?;
+
+                // Add the scheduled token if it exists
+                if let Some(scheduled_token) = result.scheduled_token {
+                    tokens_with_schedule_time.push(scheduled_token);
+                }
+
+                // Check if this was force-scheduled due to missed slots
+                if result.force_scheduled {
+                    force_scheduled_found = true;
+                    tracing::info!(
+                        "Force-scheduled token detected due to missed slots, breaking early from token processing"
+                    );
+                    break; // Stop processing remaining tokens immediately
+                }
             }
         }
     }
@@ -711,17 +1011,43 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
+    let mut payment_processor_token_response;
     match best_token {
         None => {
-            RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
-                .await
-                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            // No tokens available for scheduling, unlock the connector customer status
+
+            // Check if all tokens are hard declined
+            let hard_decline_status = processor_tokens
+                .values()
+                .all(|token| token.token_status.is_hard_decline.unwrap_or(false))
+                && !processor_tokens.is_empty();
+
+            RedisTokenManager::unlock_connector_customer_status(
+                state,
+                connector_customer_id,
+                &payment_intent.id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
             tracing::debug!("No payment processor tokens available for scheduling");
-            Ok(None)
+
+            if hard_decline_status {
+                payment_processor_token_response = PaymentProcessorTokenResponse::HardDecline;
+            } else {
+                payment_processor_token_response = PaymentProcessorTokenResponse::None;
+            }
         }
 
         Some(token) => {
             tracing::debug!("Found payment processor token with least schedule time");
+
+            RedisTokenManager::update_payment_processor_tokens_schedule_time_to_none(
+                state,
+                connector_customer_id,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             RedisTokenManager::update_payment_processor_token_schedule_time(
                 state,
@@ -732,9 +1058,12 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(Some(token.schedule_time))
+            payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
+                scheduled_time: token.schedule_time,
+            };
         }
     }
+    Ok(payment_processor_token_response)
 }
 
 #[cfg(feature = "v2")]

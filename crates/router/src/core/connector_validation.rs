@@ -121,6 +121,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bitpay::transformers::BitpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_models::connector_enums::Connector::Zift => {
+                zift::transformers::ZiftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Bambora => {
                 bambora::transformers::BamboraAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -141,9 +145,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 blackhawknetwork::transformers::BlackhawknetworkAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Bluecode => {
-                bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
-                bluecode::transformers::BluecodeMetadataObject::try_from(self.connector_meta_data)?;
+            api_enums::Connector::Calida => {
+                calida::transformers::CalidaAuthType::try_from(self.auth_type)?;
+                calida::transformers::CalidaMetadataObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Braintree => {
@@ -155,12 +159,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 breadpay::transformers::BreadpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Cardinal => Ok(()),
             api_enums::Connector::Cashtocode => {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Chargebee => {
                 chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Celero => {
@@ -261,6 +267,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Gigadat => {
+                gigadat::transformers::GigadatAuthType::try_from(self.auth_type)?;
+                gigadat::transformers::GigadatConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
@@ -315,6 +328,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
                     self.connector_meta_data,
                 )?;
+                Ok(())
+            }
+            api_enums::Connector::Loonio => {
+                loonio::transformers::LoonioAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Mifinity => {
@@ -388,6 +405,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 payload::transformers::PayloadAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Payjustnow => {
+                payjustnow::transformers::PayjustnowAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -413,6 +434,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payu => {
                 payu::transformers::PayuAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Peachpayments => {
+                peachpayments::transformers::PeachpaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Placetopay => {
@@ -478,8 +503,20 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Tesouro => {
+                tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Trustpayments => {
+                trustpayments::transformers::TrustpaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Tokenex => {
+                tokenex::transformers::TokenexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Tokenio => {
@@ -555,6 +592,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paytm => {
                 paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Finix => {
+                finix::transformers::FinixAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
         }

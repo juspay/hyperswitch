@@ -49,7 +49,7 @@ pub async fn toggle_blocklist_guard_for_merchant(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = merchant_id.get_blocklist_guard_key();
-    let maybe_guard = state.store.find_config_by_key(&key).await;
+    let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
@@ -290,45 +290,40 @@ async fn delete_card_bin_blocklist_entry(
         })
 }
 
-pub async fn validate_data_for_blocklist<F>(
+pub async fn should_payment_be_blocked(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
-    payment_data: &mut PaymentData<F>,
-) -> CustomResult<bool, errors::ApiErrorResponse>
-where
-    F: Send + Clone,
-{
+    payment_method_data: &Option<domain::PaymentMethodData>,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
-    let card_number_fingerprint = if let Some(domain::PaymentMethodData::Card(card)) =
-        payment_data.payment_method_data.as_ref()
-    {
-        generate_fingerprint(
-            state,
-            StrongSecret::new(card.card_number.get_card_no()),
-            StrongSecret::new(merchant_fingerprint_secret.clone()),
-            api_models::enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .attach_printable("error in pm fingerprint creation")
-        .map_or_else(
-            |error| {
-                logger::error!(?error);
-                None
-            },
-            Some,
-        )
-        .map(|payload| payload.card_fingerprint)
-    } else {
-        None
-    };
+    let card_number_fingerprint =
+        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data {
+            generate_fingerprint(
+                state,
+                StrongSecret::new(card.card_number.get_card_no()),
+                StrongSecret::new(merchant_fingerprint_secret.clone()),
+                api_models::enums::LockerChoice::HyperswitchCardVault,
+            )
+            .await
+            .attach_printable("error in pm fingerprint creation")
+            .map_or_else(
+                |error| {
+                    logger::error!(?error);
+                    None
+                },
+                Some,
+            )
+            .map(|payload| payload.fingerprint_id)
+        } else {
+            None
+        };
 
     // Hashed Cardbin to check whether or not this payment should be blocked.
-    let card_bin_fingerprint = payment_data
-        .payment_method_data
+    let card_bin_fingerprint = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
             domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
@@ -337,8 +332,7 @@ where
 
     // Hashed Extended Cardbin to check whether or not this payment should be blocked.
     let extended_card_bin_fingerprint =
-        payment_data
-            .payment_method_data
+        payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => {
@@ -385,6 +379,21 @@ where
             }
         }
     }
+    Ok(should_payment_be_blocked)
+}
+
+pub async fn validate_data_for_blocklist<F>(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<bool, errors::ApiErrorResponse>
+where
+    F: Send + Clone,
+{
+    let db = &state.store;
+    let should_payment_be_blocked =
+        should_payment_be_blocked(state, merchant_context, &payment_data.payment_method_data)
+            .await?;
     if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
@@ -470,7 +479,7 @@ pub async fn generate_payment_fingerprint(
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint)
+            .map(|payload| payload.fingerprint_id)
         } else {
             logger::error!("failed to retrieve card fingerprint");
             None

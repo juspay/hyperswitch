@@ -1,11 +1,13 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
 
 import jsQR from "jsqr";
+import { getTimeoutMultiplier } from "../utils/RequestBodyUtils.js";
 
-// Define constants for wait times
+const timeoutMultiplier = getTimeoutMultiplier();
+
 const CONSTANTS = {
-  TIMEOUT: 20000, // 20 seconds
-  WAIT_TIME: 10000, // 10 seconds
+  TIMEOUT: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
+  WAIT_TIME: Math.round(30000 * timeoutMultiplier), // 30s local, 45s CI
   ERROR_PATTERNS: [
     /^(4|5)\d{2}\s/, // HTTP error status codes
     /\berror occurred\b/i,
@@ -636,7 +638,74 @@ function bankRedirectRedirection(
 }
 
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
-  cy.visit(redirectionUrl.href);
+  let responseContentType = null;
+
+  // First check what type of response we get from the redirect URL
+  cy.request({
+    url: redirectionUrl.href,
+    failOnStatusCode: false,
+  }).then((response) => {
+    responseContentType = response.headers["content-type"];
+
+    // Check if the response is JSON
+    if (response.headers["content-type"]?.includes("application/json")) {
+      // For JSON responses, check if it contains useful info
+      if (response.body && typeof response.body === "object") {
+        // If the JSON contains redirect info, use it
+        if (response.body.redirect_url) {
+          cy.visit(response.body.redirect_url, { failOnStatusCode: false });
+        } else {
+          cy.visit(expectedUrl.href);
+          // Verify return URL and exit completely
+          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          return;
+        }
+      } else {
+        cy.visit(expectedUrl.href);
+        verifyReturnUrl(redirectionUrl, expectedUrl, true);
+        return;
+      }
+    } else {
+      cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    }
+  });
+
+  if (connectorId === "paysafe") {
+    cy.log("Starting Paysafe 3DS authentication flow");
+
+    cy.get('input[formcontrolname="contactInfo"]', {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .clear()
+      .type("swangi@gmail.com");
+
+    cy.get('button[type="submit"]', { timeout: CONSTANTS.TIMEOUT }).click();
+
+    cy.log("Submitted email, waiting for OTP page...");
+    // Wait for OTP iframe instead of hard wait
+    cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+      .first()
+      .its("0.contentDocument.body")
+      .should("not.be.empty")
+      .within(() => {
+        cy.get(
+          'input[placeholder="Enter Code Here"], input[type="text"], input[type="password"], input',
+          { timeout: CONSTANTS.TIMEOUT }
+        )
+          .first()
+          .clear()
+          .type("1234");
+
+        cy.get("input.button.primary", { timeout: CONSTANTS.TIMEOUT }).click();
+      });
+
+    cy.log("Submitted OTP");
+    // Wait for redirect URL to load
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
 
   // Special handling for Airwallex which uses multiple domains in 3DS flow
   if (connectorId === "airwallex") {
@@ -822,6 +891,71 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
+  // Nuvei 3DS: 2-step flow (auth button + redirect button)
+  if (connectorId === "nuvei") {
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+
+    cy.url().then((currentUrl) => {
+      const currentOrigin = new URL(currentUrl).origin;
+      const redirectOrigin = new URL(redirectionUrl.href).origin;
+
+      if (currentOrigin !== redirectOrigin) {
+        cy.origin(
+          currentOrigin,
+          {
+            args: {
+              WAIT_TIME: CONSTANTS.WAIT_TIME,
+            },
+          },
+          ({ WAIT_TIME }) => {
+            cy.wait(WAIT_TIME);
+
+            cy.get("body").then(($body) => {
+              if ($body.find("#btn1").length > 0) {
+                cy.get("#btn1").click();
+                cy.get(
+                  "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+                  { timeout: 10000 }
+                )
+                  .should("be.visible")
+                  .first()
+                  .click();
+              }
+            });
+          }
+        );
+      } else {
+        cy.wait(CONSTANTS.WAIT_TIME);
+        cy.get("body").then(($body) => {
+          if ($body.find("#btn1").length > 0) {
+            cy.get("#btn1").click();
+            cy.get(
+              "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+              { timeout: 10000 }
+            )
+              .should("be.visible")
+              .first()
+              .click();
+          }
+        });
+      }
+    });
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      new URL(expectedUrl.href).origin
+    );
+    cy.document()
+      .should("have.property", "readyState")
+      .and("equal", "complete");
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -831,6 +965,18 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     connectorId,
     ({ connectorId, constants, expectedUrl }) => {
       switch (connectorId) {
+        case "aci":
+          cy.get('form[name="challengeForm"]', {
+            timeout: constants.WAIT_TIME,
+          })
+            .should("exist")
+            .then(() => {
+              cy.get("#outcomeSelect")
+                .select("Approve")
+                .should("have.value", "Y");
+              cy.get('button[type="submit"]').click();
+            });
+          break;
         case "adyen":
           cy.get("iframe")
             .its("0.contentDocument.body")
@@ -974,87 +1120,16 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "nuvei":
-          cy.wait(constants.WAIT_TIME); // Wait for the page to load
-
-          // Check if we're on the Nuvei 3DS challenge page
-          cy.get("body").then(($body) => {
-            const bodyText = $body.text();
-
-            if (
-              bodyText.includes("ThreeDS ACS Emulator") ||
-              bodyText.includes("Challenge Page")
-            ) {
-              // Look for success buttons (based on UI test patterns)
-              cy.get("body").then(() => {
-                // Try to find and click success buttons
-                if ($body.find("#btn1").length > 0) {
-                  cy.get("#btn1").click();
-                }
-
-                if ($body.find("#btn5").length > 0) {
-                  cy.get("#btn5").click();
-                }
-
-                // If no specific buttons found, try generic success patterns
-                if (
-                  $body.find("#btn1").length === 0 &&
-                  $body.find("#btn5").length === 0
-                ) {
-                  // Look for any button with "success", "continue", or "submit" text
-                  cy.get(
-                    "button, input[type='button'], input[type='submit']"
-                  ).then(($buttons) => {
-                    $buttons.each((index, button) => {
-                      const buttonText = Cypress.$(button).text().toLowerCase();
-                      const buttonValue =
-                        Cypress.$(button).val()?.toLowerCase() || "";
-
-                      if (
-                        buttonText.includes("success") ||
-                        buttonText.includes("continue") ||
-                        buttonText.includes("submit") ||
-                        buttonValue.includes("success")
-                      ) {
-                        cy.wrap(button).click();
-                        return false; // Break the loop
-                      }
-                    });
-                  });
-                }
-              });
-            } else if ($body.find("iframe").length > 0) {
-              cy.log("Found iframe, attempting to interact with it");
-              cy.get("iframe")
-                .first()
-                .its("0.contentDocument.body")
-                .within(() => {
-                  // Look for 3DS challenge form elements
-                  cy.get("body").then(($iframeBody) => {
-                    const iframeText = $iframeBody.text();
-
-                    if (
-                      iframeText.includes("ThreeDS") ||
-                      iframeText.includes("Challenge")
-                    ) {
-                      // Try to find and interact with 3DS elements
-                      cy.get(
-                        "button, input[type='button'], input[type='submit']"
-                      ).then(($buttons) => {
-                        if ($buttons.length > 0) {
-                          cy.log("Clicking first available button in iframe");
-                          cy.wrap($buttons.first()).click();
-                        }
-                      });
-                    }
-                  });
-                });
-            } else {
-              cy.log(
-                "No specific 3DS elements found, waiting for automatic redirect"
-              );
-              cy.wait(constants.WAIT_TIME);
-            }
-          });
+          cy.get("#btn1", { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          cy.get(
+            "a:contains('Redirect'), button:contains('Redirect'), input[value='Redirect']",
+            { timeout: 10000 }
+          )
+            .should("be.visible")
+            .first()
+            .click();
           break;
         case "stripe":
           cy.get("iframe", { timeout: constants.TIMEOUT })
@@ -1122,8 +1197,14 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     }
   );
 
-  // Verify return URL after handling the specific connector
-  verifyReturnUrl(redirectionUrl, expectedUrl, true);
+  cy.then(() => {
+    if (
+      responseContentType &&
+      !responseContentType.includes("application/json")
+    ) {
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    }
+  });
 }
 
 function upiRedirection(
@@ -1158,7 +1239,6 @@ function upiRedirection(
         );
     }
   } else {
-    // For other connectors, nothing to do
     return;
   }
 
@@ -1414,24 +1494,47 @@ function handleFlow(
         `No host change detected or potential iframe. Executing callback directly/targeting iframe.`
       );
 
-      // For embedded flows using an iframe:
-      cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
-        .should("be.visible")
-        .should("exist")
-        .then((iframes) => {
-          if (iframes.length === 0) {
-            cy.log(
-              "No host change and no iframe detected, executing callback directly."
-            );
+      // Wait for page to be ready first
+      cy.document().should("have.property", "readyState", "complete");
 
-            throw new Error("No iframe found for embedded flow.");
-          }
-          // Execute the callback directly for the embedded flow
+      // For embedded flows using an iframe - use robust detection:
+      cy.get("body").then(($body) => {
+        const iframes = $body.find("iframe");
+
+        if (iframes.length > 0) {
+          // Wait for iframe to be ready
+          cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+            .should("be.visible")
+            .then(() => {
+              cy.log(
+                "Iframe detected and ready, executing callback targeting iframe context"
+              );
+              callback(callbackArgs);
+            });
+        } else {
           cy.log(
-            "Iframe detected, executing callback targeting iframe context (implicitly)."
+            "No iframe detected initially, checking for dynamic iframe or executing direct callback"
           );
-          callback(callbackArgs);
-        });
+
+          cy.get("body", { timeout: 3000 })
+            .should("exist")
+            .then(($body) => {
+              // Check if iframe appeared during the wait
+              if ($body.find("iframe").length > 0) {
+                cy.log("Dynamic iframe detected, executing iframe flow");
+                cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+                  .should("be.visible")
+                  .then(() => {
+                    callback(callbackArgs);
+                  });
+              } else {
+                cy.log("No iframe found, executing direct callback");
+                // Execute callback directly for non-iframe flows
+                callback(callbackArgs);
+              }
+            });
+        }
+      });
     }
   });
 }

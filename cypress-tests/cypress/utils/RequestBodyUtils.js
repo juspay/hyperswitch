@@ -3,11 +3,7 @@ const keyPrefixes = {
     publishable_key: "pk_dev_",
     key_id: "dev_",
   },
-  integ: {
-    publishable_key: "pk_snd_",
-    key_id: "snd_",
-  },
-  sandbox: {
+  hyperswitch: {
     publishable_key: "pk_snd_",
     key_id: "snd_",
   },
@@ -325,3 +321,19 @@ export function generateRandomName() {
 
   return `${randomFirstName} ${randomLastName}`;
 }
+
+/**
+ * Detects if running in CI environment
+ * @returns {boolean} True if running in CI, false otherwise
+ */
+export const isCI = () => {
+  return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+};
+
+/**
+ * Gets the appropriate timeout multiplier based on environment
+ * @returns {number} 1.5 for CI environments, 1.0 for local development
+ */
+export const getTimeoutMultiplier = () => {
+  return isCI() ? 1.5 : 1;
+};

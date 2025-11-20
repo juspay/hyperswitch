@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
@@ -221,6 +221,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     };
     logger::info!(event_type=?event_type);
 
+    // if it is a setup webhook event, return ok status
+    if event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     let is_webhook_event_supported = !matches!(
         event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
@@ -360,6 +369,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::ExternalAuthentication => todo!(),
                     api::WebhookFlow::FraudCheck => todo!(),
+                    api::WebhookFlow::Setup => WebhookResponseTracker::NoEffect,
 
                     #[cfg(feature = "payouts")]
                     api::WebhookFlow::Payout => todo!(),

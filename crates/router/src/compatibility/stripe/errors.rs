@@ -285,6 +285,8 @@ pub enum StripeErrorCode {
     PlatformUnauthorizedRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Profile Acquirer not found")]
     ProfileAcquirerNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "Subscription Error", message = "Subscription operation: {operation} failed with connector")]
+    SubscriptionError { operation: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -452,6 +454,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey
+            | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -697,6 +700,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "tokenization record".to_owned(),
                 id,
             },
+            errors::ApiErrorResponse::SubscriptionError { operation } => {
+                Self::SubscriptionError { operation }
+            }
         }
     }
 }
@@ -781,7 +787,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::WebhookProcessingError
             | Self::InvalidTenant
             | Self::ExternalVaultFailed
-            | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::AmountConversionFailed { .. }
+            | Self::SubscriptionError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
@@ -855,6 +862,9 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
         match self {
             Self::CustomerRedacted => SC::CustomerRedacted,
             Self::InternalServerError => SC::InternalServerError,
+            Self::InvalidRequestData { message } => SC::InvalidRequestData {
+                message: message.clone(),
+            },
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
             Self::CustomerAlreadyExists => SC::DuplicateCustomer,

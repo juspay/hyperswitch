@@ -35,7 +35,7 @@ pub struct BillingConnectorPaymentsSyncResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct RevenueRecoveryRecordBackResponse {
+pub struct InvoiceRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
 }
 

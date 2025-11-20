@@ -51,6 +51,7 @@ impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             PostAuthenticate,
@@ -79,8 +80,7 @@ impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        access_token::add_access_token(state, connector, self, creds_identifier).await
     }
 
     async fn build_flow_specific_connector_request(
@@ -129,11 +129,18 @@ impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
 
     async fn call_unified_connector_service<'a>(
         &mut self,
-        state: &SessionState,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _state: &SessionState,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _lineage_ids: external_services::grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
-        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
+        _creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         todo!()
     }

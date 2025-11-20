@@ -1,3 +1,4 @@
+pub mod chat;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod currency;
@@ -16,7 +17,7 @@ use std::fmt::Debug;
 use api_models::{
     enums,
     payments::{self},
-    webhooks,
+    subscription as subscription_types, webhooks,
 };
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
@@ -40,6 +41,8 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
+use subscriptions::{subscription_handler::SubscriptionHandler, workflows::InvoiceSyncHandler};
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -458,7 +461,6 @@ pub async fn get_mca_from_payment_intent(
         }
     }
 }
-
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     state: &SessionState,
@@ -637,6 +639,24 @@ pub async fn get_mca_from_object_reference_id(
                     merchant_context,
                 )
                 .await
+            }
+            webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
+                #[cfg(feature = "v1")]
+                {
+                    let subscription_state = state.clone().into();
+                    let subscription_handler =
+                        SubscriptionHandler::new(&subscription_state, merchant_context);
+                    let mut subscription_with_handler = subscription_handler
+                        .find_subscription(subscription_id_type)
+                        .await?;
+
+                    subscription_with_handler.get_mca(connector_name).await
+                }
+                #[cfg(feature = "v2")]
+                {
+                    let _db = db;
+                    todo!()
+                }
             }
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
@@ -1205,7 +1225,7 @@ where
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
-                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            common_enums::EventObjectType::PaymentDetails,
                             webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
                             )),
@@ -1281,7 +1301,7 @@ pub async fn trigger_refund_outgoing_webhook(
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
-                        diesel_models::enums::EventObjectType::RefundDetails,
+                        common_enums::EventObjectType::RefundDetails,
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
                     ))
@@ -1360,7 +1380,7 @@ pub async fn trigger_payouts_webhook(
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
-                        diesel_models::enums::EventObjectType::PayoutDetails,
+                        common_enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
                     ))
@@ -1382,4 +1402,48 @@ pub async fn trigger_payouts_webhook(
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
     todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn trigger_subscriptions_outgoing_webhook(
+    state: &SessionState,
+    payment_response: subscription_types::PaymentResponseData,
+    invoice: &hyperswitch_domain_models::invoice::Invoice,
+    subscription: &hyperswitch_domain_models::subscription::Subscription,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    profile: &domain::Profile,
+) -> RouterResult<()> {
+    if invoice.status != common_enums::enums::InvoiceStatus::InvoicePaid {
+        logger::info!("Invoice not paid, skipping outgoing webhook trigger");
+        return Ok(());
+    }
+    let response = InvoiceSyncHandler::generate_response(subscription, invoice, &payment_response)
+        .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
+
+    let merchant_context = domain::merchant_context::MerchantContext::NormalMerchant(Box::new(
+        domain::merchant_context::Context(merchant_account.clone(), key_store.clone()),
+    ));
+
+    let cloned_state = state.clone();
+    let cloned_profile = profile.clone();
+    let invoice_id = invoice.id.get_string_repr().to_owned();
+    let created_at = subscription.created_at;
+
+    tokio::spawn(async move {
+        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+            cloned_state,
+            merchant_context,
+            cloned_profile,
+            common_enums::enums::EventType::InvoicePaid,
+            common_enums::enums::EventClass::Subscriptions,
+            invoice_id,
+            common_enums::EventObjectType::SubscriptionDetails,
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
+            Some(created_at),
+        ))
+        .await
+    });
+
+    Ok(())
 }

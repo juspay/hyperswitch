@@ -1,7 +1,8 @@
 #[cfg(feature = "v2")]
-use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
-#[cfg(feature = "v2")]
-use common_enums;
+use ::common_types::{
+    payments,
+    primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
+};
 #[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{
@@ -130,6 +131,8 @@ pub struct KafkaPaymentIntent<'a> {
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    pub active_attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -138,7 +141,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub order_details: Option<&'a Vec<Secret<OrderDetailsWithAmount>>>,
 
     pub allowed_payment_method_types: Option<&'a Vec<common_enums::PaymentMethodType>>,
-    pub connector_metadata: Option<&'a Secret<Value>>,
+    pub connector_metadata: Option<&'a api_models::payments::ConnectorMetadata>,
     pub payment_link_id: Option<&'a String>,
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
@@ -176,6 +179,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
     pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
 
     #[serde(flatten)]
     infra_values: Option<Value>,
@@ -200,6 +204,8 @@ impl<'a> KafkaPaymentIntent<'a> {
             last_synced,
             setup_future_usage,
             active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -235,6 +241,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             created_by,
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            enable_partial_authorization,
         } = intent;
 
         Self {
@@ -255,6 +262,8 @@ impl<'a> KafkaPaymentIntent<'a> {
             setup_future_usage: *setup_future_usage,
             off_session: setup_future_usage.is_off_session(),
             active_attempt_id: active_attempt_id.as_ref(),
+            active_attempt_id_type: *active_attempt_id_type,
+            active_attempts_group_id: active_attempts_group_id.as_ref(),
             attempt_count: *attempt_count,
             profile_id,
             customer_email: None,
@@ -308,6 +317,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
+            enable_partial_authorization: *enable_partial_authorization,
         }
     }
 }

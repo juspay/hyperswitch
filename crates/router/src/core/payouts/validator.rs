@@ -84,6 +84,11 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+    if req.payout_method_id.is_some() && req.confirm != Some(true) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Confirm must be true for recurring payouts".to_string(),
+        }));
+    }
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     if let Some(payout_link) = &req.payout_link {
@@ -258,6 +263,7 @@ pub async fn validate_create_request(
                                     .expiry_month
                                     .get_required_value("expiry_month")?,
                                 expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                                card_network: card.card_network.clone(),
                             },
                         ))),
                         (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),

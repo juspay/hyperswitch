@@ -2,10 +2,14 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
+use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
-use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+use common_types::{
+    payments::BillingDescriptor,
+    primitive_wrappers::{
+        AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
+    },
 };
 use common_utils::{
     self,
@@ -27,6 +31,8 @@ use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
 pub mod payment_intent;
+#[cfg(feature = "v2")]
+pub mod split_payments;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
@@ -122,7 +128,11 @@ pub struct PaymentIntent {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_overcapture: Option<EnableOvercaptureBool>,
+    pub mit_category: Option<common_enums::MitCategory>,
+    pub billing_descriptor: Option<BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 impl PaymentIntent {
@@ -188,16 +198,43 @@ impl PaymentIntent {
             }
         };
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
-        if always_request_extended_authorization_optional.is_some_and(
-            |always_request_extended_authorization| *always_request_extended_authorization,
-        ) || intent_request_extended_authorization_optional.is_some_and(
-            |intent_request_extended_authorization| *intent_request_extended_authorization,
-        ) {
-            Some(is_extended_authorization_supported_by_connector())
+
+        let is_extended_authorization_requested = intent_request_extended_authorization_optional
+            .map(|should_request_extended_authorization| *should_request_extended_authorization)
+            .or(always_request_extended_authorization_optional.map(
+                |should_always_request_extended_authorization| {
+                    *should_always_request_extended_authorization
+                },
+            ));
+
+        is_extended_authorization_requested
+            .map(|requested| {
+                if requested {
+                    is_extended_authorization_supported_by_connector()
+                } else {
+                    false
+                }
+            })
+            .map(RequestExtendedAuthorizationBool::from)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_enable_overcapture_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+        capture_method: &Option<common_enums::CaptureMethod>,
+    ) -> Option<EnableOvercaptureBool> {
+        let is_overcapture_supported_by_connector =
+            connector.is_overcapture_supported_by_connector();
+        if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
+            && is_overcapture_supported_by_connector
+        {
+            self.enable_overcapture
+                .or_else(|| always_enable_overcapture.map(EnableOvercaptureBool::from))
         } else {
             None
         }
-        .map(RequestExtendedAuthorizationBool::from)
     }
 
     #[cfg(feature = "v2")]
@@ -257,6 +294,25 @@ impl PaymentIntent {
             Err(common_utils::errors::ParsingError::UnknownError)
         }
     }
+
+    #[cfg(feature = "v1")]
+    pub fn get_billing_descriptor(&self) -> Option<BillingDescriptor> {
+        self.billing_descriptor
+            .as_ref()
+            .map(|descriptor| BillingDescriptor {
+                name: descriptor.name.clone(),
+                city: descriptor.city.clone(),
+                phone: descriptor.phone.clone(),
+                statement_descriptor: descriptor
+                    .statement_descriptor
+                    .clone()
+                    .or_else(|| self.statement_descriptor_name.clone()),
+                statement_descriptor_suffix: descriptor
+                    .statement_descriptor_suffix
+                    .clone()
+                    .or_else(|| self.statement_descriptor_suffix.clone()),
+            })
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -308,6 +364,44 @@ impl AmountDetails {
         confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
     ) -> payment_attempt::AttemptAmountDetails {
         let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            common_enums::TaxCalculationOverride::Skip => {
+                self.tax_details.as_ref().and_then(|tax_details| {
+                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                })
+            }
+            common_enums::TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
+        })
+    }
+
+    pub fn create_split_attempt_amount_details(
+        &self,
+        confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
+        split_amount: MinorUnit,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = split_amount;
 
         let surcharge_amount = match self.skip_surcharge_calculation {
             common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
@@ -439,13 +533,17 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
+    /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    /// The ID of the active attempt group for the payment intent
+    pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
-    /// This metadata contains details about
-    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    /// This metadata contains connector-specific details like Apple Pay certificates, Airwallex data, Noon order category, Braintree merchant account ID, and Adyen testing data
+    pub connector_metadata: Option<ConnectorMetadata>,
     pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
@@ -507,7 +605,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
 
     /// Indicates if the redirection has to open in the iframe
@@ -516,6 +614,8 @@ pub struct PaymentIntent {
     /// Indicates whether the payment_id was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+    /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -599,10 +699,6 @@ impl PaymentIntent {
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
-        let connector_metadata = request
-            .get_connector_metadata_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting connector metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
         let allowed_payment_method_types = request.allowed_payment_method_types;
@@ -639,9 +735,11 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
+            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
+            active_attempts_group_id: None,
             order_details,
             allowed_payment_method_types,
-            connector_metadata,
+            connector_metadata: request.connector_metadata,
             feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
@@ -704,6 +802,7 @@ impl PaymentIntent {
             created_by: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            enable_partial_authorization: request.enable_partial_authorization,
         })
     }
 
@@ -790,27 +889,42 @@ impl PaymentIntent {
             .transpose()
     }
 
-    pub fn get_optional_connector_metadata(
-        &self,
-    ) -> CustomResult<
-        Option<api_models::payments::ConnectorMetadata>,
-        common_utils::errors::ParsingError,
-    > {
-        self.connector_metadata
-            .clone()
-            .map(|cm| {
-                cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
-            })
-            .transpose()
-    }
-
     pub fn get_currency(&self) -> storage_enums::Currency {
         self.amount_details.currency
+    }
+
+    pub fn supports_split_payments(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+    }
+
+    pub fn is_split_payment(&self) -> bool {
+        self.split_txns_enabled == common_enums::SplitTxnsEnabled::Enable
+            && self.active_attempt_id_type == common_enums::ActiveAttemptIDType::GroupID
+    }
+
+    pub fn is_succeeded(&self) -> bool {
+        match self.status {
+            common_enums::IntentStatus::Succeeded => true,
+            common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Conflicted => false,
+        }
     }
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub client_source: Option<String>,
@@ -822,6 +936,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -829,7 +944,6 @@ pub struct ClickToPayMetaData {
     pub dpa_id: String,
     pub dpa_name: String,
     pub locale: String,
-    pub card_brands: Vec<String>,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
     pub merchant_category_code: String,
@@ -839,7 +953,7 @@ pub struct ClickToPayMetaData {
 
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     /// The source with which the payment is confirmed.
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
@@ -852,6 +966,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 impl HeaderPayload {
@@ -904,6 +1019,8 @@ where
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    /// The webhook url of the merchant, to which the connector will send the webhook.
+    pub webhook_url: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -953,13 +1070,14 @@ impl<F: Clone> PaymentConfirmData<F> {
             merchant_connector_details: self.merchant_connector_details,
             redirect_response: self.redirect_response,
             external_vault_pmd: self.external_vault_pmd,
+            webhook_url: self.webhook_url,
         };
         payment_data
     }
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentStatusData<F>
 where
     F: Clone,
@@ -978,6 +1096,17 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCancelData<F>
 where
     F: Clone,
 {

@@ -181,9 +181,8 @@ impl ConnectorCommon for Trustpay {
                         .clone()
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    // message vary for the same code, so relying on code alone as it is unique
                     message: option_error_code_message
-                        .map(|error_code_message| error_code_message.error_code)
+                        .map(|error_code_message| error_code_message.error_message)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason
                         .or(response_data.description)
@@ -1363,5 +1362,14 @@ impl ConnectorSpecifications for Trustpay {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+    #[cfg(feature = "v2")]
+    fn generate_connector_request_reference_id(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        // The length of receipt for Trustpay order request should not exceed 35 characters.
+        uuid::Uuid::now_v7().simple().to_string()
     }
 }

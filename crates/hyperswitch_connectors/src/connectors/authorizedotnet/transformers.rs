@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -20,7 +20,8 @@ use hyperswitch_domain_models::{
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -31,6 +32,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -43,6 +45,7 @@ use crate::{
 };
 
 const MAX_ID_LENGTH: usize = 20;
+const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
@@ -111,12 +114,6 @@ struct CreditCardDetails {
     expiration_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<Secret<String>>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct BankAccountDetails {
-    account_number: Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -197,6 +194,8 @@ enum ProfileDetails {
 #[serde(rename_all = "camelCase")]
 pub struct CreateProfileDetails {
     create_profile: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_profile_id: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -468,7 +467,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             .map(|address| BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
-                address: address.line1.clone(),
+                address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
                 state: address.state.clone(),
                 zip: address.zip.clone(),
@@ -599,6 +598,13 @@ pub struct AuthorizedotnetCustomerResponse {
     pub messages: ResponseMessages,
 }
 
+fn extract_customer_id(text: &str) -> Option<String> {
+    let re = Regex::new(r"ID (\d+)").ok()?;
+    re.captures(text)
+        .and_then(|captures| captures.get(1))
+        .map(|capture_match| capture_match.as_str().to_string())
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -609,9 +615,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
         match item.response.messages.result_code {
             ResultCode::Ok => match item.response.customer_profile_id.clone() {
                 Some(connector_customer_id) => Ok(Self {
-                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                        connector_customer_id,
-                    }),
+                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                        ConnectorCustomerResponseData::new_with_customer_id(connector_customer_id),
+                    )),
                     ..item.data
                 }),
                 None => Err(
@@ -623,34 +629,48 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
             },
             ResultCode::Error => {
                 let error_message = item.response.messages.message.first();
-                let error_code = error_message.map(|error| error.code.clone());
-                let error_code = error_code
-                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
-                let error_reason = item
-                    .response
-                    .messages
-                    .message
-                    .iter()
-                    .map(|error: &ResponseMessage| error.text.clone())
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                let response = Err(ErrorResponse {
-                    code: error_code,
-                    message: item.response.messages.result_code.to_string(),
-                    reason: Some(error_reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                });
-                Ok(Self {
-                    response,
-                    status: enums::AttemptStatus::Failure,
-                    ..item.data
-                })
+                if let Some(connector_customer_id) =
+                    error_message.and_then(|error| extract_customer_id(&error.text))
+                {
+                    Ok(Self {
+                        response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                            ConnectorCustomerResponseData::new_with_customer_id(
+                                connector_customer_id,
+                            ),
+                        )),
+                        ..item.data
+                    })
+                } else {
+                    let error_code = error_message.map(|error| error.code.clone());
+                    let error_code = error_code.unwrap_or_else(|| {
+                        hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()
+                    });
+                    let error_reason = item
+                        .response
+                        .messages
+                        .message
+                        .iter()
+                        .map(|error: &ResponseMessage| error.text.clone())
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let response = Err(ErrorResponse {
+                        code: error_code,
+                        message: item.response.messages.result_code.to_string(),
+                        reason: Some(error_reason),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    });
+                    Ok(Self {
+                        response,
+                        status: enums::AttemptStatus::Failure,
+                        ..item.data
+                    })
+                }
             }
         }
     }
@@ -666,8 +686,8 @@ impl<F, T>
         item: ResponseRouterData<F, AuthorizedotnetSetupMandateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_customer_id = item.data.get_connector_customer_id()?;
-        match item.response.messages.result_code {
-            ResultCode::Ok => Ok(Self {
+        if item.response.customer_profile_id.is_some() {
+            Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
@@ -692,38 +712,37 @@ impl<F, T>
                     charges: None,
                 }),
                 ..item.data
-            }),
-            ResultCode::Error => {
-                let error_message = item.response.messages.message.first();
-                let error_code = error_message.map(|error| error.code.clone());
-                let error_code = error_code
-                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
-                let error_reason = item
-                    .response
-                    .messages
-                    .message
-                    .iter()
-                    .map(|error: &ResponseMessage| error.text.clone())
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                let response = Err(ErrorResponse {
-                    code: error_code,
-                    message: item.response.messages.result_code.to_string(),
-                    reason: Some(error_reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                });
-                Ok(Self {
-                    response,
-                    status: enums::AttemptStatus::Failure,
-                    ..item.data
-                })
-            }
+            })
+        } else {
+            let error_message = item.response.messages.message.first();
+            let error_code = error_message.map(|error| error.code.clone());
+            let error_code = error_code
+                .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
+            let error_reason = item
+                .response
+                .messages
+                .message
+                .iter()
+                .map(|error: &ResponseMessage| error.text.clone())
+                .collect::<Vec<String>>()
+                .join(" ");
+            let response = Err(ErrorResponse {
+                code: error_code,
+                message: item.response.messages.result_code.to_string(),
+                reason: Some(error_reason),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+            Ok(Self {
+                response,
+                status: enums::AttemptStatus::Failure,
+                ..item.data
+            })
         }
     }
 }
@@ -771,6 +790,14 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Authorizedotnet",
+            }
+            .into());
+        };
+
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
@@ -918,7 +945,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -945,6 +972,28 @@ impl
             },
         })
     }
+}
+fn get_address_line(
+    address_line1: &Option<Secret<String>>,
+    address_line2: &Option<Secret<String>>,
+    address_line3: &Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    for lines in [
+        vec![address_line1, address_line2, address_line3],
+        vec![address_line1, address_line2],
+    ] {
+        let combined: String = lines
+            .into_iter()
+            .flatten()
+            .map(|s| s.clone().expose())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if !combined.is_empty() && combined.len() <= ADDRESS_MAX_LENGTH {
+            return Some(Secret::new(combined));
+        }
+    }
+    address_line1.clone()
 }
 
 impl
@@ -992,14 +1041,7 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
+            customer: None,
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
@@ -1034,21 +1076,41 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
+        let profile = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            let connector_customer_id =
+                Secret::new(item.router_data.connector_customer.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "connector_customer_id".to_string(),
+                    },
+                )?);
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-            })),
-            Some(CustomerDetails {
-                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+                customer_profile_id: Some(connector_customer_id),
+            }))
+        } else {
+            None
+        };
+
+        let customer = if !item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            item.router_data.customer_id.as_ref().and_then(|customer| {
+                let customer_id = customer.get_string_repr();
+                (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
+                    id: customer_id.to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            })
+        } else {
+            None
+        };
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1081,7 +1143,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1118,19 +1180,41 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
+        let profile = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            let connector_customer_id =
+                Secret::new(item.router_data.connector_customer.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "connector_customer_id".to_string(),
+                    },
+                )?);
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-            })),
-            Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+                customer_profile_id: Some(connector_customer_id),
+            }))
+        } else {
+            None
+        };
+
+        let customer = if !item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            item.router_data.customer_id.as_ref().and_then(|customer| {
+                let customer_id = customer.get_string_repr();
+                (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
+                    id: customer_id.to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            })
+        } else {
+            None
+        };
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1162,7 +1246,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1489,7 +1573,10 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1590,7 +1677,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1660,28 +1750,16 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     fn try_from(
         item: &AuthorizedotnetRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .router_data
-            .request
-            .connector_metadata
-            .as_ref()
-            .get_required_value("connector_metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata",
-            })?
-            .clone();
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.amount,
-            payment: payment_details
-                .parse_value("PaymentDetails")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_details",
-                })?,
+            payment: get_refund_metadata(
+                &item.router_data.request.connector_metadata,
+                &item.router_data.request.additional_payment_method_data,
+            )?,
             currency_code: item.router_data.request.currency.to_string(),
             reference_transaction_id: item.router_data.request.connector_transaction_id.clone(),
         };
@@ -1695,6 +1773,42 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     }
 }
 
+fn get_refund_metadata(
+    connector_metadata: &Option<Value>,
+    additional_payment_method: &Option<AdditionalPaymentData>,
+) -> Result<PaymentDetails, error_stack::Report<errors::ConnectorError>> {
+    let payment_details_from_metadata = connector_metadata
+        .as_ref()
+        .get_required_value("connector_metadata")
+        .ok()
+        .and_then(|value| {
+            value
+                .clone()
+                .parse_value::<PaymentDetails>("PaymentDetails")
+                .ok()
+        });
+    let payment_details_from_additional_payment_method = match additional_payment_method {
+        Some(AdditionalPaymentData::Card(additional_card_info)) => {
+            additional_card_info.last4.clone().map(|last4| {
+                construct_refund_payment_details(PaymentDetailAccountNumber::UnMasked(
+                    last4.to_string(),
+                ))
+            })
+        }
+        _ => None,
+    };
+    match (
+        payment_details_from_metadata,
+        payment_details_from_additional_payment_method,
+    ) {
+        (Some(payment_detail), _) => Ok(payment_detail),
+        (_, Some(payment_detail)) => Ok(payment_detail),
+        (None, None) => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "payment_details",
+        }
+        .into()),
+    }
+}
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
@@ -1950,13 +2064,14 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
             }
 
             // E00053 indicates "server too busy"
-            // If the server is too busy, we return the already available data
+            // E00104 indicates "Server in maintenance"
+            // If the server is too busy or Server in maintenance, we return the already available data
             None => match item
                 .response
                 .messages
                 .message
                 .iter()
-                .find(|msg| msg.code == "E00053")
+                .find(|msg| msg.code == "E00053" || msg.code == "E00104")
             {
                 Some(_) => Ok(item.data),
                 None => Ok(Self {
@@ -1981,10 +2096,16 @@ pub struct ErrorDetails {
 pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
 }
-
-fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
+enum PaymentDetailAccountNumber {
+    Masked(String),
+    UnMasked(String),
+}
+fn construct_refund_payment_details(detail: PaymentDetailAccountNumber) -> PaymentDetails {
     PaymentDetails::CreditCard(CreditCardDetails {
-        card_number: masked_number.into(),
+        card_number: match detail {
+            PaymentDetailAccountNumber::Masked(masked) => masked.into(),
+            PaymentDetailAccountNumber::UnMasked(unmasked) => format!("XXXX{:}", unmasked).into(),
+        },
         expiration_date: "XXXX".to_string().into(),
         card_code: None,
     })

@@ -37,10 +37,10 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
-        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
-        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-        UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -50,9 +50,9 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
-        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
-        GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
-        RecurringMandatePaymentData, RouterData,
+        BillingDetails, ConnectorAuthType, ConnectorResponseData, CustomerInfo, ErrorResponse,
+        GooglePayPaymentMethodDetails, GooglePayPredecryptDataInternal, L2L3Data, OrderInfo,
+        PaymentMethodBalance, PaymentMethodToken, RecurringMandatePaymentData, RouterData, TaxInfo,
     },
     router_data_v2::{
         AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
@@ -62,7 +62,7 @@ pub use hyperswitch_domain_models::{
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -77,18 +77,19 @@ pub use hyperswitch_domain_models::{
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
         },
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, DisputeSyncResponse,
         FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
@@ -124,8 +125,6 @@ pub use hyperswitch_interfaces::{
 #[cfg(feature = "v2")]
 use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
-#[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::payments::{OperationSessionGetters, PaymentData},
@@ -162,6 +161,8 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsExtendAuthorizationRouterData =
+    RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 
@@ -202,6 +203,12 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
+    ExtendAuthorization,
+    R,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 pub type PaymentsBalanceResponseRouterData<R> =
     ResponseRouterData<Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
@@ -588,7 +595,7 @@ impl Capturable for PaymentsSyncData {
     #[cfg(feature = "v1")]
     fn get_captured_amount<F>(
         &self,
-        _amount_captured: Option<i64>,
+        amount_captured: Option<i64>,
         payment_data: &PaymentData<F>,
     ) -> Option<i64>
     where
@@ -598,6 +605,7 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or(payment_data.payment_intent.amount_captured)
+            .or(amount_captured.map(MinorUnit::new))
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
@@ -656,6 +664,50 @@ impl Capturable for PaymentsSyncData {
         }
     }
 }
+impl Capturable for PaymentsExtendAuthorizationData {
+    fn get_captured_amount<F>(
+        &self,
+        _amount_captured: Option<i64>,
+        payment_data: &PaymentData<F>,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // return previously captured amount
+        payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64())
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Succeeded => Some(0),
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
+        }
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -675,6 +727,30 @@ pub struct CreateOrderResult {
 
 pub struct PspTokenResult {
     pub token: Result<String, ErrorResponse>,
+}
+
+/// Data extracted from UCS response
+pub struct UcsAuthorizeResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsRepeatPaymentResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct UcsSetupMandateResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1208,7 +1284,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             currency: data.request.currency,
             payment_method_data: data.request.payment_method_data.clone(),
             confirm: data.request.confirm,
-            statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
             mandate_id: data.request.mandate_id.clone(),
             setup_future_usage: data.request.setup_future_usage,
             off_session: data.request.off_session,
@@ -1219,7 +1294,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             amount: 0,
             order_tax_amount: Some(MinorUnit::zero()),
             minor_amount: MinorUnit::new(0),
-            statement_descriptor: None,
             capture_method: None,
             webhook_url: None,
             complete_authorize_url: None,
@@ -1250,6 +1324,11 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             locale: None,
             payment_channel: None,
             enable_partial_authorization: data.request.enable_partial_authorization,
+            enable_overcapture: None,
+            is_stored_credential: data.request.is_stored_credential,
+            mit_category: None,
+            billing_descriptor: data.request.billing_descriptor.clone(),
+            tokenization: None,
         }
     }
 }
@@ -1269,6 +1348,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
+            payment_method_type: data.payment_method_type,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             address: data.address.clone(),
@@ -1315,6 +1395,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
+            authorized_amount: data.authorized_amount,
         }
     }
 }
@@ -1343,6 +1424,7 @@ impl<F1, F2>
             tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
+            payment_method_type: data.payment_method_type,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             address: data.address.clone(),
@@ -1361,8 +1443,7 @@ impl<F1, F2>
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
@@ -1386,6 +1467,7 @@ impl<F1, F2>
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         }
     }
 }

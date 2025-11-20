@@ -2,7 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
@@ -165,9 +165,9 @@ where
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state,
                     &connector,
                     customer,
+                    payment_data.get_payment_attempt(),
                     merchant_connector_account_type,
                 );
 
@@ -349,14 +349,24 @@ where
         api::GetToken::Connector,
         merchant_connector_account_type.get_mca_id(),
     )?;
+    let merchant_connector_account = match &merchant_connector_account_type {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+        }
+    }?;
 
     let mut router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_context.get_merchant_account(),
-        merchant_connector_account_type,
+        merchant_context.get_merchant_account().get_id(),
+        merchant_connector_account,
         None,
         None,
         connector_customer_id,
+        None,
     )
     .await?;
 

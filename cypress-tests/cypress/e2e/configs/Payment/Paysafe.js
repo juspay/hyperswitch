@@ -1,5 +1,4 @@
 import { customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
@@ -96,9 +95,8 @@ export const connectorDetails = {
         },
       },
     },
-    "3DSManualCapture": getCustomExchange({
+    "3DSManualCapture": {
       Request: {
-        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -107,19 +105,33 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-    }),
-    "3DSAutoCapture": getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    // 3DS automatic capture
+    "3DSAutoCapture": {
       Request: {
         payment_method: "card",
-        amount: 6000,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        amount: 6000,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-    }),
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -340,9 +352,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {

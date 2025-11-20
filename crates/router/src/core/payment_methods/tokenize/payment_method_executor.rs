@@ -399,6 +399,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),
+            last_modified_by: None,
         };
         self.state
             .store

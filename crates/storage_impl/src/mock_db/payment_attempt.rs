@@ -227,6 +227,8 @@ impl PaymentAttemptInterface for MockDb {
             connector_mandate_detail: payment_attempt.connector_mandate_detail,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_last_applied_at: payment_attempt
+                .extended_authorization_last_applied_at,
             capture_before: payment_attempt.capture_before,
             card_discovery: payment_attempt.card_discovery,
             charges: None,
@@ -239,6 +241,11 @@ impl PaymentAttemptInterface for MockDb {
             connector_request_reference_id: payment_attempt.connector_request_reference_id,
             debit_routing_savings: None,
             network_transaction_id: payment_attempt.network_transaction_id,
+            is_overcapture_enabled: None,
+            network_details: payment_attempt.network_details,
+            is_stored_credential: payment_attempt.is_stored_credential,
+            authorized_amount: payment_attempt.authorized_amount,
+            tokenization: payment_attempt.tokenization,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

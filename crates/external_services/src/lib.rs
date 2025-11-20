@@ -2,32 +2,25 @@
 
 #![warn(missing_docs, missing_debug_implementations)]
 
-#[cfg(feature = "email")]
-pub mod email;
-
 #[cfg(feature = "aws_kms")]
 pub mod aws_kms;
-
-pub mod file_storage;
-#[cfg(feature = "hashicorp-vault")]
-pub mod hashicorp_vault;
-
-pub mod no_encryption;
-
-/// Building grpc clients to communicate with the server
-pub mod grpc_client;
-
-/// http_client module
-pub mod http_client;
-
-/// hubspot_proxy module
-pub mod hubspot_proxy;
-
-pub mod managers;
-
 /// crm module
 pub mod crm;
-
+#[cfg(feature = "email")]
+pub mod email;
+pub mod file_storage;
+/// Building grpc clients to communicate with the server
+pub mod grpc_client;
+#[cfg(feature = "hashicorp-vault")]
+pub mod hashicorp_vault;
+/// http_client module
+pub mod http_client;
+/// hubspot_proxy module
+pub mod hubspot_proxy;
+pub mod managers;
+pub mod no_encryption;
+#[cfg(feature = "superposition")]
+pub mod superposition;
 /// deserializers module_path
 pub mod utils;
 
@@ -89,11 +82,20 @@ pub mod consts {
     /// Header key for sending the API secret in signature-based authentication.
     pub(crate) const UCS_HEADER_API_SECRET: &str = "x-api-secret";
 
+    /// Header key for sending a second additional key used in multi-auth authentication.
+    pub(crate) const UCS_HEADER_KEY2: &str = "x-key2";
+
     /// Header key for sending the AUTH KEY MAP in currency-based authentication.
     pub(crate) const UCS_HEADER_AUTH_KEY_MAP: &str = "x-auth-key-map";
 
     /// Header key for sending the EXTERNAL VAULT METADATA in proxy payments
     pub(crate) const UCS_HEADER_EXTERNAL_VAULT_METADATA: &str = "x-external-vault-metadata";
+
+    /// Header key for sending the list of lineage ids
+    pub(crate) const UCS_LINEAGE_IDS: &str = "x-lineage-ids";
+
+    /// Header key for sending the merchant reference id to UCS
+    pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
 }
 
 /// Metrics for interactions with external systems.

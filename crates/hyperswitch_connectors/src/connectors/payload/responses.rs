@@ -32,7 +32,7 @@ pub enum AvsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayloadCardsResponseData {
-    pub amount: f64,
+    pub amount: Option<f64>,
     pub avs: Option<AvsResponse>,
     pub customer_id: Option<Secret<String>>,
     #[serde(rename = "id")]
@@ -47,14 +47,6 @@ pub struct PayloadCardsResponseData {
     pub status_message: Option<String>,
     #[serde(rename = "type")]
     pub response_type: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadCardResponse {
-    pub card_brand: String,
-    pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
-    pub card_type: String,
-    pub expiry: Secret<String>,
 }
 
 // Type definition for Refund Response
@@ -80,7 +72,7 @@ pub struct RefundsLedger {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PayloadRefundResponse {
-    pub amount: f64,
+    pub amount: Option<f64>,
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,

@@ -225,6 +225,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: false,
+            external_authentication_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -461,16 +464,12 @@ where
         for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type = api::GetToken::from(payment_method_type);
-            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &merchant_connector_account.connector_name.to_string(),
-                connector_type,
+            if let Ok(connector_data) = helpers::get_connector_data_with_token(
+                state,
+                merchant_connector_account.connector_name.to_string(),
                 Some(merchant_connector_account.get_id()),
-            )
-            .inspect_err(|err| {
-                logger::error!(session_token_error=?err);
-            }) {
+                payment_method_type,
+            ) {
                 #[cfg(feature = "v1")]
                 {
                     let new_session_connector_data = api::SessionConnectorData::new(
@@ -503,19 +502,5 @@ where
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
-    }
-}
-
-impl From<api_models::enums::PaymentMethodType> for api::GetToken {
-    fn from(value: api_models::enums::PaymentMethodType) -> Self {
-        match value {
-            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
-            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
-            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
-            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
-            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
-            api_models::enums::PaymentMethodType::AmazonPay => Self::AmazonPayMetadata,
-            _ => Self::Connector,
-        }
     }
 }

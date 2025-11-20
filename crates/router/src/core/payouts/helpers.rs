@@ -38,6 +38,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
+        self as router_types,
         api::{self, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
@@ -153,6 +154,7 @@ pub async fn make_payout_method_data(
                         expiry_month: resp.card_exp_month,
                         expiry_year: resp.card_exp_year,
                         card_holder_name: resp.name_on_card,
+                        card_network: None,
                     })
                 }))
             }
@@ -293,6 +295,7 @@ pub async fn save_payout_data_to_locker(
                     card_holder_name: card.card_holder_name.to_owned(),
                     card_exp_month: card.expiry_month.to_owned(),
                     card_exp_year: card.expiry_year.to_owned(),
+                    card_cvc: None,
                     nick_name: None,
                     card_issuing_country: None,
                     card_network: None,
@@ -385,7 +388,9 @@ pub async fn save_payout_data_to_locker(
                         Some(wallet.to_owned()),
                         api_enums::PaymentMethodType::foreign_from(wallet),
                     ),
-                    payouts::PayoutMethodData::Card(_) => {
+                    payouts::PayoutMethodData::Card(_)
+                    | payouts::PayoutMethodData::BankRedirect(_)
+                    | payouts::PayoutMethodData::Passthrough(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)?
                     }
                 }
@@ -654,6 +659,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 None,
+                Default::default(),
             )
             .await?,
         );
@@ -714,6 +720,7 @@ pub async fn save_payout_data_to_locker(
         // Update card's metadata in payment_methods table
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
+            last_modified_by: None,
         };
         payout_data.payment_method = Some(
             db.update_payment_method(
@@ -879,6 +886,9 @@ pub(super) async fn get_or_create_customer_details(
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    // TODO: Populate created_by from authentication context once it is integrated in auth data
+                    created_by: None,
+                    last_modified_by: None, // Same as created_by on creation
                 };
 
                 Ok(Some(
@@ -1516,7 +1526,7 @@ pub async fn get_additional_payout_data(
                 payout_additional::AdditionalPayoutMethodData::Card(Box::new(
                     payout_additional::CardAdditionalData {
                         card_issuer: None,
-                        card_network: None,
+                        card_network: card_data.card_network.clone(),
                         bank_code: None,
                         card_type: None,
                         card_issuing_country: None,
@@ -1538,6 +1548,16 @@ pub async fn get_additional_payout_data(
         api::PayoutMethodData::Wallet(wallet_data) => {
             Some(payout_additional::AdditionalPayoutMethodData::Wallet(
                 Box::new(wallet_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::BankRedirect(bank_redirect_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::BankRedirect(
+                Box::new(bank_redirect_data.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::Passthrough(passthrough) => {
+            Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
+                Box::new(passthrough.to_owned().into()),
             ))
         }
     }
@@ -1643,4 +1663,10 @@ pub async fn resolve_billing_address_for_payout(
 
         (None, None, None) => Ok((None, None)),
     }
+}
+
+pub fn should_continue_payout<F: Clone + 'static>(
+    router_data: &router_types::PayoutsRouterData<F>,
+) -> bool {
+    router_data.response.is_ok()
 }

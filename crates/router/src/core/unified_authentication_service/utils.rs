@@ -4,12 +4,15 @@ use common_enums::enums::PaymentMethod;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    business_profile,
     errors::api_error_response::ApiErrorResponse,
     ext_traits::OptionExt,
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
-    router_request_types::unified_authentication_service::UasAuthenticationResponseData,
+    router_request_types::unified_authentication_service::{
+        PostAuthenticationDetails, UasAuthenticationResponseData,
+    },
 };
 use masking::ExposeInterface;
 
@@ -20,9 +23,13 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
-        errors::{utils::ConnectorErrorExt, RouterResult},
+        errors::{
+            utils::{ConnectorErrorExt, StorageErrorExt},
+            RouterResult,
+        },
         payments,
     },
+    db::domain,
     services::{self, execute_connector_processing_step},
     types::{api, transformers::ForeignFrom},
     SessionState,
@@ -87,6 +94,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: address.unwrap_or_default(),
@@ -130,6 +138,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 
@@ -223,6 +232,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_request: authentication_details
                             .authn_flow_type
                             .get_challenge_request(),
+                        challenge_request_key: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request_key(),
                         acs_reference_number: authentication_details
                             .authn_flow_type
                             .get_acs_reference_number(),
@@ -353,5 +365,133 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
         } else {
             Ok(())
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_auth_multi_token_from_external_vault<F, Req>(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    business_profile: &domain::Profile,
+    router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
+) -> RouterResult<Option<api_models::authentication::AuthenticationVaultTokenData>> {
+    if let Ok(UasAuthenticationResponseData::PostAuthentication {
+        authentication_details,
+    }) = router_data.response.clone()
+    {
+        let key_manager_state = state.into();
+
+        match business_profile.external_vault_details.clone() {
+            business_profile::ExternalVaultDetails::ExternalVaultEnabled(
+                external_vault_details,
+            ) => {
+                let external_vault_mca_id = external_vault_details.vault_connector_id.clone();
+
+                let merchant_connector_account_details = state
+                    .store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        &key_manager_state,
+                        merchant_context.get_merchant_account().get_id(),
+                        &external_vault_mca_id,
+                        merchant_context.get_merchant_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    })?;
+
+                let vault_data = get_vault_details(authentication_details)?;
+
+                let external_vault_response = Box::pin(
+                    crate::core::payment_methods::vault_payment_method_external_v1(
+                        state,
+                        &vault_data,
+                        merchant_context.get_merchant_account(),
+                        merchant_connector_account_details,
+                        Some(true),
+                    ),
+                )
+                .await?;
+
+                Ok(Some(
+                    external_vault_response
+                        .vault_id
+                        .get_auth_vault_token_data()?,
+                ))
+            }
+            business_profile::ExternalVaultDetails::Skip => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("External Vault Details are missing")
+            }
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v1")]
+fn get_vault_details(
+    auth_details: PostAuthenticationDetails,
+) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
+    // if raw card details are present, it have the highest priority
+    // if network_token details are present, then it is returned if raw card details are not present
+    // throw error if both are not present
+    match (auth_details.raw_card_details, auth_details.token_details) {
+        (Some(card_details), _) => Ok(
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
+                api_models::payment_methods::CardDetail {
+                    card_number: card_details.pan.clone(),
+                    card_exp_month: card_details.expiration_month,
+                    card_exp_year: card_details.expiration_year,
+                    card_cvc: card_details.card_security_code,
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    card_holder_name: None,
+                    nick_name: None,
+                },
+            ),
+        ),
+        (None, Some(token_data)) => {
+            let cryptogram = auth_details
+                .dynamic_data_details
+                .and_then(|dynamic_data| dynamic_data.dynamic_data_value);
+
+            Ok(
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                    hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
+                        network_token: token_data.payment_token.clone().to_network_token(),
+                        network_token_exp_month: token_data.token_expiration_month.clone(),
+                        network_token_exp_year: token_data.token_expiration_year.clone(),
+                        cryptogram,
+                        card_issuer: None,
+                        card_network: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        card_holder_name: None,
+                        nick_name: None,
+                    },
+                ),
+            )
+        }
+        (None, None) => Err(ApiErrorResponse::MissingRequiredField {
+            field_name: "Either Card or Network Token details",
+        }
+        .into()),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn get_raw_authentication_token_data<F, Req>(
+    router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
+) -> Option<api_models::authentication::AuthenticationVaultTokenData> {
+    if let Ok(UasAuthenticationResponseData::PostAuthentication {
+        authentication_details,
+    }) = router_data.response.clone()
+    {
+        authentication_details.into()
+    } else {
+        None
     }
 }

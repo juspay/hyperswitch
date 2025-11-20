@@ -259,7 +259,6 @@ impl<'a> ToSchema<'a> for ApiKeyExpiration {
 
 #[cfg(test)]
 mod api_key_expiration_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

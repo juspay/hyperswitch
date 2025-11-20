@@ -20,13 +20,17 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
-pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::{
+pub use hyperswitch_interfaces::{
+    configs::{
+        Connectors, GlobalTenant, InternalMerchantIdProfileIdAuthSettings, InternalServicesConfig,
+        Tenant, TenantUserConfig,
+    },
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
-    types::Proxy,
+    types::{ComparisonServiceConfig, Proxy},
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
@@ -71,7 +75,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: ChatSettings,
+    pub chat: SecretStateContainer<ChatSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -163,11 +167,16 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub trace_header: TraceHeaderConfig,
+    pub internal_services: InternalServicesConfig,
+    pub comparison_service: Option<ComparisonServiceConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -207,6 +216,7 @@ pub struct Platform {
 pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
+    pub encryption_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -326,68 +336,6 @@ impl TenantConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct L2L3DataConfig {
     pub enabled: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct Tenant {
-    pub tenant_id: id_type::TenantId,
-    pub base_url: String,
-    pub schema: String,
-    pub accounts_schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-    pub user: TenantUserConfig,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct TenantUserConfig {
-    pub control_center_url: String,
-}
-
-impl storage_impl::config::TenantConfig for Tenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.accounts_schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
-}
-
-// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
-#[derive(Debug, Deserialize, Clone)]
-pub struct GlobalTenant {
-    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
-    pub tenant_id: id_type::TenantId,
-    pub schema: String,
-    pub redis_key_prefix: String,
-    pub clickhouse_database: String,
-}
-// Todo: Global tenant should not be part of tenant config
-impl storage_impl::config::TenantConfig for GlobalTenant {
-    fn get_tenant_id(&self) -> &id_type::TenantId {
-        &self.tenant_id
-    }
-    fn get_accounts_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_schema(&self) -> &str {
-        self.schema.as_str()
-    }
-    fn get_redis_key_prefix(&self) -> &str {
-        self.redis_key_prefix.as_str()
-    }
-    fn get_clickhouse_database(&self) -> &str {
-        self.clickhouse_database.as_str()
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -532,8 +480,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -637,6 +583,7 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,
     pub flow: Option<PaymentFlow>,
 }
 
@@ -649,6 +596,14 @@ pub enum PaymentFlow {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
     NetworkTokenization,
@@ -854,6 +809,22 @@ pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct TraceHeaderConfig {
+    pub header_name: String,
+    pub id_reuse_strategy: router_env::IdReuse,
+}
+
+impl Default for TraceHeaderConfig {
+    fn default() -> Self {
+        Self {
+            header_name: common_utils::consts::X_REQUEST_ID.to_string(),
+            id_reuse_strategy: router_env::IdReuse::IgnoreIncoming,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct WebhooksSettings {
@@ -1048,8 +1019,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.validate()?;
-
+        self.chat.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1123,6 +1093,11 @@ impl Settings<SecuredSecret> {
             .as_ref()
             .map(|config| config.validate())
             .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition
+            .get_inner()
+            .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
@@ -1437,7 +1412,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::{HashMap, HashSet};
 
     use serde::de::{
@@ -1530,7 +1504,6 @@ mod hashmap_deserialization_test {
 
 #[cfg(test)]
 mod hashset_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::HashSet;
 
     use serde::de::{

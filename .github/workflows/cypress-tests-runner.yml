@@ -192,7 +192,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "9f00461f-5a48-4f9c-aa8c-3510e4cb7d9c.json.gpg"
+          S3_SOURCE_FILE_NAME: "2e7d93b7-df43-446e-afb4-f822e3265fc5.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -489,6 +489,8 @@ jobs:
     runs-on: hyperswitch-runners
     env:
       CODECOV_FILE: "lcov.info"
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -566,7 +568,13 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview
+          components: llvm-tools-preview, rustfmt
+
+      - name: Install Protoc
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -655,13 +663,13 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          PAYMENTS_CONNECTORS: ${{ env.PAYMENTS_CONNECTORS }}
         shell: bash -leuo pipefail {0}
-        continue-on-error: true
         # We aren't specifying `command` and `jobs` arguments currently
         run: scripts/execute_cypress.sh "" "" "cypress-tests-v2"
 
       - name: Stop running server
-        if: ${{ env.RUN_TESTS == 'true' }} && always()
+        if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
         run: |
           kill "${{ env.PID }}"
 
@@ -680,12 +688,12 @@ jobs:
       #   to process the generated `.profraw` files.
       # - --keep-only argument is used to exclude external crates in generated lcov.info file (~500MiB -> ~70MiB)
       - name: Process coverage report
-        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' }}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
         run: grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --keep-only "crates/*"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group'}}
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
