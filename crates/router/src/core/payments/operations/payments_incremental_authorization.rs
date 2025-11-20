@@ -44,7 +44,7 @@ impl<F: Send + Clone + Sync>
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -56,20 +56,18 @@ impl<F: Send + Clone + Sync>
         >,
     > {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -120,8 +118,7 @@ impl<F: Send + Clone + Sync>
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 profile_id,
             )
             .await
@@ -266,7 +263,6 @@ impl<F: Clone + Sync>
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {
                     authorization_count: new_authorization_count,
@@ -300,7 +296,7 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
@@ -308,9 +304,9 @@ impl<F: Send + Clone + Sync>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -365,7 +361,7 @@ impl<F: Clone + Send + Sync>
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         state: &SessionState,
         _request: &PaymentsIncrementalAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -377,7 +373,7 @@ impl<F: Clone + Send + Sync>
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

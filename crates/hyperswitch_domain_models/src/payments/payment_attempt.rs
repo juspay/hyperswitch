@@ -78,7 +78,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -95,7 +94,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
@@ -130,7 +128,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -147,7 +144,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
@@ -174,7 +170,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -183,7 +178,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        state: &KeyManagerState,
         payment_id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -498,7 +492,7 @@ pub struct PaymentAttempt {
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
@@ -1052,7 +1046,7 @@ pub struct PaymentAttempt {
     pub issuer_error_message: Option<String>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
@@ -1369,7 +1363,7 @@ pub struct PaymentAttemptNew {
     pub card_discovery: Option<common_enums::CardDiscovery>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
-    /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
+    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
@@ -2243,7 +2237,7 @@ impl behaviour::Conversion for PaymentAttempt {
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
@@ -2445,7 +2439,7 @@ impl behaviour::Conversion for PaymentAttempt {
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
@@ -2623,7 +2617,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|cb| cb.to_string()),
+            created_by: created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id,
             network_transaction_id,
             is_overcapture_enabled: None,
@@ -2914,7 +2908,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|cb| cb.to_string()),
+            created_by: created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id,
             network_details: None,
             tokenization: None,
