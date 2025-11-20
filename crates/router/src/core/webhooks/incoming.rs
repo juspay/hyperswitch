@@ -1668,10 +1668,10 @@ enum PaoyoutWebhookAction {
 // if source verified, update the payout attempt and trigger outgoing webhook
 // if not source verified, do a payout retrieve call and update the status
 fn get_payout_webhook_action(
-    is_terminal_status: bool,
+    is_non_terminal_status: bool,
     is_source_verified: bool,
 ) -> PaoyoutWebhookAction {
-    match (is_terminal_status, is_source_verified) {
+    match (is_non_terminal_status, is_source_verified) {
         (true, true) => PaoyoutWebhookAction::UpdateStatus,
         (true, false) => PaoyoutWebhookAction::RetrieveStatus,
         (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
