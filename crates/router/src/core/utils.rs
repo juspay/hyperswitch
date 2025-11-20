@@ -12,7 +12,7 @@ use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
     ext_traits::AsyncExt,
-    types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
+    types::{ConnectorTransactionIdTrait, MinorUnit},
 };
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
@@ -1844,7 +1844,6 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -1852,7 +1851,6 @@ pub async fn validate_and_get_business_profile(
     profile_id
         .async_map(|profile_id| async {
             db.find_business_profile_by_merchant_id_profile_id(
-                key_manager_state,
                 merchant_key_store,
                 merchant_id,
                 profile_id,
@@ -1910,7 +1908,6 @@ pub fn get_connector_label(
 /// or return a `MissingRequiredField` error
 #[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
-    key_manager_state: &KeyManagerState,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     platform: &domain::Platform,
@@ -1929,7 +1926,6 @@ pub async fn get_profile_id_from_business_details(
             if should_validate {
                 let _ = validate_and_get_business_profile(
                     db,
-                    key_manager_state,
                     platform.get_processor().get_key_store(),
                     Some(profile_id),
                     platform.get_processor().get_account().get_id(),
@@ -1943,7 +1939,6 @@ pub async fn get_profile_id_from_business_details(
                 let profile_name = format!("{business_country}_{business_label}");
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
-                        key_manager_state,
                         platform.get_processor().get_key_store(),
                         &profile_name,
                         platform.get_processor().get_account().get_id(),

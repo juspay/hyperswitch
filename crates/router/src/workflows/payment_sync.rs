@@ -52,10 +52,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -66,7 +64,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -179,7 +176,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                     payment_data.payment_intent = db
                         .update_payment_intent(
-                            &state.into(),
                             payment_data.payment_intent,
                             payment_intent_update,
                             &key_store,
@@ -197,11 +193,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(
-                            key_manager_state,
-                            &key_store,
-                            profile_id,
-                        )
+                        .find_business_profile_by_profile_id(&key_store, profile_id)
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                             id: profile_id.get_string_repr().to_owned(),
