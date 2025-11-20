@@ -2448,24 +2448,21 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
         // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
         if from_metadata.is_some() && item.request.split_payments.is_some() {
             let mut mit_charge_type = None;
-            let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
             if let Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) =
                 item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
-                mit_application_fees = stripe_split_payment.application_fees;
                 mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
             }
 
             if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
-                || mit_application_fees != from_metadata.as_ref().and_then(|m| m.application_fees)
                 || mit_transfer_account_id
                     != from_metadata
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone())
             {
-                let mismatched_fields = ["transfer_account_id", "application_fees", "charge_type"];
+                let mismatched_fields = ["transfer_account_id", "charge_type"];
 
                 let field_str = mismatched_fields.join(", ");
                 return Err(error_stack::Report::from(
