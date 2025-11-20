@@ -577,10 +577,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Volt {
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors.volt.secondary_base_url.clone();
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/payments/{connector_payment_id}/request-refund",
-            self.base_url(connectors),
+            "{base_url}/payments/{connector_payment_id}/request-refund",
         ))
     }
 
