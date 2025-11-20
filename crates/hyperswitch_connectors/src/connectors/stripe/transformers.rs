@@ -2463,10 +2463,8 @@ pub fn get_stripe_compatible_connect_account_header(
 
         // Only MIT : when no split payments is provided, uses previous transfer_account_id
         (Some(cit), _) => {
-            if split_payment_object.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                Some(cit.transfer_account_id.clone())
+            if cit.charge_type == Some(PaymentChargeType::Stripe(StripeChargeType::Direct)) {
+                cit.transfer_account_id.clone()
             } else {
                 None
             }
