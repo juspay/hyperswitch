@@ -41,15 +41,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         _request: &api::PaymentsCaptureRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
     > {
         let db = &*state.store;
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (mut payment_intent, payment_attempt, currency, amount);
 
         let payment_id = payment_id
@@ -60,7 +60,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -82,7 +82,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 profile_id,
             )
             .await
@@ -107,30 +107,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
             state,
             payment_attempt.payment_method_billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -138,11 +138,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
         let frm_response = if cfg!(feature = "frm") {
-            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_context.get_merchant_account().get_id().clone())
+            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), platform.get_processor().get_account().get_id().clone())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_context.get_merchant_account().get_id().get_string_repr())
+                    format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", platform.get_processor().get_account().get_id().get_string_repr())
                 })
                 .ok()
         } else {
@@ -286,11 +286,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCaptureRequest, Pay
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(PaymentApproveOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             request_merchant_id,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -301,9 +301,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCaptureRequest, Pay
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.clone()),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))

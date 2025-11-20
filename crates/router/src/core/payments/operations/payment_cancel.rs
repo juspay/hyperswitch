@@ -41,7 +41,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -49,8 +49,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
     > {
         let db = &*state.store;
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -59,7 +59,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -90,30 +90,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
             state,
             payment_attempt.payment_method_billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -134,7 +134,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     mcd,
                 )
                 .await
@@ -151,7 +151,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 profile_id,
             )
             .await
@@ -310,14 +310,14 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelRequest, Paym
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(PaymentCancelOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))

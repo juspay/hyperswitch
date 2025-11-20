@@ -74,13 +74,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
 
         let payment_id = payment_id
@@ -96,7 +96,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 &m_merchant_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -160,7 +160,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let store = state.store.clone();
-        let key_store_clone = merchant_context.get_merchant_key_store().clone();
+        let key_store_clone = platform.get_processor().get_key_store().clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
@@ -204,7 +204,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = platform.get_processor().get_key_store().clone();
         let session_state = state.clone();
 
         let shipping_address_fut = tokio::spawn(
@@ -232,7 +232,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = platform.get_processor().get_key_store().clone();
         let session_state = state.clone();
 
         let billing_address_fut = tokio::spawn(
@@ -330,7 +330,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             payment_intent,
                             payment_attempt,
                             state,
-                            merchant_context.get_merchant_key_store(),
+                            platform.get_processor().get_key_store(),
                             storage_scheme,
                         )
                         .await?;
@@ -505,7 +505,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.billing.clone());
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = platform.get_processor().get_key_store().clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_merchant_id = merchant_id.clone();
         let session_state = state.clone();
@@ -543,7 +543,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let m_state = state.clone();
         let m_mandate_type = mandate_type;
-        let m_merchant_context = merchant_context.clone();
+        let m_platform = platform.clone();
         let m_request = request.clone();
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
@@ -554,7 +554,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_state,
                     &m_request,
                     m_mandate_type,
-                    &m_merchant_context,
+                    &m_platform,
                     None,
                     payment_intent_customer_id.as_ref(),
                 ))
@@ -606,7 +606,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 &token_data,
                 storage_scheme,
             )
@@ -967,7 +967,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -982,7 +982,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1618,10 +1618,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, merchant_context, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(state, platform, payment_data).await
     }
 
     #[instrument(skip_all)]
@@ -2181,7 +2181,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(PaymentConfirmOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
@@ -2191,7 +2191,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             request_merchant_id,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -2234,9 +2234,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id,
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)

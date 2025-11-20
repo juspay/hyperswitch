@@ -152,9 +152,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
                     .await?;
 
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(merchant_account.clone(), key_store.clone()),
-                ));
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account.clone(),
+                    key_store.clone(),
+                );
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
@@ -177,7 +180,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &merchant_context,
+                            &platform,
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -369,10 +372,12 @@ async fn get_outgoing_webhook_content_and_event_type(
         types::{api::PSync, transformers::ForeignFrom},
     };
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
 
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
@@ -402,7 +407,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             >(
                 state,
                 req_state,
-                merchant_context.clone(),
+                platform.clone(),
                 None,
                 PaymentStatus,
                 request,
@@ -450,7 +455,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let (refund, _) = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
-                merchant_context.clone(),
+                platform.clone(),
                 None,
                 request,
             ))
@@ -472,49 +477,11 @@ async fn get_outgoing_webhook_content_and_event_type(
                 force_sync: None,
             };
 
-            let dispute_response = match Box::pin(retrieve_dispute(
-                state,
-                merchant_context.clone(),
-                None,
-                request,
-            ))
-            .await?
-            {
-                ApplicationResponse::Json(dispute_response)
-                | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
-                    Ok(dispute_response)
-                }
-                ApplicationResponse::StatusOk
-                | ApplicationResponse::TextPlain(_)
-                | ApplicationResponse::JsonForRedirection(_)
-                | ApplicationResponse::Form(_)
-                | ApplicationResponse::GenericLinkForm(_)
-                | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
-                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                        resource_name: tracking_data.primary_object_id.clone(),
-                    })
-                }
-            }
-            .map(Box::new)?;
-            let event_type = Some(EventType::from(dispute_response.dispute_status));
-            logger::debug!(current_resource_status=%dispute_response.dispute_status);
-
-            Ok((
-                OutgoingWebhookContent::DisputeDetails(dispute_response),
-                event_type,
-            ))
-        }
-
-        diesel_models::enums::EventClass::Mandates => {
-            let mandate_id = tracking_data.primary_object_id.clone();
-            let request = MandateId { mandate_id };
-
-            let mandate_response =
-                match get_mandate(state, merchant_context.clone(), request).await? {
-                    ApplicationResponse::Json(mandate_response)
-                    | ApplicationResponse::JsonWithHeaders((mandate_response, _)) => {
-                        Ok(mandate_response)
+            let dispute_response =
+                match Box::pin(retrieve_dispute(state, platform.clone(), None, request)).await? {
+                    ApplicationResponse::Json(dispute_response)
+                    | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
+                        Ok(dispute_response)
                     }
                     ApplicationResponse::StatusOk
                     | ApplicationResponse::TextPlain(_)
@@ -529,6 +496,37 @@ async fn get_outgoing_webhook_content_and_event_type(
                     }
                 }
                 .map(Box::new)?;
+            let event_type = Some(EventType::from(dispute_response.dispute_status));
+            logger::debug!(current_resource_status=%dispute_response.dispute_status);
+
+            Ok((
+                OutgoingWebhookContent::DisputeDetails(dispute_response),
+                event_type,
+            ))
+        }
+
+        diesel_models::enums::EventClass::Mandates => {
+            let mandate_id = tracking_data.primary_object_id.clone();
+            let request = MandateId { mandate_id };
+
+            let mandate_response = match get_mandate(state, platform.clone(), request).await? {
+                ApplicationResponse::Json(mandate_response)
+                | ApplicationResponse::JsonWithHeaders((mandate_response, _)) => {
+                    Ok(mandate_response)
+                }
+                ApplicationResponse::StatusOk
+                | ApplicationResponse::TextPlain(_)
+                | ApplicationResponse::JsonForRedirection(_)
+                | ApplicationResponse::Form(_)
+                | ApplicationResponse::GenericLinkForm(_)
+                | ApplicationResponse::PaymentLinkForm(_)
+                | ApplicationResponse::FileData(_) => {
+                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                        resource_name: tracking_data.primary_object_id.clone(),
+                    })
+                }
+            }
+            .map(Box::new)?;
             let event_type: Option<EventType> = mandate_response.status.into();
             logger::debug!(current_resource_status=%mandate_response.status);
 
@@ -548,7 +546,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let payout_data = Box::pin(payouts::make_payout_data(
                 &state,
-                &merchant_context,
+                &platform,
                 None,
                 &request,
                 DEFAULT_LOCALE,
@@ -556,7 +554,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             .await?;
 
             let payout_create_response =
-                payouts::response_handler(&state, &merchant_context, &payout_data).await?;
+                payouts::response_handler(&state, &platform, &payout_data).await?;
 
             let event_type: Option<EventType> = payout_data.payout_attempt.status.into();
             logger::debug!(current_resource_status=%payout_data.payout_attempt.status);

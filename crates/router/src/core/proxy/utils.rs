@@ -123,13 +123,13 @@ impl ProxyRecord {
     pub async fn get_vault_data(
         &self,
         state: &SessionState,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
     ) -> RouterResult<Value> {
         match self {
             Self::PaymentMethodRecord(_) => {
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
                     state,
-                    &merchant_context,
+                    &platform,
                     &self.get_vault_id()?,
                     &self.get_customer_id(),
                 )

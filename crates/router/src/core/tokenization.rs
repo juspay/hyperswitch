@@ -97,7 +97,7 @@ pub async fn create_vault_token_core(
 #[instrument(skip_all)]
 pub async fn delete_tokenized_data_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     token_id: &id_type::GlobalTokenId,
     payload: api_models::tokenization::DeleteTokenDataRequest,
 ) -> RouterResponse<api_models::tokenization::DeleteTokenDataResponse> {
@@ -105,7 +105,10 @@ pub async fn delete_tokenized_data_core(
 
     // Retrieve the tokenization record
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(token_id, merchant_context.get_merchant_key_store())
+        .get_entity_id_vault_id_by_token_id(
+            token_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound {
             id: token_id.get_string_repr().to_string(),
@@ -132,7 +135,7 @@ pub async fn delete_tokenized_data_core(
     //delete card from vault
     pm_vault::delete_payment_method_data_from_vault_internal(
         &state,
-        &merchant_context,
+        &platform,
         vault_id,
         &tokenization_record.customer_id,
     )
@@ -147,7 +150,7 @@ pub async fn delete_tokenized_data_core(
     db.update_tokenization_record(
         tokenization_record,
         tokenization_update,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

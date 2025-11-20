@@ -55,15 +55,17 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             .find_merchant_account_by_merchant_id(&tracking_data.merchant_id.clone(), &key_store)
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account,
+            key_store,
+        );
 
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 &tracking_data.profile_id,
             )
             .await?;
@@ -96,7 +98,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
 
         let response = Box::pin(disputes::fetch_disputes_from_connector(
             state.clone(),
-            merchant_context,
+            platform,
             tracking_data.merchant_connector_id,
             hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
                 created_from: tracking_data.created_from,

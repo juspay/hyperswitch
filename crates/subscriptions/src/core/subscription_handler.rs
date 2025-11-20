@@ -9,7 +9,7 @@ use common_utils::{consts, ext_traits::OptionExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     customer, merchant_connector_account,
-    merchant_context::MerchantContext,
+    platform::Platform,
     router_response_types::{self, subscriptions as subscription_response_types},
     subscription::{Subscription, SubscriptionStatus},
 };
@@ -25,15 +25,12 @@ use crate::{
 
 pub struct SubscriptionHandler<'a> {
     pub state: &'a SessionState,
-    pub merchant_context: &'a MerchantContext,
+    pub platform: &'a Platform,
 }
 
 impl<'a> SubscriptionHandler<'a> {
-    pub fn new(state: &'a SessionState, merchant_context: &'a MerchantContext) -> Self {
-        Self {
-            state,
-            merchant_context,
-        }
+    pub fn new(state: &'a SessionState, platform: &'a Platform) -> Self {
+        Self { state, platform }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -60,11 +57,7 @@ impl<'a> SubscriptionHandler<'a> {
             merchant_connector_id: Some(merchant_connector_id),
             client_secret: None,
             connector_subscription_id: None,
-            merchant_id: self
-                .merchant_context
-                .get_merchant_account()
-                .get_id()
-                .clone(),
+            merchant_id: self.platform.get_processor().get_account().get_id().clone(),
             customer_id: customer_id.clone(),
             metadata: None,
             created_at: common_utils::date_time::now(),
@@ -77,7 +70,7 @@ impl<'a> SubscriptionHandler<'a> {
 
         subscription.generate_and_set_client_secret();
 
-        let merchant_key_store = self.merchant_context.get_merchant_key_store();
+        let merchant_key_store = self.platform.get_processor().get_key_store();
         let new_subscription = db
             .insert_subscription_entry(merchant_key_store, subscription)
             .await
@@ -87,18 +80,18 @@ impl<'a> SubscriptionHandler<'a> {
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription: new_subscription,
-            merchant_account: self.merchant_context.get_merchant_account().clone(),
+            merchant_account: self.platform.get_processor().get_account().clone(),
         })
     }
 
     /// Helper function to find and validate customer.
     pub async fn find_customer(
         state: &SessionState,
-        merchant_context: &MerchantContext,
+        platform: &Platform,
         customer_id: &common_utils::id_type::CustomerId,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let merchant_key_store = merchant_context.get_merchant_key_store();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_key_store = platform.get_processor().get_key_store();
+        let merchant_id = platform.get_processor().get_account().get_id();
 
         state
             .store
@@ -106,7 +99,7 @@ impl<'a> SubscriptionHandler<'a> {
                 customer_id,
                 merchant_id,
                 merchant_key_store,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
@@ -114,7 +107,7 @@ impl<'a> SubscriptionHandler<'a> {
     }
     pub async fn update_connector_customer_id_in_customer(
         state: &SessionState,
-        merchant_context: &MerchantContext,
+        platform: &Platform,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         customer: &customer::Customer,
         customer_create_response: Option<router_response_types::ConnectorCustomerResponseData>,
@@ -128,14 +121,13 @@ impl<'a> SubscriptionHandler<'a> {
                 )
                 .await
                 {
-                    Some(customer_update) => Self::update_customer(
-                        state,
-                        merchant_context,
-                        customer.clone(),
-                        customer_update,
-                    )
-                    .await
-                    .attach_printable("Failed to update customer with connector customer ID"),
+                    Some(customer_update) => {
+                        Self::update_customer(state, platform, customer.clone(), customer_update)
+                            .await
+                            .attach_printable(
+                                "Failed to update customer with connector customer ID",
+                            )
+                    }
                     None => Ok(customer.clone()),
                 }
             }
@@ -145,12 +137,12 @@ impl<'a> SubscriptionHandler<'a> {
 
     pub async fn update_customer(
         state: &SessionState,
-        merchant_context: &MerchantContext,
+        platform: &Platform,
         customer: customer::Customer,
         customer_update: customer::CustomerUpdate,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let merchant_key_store = merchant_context.get_merchant_key_store();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_key_store = platform.get_processor().get_key_store();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let db = state.store.as_ref();
 
         let updated_customer = db
@@ -160,7 +152,7 @@ impl<'a> SubscriptionHandler<'a> {
                 customer,
                 customer_update,
                 merchant_key_store,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -172,10 +164,10 @@ impl<'a> SubscriptionHandler<'a> {
     /// Helper function to find business profile.
     pub async fn find_business_profile(
         state: &SessionState,
-        merchant_context: &MerchantContext,
+        platform: &Platform,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::business_profile::Profile> {
-        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_key_store = platform.get_processor().get_key_store();
 
         state
             .store
@@ -191,14 +183,14 @@ impl<'a> SubscriptionHandler<'a> {
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
     ) -> errors::SubscriptionResult<()> {
         let subscription_id = client_secret.get_subscription_id()?;
-        let key_store = self.merchant_context.get_merchant_key_store();
+        let key_store = self.platform.get_processor().get_key_store();
 
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
                 key_store,
-                self.merchant_context.get_merchant_account().get_id(),
+                self.platform.get_processor().get_account().get_id(),
                 subscription_id.to_string(),
             )
             .await
@@ -250,8 +242,8 @@ impl<'a> SubscriptionHandler<'a> {
             .state
             .store
             .find_by_merchant_id_subscription_id(
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().get_id(),
+                self.platform.get_processor().get_key_store(),
+                self.platform.get_processor().get_account().get_id(),
                 subscription_id.get_string_repr().to_string().clone(),
             )
             .await
@@ -265,7 +257,7 @@ impl<'a> SubscriptionHandler<'a> {
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription,
-            merchant_account: self.merchant_context.get_merchant_account().clone(),
+            merchant_account: self.platform.get_processor().get_account().clone(),
         })
     }
 }
@@ -331,11 +323,8 @@ impl SubscriptionWithHandler<'_> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
-                self.handler.merchant_context.get_merchant_key_store(),
-                self.handler
-                    .merchant_context
-                    .get_merchant_account()
-                    .get_id(),
+                self.handler.platform.get_processor().get_key_store(),
+                self.handler.platform.get_processor().get_account().get_id(),
                 self.subscription.id.get_string_repr().to_string(),
                 subscription_update,
             )
@@ -360,8 +349,9 @@ impl SubscriptionWithHandler<'_> {
             profile,
             merchant_key_store: self
                 .handler
-                .merchant_context
-                .get_merchant_key_store()
+                .platform
+                .get_processor()
+                .get_key_store()
                 .clone(),
         }
     }
@@ -371,19 +361,15 @@ impl SubscriptionWithHandler<'_> {
     ) -> CustomResult<merchant_connector_account::MerchantConnectorAccount, errors::ApiErrorResponse>
     {
         let db = self.handler.state.store.as_ref();
-        let key_store = self.handler.merchant_context.get_merchant_key_store();
 
         match &self.subscription.merchant_connector_id {
             Some(merchant_connector_id) => {
                 #[cfg(feature = "v1")]
                 {
                     db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        self.handler
-                            .merchant_context
-                            .get_merchant_account()
-                            .get_id(),
+                        self.handler.platform.get_processor().get_account().get_id(),
                         merchant_connector_id,
-                        key_store,
+                        self.handler.platform.get_processor().get_key_store(),
                     )
                     .await
                     .to_not_found_response(
@@ -400,7 +386,7 @@ impl SubscriptionWithHandler<'_> {
                     db.find_merchant_connector_account_by_profile_id_connector_name(
                         &self.subscription.profile_id,
                         connector_name,
-                        key_store,
+                        self.handler.platform.get_processor().get_key_store(),
                     )
                     .await
                     .to_not_found_response(

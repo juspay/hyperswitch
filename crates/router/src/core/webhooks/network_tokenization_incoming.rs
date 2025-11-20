@@ -90,7 +90,7 @@ pub trait NetworkTokenWebhookResponseExt {
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse>;
 }
 
@@ -124,7 +124,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
         handle_metadata_update(
@@ -137,7 +137,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Locker id is not found for the payment method")?,
             payment_method,
-            merchant_context,
+            platform,
             decrypted_data,
             true,
         )
@@ -175,7 +175,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
         handle_metadata_update(
@@ -188,7 +188,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Locker id is not found for the payment method")?,
             payment_method,
-            merchant_context,
+            platform,
             decrypted_data,
             true,
         )
@@ -241,11 +241,11 @@ pub async fn handle_metadata_update(
     metadata: &pm_types::NetworkTokenRequestorData,
     locker_id: String,
     payment_method: &domain::PaymentMethod,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     decrypted_data: api::payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
     let customer_id = &payment_method.customer_id;
     let payment_method_id = payment_method.get_id().clone();
     let status = payment_method.status;
@@ -287,10 +287,7 @@ pub async fn handle_metadata_update(
             let payment_method_request: api::payment_methods::PaymentMethodCreate =
                 PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
-            let pm_cards = cards::PmCards {
-                state,
-                merchant_context,
-            };
+            let pm_cards = cards::PmCards { state, platform };
 
             pm_cards
                 .delete_card_from_locker(customer_id, merchant_id, &locker_id)
@@ -315,7 +312,7 @@ pub async fn handle_metadata_update(
                 .async_map(|pm_card| {
                     cards::create_encrypted_data(
                         &key_manager_state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         pm_card,
                     )
                 })
@@ -354,10 +351,10 @@ pub async fn handle_metadata_update(
             let db = &*state.store;
 
             db.update_payment_method(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 payment_method.clone(),
                 pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -411,7 +408,7 @@ impl PaymentMethodCreateWrapper {
 pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-) -> RouterResult<domain::MerchantContext> {
+) -> RouterResult<domain::Platform> {
     let db = &*state.store;
 
     let key_store = state
@@ -430,12 +427,14 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
         merchant_account.clone(),
+        key_store.clone(),
+        merchant_account,
         key_store,
-    )));
+    );
 
-    Ok(merchant_context)
+    Ok(platform)
 }
 
 pub async fn fetch_payment_method_for_network_token_webhooks(

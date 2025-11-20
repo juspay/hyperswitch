@@ -39,7 +39,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     mut connector_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
@@ -87,7 +87,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -102,7 +102,7 @@ where
             original_connector_data,
             operation,
             customer,
-            merchant_context,
+            platform,
             payment_data,
             router_data,
             validate_result,
@@ -129,7 +129,7 @@ where
                     retries = get_retries(
                         state,
                         retries,
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         business_profile,
                     )
                     .await;
@@ -206,7 +206,7 @@ where
                         &connector,
                         operation,
                         customer,
-                        merchant_context,
+                        platform,
                         payment_data,
                         router_data,
                         validate_result,
@@ -344,7 +344,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     connector: &'a api::ConnectorData,
     operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
     customer: &'a Option<domain::Customer>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
@@ -374,8 +374,8 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        platform.get_processor().get_key_store(),
+        platform.get_processor().get_account().storage_scheme,
         router_data,
         is_step_up,
     )
@@ -384,7 +384,7 @@ where
     let (merchant_connector_account, router_data, tokenization_action) =
         payments::call_connector_service_prerequisites(
             state,
-            merchant_context,
+            platform,
             connector.clone(),
             operation,
             payment_data,
@@ -399,7 +399,7 @@ where
     let (router_data, _mca) = payments::decide_unified_connector_service_call(
         state,
         req_state,
-        merchant_context,
+        platform,
         connector.clone(),
         operation,
         payment_data,

@@ -456,7 +456,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
@@ -493,9 +493,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                                    merchant_context.get_merchant_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
                                     mca_id,
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                 )
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -529,7 +529,7 @@ pub async fn get_token_pm_type_mandate_details(
                             let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                                 state,
                                 request,
-                                merchant_context,
+                                platform,
                                 mandate_id.to_owned(),
                             ))
                             .await?;
@@ -550,9 +550,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                     payment_method_id,
-                                    merchant_context.get_merchant_account().storage_scheme,
+                                    platform.get_processor().get_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -564,7 +564,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                             verify_mandate_details_for_recurring_payments(
                                 &payment_method_info.merchant_id,
-                                merchant_context.get_merchant_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 &payment_method_info.customer_id,
                                 customer_id,
                             )?;
@@ -584,10 +584,7 @@ pub async fn get_token_pm_type_mandate_details(
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
                         let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                            state,
-                            request,
-                            merchant_context,
-                            mandate_id,
+                            state, request, platform, mandate_id,
                         ))
                         .await?;
                         (
@@ -616,9 +613,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                     customer_id,
-                                    merchant_context.get_merchant_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -671,9 +668,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        merchant_context.get_merchant_key_store(),
+                                        platform.get_processor().get_key_store(),
                                         &payment_method_id,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        platform.get_processor().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -701,9 +698,9 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            merchant_context.get_merchant_key_store(),
+                            platform.get_processor().get_key_store(),
                             &payment_method_id,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -736,16 +733,16 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &SessionState,
     req: &api::PaymentsRequest,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     mandate_id: String,
 ) -> RouterResult<MandateGenericData> {
     let db = &*state.store;
 
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             mandate_id.as_str(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -756,8 +753,8 @@ pub async fn get_token_for_recurring_mandate(
             db.find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -774,7 +771,7 @@ pub async fn get_token_for_recurring_mandate(
                 &payment_intent.payment_id,
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -812,9 +809,9 @@ pub async fn get_token_for_recurring_mandate(
 
     let payment_method = db
         .find_payment_method(
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             payment_method_id.as_str(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -832,7 +829,7 @@ pub async fn get_token_for_recurring_mandate(
                 state,
                 &token,
                 &payment_method,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await?;
         }
@@ -3571,7 +3568,7 @@ pub async fn make_ephemeral_key(
 pub async fn make_client_secret(
     state: SessionState,
     resource_id: api_models::ephemeral_key::ResourceId,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
@@ -3580,8 +3577,8 @@ pub async fn make_client_secret(
         api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
             db.find_customer_by_global_id(
                 global_customer_id,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -3596,7 +3593,7 @@ pub async fn make_client_secret(
 
     let client_secret = create_client_secret(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         resource_id,
     )
     .await
@@ -3952,7 +3949,7 @@ pub(crate) fn validate_pm_or_token_given(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     todo!()
@@ -3962,7 +3959,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -3980,9 +3977,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_id,
-                    merchant_context.get_merchant_account().get_id(),
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -4010,10 +4007,11 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> RouterResult<()> {
-    let primary_business_details = merchant_context
-        .get_merchant_account()
+    let primary_business_details = platform
+        .get_processor()
+        .get_account()
         .primary_business_details
         .clone()
         .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
@@ -5749,7 +5747,7 @@ pub fn get_debit_routing_savings_amount(
 #[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_data: &D,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -5767,9 +5765,9 @@ where
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         payment_data.get_creds_identifier(),
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
@@ -5788,9 +5786,9 @@ where
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -7815,16 +7813,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7880,7 +7878,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    merchant_context.get_merchant_account().get_id().clone()
+                    platform.get_processor().get_account().get_id().clone()
                 )),
             );
         }
@@ -8107,7 +8105,7 @@ async fn save_connector_customer_id_after_ucs<F, Req>(
     connector_customer_id_was_populated_from_db: Option<String>,
     connector_label: &Option<String>,
     customer: &Option<domain::Customer>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_id: String,
 ) -> RouterResult<()> {
     match connector_customer_id_was_populated_from_db {
@@ -8122,7 +8120,7 @@ async fn save_connector_customer_id_after_ucs<F, Req>(
                         connector_customer_id,
                         connector_label_str,
                         customer,
-                        merchant_context,
+                        platform,
                         payment_id.clone(),
                     )
                     .await
@@ -8179,7 +8177,7 @@ async fn save_new_connector_customer_id_from_ucs(
     connector_customer_id: &str,
     connector_label: &str,
     customer: &Option<domain::Customer>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_id: String,
 ) -> RouterResult<()> {
     // Process only if customer exists
@@ -8207,8 +8205,8 @@ async fn save_new_connector_customer_id_from_ucs(
                             customer_data.merchant_id.clone(),
                             customer_data.clone(),
                             update,
-                            merchant_context.get_merchant_key_store(),
-                            merchant_context.get_merchant_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .inspect_err(|e| {
@@ -8247,7 +8245,7 @@ async fn save_new_connector_customer_id_from_ucs(
 pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
@@ -8318,7 +8316,7 @@ where
             &header_payload,
             &lineage_ids,
             merchant_connector_account.clone(),
-            merchant_context,
+            platform,
             connector_data,
             ExecutionMode::Primary, // UCS is called in primary mode
             merchant_order_reference_id.clone(),
@@ -8333,9 +8331,9 @@ where
             req_state,
             payment_data.clone(),
             customer.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
             None,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -8375,7 +8373,7 @@ where
                 &header_payload,
                 lineage_ids,
                 merchant_connector_account.clone(),
-                merchant_context,
+                platform,
                 connector_data,
                 ExecutionMode::Primary, // UCS is called in primary mode
                 merchant_order_reference_id,
@@ -8397,7 +8395,7 @@ where
         connector_customer_id_was_populated_from_db,
         &connector_label,
         customer,
-        merchant_context,
+        platform,
         payment_id.clone(),
     )
     .await
@@ -8419,7 +8417,7 @@ where
 pub async fn process_through_direct<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
@@ -8465,7 +8463,7 @@ where
     );
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: None,
-        merchant_context: merchant_context.clone(),
+        platform: platform.clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
@@ -8476,7 +8474,7 @@ where
     call_connector_service(
         state,
         req_state,
-        merchant_context,
+        platform,
         connector,
         operation,
         payment_data,
@@ -8510,7 +8508,7 @@ pub async fn process_through_direct_with_shadow_unified_connector_service<
 >(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
@@ -8561,7 +8559,7 @@ where
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
-    let unified_connector_service_merchant_context = merchant_context.clone();
+    let unified_connector_service_platform = platform.clone();
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
     let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
@@ -8585,7 +8583,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        merchant_context: merchant_context.clone(),
+        platform: platform.clone(),
         header_payload: header_payload.clone(),
         lineage_ids: lineage_ids.clone(),
         merchant_connector_account: merchant_connector_account.clone(),
@@ -8597,7 +8595,7 @@ where
     let result = call_connector_service(
         state,
         req_state,
-        merchant_context,
+        platform,
         connector.clone(),
         operation,
         payment_data,
@@ -8628,7 +8626,7 @@ where
             lineage_ids,
             unified_connector_service_merchant_connector_account,
             &connector,
-            unified_connector_service_merchant_context,
+            unified_connector_service_platform,
             unified_connector_service_merchant_order_reference_id,
             call_connector_action,
             shadow_ucs_call_connector_action,
@@ -8663,7 +8661,7 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     merchant_order_reference_id: Option<String>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
@@ -8701,7 +8699,7 @@ where
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            &merchant_context,
+            &platform,
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,

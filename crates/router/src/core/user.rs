@@ -3698,10 +3698,12 @@ pub async fn clone_connector(
             "Destination merchant account not found".to_string(),
         ))?;
 
-    let destination_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-        destination_merchant_account,
-        destination_key_store,
-    )));
+    let destination_context = domain::Platform::new(
+        destination_merchant_account.clone(),
+        destination_key_store.clone(),
+        destination_merchant_account.clone(),
+        destination_key_store.clone(),
+    );
 
     admin::create_connector(
         state,

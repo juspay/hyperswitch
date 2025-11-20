@@ -46,7 +46,7 @@ impl<F: Send + Clone + Sync>
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -62,14 +62,14 @@ impl<F: Send + Clone + Sync>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -107,10 +107,10 @@ impl<F: Send + Clone + Sync>
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -123,7 +123,7 @@ impl<F: Send + Clone + Sync>
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 profile_id,
             )
             .await
@@ -232,7 +232,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -252,7 +252,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -276,7 +276,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                merchant_context,
+                platform,
                 payment_data,
                 &mca,
             )
@@ -349,7 +349,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         state: &SessionState,
         _request: &api::PaymentsDynamicTaxCalculationRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -361,7 +361,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -454,7 +454,7 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'b, F>,
         operations::ValidateResult,
@@ -465,9 +465,9 @@ impl<F: Send + Clone + Sync>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))

@@ -66,7 +66,7 @@ where
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
         let creds_identifier = context.creds_identifier;
-        let merchant_context = context.merchant_context;
+        let platform = context.platform;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
@@ -108,7 +108,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &merchant_context,
+                &platform,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -151,7 +151,7 @@ where
                 if let Some(access_token) =
                     unified_connector_service::get_access_token_from_ucs_response(
                         state,
-                        &merchant_context,
+                        &platform,
                         &connector_name,
                         merchant_connector_id.as_ref(),
                         creds_identifier.clone(),
@@ -161,7 +161,7 @@ where
                 {
                     if let Err(error) = unified_connector_service::set_access_token_for_ucs(
                         state,
-                        &merchant_context,
+                        &platform,
                         &connector_name,
                         access_token,
                         merchant_connector_id.as_ref(),

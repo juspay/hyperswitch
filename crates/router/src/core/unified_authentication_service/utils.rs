@@ -371,7 +371,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
 #[cfg(feature = "v1")]
 pub async fn get_auth_multi_token_from_external_vault<F, Req>(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     business_profile: &domain::Profile,
     router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
 ) -> RouterResult<Option<api_models::authentication::AuthenticationVaultTokenData>> {
@@ -388,9 +388,9 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 let merchant_connector_account_details = state
                     .store
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         &external_vault_mca_id,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                     )
                     .await
                     .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -403,7 +403,7 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                     crate::core::payment_methods::vault_payment_method_external_v1(
                         state,
                         &vault_data,
-                        merchant_context.get_merchant_account(),
+                        platform.get_processor().get_account(),
                         merchant_connector_account_details,
                         Some(true),
                     ),

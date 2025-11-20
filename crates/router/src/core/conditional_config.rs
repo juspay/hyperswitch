@@ -65,7 +65,7 @@ pub async fn upsert_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn upsert_conditional_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
     use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
@@ -102,8 +102,9 @@ pub async fn upsert_conditional_config(
         }
     };
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_context
-        .get_merchant_account()
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = platform
+        .get_processor()
+        .get_account()
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -112,8 +113,9 @@ pub async fn upsert_conditional_config(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let key = merchant_context
-        .get_merchant_account()
+    let key = platform
+        .get_processor()
+        .get_account()
         .get_id()
         .get_payment_config_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
@@ -157,7 +159,7 @@ pub async fn upsert_conditional_config(
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
                 &state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 config_key,
                 algo_id,
             )
@@ -198,7 +200,7 @@ pub async fn upsert_conditional_config(
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
                 &state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 config_key,
                 algo_id,
             )
@@ -217,7 +219,7 @@ pub async fn upsert_conditional_config(
 #[cfg(feature = "v2")]
 pub async fn delete_conditional_config(
     _state: SessionState,
-    _merchant_context: domain::MerchantContext,
+    _platform: domain::Platform,
 ) -> RouterResponse<()> {
     todo!()
 }
@@ -225,7 +227,7 @@ pub async fn delete_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn delete_conditional_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
 ) -> RouterResponse<()> {
     use common_utils::ext_traits::ValueExt;
     use storage_impl::redis::cache;
@@ -233,12 +235,14 @@ pub async fn delete_conditional_config(
     use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
-    let key = merchant_context
-        .get_merchant_account()
+    let key = platform
+        .get_processor()
+        .get_account()
         .get_id()
         .get_payment_config_routing_id();
-    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_context
-        .get_merchant_account()
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = platform
+        .get_processor()
+        .get_account()
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
@@ -250,7 +254,7 @@ pub async fn delete_conditional_config(
     let config_key = cache::CacheKind::DecisionManager(key.clone().into());
     update_merchant_active_algorithm_ref(
         &state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         config_key,
         algo_id,
     )
@@ -268,11 +272,12 @@ pub async fn delete_conditional_config(
 #[cfg(feature = "v1")]
 pub async fn retrieve_conditional_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
 ) -> RouterResponse<DecisionManagerResponse> {
     let db = state.store.as_ref();
-    let algorithm_id = merchant_context
-        .get_merchant_account()
+    let algorithm_id = platform
+        .get_processor()
+        .get_account()
         .get_id()
         .get_payment_config_routing_id();
     let algo_config = db

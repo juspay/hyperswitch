@@ -56,10 +56,12 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
+        merchant_from_db.clone(),
+        key_store.clone(),
         merchant_from_db.clone(),
         key_store,
-    )));
+    );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
@@ -74,7 +76,7 @@ pub async fn generate_sample_data(
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
             business_country_default,
             business_label_default.as_ref(),
-            &merchant_context,
+            &platform,
             req.profile_id.as_ref(),
             &*state.store,
             false,
@@ -103,7 +105,10 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_profile_by_merchant_id(merchant_context.get_merchant_key_store(), merchant_id)
+                .list_profile_by_merchant_id(
+                    platform.get_processor().get_key_store(),
+                    merchant_id,
+                )
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
