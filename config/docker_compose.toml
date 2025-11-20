@@ -57,6 +57,17 @@ base_url = "http://localhost:9000"
 force_two_factor_auth = false
 force_cookies = false
 
+[oidc]
+
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
+[[oidc.clients]]
+client_id = ""
+client_secret = ""
+redirect_uri = ""
+
 [locker]
 host = ""
 host_rs = ""
