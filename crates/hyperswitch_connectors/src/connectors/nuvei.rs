@@ -69,6 +69,7 @@ use crate::{
     connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
 };
 
@@ -653,14 +654,28 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
 
         event_builder.map(|i| i.set_response_body(&nuvie_psync_common_response));
         router_env::logger::info!(connector_response=?nuvie_psync_common_response);
-        let response = NuveiTransactionSyncResponse::from(nuvie_psync_common_response);
+        let response = NuveiTransactionSyncResponse::from(nuvie_psync_common_response.clone());
 
-        RouterData::try_from(ResponseRouterData {
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        // Add integrity check
+        if let Some(transaction_details) = nuvie_psync_common_response.transaction_details {
+            let response_integrity_object = connector_utils::get_sync_integrity_object(
+                self.amount_convertor,
+                transaction_details.processed_amount,
+                transaction_details
+                    .processed_currency
+                    .map(|c| c.to_string()),
+            )?;
+            router_data.request.integrity_object = Some(response_integrity_object);
+        }
+
+        Ok(router_data)
     }
 }
 
@@ -731,12 +746,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
+        let mut router_data = RouterData::try_from(ResponseRouterData {
+            response: response.clone(),
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        // Add integrity check
+        if let Some(partial_approval) = response.partial_approval {
+            let response_integrity_object = connector_utils::get_capture_integrity_object(
+                self.amount_convertor,
+                Some(partial_approval.processed_amount),
+                Some(partial_approval.processed_currency.to_string()),
+            )?;
+            router_data.request.integrity_object = Some(response_integrity_object);
+        }
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -818,12 +845,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
 
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
+
+        let mut router_data = RouterData::try_from(ResponseRouterData {
+            response: response.clone(),
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        // Add integrity check
+        if let Some(partial_approval) = response.partial_approval {
+            let response_integrity_object = connector_utils::get_authorise_integrity_object(
+                self.amount_convertor,
+                partial_approval.processed_amount,
+                partial_approval.processed_currency.to_string(),
+            )?;
+            router_data.request.integrity_object = Some(response_integrity_object);
+        }
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -1071,12 +1111,24 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
-            response,
+        let mut router_data = RouterData::try_from(ResponseRouterData {
+            response: response.clone(),
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        // Add integrity check
+        if let Some(partial_approval) = response.partial_approval {
+            let response_integrity_object = connector_utils::get_refund_integrity_object(
+                self.amount_convertor,
+                partial_approval.processed_amount,
+                partial_approval.processed_currency.to_string(),
+            )?;
+            router_data.request.integrity_object = Some(response_integrity_object);
+        }
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -1102,14 +1154,36 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {
             .switch()?;
         event_builder.map(|i| i.set_response_body(&nuvie_rsync_common_response));
         router_env::logger::info!(connector_response=?nuvie_rsync_common_response);
-        let response = NuveiTransactionSyncResponse::from(nuvie_rsync_common_response);
+        let response = NuveiTransactionSyncResponse::from(nuvie_rsync_common_response.clone());
 
-        RouterData::try_from(ResponseRouterData {
+        let mut router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        // Add integrity check
+        if let (Some(amount), Some(currency)) = (
+            nuvie_rsync_common_response.total_amount.clone(),
+            nuvie_rsync_common_response.currency.clone(),
+        ) {
+            let parsed_currency = currency
+                .parse::<enums::Currency>()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let amount_value = amount
+                .parse::<StringMajorUnit>()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+            let response_integrity_object = connector_utils::get_refund_integrity_object(
+                self.amount_convertor,
+                amount_value,
+                parsed_currency.to_string(),
+            )?;
+            router_data.request.integrity_object = Some(response_integrity_object);
+        }
+
+        Ok(router_data)
     }
 }
 
@@ -1295,7 +1369,11 @@ impl IncomingWebhook for Nuvei {
                 }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                nuvei::map_dispute_notification_to_event(&notification.chargeback)
+                if let Some(dispute_event) = notification.chargeback.dispute_unified_status_code {
+                    nuvei::map_dispute_notification_to_event(dispute_event)
+                } else {
+                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                }
             }
         }
     }
@@ -1336,18 +1414,18 @@ impl IncomingWebhook for Nuvei {
         let dispute_unified_status_code = webhook
             .chargeback
             .dispute_unified_status_code
-            .clone()
             .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let connector_dispute_id = webhook
             .chargeback
             .dispute_id
-            .clone()
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(disputes::DisputePayload {
             amount,
             currency,
-            dispute_stage: nuvei::get_dispute_stage(&webhook.chargeback)?,
+            dispute_stage: api_models::enums::DisputeStage::from(
+                dispute_unified_status_code.clone(),
+            ),
             connector_dispute_id,
             connector_reason: webhook.chargeback.chargeback_reason,
             connector_reason_code: webhook.chargeback.chargeback_reason_category,
