@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0-hotfix3
+
+### Bug Fixes
+
+- **stripe:** Remove application fee validation for splitpayments ([#10371](https://github.com/juspay/hyperswitch/pull/10371)) ([`6ff2231`](https://github.com/juspay/hyperswitch/commit/6ff2231986aed07d32810c864b16307c5d026b56))
+
+**Full Changelog:** [`2025.11.12.0-hotfix2...2025.11.12.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0-hotfix2...2025.11.12.0-hotfix3)
+
+- - -
+
 ## 2025.11.12.0-hotfix2
 
 ### Bug Fixes
