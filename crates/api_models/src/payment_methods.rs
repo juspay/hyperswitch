@@ -3303,7 +3303,7 @@ pub struct PaymentMethodSessionResponse {
     pub id: id_type::GlobalPaymentMethodSessionId,
 
     /// The customer id for which the payment methods session is to be created
-    #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
