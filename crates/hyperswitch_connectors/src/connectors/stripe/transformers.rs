@@ -2437,7 +2437,7 @@ pub fn get_stripe_compatible_connect_account_header(
     let split_payment_new = request.request.split_payments.clone();
 
     let transfer_id = match (cit_metadata, split_payment_new) {
-        // MIT Payments where
+        // MIT Payments where split payment request is passed
         (
             Some(cit_metadata),
             Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object)),
@@ -2481,6 +2481,7 @@ pub fn get_stripe_compatible_connect_account_header(
                 None
             }
         }
+        // cit or mit
         (None, _) => None,
     };
 
