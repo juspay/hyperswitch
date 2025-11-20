@@ -13,7 +13,7 @@ use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanage
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
-    types::keymanager,
+    types::{keymanager, CreatedBy},
 };
 pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
@@ -90,6 +90,8 @@ pub struct PaymentMethod {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
     pub vault_source_details: PaymentMethodVaultSourceDetails,
+    pub created_by: Option<CreatedBy>,
+    pub last_modified_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v2")]
@@ -132,6 +134,8 @@ pub struct PaymentMethod {
     pub external_vault_token_data:
         Option<Encryptable<api_models::payment_methods::ExternalVaultTokenData>>,
     pub vault_type: Option<storage_enums::VaultType>,
+    pub created_by: Option<CreatedBy>,
+    pub last_modified_by: Option<CreatedBy>,
 }
 
 impl PaymentMethod {
@@ -305,6 +309,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source,
             vault_type,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -421,6 +429,12 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_locker_id: item.network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
+            created_by: item
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: item
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
         })
     }
 
@@ -467,6 +481,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source,
             vault_type,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 }
@@ -507,6 +525,10 @@ impl super::behaviour::Conversion for PaymentMethod {
             external_vault_source: self.external_vault_source,
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
             vault_type: self.vault_type,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 
@@ -613,6 +635,12 @@ impl super::behaviour::Conversion for PaymentMethod {
                 external_vault_source: storage_model.external_vault_source,
                 external_vault_token_data,
                 vault_type: storage_model.vault_type,
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                last_modified_by: storage_model
+                    .last_modified_by
+                    .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             })
         }
         .await
@@ -651,6 +679,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
             vault_type: self.vault_type,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
         })
     }
 }
@@ -1289,6 +1321,8 @@ mod tests {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: Default::default(),
+            created_by: None,
+            last_modified_by: None,
         };
         payment_method.clone()
     }
