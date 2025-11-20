@@ -16,12 +16,7 @@ pub async fn transfer_encryption_key(
 ) -> errors::CustomResult<usize, errors::ApiErrorResponse> {
     let db = &*state.store;
     let key_stores = db
-        .get_all_key_stores(
-            &state.into(),
-            &db.get_master_key().to_vec().into(),
-            req.from,
-            req.limit,
-        )
+        .get_all_key_stores(&db.get_master_key().to_vec().into(), req.from, req.limit)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     send_request_to_key_service_for_merchant(state, key_stores).await

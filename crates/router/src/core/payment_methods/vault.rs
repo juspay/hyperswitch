@@ -1740,13 +1740,11 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         }
     };
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
             platform.get_processor().get_key_store(),
             &payment_method_id,
             storage_scheme,

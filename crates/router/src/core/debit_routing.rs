@@ -2,9 +2,7 @@ use std::{collections::HashSet, fmt::Debug};
 
 use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
-use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, id_type, types::keymanager::KeyManagerState,
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -288,7 +286,6 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let db = state.store.as_ref();
-    let key_manager_state = &(state).into();
     let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
 
@@ -305,7 +302,6 @@ where
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -554,7 +550,6 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let key_manager_state = &(state).into();
     let db = state.store.as_ref();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
     let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
@@ -569,7 +564,6 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -622,11 +616,9 @@ async fn build_connector_routing_data(
     eligible_connector_data_list: Vec<api::ConnectorRoutingData>,
     fee_sorted_debit_networks: Vec<common_enums::CardNetwork>,
 ) -> CustomResult<Vec<api::ConnectorRoutingData>, errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let debit_routing_config = &state.conf.debit_routing_config;
 
-    let mcas_for_profile =
-        fetch_merchant_connector_accounts(state, key_manager_state, profile_id, key_store).await?;
+    let mcas_for_profile = fetch_merchant_connector_accounts(state, profile_id, key_store).await?;
 
     let mut connector_routing_data = Vec::new();
     let mut has_us_local_network = false;
@@ -650,14 +642,12 @@ async fn build_connector_routing_data(
 /// Fetches merchant connector accounts for the given profile
 async fn fetch_merchant_connector_accounts(
     state: &SessionState,
-    key_manager_state: &KeyManagerState,
     profile_id: &id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     state
         .store
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile_id,
             key_store,
             common_enums::ConnectorType::PaymentProcessor,

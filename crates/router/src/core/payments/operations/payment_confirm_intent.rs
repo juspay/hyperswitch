@@ -167,7 +167,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -216,7 +215,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
@@ -309,7 +307,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -360,7 +357,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
@@ -430,12 +426,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &state.into(),
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
 
                 Ok((Box::new(self), Some(customer)))
@@ -738,7 +729,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         F: 'b + Send,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -816,7 +806,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
@@ -830,7 +819,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
@@ -848,7 +836,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
             let _updated_customer = db
                 .update_customer_by_global_id(
-                    key_manager_state,
                     &customer_id,
                     customer,
                     updated_customer,

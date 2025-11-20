@@ -107,7 +107,10 @@ mod merchant_connector_account_cache_tests {
 
     #[cfg(feature = "v1")]
     use api_models::enums::CountryAlpha2;
-    use common_utils::{date_time, type_name, types::keymanager::Identifier};
+    use common_utils::{
+        date_time, type_name,
+        types::keymanager::{Identifier, KeyManagerState},
+    };
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use hyperswitch_domain_models::master_key::MasterKeyInterface;
@@ -158,9 +161,12 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        let db = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
@@ -180,7 +186,6 @@ mod merchant_connector_account_cache_tests {
                 .unwrap();
         let key_manager_state = &state.into();
         db.insert_merchant_key_store(
-            key_manager_state,
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.clone(),
                 key: domain::types::crypto_operation(
@@ -203,11 +208,7 @@ mod merchant_connector_account_cache_tests {
         .unwrap();
 
         let merchant_key = db
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &master_key.to_vec().into(),
-            )
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
@@ -261,14 +262,13 @@ mod merchant_connector_account_cache_tests {
             version: common_types::consts::API_VERSION,
         };
 
-        db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
+        db.insert_merchant_connector_account(mca.clone(), &merchant_key)
             .await
             .unwrap();
 
         let find_call = || async {
             Conversion::convert(
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &profile_id,
                     &mca.connector_name,
                     &merchant_key,
@@ -342,9 +342,12 @@ mod merchant_connector_account_cache_tests {
                 || {},
             )
             .unwrap();
-        let db = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create Mock store");
+        let db = MockDb::new(
+            &redis_interface::RedisSettings::default(),
+            KeyManagerState::new(),
+        )
+        .await
+        .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
@@ -363,7 +366,6 @@ mod merchant_connector_account_cache_tests {
                 .unwrap();
         let key_manager_state = &state.into();
         db.insert_merchant_key_store(
-            key_manager_state,
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.clone(),
                 key: domain::types::crypto_operation(
@@ -386,11 +388,7 @@ mod merchant_connector_account_cache_tests {
         .unwrap();
 
         let merchant_key = db
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &master_key.to_vec().into(),
-            )
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &master_key.to_vec().into())
             .await
             .unwrap();
 
@@ -438,7 +436,7 @@ mod merchant_connector_account_cache_tests {
             feature_metadata: None,
         };
 
-        db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
+        db.insert_merchant_connector_account(mca.clone(), &merchant_key)
             .await
             .unwrap();
 
@@ -446,7 +444,6 @@ mod merchant_connector_account_cache_tests {
             #[cfg(feature = "v1")]
             let mca = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     profile_id,
                     &mca.connector_name,
                     &merchant_key,
