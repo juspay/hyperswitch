@@ -1510,7 +1510,7 @@ where
         );
 
         let is_de_result_empty = de_result.clone().into_iter().next().is_none();
-        if  is_de_result_empty {
+        if is_de_result_empty {
             logger::debug!(
                 business_profile_id=?business_profile.get_id(),
                 "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
