@@ -75,10 +75,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account.clone(),
+            key_store.clone(),
+        );
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<
@@ -90,7 +92,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             >(
                 state,
                 state.get_req_state(),
-                &merchant_context,
+                &platform,
                 None,
                 operations::PaymentStatus,
                 tracking_data.clone(),
@@ -208,7 +210,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        merchant_context,
+                        platform,
                         business_profile,
                         payment_data,
                         customer,
@@ -356,7 +358,6 @@ pub async fn recovery_retry_sync_task(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
     #[test]

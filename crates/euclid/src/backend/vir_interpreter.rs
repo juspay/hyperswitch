@@ -106,7 +106,6 @@ where
 }
 #[cfg(all(test, feature = "ast_parser"))]
 mod test {
-    #![allow(clippy::expect_used)]
     use common_utils::types::MinorUnit;
     use rustc_hash::FxHashMap;
 
@@ -135,6 +134,7 @@ mod test {
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -179,6 +179,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -223,6 +224,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -267,6 +269,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -311,6 +314,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -355,6 +359,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -399,6 +404,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -443,6 +449,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -487,6 +494,7 @@ mod test {
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -532,6 +540,7 @@ mod test {
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -576,6 +585,7 @@ mod test {
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(150),
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -629,6 +639,7 @@ mod test {
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(120),
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),

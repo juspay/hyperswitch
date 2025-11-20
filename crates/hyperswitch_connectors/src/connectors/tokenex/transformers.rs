@@ -4,7 +4,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
     router_request_types::VaultRequestData,
-    router_response_types::VaultResponseData,
+    router_response_types::{VaultIdType, VaultResponseData},
     types::VaultRouterData,
     vault::PaymentMethodVaultingData,
 };
@@ -105,7 +105,7 @@ impl
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                        connector_vault_id: token.clone(),
+                        connector_vault_id: VaultIdType::SingleVaultId(token.clone()),
                         //fingerprint is not provided by tokenex, using token as fingerprint
                         fingerprint_id: token.clone(),
                     }),

@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorSpecifications};
@@ -20,7 +19,7 @@ use crate::{
 pub async fn get_cached_access_token_for_ucs(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method: common_enums::PaymentMethod,
     creds_identifier: Option<&str>,
 ) -> RouterResult<Option<types::AccessToken>> {
@@ -28,7 +27,7 @@ pub async fn get_cached_access_token_for_ucs(
         .connector_name
         .supports_access_token(payment_method)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let store = &*state.store;
 
         let merchant_connector_id_or_connector_name = connector
@@ -53,7 +52,7 @@ pub async fn get_cached_access_token_for_ucs(
         if let Some(access_token) = cached_access_token {
             router_env::logger::info!(
                 "Cached access token found for UCS flow - merchant_id: {:?}, connector: {} with expiry of: {} seconds",
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 connector.connector_name,
                 access_token.expires
             );
@@ -65,7 +64,7 @@ pub async fn get_cached_access_token_for_ucs(
         } else {
             router_env::logger::info!(
                 "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, connector: {}",
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 connector.connector_name
             );
             metrics::ACCESS_TOKEN_CACHE_MISS.add(

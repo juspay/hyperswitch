@@ -301,6 +301,8 @@ pub enum ApiErrorResponse {
         max_length: usize,
         received_length: usize,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "The Status token for connector costumer id {resource} is locked by different PaymentIntent ID")]
+    InvalidPaymentIdProvided { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -672,6 +674,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MaxFieldLengthViolated { connector, field_name,  max_length, received_length} => {
                 AER::BadRequest(ApiError::new("IR", 47, format!("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}"), Some(Extra {connector: Some(connector.to_string()), ..Default::default()})))
             }
+            Self::InvalidPaymentIdProvided {resource} => {
+                AER::NotFound(ApiError::new("IR", 48, format!("The Status token for connector costumer id {resource} is locked by different PaymentIntent ID"), None))
+            },
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }

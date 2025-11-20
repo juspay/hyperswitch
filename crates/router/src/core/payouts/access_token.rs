@@ -20,18 +20,13 @@ use crate::{
 pub async fn create_access_token<F: Clone + 'static>(
     state: &SessionState,
     connector_data: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     router_data: &mut types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<()> {
-    let connector_access_token = add_access_token_for_payout(
-        state,
-        connector_data,
-        merchant_context,
-        router_data,
-        payout_type,
-    )
-    .await?;
+    let connector_access_token =
+        add_access_token_for_payout(state, connector_data, platform, router_data, payout_type)
+            .await?;
 
     if connector_access_token.connector_supports_access_token {
         match connector_access_token.access_token_result {
@@ -51,7 +46,7 @@ pub async fn create_access_token<F: Clone + 'static>(
 pub async fn add_access_token_for_payout<F: Clone + 'static>(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     router_data: &types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
@@ -59,6 +54,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
         .connector_name
         .supports_access_token_for_payout(payout_type)
     {
+        let merchant_id = platform.get_processor().get_account().get_id();
         let store = &*state.store;
 
         let key = connector
@@ -97,26 +93,21 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                     refresh_token_request_data,
                     refresh_token_response_data,
                 );
-                refresh_connector_auth(
-                    state,
-                    connector,
-                    merchant_context,
-                    &refresh_token_router_data,
-                )
-                .await?
-                .async_map(|access_token| async {
-                    //Store the access token in db
-                    let store = &*state.store;
-                    // This error should not be propagated, we don't want payments to fail once we have
-                    // the access token, the next request will create new access token
-                    let _ = store
-                        .set_access_token(key, access_token.clone())
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("DB error when setting the access token");
-                    Some(access_token)
-                })
-                .await
+                refresh_connector_auth(state, connector, platform, &refresh_token_router_data)
+                    .await?
+                    .async_map(|access_token| async {
+                        //Store the access token in db
+                        let store = &*state.store;
+                        // This error should not be propagated, we don't want payments to fail once we have
+                        // the access token, the next request will create new access token
+                        let _ = store
+                            .set_access_token(key, access_token.clone())
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("DB error when setting the access token");
+                        Some(access_token)
+                    })
+                    .await
             }
         };
 
@@ -136,7 +127,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 pub async fn refresh_connector_auth(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,

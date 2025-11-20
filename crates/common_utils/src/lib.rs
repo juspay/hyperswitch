@@ -330,7 +330,6 @@ mod base64_serializer {
 
 #[cfg(test)]
 mod nanoid_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::{
         consts::{
