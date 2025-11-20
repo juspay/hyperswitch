@@ -1503,11 +1503,9 @@ where
         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
         .unwrap_or(None);
 
-    if let Some(api_routing::RoutingResultSource::DecisionEngine) =
-        routing_result_source
-    {
+    if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
         logger::debug!(
-            business_profile_id=?business_profile.get_id(), 
+            business_profile_id=?business_profile.get_id(),
             "decision_engine_euclid: Using Decision Engine routing result"
         );
 
@@ -1523,7 +1521,7 @@ where
         }
     } else {
         logger::debug!(
-            business_profile_id=?business_profile.get_id(), 
+            business_profile_id=?business_profile.get_id(),
             "decision_engine_euclid: Using Hyperswitch routing result"
         );
         hyperswitch_result
