@@ -129,11 +129,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         // Setting default billing address to Db
         let address = self.get_address();
         let merchant_id = provider.get_account().get_id();
-        let key = provider
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
+        let key = provider.get_key_store().key.get_inner().peek();
 
         let customer_billing_address_struct = AddressStructForDbEntry {
             address: address.as_ref(),
@@ -244,11 +240,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let default_customer_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_customer_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(
-                    key_state,
-                    provider.get_key_store(),
-                    billing_address,
-                )
+                create_encrypted_data(key_state, provider.get_key_store(), billing_address)
             })
             .await
             .transpose()
@@ -257,11 +249,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let default_customer_shipping_address = self.get_default_customer_shipping_address();
         let encrypted_customer_shipping_address = default_customer_shipping_address
             .async_map(|shipping_address| {
-                create_encrypted_data(
-                    key_state,
-                    provider.get_key_store(),
-                    shipping_address,
-                )
+                create_encrypted_data(key_state, provider.get_key_store(), shipping_address)
             })
             .await
             .transpose()
@@ -269,11 +257,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
         let merchant_id = provider.get_account().get_id().clone();
-        let key = provider
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
+        let key = provider.get_key_store().key.get_inner().peek();
 
         let encrypted_data = types::crypto_operation(
             key_state,
@@ -1263,11 +1247,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .update_address_if_sent(db)
             .await?;
 
-        let key = provider
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
+        let key = provider.get_key_store().key.get_inner().peek();
 
         let encrypted_data = types::crypto_operation(
             key_manager_state,
@@ -1357,11 +1337,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let default_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(
-                    key_manager_state,
-                    provider.get_key_store(),
-                    billing_address,
-                )
+                create_encrypted_data(key_manager_state, provider.get_key_store(), billing_address)
             })
             .await
             .transpose()
@@ -1382,11 +1358,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let key = provider
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
+        let key = provider.get_key_store().key.get_inner().peek();
 
         let encrypted_data = types::crypto_operation(
             key_manager_state,
