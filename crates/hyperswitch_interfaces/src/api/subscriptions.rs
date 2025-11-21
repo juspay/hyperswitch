@@ -6,20 +6,22 @@ use hyperswitch_domain_models::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCreate as SubscriptionCreateFlow,
         },
-        InvoiceRecordBack,
+        GetSubscriptionEntitlements, InvoiceRecordBack,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
         },
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
         },
     },
 };
@@ -99,6 +101,17 @@ pub trait GetSubscriptionEstimateFlow:
 >
 {
 }
+
+/// trait GetSubscriptionEstimate for V1
+pub trait GetSubscriptionEntitlementsFlow:
+    ConnectorIntegration<
+    GetSubscriptionEntitlements,
+    GetSubscriptionEntitlementRequest,
+    GetSubscriptionEntitlementResponse,
+>
+{
+}
+
 /// trait Subscriptions
 pub trait Subscriptions:
     ConnectorCommon
@@ -111,5 +124,6 @@ pub trait Subscriptions:
     + SubscriptionPauseFlow
     + SubscriptionResumeFlow
     + SubscriptionCancelFlow
+    + GetSubscriptionEntitlementsFlow
 {
 }

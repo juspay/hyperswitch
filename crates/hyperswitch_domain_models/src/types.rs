@@ -14,9 +14,10 @@ use crate::{
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
-        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        GetSubscriptionEntitlements, GiftCardBalanceCheck, IncrementalAuthorization, PSync,
+        PaymentMethodToken, PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate,
+        PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -24,9 +25,10 @@ use crate::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
-            SubscriptionPauseRequest, SubscriptionResumeRequest,
+            GetSubscriptionEntitlementRequest, GetSubscriptionEstimateRequest,
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCancelRequest, SubscriptionCreateRequest, SubscriptionPauseRequest,
+            SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -51,9 +53,10 @@ use crate::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
-            SubscriptionPauseResponse, SubscriptionResumeResponse,
+            GetSubscriptionEntitlementResponse, GetSubscriptionEstimateResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCancelResponse, SubscriptionCreateResponse, SubscriptionPauseResponse,
+            SubscriptionResumeResponse,
         },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
@@ -227,3 +230,9 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
 
 pub type SubscriptionCreateRouterData =
     RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
+
+pub type SubscriptionEntitlementRouterData = RouterData<
+    GetSubscriptionEntitlements,
+    GetSubscriptionEntitlementRequest,
+    GetSubscriptionEntitlementResponse,
+>;

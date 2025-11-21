@@ -81,3 +81,6 @@ pub struct SubscriptionCancelRequest {
 pub struct GetSubscriptionEstimateRequest {
     pub price_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEntitlementRequest;

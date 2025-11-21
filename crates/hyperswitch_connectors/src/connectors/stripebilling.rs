@@ -157,6 +157,16 @@ impl
 {
 }
 
+impl subscriptions_api::GetSubscriptionEntitlementsFlow for Stripebilling {}
+impl
+    ConnectorIntegration<
+        subscription_flow_types::GetSubscriptionEntitlements,
+        subscription_request_types::GetSubscriptionEntitlementRequest,
+        subscription_response_types::GetSubscriptionEntitlementResponse,
+    > for Stripebilling
+{
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Stripebilling
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
