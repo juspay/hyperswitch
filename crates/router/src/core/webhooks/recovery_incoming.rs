@@ -931,7 +931,8 @@ impl RevenueRecoveryAttempt {
 
         let reference_time = time::PrimitiveDateTime::new(
             recovery_attempt.created_at.date(),
-            time::Time::from_hms(recovery_attempt.created_at.hour(), 0, 0).unwrap_or(time::Time::MIDNIGHT)
+            time::Time::from_hms(recovery_attempt.created_at.hour(), 0, 0)
+                .unwrap_or(time::Time::MIDNIGHT),
         );
 
         // Extract required fields from the revenue recovery attempt data
@@ -965,7 +966,7 @@ impl RevenueRecoveryAttempt {
             },
             is_active: Some(true), // Tokens created from recovery attempts are active by default
             account_update_history: None, // No prior account update history exists for freshly ingested tokens
-            tau: None, 
+            tau: None,
         };
 
         // Make the Redis call to store tokens

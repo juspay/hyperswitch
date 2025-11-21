@@ -396,9 +396,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         first_error_msg_time: None,
         wait_time: retry_after_time,
         payment_id: Some(payment_intent.get_id().get_string_repr().to_string()),
-        hourly_retry_history : Some(token_with_retry_info.token_status.daily_retry_history.clone()),
-        tau: token_with_retry_info.token_status.tau, 
-
+        hourly_retry_history: Some(
+            token_with_retry_info
+                .token_status
+                .daily_retry_history
+                .clone(),
+        ),
+        tau: token_with_retry_info.token_status.tau,
     };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
@@ -472,7 +476,9 @@ async fn should_force_schedule_due_to_missed_slots(
 pub fn convert_hourly_retry_history(
     input: Option<HashMap<time::PrimitiveDateTime, i32>>,
 ) -> HashMap<String, i32> {
-    let fmt = time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
+    let fmt = time::macros::format_description!(
+        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+    );
 
     match input {
         Some(map) => map
@@ -554,7 +560,9 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             first_error_msg_time: internal_request.first_error_msg_time,
             wait_time: internal_request.wait_time,
             payment_id: internal_request.payment_id,
-            hourly_retry_history: convert_hourly_retry_history(internal_request.hourly_retry_history),
+            hourly_retry_history: convert_hourly_retry_history(
+                internal_request.hourly_retry_history,
+            ),
             tau: internal_request.tau,
         }
     }

@@ -333,31 +333,41 @@ async fn process_payment_method_record(
 }
 
 /// Parse daily retry history from CSV
-fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<time::PrimitiveDateTime, i32>> {
+fn parse_daily_retry_history(
+    json_str: Option<&str>,
+) -> Option<HashMap<time::PrimitiveDateTime, i32>> {
     match json_str {
         Some(json) if !json.is_empty() => {
             match serde_json::from_str::<HashMap<String, i32>>(json) {
                 Ok(string_retry_history) => {
                     let date_format = format_description!("[year]-[month]-[day]");
-                    let datetime_format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
+                    let datetime_format = format_description!(
+                        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+                    );
 
                     let mut history = HashMap::new();
 
                     for (key, count) in string_retry_history {
                         // Try parsing full datetime first
-                        let parsed_dt =
-                            time::PrimitiveDateTime::parse(&key, &datetime_format)
-                                .or_else(|_| {
-                                    // Fallback to date only
-                                    Date::parse(&key, &date_format)
-                                        .map(|date| time::PrimitiveDateTime::new(date, time::Time::from_hms(0, 0, 0).unwrap_or(time::Time::MIDNIGHT)))
-                                });
+                        let parsed_dt = time::PrimitiveDateTime::parse(&key, &datetime_format)
+                            .or_else(|_| {
+                                // Fallback to date only
+                                Date::parse(&key, &date_format).map(|date| {
+                                    time::PrimitiveDateTime::new(
+                                        date,
+                                        time::Time::from_hms(0, 0, 0)
+                                            .unwrap_or(time::Time::MIDNIGHT),
+                                    )
+                                })
+                            });
 
                         match parsed_dt {
                             Ok(dt) => {
                                 history.insert(dt, count);
                             }
-                            Err(_) => logger::error!("Error: failed to parse retry history key '{}'", key),
+                            Err(_) => {
+                                logger::error!("Error: failed to parse retry history key '{}'", key)
+                            }
                         }
                     }
 
