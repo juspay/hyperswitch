@@ -846,15 +846,16 @@ pub fn get_payment_link_config_based_on_priority(
 
     let has_custom_tnc = payment_link_config.custom_message_for_card_terms.is_some();
     let is_default_domain = domain_name == default_domain_name;
-    let is_live_mode = payment_create_link_config
-        .as_ref()
-        .map(|d| !d.theme_config.payment_test_mode.unwrap_or(true))
+    let is_test_mode = payment_create_link_config
+        .and_then(|mode| mode.theme_config.payment_test_mode)
         .unwrap_or(false);
     let is_production = matches!(router_env::env::which(), router_env::Env::Production);
 
+    // We do further checks only when Merchant is using our default domain and has passed custom T&C -> Which is not allowed to do
     if is_default_domain && has_custom_tnc {
-        match (is_live_mode, is_production) {
-            (true, true) => {
+        match (is_test_mode, is_production) {
+            // Custom T&C cannot be passed when base url is default domain
+            (false, true) => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "payment_link_config.custom_message_for_card_terms cannot be passed when base url is set to: {domain_name}"
@@ -862,19 +863,22 @@ pub fn get_payment_link_config_based_on_priority(
                 }
                 .into())
             }
-            (true, false) => {
+            // Test mode must be true to pass custom tnc
+            (false, false) => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.payment_test_mode = true".to_string()
                 }
                 .into(),
             )}
-            (false, true) => {
+            // Test Mode cannot be set to True when Env is Production
+            (true, true) => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Cannot set payment_link_config.payment_test_mode = true in Production".to_string()
                 }
                 .into(),
             )}
-            (_,_) => ()
+            // Test mode is true and the env is non Production so we are allowed to pass custom T&C with our default domain
+            (true,false) => ()
         }
     }
 
