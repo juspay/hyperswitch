@@ -131,23 +131,6 @@ where
                     response
                 });
                 router_data.response = router_data_response;
-                let connector_response_reference_id = create_order_response
-                    .order_id
-                    .as_ref()
-                    .and_then(|identifier| {
-                        identifier
-                            .id_type
-                            .clone()
-                            .and_then(|id_type| match id_type {
-                                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                                payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                                    Some(encoded_data)
-                                }
-                                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                            })
-                    });
-                router_data.reference_id = connector_response_reference_id;
-
                 Ok((router_data, create_order_response))
             },
         ))
