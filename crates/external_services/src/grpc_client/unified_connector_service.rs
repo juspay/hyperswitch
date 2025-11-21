@@ -246,6 +246,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Session token create
+    pub async fn payment_session_token_create(
+        &self,
+        payment_create_session_token_request: payments_grpc::PaymentServiceCreateSessionTokenRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceCreateSessionTokenResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_create_session_token_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .create_session_token(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCreateSessionTokenFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="create_session_token",
+                    connector_name=?connector_name,
+                    "UCS payment create_session_token gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Post Authenticate
     pub async fn payment_post_authenticate(
         &self,
