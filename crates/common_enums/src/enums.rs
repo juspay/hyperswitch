@@ -1822,7 +1822,7 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// The payment has been authorized for a partial amount and requires capture
     PartiallyAuthorizedAndRequiresCapture,
-    /// The payment has been captured partially and the remaining amount is capturable.
+    /// The payment has been captured partially and the remaining amount can be authorized/capturable.
     /// The other amount is still being processed by the payment processor.
     /// The status update might happen through webhooks or polling with the connector.
     PartiallyCapturedAndProcessing,

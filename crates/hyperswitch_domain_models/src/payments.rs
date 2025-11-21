@@ -404,6 +404,21 @@ impl AmountDetails {
         })
     }
 
+    pub fn get_order_amount_for_recovery_data(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        // Validate that amount_captured doesn't exceed order_amount
+        let captured_amount = self.amount_captured.unwrap_or(MinorUnit::zero());
+        if captured_amount > self.order_amount {
+            return Err(error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::InvalidRequestData {
+                    message: "Amount captured cannot exceed the order amount".to_string()
+                }
+            ));
+        };
+        Ok(self.order_amount - captured_amount)
+    }
+
     pub fn create_split_attempt_amount_details(
         &self,
         confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
@@ -476,7 +491,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
-            amount_captured: Some(MinorUnit::zero()),
+            amount_captured: None,
         })
     }
 
@@ -830,6 +845,12 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
+    pub fn get_recovery_order_amount(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        Ok(self.amount_details.get_order_amount_for_recovery_data()?)
+    }
+
     pub fn create_revenue_recovery_attempt_data(
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
@@ -859,21 +880,8 @@ impl PaymentIntent {
                     }
                 )
             })?;
-        // Validate that amount_captured doesn't exceed order_amount
-        let captured_amount = self
-            .amount_details
-            .amount_captured
-            .unwrap_or(MinorUnit::zero());
 
-        if captured_amount > self.amount_details.order_amount {
-            return Err(error_stack::report!(
-                errors::api_error_response::ApiErrorResponse::InvalidRequestData {
-                    message: "Amount captured cannot exceed the order amount".to_string()
-                }
-            ));
-        }
-
-        let amount = self.amount_details.order_amount - captured_amount;
+        let amount = self.amount_details.get_order_amount_for_recovery_data()?;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
             amount,
             currency: self.amount_details.currency,
