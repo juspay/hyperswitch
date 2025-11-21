@@ -37,7 +37,6 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
             &customer_id,
             &merchant_id,
             platform.get_processor().get_key_store(),

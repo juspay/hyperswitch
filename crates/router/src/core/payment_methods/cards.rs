@@ -140,7 +140,6 @@ impl PaymentMethodsController for PmCards<'_> {
         let db = &*self.state.store;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &self.state.into(),
                 customer_id,
                 merchant_id,
                 self.platform.get_processor().get_key_store(),
@@ -158,7 +157,6 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let response = db
             .insert_payment_method(
-                &self.state.into(),
                 self.platform.get_processor().get_key_store(),
                 domain::PaymentMethod {
                     customer_id: customer_id.to_owned(),
@@ -273,11 +271,9 @@ impl PaymentMethodsController for PmCards<'_> {
         let mut payment_method_id = resp.payment_method_id.clone();
         let mut locker_id = None;
         let db = &*self.state.store;
-        let key_manager_state = &(self.state.into());
         let payment_method = {
             let existing_pm_by_pmid = db
                 .find_payment_method(
-                    key_manager_state,
                     key_store,
                     &payment_method_id,
                     self.platform.get_processor().get_account().storage_scheme,
@@ -289,7 +285,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     locker_id = Some(payment_method_id.clone());
                     let existing_pm_by_locker_id = db
                         .find_payment_method_by_locker_id(
-                            key_manager_state,
                             key_store,
                             &payment_method_id,
                             self.platform.get_processor().get_account().storage_scheme,
@@ -424,7 +419,6 @@ impl PaymentMethodsController for PmCards<'_> {
                 let db = &*self.state.store;
                 let existing_pm = db
                     .find_payment_method(
-                        &self.state.into(),
                         key_store,
                         &pm_id,
                         self.platform.get_processor().get_account().storage_scheme,
@@ -436,7 +430,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     ))?;
 
                 db.update_payment_method(
-                    &self.state.into(),
                     key_store,
                     existing_pm,
                     pm_update,
@@ -794,12 +787,10 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
     {
         let db = &*self.state.store;
-        let key_manager_state = &self.state.into();
         // check for the customer
         // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer_id,
                 merchant_id,
                 self.platform.get_processor().get_key_store(),
@@ -810,7 +801,6 @@ impl PaymentMethodsController for PmCards<'_> {
         // check for the presence of payment_method
         let payment_method = db
             .find_payment_method(
-                &(self.state.into()),
                 self.platform.get_processor().get_key_store(),
                 &payment_method_id,
                 self.platform.get_processor().get_account().storage_scheme,
@@ -850,7 +840,6 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let updated_customer_details = db
             .update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer_id.to_owned(),
                 merchant_id.to_owned(),
                 customer,
@@ -925,7 +914,6 @@ impl PaymentMethodsController for PmCards<'_> {
         let db = self.state.store.as_ref();
         let pm = db
             .find_payment_method(
-                &self.state.into(),
                 self.platform.get_processor().get_key_store(),
                 &pm.payment_method_id,
                 self.platform.get_processor().get_account().storage_scheme,
@@ -982,10 +970,8 @@ impl PaymentMethodsController for PmCards<'_> {
         pm_id: api::PaymentMethodId,
     ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
         let db = self.state.store.as_ref();
-        let key_manager_state = &(self.state.into());
         let key = db
             .find_payment_method(
-                key_manager_state,
                 self.platform.get_processor().get_key_store(),
                 pm_id.payment_method_id.as_str(),
                 self.platform.get_processor().get_account().storage_scheme,
@@ -995,7 +981,6 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 &key.customer_id,
                 self.platform.get_processor().get_account().get_id(),
                 self.platform.get_processor().get_key_store(),
@@ -1043,7 +1028,6 @@ impl PaymentMethodsController for PmCards<'_> {
         }
 
         db.delete_payment_method_by_merchant_id_payment_method_id(
-            &(self.state.into()),
             self.platform.get_processor().get_key_store(),
             self.platform.get_processor().get_account().get_id(),
             pm_id.payment_method_id.as_str(),
@@ -1057,7 +1041,6 @@ impl PaymentMethodsController for PmCards<'_> {
                 last_modified_by: None,
             };
             db.update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 key.customer_id,
                 key.merchant_id,
                 customer,
@@ -1210,7 +1193,6 @@ impl PaymentMethodsController for PmCards<'_> {
                         if let Err(err) = add_card_resp {
                             logger::error!(vault_err=?err);
                             db.delete_payment_method_by_merchant_id_payment_method_id(
-                                &(self.state.into()),
                                 self.platform.get_processor().get_key_store(),
                                 merchant_id,
                                 &resp.payment_method_id,
@@ -1276,7 +1258,6 @@ impl PaymentMethodsController for PmCards<'_> {
                         };
 
                         db.update_payment_method(
-                            &(self.state.into()),
                             self.platform.get_processor().get_key_store(),
                             existing_pm,
                             pm_update,
@@ -1467,7 +1448,6 @@ pub async fn add_payment_method_data(
         .get_required_value("client_secret")?;
     let payment_method = db
         .find_payment_method(
-            &((&state).into()),
             platform.get_processor().get_key_store(),
             pm_id.as_str(),
             platform.get_processor().get_account().storage_scheme,
@@ -1484,7 +1464,6 @@ pub async fn add_payment_method_data(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &(&state).into(),
             &customer_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -1516,7 +1495,6 @@ pub async fn add_payment_method_data(
                         };
 
                         db.update_payment_method(
-                            &((&state).into()),
                             platform.get_processor().get_key_store(),
                             payment_method,
                             pm_update,
@@ -1589,7 +1567,6 @@ pub async fn add_payment_method_data(
                         };
 
                         db.update_payment_method(
-                            &((&state).into()),
                             platform.get_processor().get_key_store(),
                             payment_method,
                             pm_update,
@@ -1625,7 +1602,6 @@ pub async fn add_payment_method_data(
                     };
 
                     db.update_payment_method(
-                        &((&state).into()),
                         platform.get_processor().get_key_store(),
                         payment_method,
                         pm_update,
@@ -1658,7 +1634,6 @@ pub async fn update_customer_payment_method(
         pm
     } else {
         db.find_payment_method(
-            &((&state).into()),
             platform.get_processor().get_key_store(),
             payment_method_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1841,7 +1816,6 @@ pub async fn update_customer_payment_method(
                 .clone_from(&pm.payment_method_id);
 
             db.update_payment_method(
-                &((&state).into()),
                 platform.get_processor().get_key_store(),
                 pm,
                 pm_update,
@@ -1918,7 +1892,6 @@ pub async fn update_customer_payment_method(
 
         let pm = db
             .update_payment_method(
-                &((&state).into()),
                 platform.get_processor().get_key_store(),
                 pm,
                 pm_update,
@@ -2251,7 +2224,6 @@ where
 
 #[cfg(feature = "v1")]
 pub async fn update_payment_method_metadata_and_last_used(
-    state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
@@ -2263,14 +2235,13 @@ pub async fn update_payment_method_metadata_and_last_used(
         last_used_at: common_utils::date_time::now(),
         last_modified_by: None,
     };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
 
 pub async fn update_payment_method_and_last_used(
-    state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
@@ -2284,7 +2255,7 @@ pub async fn update_payment_method_and_last_used(
         last_used_at: common_utils::date_time::now(),
         last_modified_by: None,
     };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
@@ -2304,7 +2275,7 @@ pub async fn update_payment_method_connector_mandate_details(
         last_modified_by: None,
     };
 
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
@@ -2312,7 +2283,6 @@ pub async fn update_payment_method_connector_mandate_details(
 
 #[cfg(feature = "v1")]
 pub async fn update_payment_method_connector_mandate_details(
-    state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
@@ -2333,7 +2303,7 @@ pub async fn update_payment_method_connector_mandate_details(
         last_modified_by: None,
     };
 
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
@@ -2688,10 +2658,9 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let key_manager_state = &(&state).into();
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            validate_payment_method_and_client_secret(&state, cs, db, &platform).await?;
+            validate_payment_method_and_client_secret(cs, db, &platform).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -2746,7 +2715,6 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .async_and_then(|cust| async {
                     db.find_customer_by_customer_id_merchant_id(
-                        key_manager_state,
                         cust,
                         &pi.merchant_id,
                         platform.get_processor().get_key_store(),
@@ -2797,7 +2765,6 @@ pub async fn list_payment_methods(
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
             platform.get_processor().get_account().get_id(),
             false,
             platform.get_processor().get_key_store(),
@@ -2813,11 +2780,7 @@ pub async fn list_payment_methods(
             message: "Profile id not found".to_string(),
         })?;
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -3703,7 +3666,6 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
 
 #[cfg(feature = "v1")]
 async fn validate_payment_method_and_client_secret(
-    state: &routes::SessionState,
     cs: &String,
     db: &dyn db::StorageInterface,
     platform: &domain::Platform,
@@ -3717,7 +3679,6 @@ async fn validate_payment_method_and_client_secret(
 
     let payment_method = db
         .find_payment_method(
-            &(state.into()),
             platform.get_processor().get_key_store(),
             pm_id,
             platform.get_processor().get_account().storage_scheme,
@@ -3782,7 +3743,6 @@ pub async fn call_surcharge_decision_management(
         let _ = state
             .store
             .update_payment_intent(
-                &(&state).into(),
                 payment_intent,
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
@@ -3843,7 +3803,6 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         let _ = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_intent,
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
@@ -4228,7 +4187,6 @@ pub async fn list_customer_payment_method(
     limit: Option<i64>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    let key_manager_state = &state.into();
     let off_session_payment_flag = payment_intent
         .as_ref()
         .map(|pi| {
@@ -4241,7 +4199,6 @@ pub async fn list_customer_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
             customer_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -4276,7 +4233,6 @@ pub async fn list_customer_payment_method(
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
-            &(state.into()),
             platform.get_processor().get_key_store(),
             customer_id,
             platform.get_processor().get_account().get_id(),
@@ -4302,7 +4258,6 @@ pub async fn list_customer_payment_method(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
         platform.get_processor().get_key_store(),
         profile_id.as_ref(),
         platform.get_processor().get_account().get_id(),
@@ -4643,7 +4598,6 @@ pub async fn get_mca_status(
         let mcas = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
                 merchant_id,
                 true,
                 key_store,
@@ -4865,7 +4819,6 @@ pub async fn update_last_used_at(
     state
         .store
         .update_payment_method(
-            &(state.into()),
             key_store,
             payment_method.clone(),
             update_last_used,

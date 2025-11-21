@@ -8,7 +8,9 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+#[cfg(not(feature = "payouts"))]
+use error_stack::report;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -945,25 +947,76 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Worldp
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Worldpayxml {
-    fn get_webhook_object_reference_id(
+    #[cfg(feature = "payouts")]
+    async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            masking::Secret<serde_json::Value>,
+        >,
+        _connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // Bypass Source Verification since it is done via MTLS
+        Ok(true)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let body: worldpayxml::WorldpayXmlWebhookBody =
+                utils::deserialize_xml_to_struct(request.body)?;
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    body.notify.order_status_event.order_code,
+                ),
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let body: worldpayxml::WorldpayXmlWebhookBody =
+                utils::deserialize_xml_to_struct(request.body)?;
+            Ok(worldpayxml::get_payout_webhook_event(
+                body.notify.order_status_event.payment.last_event,
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let body: worldpayxml::WorldpayXmlWebhookBody =
+                utils::deserialize_xml_to_struct(request.body)?;
+            Ok(Box::new(body))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 }
 

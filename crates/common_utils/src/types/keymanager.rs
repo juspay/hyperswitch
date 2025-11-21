@@ -52,7 +52,29 @@ pub struct KeyManagerState {
     pub infra_values: Option<serde_json::Value>,
 }
 
+impl Default for KeyManagerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KeyManagerState {
+    pub fn new() -> Self {
+        Self {
+            tenant_id: id_type::TenantId::get_default_tenant_id(),
+            global_tenant_id: id_type::TenantId::get_default_global_tenant_id(),
+            enabled: Default::default(),
+            url: String::default(),
+            client_idle_timeout: Default::default(),
+            #[cfg(feature = "km_forward_x_request_id")]
+            request_id: Default::default(),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: Default::default(),
+            #[cfg(feature = "keymanager_mtls")]
+            cert: Default::default(),
+            infra_values: Default::default(),
+        }
+    }
     pub fn add_confirm_value_in_infra_values(
         &self,
         is_confirm_operation: bool,

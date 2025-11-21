@@ -259,12 +259,10 @@ pub async fn custom_revenue_recovery_core(
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             &payment_merchant_connector_account_id,
             platform.get_processor().get_key_store(),
         )
@@ -277,7 +275,6 @@ pub async fn custom_revenue_recovery_core(
         })?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             &request.billing_merchant_connector_id.clone(),
             platform.get_processor().get_key_store(),
         )

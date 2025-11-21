@@ -1874,11 +1874,21 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .clone()
+            .map(|info| info.status),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
-        connector_customer: payment_data.connector_customer_id,
+        connector_customer: core_utils::get_connector_customer_id(
+            &state.conf,
+            connector_id,
+            payment_data.connector_customer_id.clone(),
+            &payment_data.payment_intent.customer_id,
+            &payment_data.payment_method_info,
+            &payment_data.payment_attempt,
+        )?,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
@@ -3324,7 +3334,7 @@ where
 {
     use std::ops::Not;
 
-    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE, NO_ERROR_REASON};
 
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
@@ -3856,9 +3866,11 @@ where
                 .error_code
                 .filter(|code| code != NO_ERROR_CODE),
             error_message: payment_attempt
-                .error_reason
-                .or(payment_attempt.error_message)
+                .error_message
                 .filter(|message| message != NO_ERROR_MESSAGE),
+            error_reason: payment_attempt
+                .error_reason
+                .filter(|reason| reason != NO_ERROR_REASON),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             payment_experience: payment_attempt.payment_experience,
@@ -4195,6 +4207,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             cancellation_reason: None,
             error_code: None,
             error_message: None,
+            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,

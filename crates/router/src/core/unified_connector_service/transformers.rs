@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
 use common_utils::{ext_traits::Encode, request::Method, types};
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     mandates::MandateData,
@@ -64,6 +64,186 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
         }
     }
 }
+
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceAuthorizeOnlyRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, _call_connector_action): (
+            &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+            common_enums::CallConnectorAction,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let payment_method = router_data
+            .request
+            .payment_method_type
+            .map(|payment_method_type| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    router_data.request.payment_method_data.clone(),
+                    payment_method_type,
+                )
+            })
+            .transpose()?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
+
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+        let metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|val| val.as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        Ok(Self {
+            amount: router_data.request.amount,
+            currency: currency.into(),
+            payment_method,
+            return_url: router_data.request.router_return_url.clone(),
+            address: Some(address),
+            auth_type: auth_type.into(),
+            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
+            request_incremental_authorization: router_data
+                .request
+                .request_incremental_authorization,
+            minor_amount: router_data.request.amount,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            browser_info,
+
+            session_token: None,
+            order_tax_amount: router_data
+                .request
+                .order_tax_amount
+                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
+            customer_name: router_data
+                .request
+                .customer_name
+                .clone()
+                .map(|customer_name| customer_name.peek().to_owned()),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: router_data.request.webhook_url.clone(),
+            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
+            off_session: router_data.request.off_session,
+            customer_acceptance,
+            order_category: router_data.request.order_category.clone(),
+            payment_experience: None,
+            authentication_data,
+            request_extended_authorization: router_data
+                .request
+                .request_extended_authorization
+                .map(|request_extended_authorization| request_extended_authorization.is_true()),
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            customer_id: router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
+            metadata,
+            test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
+            state,
+            payment_method_token: router_data
+                .payment_method_token
+                .as_ref()
+                .and_then(|pmt| pmt.get_payment_method_token())
+                .map(ExposeInterface::expose),
+            access_token: None,
+            merchant_account_metadata,
+            description: router_data.description.clone(),
+            setup_mandate_details: router_data
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+                .transpose()?,
+            statement_descriptor_name: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            statement_descriptor_suffix: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            order_details: vec![],
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<(
         &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
@@ -151,6 +331,47 @@ impl
         })
     }
 }
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            api::AuthorizeSessionToken,
+            router_request_types::AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceCreateSessionTokenRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            api::AuthorizeSessionToken,
+            router_request_types::AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data
+                .request
+                .amount
+                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .amount
+                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
+            metadata: HashMap::new(),
+            state: None,
+            browser_info: None,
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -618,6 +839,7 @@ impl
             setup_mandate_details: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
+            order_details: vec![],
         })
     }
 }
@@ -786,6 +1008,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            order_details: vec![],
         })
     }
 }
@@ -950,6 +1173,7 @@ impl
                 .transpose()?,
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
+            order_details: vec![],
         })
     }
 }
@@ -2397,6 +2621,44 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             update_mandate_id: mandate_data.update_mandate_id.clone(),
             customer_acceptance,
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            // For session token creation, we typically return a successful response with the session token
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::SessionTokenResponse {
+                    session_token: response.session_token.clone(),
+                },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
     }
 }
 

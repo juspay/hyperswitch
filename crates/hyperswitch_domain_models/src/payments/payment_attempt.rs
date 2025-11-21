@@ -78,7 +78,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn insert_payment_attempt(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -95,7 +94,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
@@ -130,7 +128,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         payment_id: &id_type::GlobalPaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -147,7 +144,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &id_type::ProfileId,
         connector_transaction_id: &str,
@@ -174,7 +170,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempt_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -183,7 +178,6 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_attempts_by_payment_intent_id(
         &self,
-        state: &KeyManagerState,
         payment_id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,

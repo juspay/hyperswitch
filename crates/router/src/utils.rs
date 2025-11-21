@@ -19,7 +19,6 @@ use api_models::{
     payments::{self},
     subscription as subscription_types, webhooks,
 };
-use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -171,12 +170,10 @@ pub async fn find_payment_intent_from_payment_id_type(
     payment_id_type: payments::PaymentIdType,
     platform: &domain::Platform,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
-    let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -194,7 +191,6 @@ pub async fn find_payment_intent_from_payment_id_type(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -213,7 +209,6 @@ pub async fn find_payment_intent_from_payment_id_type(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 &attempt.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -264,7 +259,6 @@ pub async fn find_payment_intent_from_refund_id_type(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
         &attempt.payment_id,
         platform.get_processor().get_account().get_id(),
         platform.get_processor().get_key_store(),
@@ -300,7 +294,6 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
     db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -345,7 +338,6 @@ pub async fn find_mca_from_authentication_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state.into(),
             platform.get_processor().get_account().get_id(),
             &mca_id,
             platform.get_processor().get_key_store(),
@@ -374,7 +366,6 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
@@ -403,7 +394,6 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
                     platform.get_processor().get_key_store(),
@@ -437,7 +427,6 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &profile_id,
                     connector_name,
                     platform.get_processor().get_key_store(),
@@ -487,13 +476,11 @@ pub async fn get_mca_from_payout_attempt(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
     };
-    let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
                     platform.get_processor().get_key_store(),
@@ -511,7 +498,6 @@ pub async fn get_mca_from_payout_attempt(
                 let _id = merchant_connector_id;
                 let _ = platform.get_processor().get_key_store();
                 let _ = connector_name;
-                let _ = key_manager_state;
                 todo!()
             }
         }
@@ -519,7 +505,6 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &payout.profile_id,
                     connector_name,
                     platform.get_processor().get_key_store(),
@@ -567,7 +552,6 @@ pub async fn get_mca_from_object_reference_id(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &state.into(),
                     profile_id,
                     connector_name,
                     platform.get_processor().get_key_store(),
@@ -1253,14 +1237,9 @@ pub async fn trigger_refund_outgoing_webhook(
 ) -> RouterResult<()> {
     let refund_status = refund.refund_status;
 
-    let key_manager_state = &(state).into();
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1327,15 +1306,10 @@ pub async fn trigger_payouts_webhook(
     platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state).into();
     let profile_id = &payout_response.profile_id;
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

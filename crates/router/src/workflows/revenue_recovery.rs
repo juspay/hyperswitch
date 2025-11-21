@@ -198,37 +198,23 @@ pub(crate) async fn extract_data_and_perform_action(
 ) -> Result<pcr_storage_types::RevenueRecoveryPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
-    let key_manager_state = &state.into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &tracking_data.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &tracking_data.merchant_id,
-            &key_store,
-        )
+        .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
         .await?;
 
     let profile = db
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            &tracking_data.profile_id,
-        )
+        .find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
         .await?;
 
     let billing_mca = db
-        .find_merchant_connector_account_by_id(
-            key_manager_state,
-            &tracking_data.billing_mca_id,
-            &key_store,
-        )
+        .find_merchant_connector_account_by_id(&tracking_data.billing_mca_id, &key_store)
         .await?;
 
     let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {
