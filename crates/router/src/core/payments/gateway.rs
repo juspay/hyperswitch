@@ -1,3 +1,4 @@
+pub mod access_token_gateway;
 pub mod authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
