@@ -2977,6 +2977,8 @@ Cypress.Commands.add(
     requestBody.profile_id = profileId;
     requestBody.recurring_details.data = paymentMethodId;
 
+    globalState.set("paymentAmount", requestBody.amount);
+
     cy.request({
       method: "POST",
       url: url,

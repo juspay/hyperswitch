@@ -252,4 +252,90 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest(globalState, data);
     });
   });
+
+  context(
+    "Card - NoThreeDS Create + Confirm Automatic CIT and MIT using Payment Method Id flow test",
+    () => {
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Confirm No 3DS CIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          0,
+          true,
+          "automatic",
+          "setup_mandate",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
+      it("Confirm No 3DS MIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
+      it("Confirm No 3DS MIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+    }
+  );
 });
