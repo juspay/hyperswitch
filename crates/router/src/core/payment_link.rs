@@ -724,18 +724,8 @@ pub fn get_payment_link_config_based_on_priority(
                     .domain_name
                     .clone()
                     .map(|d_name| {
-                        let is_dev =
-                            matches!(router_env::env::which(), router_env::Env::Development);
-                        let scheme = if is_dev { "http" } else { "https" };
-
-                        logger::info!(
-                            "domain name set to custom domain {}://{:?} (env = {:?})",
-                            scheme,
-                            d_name,
-                            router_env::env::which()
-                        );
-
-                        format!("{scheme}://{d_name}")
+                        logger::info!("domain name set to custom domain https://{:?}", d_name);
+                        format!("https://{d_name}")
                     })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
@@ -753,53 +743,6 @@ pub fn get_payment_link_config_based_on_priority(
         } else {
             (default_domain_name.clone(), None, None, None)
         };
-
-    let has_custom_tnc = payment_create_link_config
-        .as_ref()
-        .map(|data| data.theme_config.custom_message_for_card_terms.is_some())
-        .unwrap_or(false)
-        || business_link_config
-            .as_ref()
-            .and_then(|data| {
-                data.default_config
-                    .as_ref()
-                    .map(|d| d.custom_message_for_card_terms.is_some())
-            })
-            .unwrap_or(false);
-
-    let is_default_domain = domain_name == default_domain_name;
-    let is_live_mode = payment_create_link_config
-        .as_ref()
-        .map(|d| !d.theme_config.test_mode.unwrap_or(true))
-        .unwrap_or(false);
-    let is_production = matches!(router_env::env::which(), router_env::Env::Production);
-
-    if is_default_domain && has_custom_tnc {
-        match (is_live_mode, is_production) {
-            (true, true) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!(
-                        "payment_link_config.custom_message_for_card_terms cannot be passed \
-                         when base url is set to: {domain_name}"
-                    ),
-                }
-                .into())
-            }
-            (true, false) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.test_mode = true".to_string()
-                }
-                .into(),
-            )}
-            (false, true) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Cannot set payment_link_config.test_mode = true in Production".to_string()
-                }
-                .into(),
-            )}
-            (_,_) => ()
-        }
-    }
 
     let (
         theme,
@@ -900,6 +843,40 @@ pub fn get_payment_link_config_based_on_priority(
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
         };
+
+    let has_custom_tnc = payment_link_config.custom_message_for_card_terms.is_some();
+    let is_default_domain = domain_name == default_domain_name;
+    let is_live_mode = payment_create_link_config
+        .as_ref()
+        .map(|d| !d.theme_config.payment_test_mode.unwrap_or(true))
+        .unwrap_or(false);
+    let is_production = matches!(router_env::env::which(), router_env::Env::Production);
+
+    if is_default_domain && has_custom_tnc {
+        match (is_live_mode, is_production) {
+            (true, true) => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "payment_link_config.custom_message_for_card_terms cannot be passed when base url is set to: {domain_name}"
+                    ),
+                }
+                .into())
+            }
+            (true, false) => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.payment_test_mode = true".to_string()
+                }
+                .into(),
+            )}
+            (false, true) => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot set payment_link_config.payment_test_mode = true in Production".to_string()
+                }
+                .into(),
+            )}
+            (_,_) => ()
+        }
+    }
 
     Ok((payment_link_config, domain_name))
 }

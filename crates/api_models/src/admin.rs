@@ -3376,7 +3376,7 @@ pub struct PaymentLinkConfigRequest {
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
     /// Indicates whether the merchant is testing or live
-    pub test_mode: Option<bool>,
+    pub payment_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
