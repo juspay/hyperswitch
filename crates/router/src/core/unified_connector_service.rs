@@ -1157,6 +1157,18 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     })
 }
 
+pub fn handle_unified_connector_service_response_for_create_connector_customer(
+    response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let connector_customer_result =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((connector_customer_result, status_code))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     response: payments_grpc::PaymentServicePostAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {
