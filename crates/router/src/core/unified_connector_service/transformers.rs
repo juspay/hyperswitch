@@ -1,11 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
-use common_utils::{
-    ext_traits::{Encode, OptionExt},
-    request::Method,
-    types,
-};
+use common_utils::{ext_traits::Encode, request::Method, types};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -87,12 +83,11 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_ref_id = router_data
-            .connector_request_reference_id
-            .clone()
-            .map(|id| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-            });
+        let connector_ref_id = Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        };
 
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -113,7 +108,7 @@ impl
             .map(|payment_method_type| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     router_data.request.payment_method_data.clone(),
-                    payment_method_type,
+                    Some(payment_method_type),
                 )
             })
             .transpose()?;
@@ -121,10 +116,14 @@ impl
         // TODO: Fix the type of address field in UCS request and pass address
         // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let amount = router_data.request.amount.get_required_value("amount")?;
+        let amount = router_data.request.amount.ok_or(report!(
+            UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "amount"
+            }
+        ))?;
 
         Ok(Self {
-            request_ref_id: connector_ref_id,
+            request_ref_id: Some(connector_ref_id),
             merchant_account_metadata,
             amount,
             currency: currency.into(),

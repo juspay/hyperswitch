@@ -11,7 +11,6 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
 };
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
@@ -20,7 +19,7 @@ use crate::{
     },
     routes::SessionState,
     services::logger,
-    types::{self, transformers::ForeignTryFrom, MinorUnit},
+    types::{self, transformers::ForeignTryFrom},
 };
 
 // =============================================================================
@@ -63,7 +62,7 @@ where
             types::PaymentMethodTokenizationData,
             types::PaymentsResponseData,
         >,
-        call_connector_action: CallConnectorAction,
+        _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
