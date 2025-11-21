@@ -16,6 +16,8 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt;
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
@@ -1535,121 +1537,26 @@ async fn payouts_incoming_webhook_flow(
     );
     match payout_webhook_action {
         PaoyoutWebhookAction::UpdateStatus => {
-            let status = common_enums::PayoutStatus::foreign_try_from(event_type)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("failed payout status mapping from event type")?;
-
-            let payout_webhook_details = connector
-                .get_payout_webhook_details(request_details)
-                .switch()
-                .attach_printable("Failed to get error object for payouts")?;
-
-            // if status is failure then update the error_code and error_message as well
-            let payout_attempt_update = if status.is_payout_failure() {
-                PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: payout_attempt.connector_payout_id.clone(),
-                    status,
-                    error_message: payout_webhook_details.error_message,
-                    error_code: payout_webhook_details.error_code,
-                    is_eligible: payout_attempt.is_eligible,
-                    unified_code: None,
-                    unified_message: None,
-                    payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
-                }
-            } else {
-                PayoutAttemptUpdate::StatusUpdate {
-                    connector_payout_id: payout_attempt.connector_payout_id.clone(),
-                    status,
-                    error_message: None,
-                    error_code: None,
-                    is_eligible: payout_attempt.is_eligible,
-                    unified_code: None,
-                    unified_message: None,
-                    payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
-                }
-            };
-
-            let updated_payout_attempt = db
-                .update_payout_attempt(
-                    &payout_attempt,
-                    payout_attempt_update,
-                    &payout_data.payouts,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed while updating payout attempt: payout_attempt_id: {}",
-                        payout_attempt.payout_attempt_id
-                    )
-                })?;
-            payout_data.payout_attempt = updated_payout_attempt;
-
-            let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
-
-            // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if let Some(outgoing_event_type) = event_type {
-                let payout_create_response =
-                    payouts::response_handler(&state, &platform, &payout_data).await?;
-
-                Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                    state,
-                    platform,
-                    business_profile,
-                    outgoing_event_type,
-                    enums::EventClass::Payouts,
-                    payout_data
-                        .payout_attempt
-                        .payout_id
-                        .get_string_repr()
-                        .to_string(),
-                    enums::EventObjectType::PayoutDetails,
-                    api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
-                    Some(payout_data.payout_attempt.created_at),
-                ))
-                .await?;
-            }
-
-            Ok(WebhookResponseTracker::Payout {
-                payout_id: payout_data.payout_attempt.payout_id,
-                status: payout_data.payout_attempt.status,
-            })
+            payout_incoming_webhook_update_status(
+                state,
+                platform,
+                business_profile,
+                event_type,
+                request_details,
+                connector,
+                payout_attempt,
+                &mut payout_data,
+            )
+            .await
         }
         PaoyoutWebhookAction::RetrieveStatus => {
-            metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
-            // Form connector data
-            let connector_data = match &payout_attempt.connector {
-                Some(connector) => ConnectorData::get_payout_connector_by_name(
-                    &state.conf.connectors,
-                    connector,
-                    GetToken::Connector,
-                    payout_attempt.merchant_connector_id.clone(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get the connector data")?,
-                _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
-                    "Connector not found in payout_attempt - should not reach here.".to_string(),
-                ))
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "connector",
-                })
-                .attach_printable("Connector not found for payout fulfillment")?,
-            };
-
-            Box::pin(payouts::create_payout_retrieve(
-                &state,
-                &platform,
-                &connector_data,
+            payout_incoming_webhook_retrieve_status(
+                state,
+                platform,
+                payout_attempt,
                 &mut payout_data,
-            ))
+            )
             .await
-            .attach_printable("Payout retrieval failed for given Payout request")?;
-
-            Ok(WebhookResponseTracker::Payout {
-                payout_id: payout_data.payout_attempt.payout_id,
-                status: payout_data.payout_attempt.status,
-            })
         }
         PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
@@ -1676,6 +1583,146 @@ fn get_payout_webhook_action(
         (true, false) => PaoyoutWebhookAction::RetrieveStatus,
         (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
     }
+}
+
+#[cfg(feature = "payouts")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn payout_incoming_webhook_update_status(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    event_type: webhooks::IncomingWebhookEvent,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
+    payout_attempt: PayoutAttempt,
+    payout_data: &mut payouts::PayoutData,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let status = common_enums::PayoutStatus::foreign_try_from(event_type)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("failed payout status mapping from event type")?;
+
+    let payout_webhook_details = connector
+        .get_payout_webhook_details(request_details)
+        .switch()
+        .attach_printable("Failed to get error object for payouts")?;
+
+    // if status is failure then update the error_code and error_message as well
+    let payout_attempt_update = if status.is_payout_failure() {
+        PayoutAttemptUpdate::StatusUpdate {
+            connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            status,
+            error_message: payout_webhook_details.error_message,
+            error_code: payout_webhook_details.error_code,
+            is_eligible: payout_attempt.is_eligible,
+            unified_code: None,
+            unified_message: None,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+        }
+    } else {
+        PayoutAttemptUpdate::StatusUpdate {
+            connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            status,
+            error_message: None,
+            error_code: None,
+            is_eligible: payout_attempt.is_eligible,
+            unified_code: None,
+            unified_message: None,
+            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+        }
+    };
+
+    let updated_payout_attempt = db
+        .update_payout_attempt(
+            &payout_attempt,
+            payout_attempt_update,
+            &payout_data.payouts,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating payout attempt: payout_attempt_id: {}",
+                payout_attempt.payout_attempt_id
+            )
+        })?;
+    payout_data.payout_attempt = updated_payout_attempt;
+
+    let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
+
+    // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+    if let Some(outgoing_event_type) = event_type {
+        let payout_create_response =
+            payouts::response_handler(&state, &platform, payout_data).await?;
+
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform,
+            business_profile,
+            outgoing_event_type,
+            enums::EventClass::Payouts,
+            payout_data
+                .payout_attempt
+                .payout_id
+                .get_string_repr()
+                .to_string(),
+            enums::EventObjectType::PayoutDetails,
+            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
+            Some(payout_data.payout_attempt.created_at),
+        ))
+        .await?;
+    }
+
+    Ok(WebhookResponseTracker::Payout {
+        payout_id: payout_data.payout_attempt.payout_id.clone(),
+        status: payout_data.payout_attempt.status,
+    })
+}
+
+#[cfg(feature = "payouts")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn payout_incoming_webhook_retrieve_status(
+    state: SessionState,
+    platform: domain::Platform,
+    payout_attempt: PayoutAttempt,
+    payout_data: &mut payouts::PayoutData,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
+    // Form connector data
+    let connector_data = match &payout_attempt.connector {
+        Some(connector) => ConnectorData::get_payout_connector_by_name(
+            &state.conf.connectors,
+            connector,
+            GetToken::Connector,
+            payout_attempt.merchant_connector_id.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get the connector data")?,
+        _ => Err(errors::ApplicationError::InvalidConfigurationValueError(
+            "Connector not found in payout_attempt - should not reach here.".to_string(),
+        ))
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "connector",
+        })
+        .attach_printable("Connector not found for payout fulfillment")?,
+    };
+
+    Box::pin(payouts::create_payout_retrieve(
+        &state,
+        &platform,
+        &connector_data,
+        payout_data,
+    ))
+    .await
+    .attach_printable("Payout retrieval failed for given Payout request")?;
+
+    Ok(WebhookResponseTracker::Payout {
+        payout_id: payout_data.payout_attempt.payout_id.clone(),
+        status: payout_data.payout_attempt.status,
+    })
 }
 
 async fn relay_refunds_incoming_webhook_flow(
