@@ -80,6 +80,26 @@ pub enum UnifiedConnectorServiceError {
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentAuthorizeGranularFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentCreateSessionTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentCreateAccessTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentMethodTokenCreateFailure,
+
+    /// Failed to perform Create Connector Customer Granular from gRPC Server
+    #[error("Failed to perform Create Connector Customer Granular from gRPC Server")]
+    CreateConnectorCustomerGranularFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
 
     /// Failed to perform Payment Authenticate from gRPC Server
@@ -260,6 +280,8 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
+            payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartialCharged),
+            payments_grpc::PaymentStatus::Expired => Ok(Self::Failure),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
     }

@@ -66,6 +66,64 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
 }
 impl
     transformers::ForeignTryFrom<(
+        &RouterData<
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+            router_request_types::ConnectorCustomerData,
+            PaymentsResponseData,
+        >,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceCreateConnectorCustomerRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, _call_connector_action): (
+            &RouterData<
+                hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+                router_request_types::ConnectorCustomerData,
+                PaymentsResponseData,
+            >,
+            common_enums::CallConnectorAction,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let request_ref_id = router_data
+            .connector_request_reference_id
+            .clone()
+            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "connector_request_reference_id",
+            })?;
+
+        Ok(Self {
+            request_ref_id: Some(payments_grpc::Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
+            }),
+            merchant_account_metadata: std::collections::HashMap::new(),
+            customer_name: router_data.request.description.clone(),
+            email: router_data
+                .request
+                .email
+                .as_ref()
+                .map(|email| payments_grpc::SecretString {
+                    value: email.peek().to_string(),
+                }),
+            customer_id: router_data.customer_id.clone(),
+            phone_number: router_data
+                .request
+                .phone
+                .as_ref()
+                .map(|phone| phone.number.peek().to_string()),
+            address: router_data
+                .address
+                .billing
+                .as_ref()
+                .map(payments_grpc::Address::foreign_from),
+            metadata: std::collections::HashMap::new(),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
         &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
         common_enums::CallConnectorAction,
     )> for payments_grpc::PaymentServiceGetRequest
