@@ -7,14 +7,14 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
-use serde::{Deserialize, Serialize};
-use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+use serde::{Deserialize, Serialize,Deserializer};
+use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
 use crate::{db::errors, types::storage::enums::RevenueRecoveryAlgorithmType, SessionState};
 
 // Constants for retry window management
-const RETRY_WINDOW_DAYS: i32 = 30;
 const INITIAL_RETRY_COUNT: i32 = 0;
+const RETRY_WINDOW_IN_HOUR: i32 = 720;
 
 /// Payment processor token details including card information
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -39,7 +39,8 @@ pub struct PaymentProcessorTokenStatus {
     /// Error code associated with the token failure
     pub error_code: Option<String>,
     /// Daily retry count history for the last 30 days (date -> retry_count)
-    pub daily_retry_history: HashMap<Date, i32>,
+    #[serde(deserialize_with = "parse_datetime_key")]
+    pub daily_retry_history: HashMap<PrimitiveDateTime, i32>, 
     /// Scheduled time for the next retry attempt
     pub scheduled_at: Option<PrimitiveDateTime>,
     /// Indicates if the token is a hard decline (no retries allowed)
@@ -50,6 +51,8 @@ pub struct PaymentProcessorTokenStatus {
     pub is_active: Option<bool>,
     /// Update history of the token
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
+    /// Tau value for decider adaptive algorithm
+    pub tau: Option<f64>,
 }
 
 impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCardInfo {
@@ -73,6 +76,39 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
         }
     }
 }
+
+fn parse_datetime_key<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<PrimitiveDateTime, i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw: HashMap<String, i32> = HashMap::deserialize(deserializer)?;
+    let mut parsed = HashMap::new();
+
+    // Full datetime 
+    let full_dt_format = time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
+    // Date only
+    let date_only_format = time::macros::format_description!("[year]-[month]-[day]");
+
+    for (k, v) in raw {
+        if let Ok(dt) = PrimitiveDateTime::parse(&k, &full_dt_format) {
+            parsed.insert(dt, v);
+            continue;
+        }
+
+        if let Ok(date) = Date::parse(&k, &date_only_format) {
+            let dt = PrimitiveDateTime::new(date, Time::from_hms(0, 0, 0).unwrap_or(Time::MIDNIGHT));
+            parsed.insert(dt, v);
+            continue;
+        }
+
+        return Err(serde::de::Error::custom(format!("Invalid date key: {}", k)));
+    }
+
+    Ok(parsed)
+}
+
 
 /// Token retry availability information with detailed wait times
 #[derive(Debug, Clone)]
@@ -299,13 +335,17 @@ impl RedisTokenManager {
 
     /// Find the most recent date from retry history
     pub fn find_nearest_date_from_current(
-        retry_history: &HashMap<Date, i32>,
-    ) -> Option<(Date, i32)> {
-        let today = OffsetDateTime::now_utc().date();
+        retry_history: &HashMap<PrimitiveDateTime, i32>,
+    ) -> Option<(PrimitiveDateTime, i32)> {
+        let now_utc = OffsetDateTime::now_utc();
+        let reference_time = PrimitiveDateTime::new(
+            now_utc.date(),
+            Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
+        );
 
         retry_history
             .iter()
-            .filter(|(date, _)| **date <= today) // Only past dates + today
+            .filter(|(date, _)| **date <= reference_time) // Only past dates + today
             .max_by_key(|(date, _)| *date) // Get the most recent
             .map(|(date, retry_count)| (*date, *retry_count))
     }
@@ -362,24 +402,15 @@ impl RedisTokenManager {
         Ok(())
     }
 
-    /// Get current date in `yyyy-mm-dd` format.
-    pub fn get_current_date() -> String {
-        let today = date_time::now().date();
-
-        let (year, month, day) = (today.year(), today.month(), today.day());
-
-        format!("{year:04}-{month:02}-{day:02}",)
-    }
-
     /// Normalize retry window to exactly `RETRY_WINDOW_DAYS` days (today to `RETRY_WINDOW_DAYS - 1` days ago).
     pub fn normalize_retry_window(
         payment_processor_token: &mut PaymentProcessorTokenStatus,
-        today: Date,
+        reference_time: PrimitiveDateTime,
     ) {
-        let mut normalized_retry_history: HashMap<Date, i32> = HashMap::new();
+        let mut normalized_retry_history: HashMap<PrimitiveDateTime, i32> = HashMap::new();
 
-        for days_ago in 0..RETRY_WINDOW_DAYS {
-            let date = today - Duration::days(days_ago.into());
+        for hours_ago in 0..RETRY_WINDOW_IN_HOUR {
+            let date = reference_time - Duration::hours(hours_ago.into());
 
             payment_processor_token
                 .daily_retry_history
@@ -415,7 +446,6 @@ impl RedisTokenManager {
             let retry_info = Self::payment_processor_token_retry_info(
                 state,
                 payment_processor_token_status,
-                today,
                 card_network.clone(),
             );
 
@@ -449,67 +479,91 @@ impl RedisTokenManager {
     }
 
     /// Sum retries over exactly the last 30 days
-    fn calculate_total_30_day_retries(token: &PaymentProcessorTokenStatus, today: Date) -> i32 {
-        (0..RETRY_WINDOW_DAYS)
+    fn calculate_total_30_day_retries(
+        token: &PaymentProcessorTokenStatus,
+        reference_time: PrimitiveDateTime,
+    ) -> i32 {
+        
+        (0..RETRY_WINDOW_IN_HOUR)
             .map(|i| {
-                let date = today - Duration::days(i.into());
+                let target_hour = reference_time - Duration::hours(i.into());
+    
                 token
                     .daily_retry_history
-                    .get(&date)
+                    .get(&target_hour)
                     .copied()
-                    .unwrap_or(INITIAL_RETRY_COUNT)
+                    .unwrap_or(INITIAL_RETRY_COUNT) 
             })
             .sum()
     }
 
     /// Calculate wait hours
-    fn calculate_wait_hours(target_date: Date, now: OffsetDateTime) -> i64 {
-        let expiry_time = target_date.midnight().assume_utc();
+    fn calculate_wait_hours(target_date: PrimitiveDateTime, now: OffsetDateTime) -> i64 {
+        let expiry_time = target_date.assume_utc();
         (expiry_time - now).whole_hours().max(0)
     }
 
-    /// Calculate retry counts for exactly the last 30 days
+    /// Calculate retry counts for exactly the last 30 days (hour-granular)
     pub fn payment_processor_token_retry_info(
         state: &SessionState,
         token: &PaymentProcessorTokenStatus,
-        today: Date,
         network_type: Option<CardNetwork>,
     ) -> TokenRetryInfo {
         let card_config = &state.conf.revenue_recovery.card_config;
         let card_network_config = card_config.get_network_config(network_type);
 
-        let now = OffsetDateTime::now_utc();
+        let now_utc = OffsetDateTime::now_utc();
+        let reference_time = PrimitiveDateTime::new(
+            now_utc.date(),
+            Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT), 
+        );
 
-        let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
+        // Total retries for last 720 hours 
+        let total_30_day_retries =
+            Self::calculate_total_30_day_retries(token, reference_time);
 
+        // Monthly wait-hour calculation ----
         let monthly_wait_hours =
             if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
                 let mut accumulated_retries = 0;
 
-                // Iterate from most recent to oldest
-                (0..RETRY_WINDOW_DAYS)
-                    .map(|days_ago| today - Duration::days(days_ago.into()))
-                    .find(|date| {
-                        let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
+                (0..RETRY_WINDOW_IN_HOUR)
+                    .map(|i| reference_time - Duration::hours(i.into()))
+                    .find(|window_hour| {
+                        let retries = token.daily_retry_history.get(window_hour).copied().unwrap_or(0);
                         accumulated_retries += retries;
-                        accumulated_retries >= card_network_config.max_retry_count_for_thirty_day
+
+                        accumulated_retries
+                            >= card_network_config.max_retry_count_for_thirty_day
                     })
-                    .map(|breach_date| {
-                        Self::calculate_wait_hours(breach_date + Duration::days(31), now)
+                    .map(|breach_hour| {
+                        let allowed_at = breach_hour + Duration::days(31);
+                        Self::calculate_wait_hours(allowed_at, now_utc)
                     })
                     .unwrap_or(0)
             } else {
                 0
             };
 
-        let today_retries = token
-            .daily_retry_history
-            .get(&today)
-            .copied()
-            .unwrap_or(INITIAL_RETRY_COUNT);
+        // Today's retries (using hourly buckets) ----
+        let today_date = reference_time.date();
+
+        let today_retries: i32 = (0..24)
+            .map(|h| {
+                let hour_bucket = PrimitiveDateTime::new(
+                    today_date,
+                    Time::from_hms(h, 0, 0).unwrap_or(Time::MIDNIGHT),
+                );
+                token.daily_retry_history.get(&hour_bucket).copied().unwrap_or(0)
+            })
+            .sum();
 
         let daily_wait_hours = if today_retries >= card_network_config.max_retries_per_day {
-            Self::calculate_wait_hours(today + Duration::days(1), now)
+            let tomorrow_start = PrimitiveDateTime::new(
+                today_date + Duration::days(1),
+                Time::from_hms(0, 0, 0).unwrap_or(Time::MIDNIGHT),
+            );
+            Self::calculate_wait_hours(tomorrow_start, now_utc)
         } else {
             0
         };
@@ -542,12 +596,16 @@ impl RedisTokenManager {
 
         let last_external_attempt_at = token_data.modified_at;
 
-        let today = OffsetDateTime::now_utc().date();
+        let now_utc = OffsetDateTime::now_utc();
+        let reference_time = PrimitiveDateTime::new(
+            now_utc.date(),
+            Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT), 
+        );
 
         token_map
             .get_mut(&token_id)
             .map(|existing_token| {
-                Self::normalize_retry_window(existing_token, today);
+                Self::normalize_retry_window(existing_token, reference_time);
 
                 for (date, &value) in &token_data.daily_retry_history {
                     existing_token
@@ -611,7 +669,11 @@ impl RedisTokenManager {
         is_hard_decline: &Option<bool>,
         payment_processor_token_id: Option<&str>,
     ) -> CustomResult<bool, errors::StorageError> {
-        let today = OffsetDateTime::now_utc().date();
+        let now_utc = OffsetDateTime::now_utc();
+        let reference_time = PrimitiveDateTime::new(
+            now_utc.date(),
+            Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT), 
+        );
         let updated_token = match payment_processor_token_id {
             Some(token_id) => {
                 Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
@@ -638,6 +700,7 @@ impl RedisTokenManager {
                         )),
                         is_active: status.is_active,
                         account_update_history: status.account_update_history.clone(),
+                        tau: status.tau,
                     })
             }
             None => None,
@@ -645,17 +708,17 @@ impl RedisTokenManager {
 
         match updated_token {
             Some(mut token) => {
-                Self::normalize_retry_window(&mut token, today);
+                Self::normalize_retry_window(&mut token, reference_time);
 
                 match token.error_code {
                     None => token.daily_retry_history.clear(),
                     Some(_) => {
                         let current_count = token
                             .daily_retry_history
-                            .get(&today)
+                            .get(&reference_time)
                             .copied()
                             .unwrap_or(INITIAL_RETRY_COUNT);
-                        token.daily_retry_history.insert(today, current_count + 1);
+                        token.daily_retry_history.insert(reference_time, current_count + 1);
                     }
                 }
 
@@ -716,6 +779,7 @@ impl RedisTokenManager {
                 )),
                 is_active: status.is_active,
                 account_update_history: status.account_update_history.clone(),
+                tau: status.tau,
             };
             updated_tokens_map.insert(token_id, updated_status);
         }
@@ -766,6 +830,7 @@ impl RedisTokenManager {
                     )),
                     is_active: status.is_active,
                     account_update_history: status.account_update_history.clone(),
+                    tau: status.tau,
                 });
 
         match updated_token {
@@ -1307,6 +1372,7 @@ impl AccountUpdaterAction {
                             updated_mandate_details,
                         )),
                     }]),
+                    tau: None,
                 };
 
                 RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)

@@ -395,6 +395,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         ),
         first_error_msg_time: None,
         wait_time: retry_after_time,
+        payment_id: Some(payment_intent.get_id().get_string_repr().to_string()),
+        hourly_retry_history : Some(token_with_retry_info.token_status.daily_retry_history.clone()),
+        tau: token_with_retry_info.token_status.tau, 
+
     };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
@@ -458,11 +462,25 @@ async fn should_force_schedule_due_to_missed_slots(
                 .max_retry_count_for_thirty_day;
 
         // Calculate time difference since last retry and compare with threshold
-        (time::OffsetDateTime::now_utc() - most_recent_date.midnight().assume_utc()).whole_hours()
+        (time::OffsetDateTime::now_utc() - most_recent_date.assume_utc()).whole_hours()
             > threshold_hours.into()
     })
     // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
     .unwrap_or(false))
+}
+
+pub fn convert_hourly_retry_history(
+    input: Option<HashMap<time::PrimitiveDateTime, i32>>,
+) -> HashMap<String, i32> {
+    let fmt = time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
+
+    match input {
+        Some(map) => map
+            .into_iter()
+            .map(|(dt, count)| (dt.format(&fmt).unwrap_or(dt.to_string()), count))
+            .collect(),
+        None => HashMap::new(),
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -497,6 +515,9 @@ struct InternalDeciderRequest {
     total_retry_count_within_network: Option<i64>,
     first_error_msg_time: Option<prost_types::Timestamp>,
     wait_time: Option<prost_types::Timestamp>,
+    payment_id: Option<String>,
+    hourly_retry_history: Option<HashMap<time::PrimitiveDateTime, i32>>,
+    tau: Option<f64>,
 }
 
 #[cfg(feature = "v2")]
@@ -532,6 +553,9 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             total_retry_count_within_network: internal_request.total_retry_count_within_network,
             first_error_msg_time: internal_request.first_error_msg_time,
             wait_time: internal_request.wait_time,
+            payment_id: internal_request.payment_id,
+            hourly_retry_history: convert_hourly_retry_history(internal_request.hourly_retry_history),
+            tau: internal_request.tau,
         }
     }
 }
