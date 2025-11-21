@@ -516,6 +516,36 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs Create Access Token Granular
+    pub async fn create_access_token(
+        &self,
+        create_access_token_request: payments_grpc::PaymentServiceCreateAccessTokenRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceCreateAccessTokenResponse>,
+    > {
+        let mut request = tonic::Request::new(create_access_token_request);
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .create_access_token(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::CreateAccessTokenGranularFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="create_access_token",
+                    connector_name=?connector_name,
+                    "UCS create access token granular gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request

@@ -125,6 +125,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Cancel from gRPC Server
     #[error("Failed to perform Cancel from gRPC Server")]
     PaymentCancelFailure,
+
+    /// Failed to perform Create Access Token Granular from gRPC Server
+    #[error("Failed to perform Create Access Token Granular from gRPC Server")]
+    CreateAccessTokenGranularFailure,
 }
 
 /// UCS Webhook transformation status
