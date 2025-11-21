@@ -2086,18 +2086,19 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             card_reference: payment_method_reference.to_string(),
         };
 
-        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::mk_generic_locker_request(
-            state,
-            jwekey,
-            locker,
-            &payload,
-            "/cards/retrieve",
-            state.tenant.tenant_id.clone(),
-            state.request_id.clone(),
-        )
-        .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)
-        .attach_printable("Making get payment method request failed")?;
+        let get_card_resp: payment_methods::RetrieveCardResp =
+            payment_methods::mk_generic_locker_request(
+                state,
+                jwekey,
+                locker,
+                &payload,
+                "/cards/retrieve",
+                state.tenant.tenant_id.clone(),
+                state.request_id.clone(),
+            )
+            .await
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Making get payment method request failed")?;
 
         let retrieve_card_resp = get_card_resp
             .payload
@@ -2309,18 +2310,19 @@ pub async fn get_card_from_hs_locker<'a>(
             card_reference: card_reference.to_string(),
         };
 
-        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::mk_generic_locker_request(
-            state,
-            jwekey,
-            locker,
-            &payload,
-            "/cards/retrieve",
-            state.tenant.tenant_id.clone(),
-            state.request_id.clone(),
-        )
-        .await
-        .change_context(errors::VaultError::FetchCardFailed)
-        .attach_printable("Making get card request failed")?;
+        let get_card_resp: payment_methods::RetrieveCardResp =
+            payment_methods::mk_generic_locker_request(
+                state,
+                jwekey,
+                locker,
+                &payload,
+                "/cards/retrieve",
+                state.tenant.tenant_id.clone(),
+                state.request_id.clone(),
+            )
+            .await
+            .change_context(errors::VaultError::FetchCardFailed)
+            .attach_printable("Making get card request failed")?;
 
         let retrieve_card_resp = get_card_resp
             .payload

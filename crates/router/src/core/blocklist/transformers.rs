@@ -47,17 +47,18 @@ async fn call_to_locker_for_fingerprint(
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
-    let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload = payment_methods::mk_generic_locker_request(
-        state,
-        jwekey,
-        locker,
-        payload,
-        LOCKER_FINGERPRINT_PATH,
-        state.tenant.tenant_id.clone(),
-        state.request_id.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::GenerateFingerprintFailed)?;
+    let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
+        payment_methods::mk_generic_locker_request(
+            state,
+            jwekey,
+            locker,
+            payload,
+            LOCKER_FINGERPRINT_PATH,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::GenerateFingerprintFailed)?;
 
     Ok(generate_fingerprint_response)
 }
