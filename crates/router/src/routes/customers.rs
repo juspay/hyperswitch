@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
+use hyperswitch_domain_models::platform::Platform;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -22,8 +23,8 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            create_customer(state, platform, req, None)
+            let platform: Platform = auth.into();
+            create_customer(state, platform.get_provider().clone(), req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -53,8 +54,8 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            create_customer(state, platform, req, None)
+            let platform: Platform = auth.into();
+            create_customer(state, platform.get_provider().clone(), req, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -103,8 +104,13 @@ pub async fn customers_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform = auth.clone().into();
-            retrieve_customer(state, platform, auth.profile_id, customer_id)
+            let platform: Platform = auth.clone().into();
+            retrieve_customer(
+                state,
+                platform.get_provider().clone(),
+                auth.profile_id,
+                customer_id,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -149,8 +155,8 @@ pub async fn customers_retrieve(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            let platform = auth.into();
-            retrieve_customer(state, platform, id)
+            let platform: Platform = auth.into();
+            retrieve_customer(state, platform.get_provider().clone(), id)
         },
         auth,
         api_locking::LockAction::NotApplicable,
@@ -173,8 +179,8 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
-            list_customers(state, platform, None, request)
+            let platform: Platform = auth.into();
+            list_customers(state, platform.get_provider().clone(), None, request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -206,8 +212,8 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
-            list_customers(state, platform, None, request)
+            let platform: Platform = auth.into();
+            list_customers(state, platform.get_provider().clone(), None, request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -240,8 +246,8 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
-            list_customers_with_count(state, platform, request)
+            let platform: Platform = auth.into();
+            list_customers_with_count(state, platform.get_provider().clone(), request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -273,8 +279,8 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            let platform = auth.into();
-            list_customers_with_count(state, platform, request)
+            let platform: Platform = auth.into();
+            list_customers_with_count(state, platform.get_provider().clone(), request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -313,8 +319,8 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let platform = auth.into();
-            update_customer(state, platform, request_internal)
+            let platform: Platform = auth.into();
+            update_customer(state, platform.get_provider().clone(), request_internal)
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
@@ -350,8 +356,8 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let platform = auth.into();
-            update_customer(state, platform, request_internal)
+            let platform: Platform = auth.into();
+            update_customer(state, platform.get_provider().clone(), request_internal)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
