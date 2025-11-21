@@ -438,6 +438,15 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
+impl PaymentMethodToken {
+    pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
+        match self {
+            Self::Token(secret_token) => Some(secret_token.clone()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptDataInternal {
