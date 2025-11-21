@@ -58,8 +58,8 @@ pub async fn customers_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -87,7 +87,10 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        let api_auth = auth::ApiKeyAuth::default();
+        let api_auth = auth::ApiKeyAuth {
+            is_connected_allowed: true,
+            is_platform_allowed: true,
+        };
         match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
@@ -170,13 +173,8 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                None,
-                auth.key_store,
-                request,
-            )
+            let platform = auth.into();
+            list_customers(state, platform, None, request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -208,18 +206,13 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                None,
-                auth.key_store,
-                request,
-            )
+            let platform = auth.into();
+            list_customers(state, platform, None, request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -247,12 +240,8 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                auth.key_store,
-                request,
-            )
+            let platform = auth.into();
+            list_customers_with_count(state, platform, request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -284,17 +273,13 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                auth.key_store,
-                request,
-            )
+            let platform = auth.into();
+            list_customers_with_count(state, platform, request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -333,8 +318,8 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,

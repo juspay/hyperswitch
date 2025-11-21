@@ -50,13 +50,13 @@ pub async fn create_customer(
 
     let merchant_reference_id = customer_data.get_merchant_reference_id();
 
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
 
     let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
         merchant_reference_id: merchant_reference_id.as_ref(),
         merchant_id,
-        merchant_account: platform.get_processor().get_account(),
-        key_store: platform.get_processor().get_key_store(),
+        merchant_account: platform.get_provider().get_account(),
+        key_store: platform.get_provider().get_key_store(),
         key_manager_state,
     };
 
@@ -85,8 +85,8 @@ pub async fn create_customer(
         .insert_customer(
             domain_customer,
             key_manager_state,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
@@ -130,9 +130,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         // Setting default billing address to Db
         let address = self.get_address();
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = platform.get_provider().get_account().get_id();
         let key = platform
-            .get_processor()
+            .get_provider()
             .get_key_store()
             .key
             .get_inner()
@@ -143,8 +143,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             customer_data: self,
             merchant_id,
             customer_id: merchant_reference_id.as_ref(),
-            storage_scheme: platform.get_processor().get_account().storage_scheme,
-            key_store: platform.get_processor().get_key_store(),
+            storage_scheme: platform.get_provider().get_account().storage_scheme,
+            key_store: platform.get_provider().get_key_store(),
             key_manager_state,
             state,
         };
@@ -166,7 +166,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone()),
+            Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone()),
             key,
         )
         .await
@@ -250,7 +250,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .async_map(|billing_address| {
                 create_encrypted_data(
                     key_state,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     billing_address,
                 )
             })
@@ -263,7 +263,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .async_map(|shipping_address| {
                 create_encrypted_data(
                     key_state,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     shipping_address,
                 )
             })
@@ -272,9 +272,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let merchant_id = platform.get_processor().get_account().get_id().clone();
+        let merchant_id = platform.get_provider().get_account().get_id().clone();
         let key = platform
-            .get_processor()
+            .get_provider()
             .get_key_store()
             .key
             .get_inner()
@@ -293,7 +293,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone()),
+            Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone()),
             key,
         )
         .await
@@ -524,9 +524,9 @@ pub async fn retrieve_customer(
         .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
             key_manager_state,
             &customer_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .switch()?
@@ -537,7 +537,7 @@ pub async fn retrieve_customer(
             db.find_address_by_address_id(
                 key_manager_state,
                 address_id,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
             )
             .await
             .switch()?,
@@ -563,8 +563,8 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -577,9 +577,8 @@ pub async fn retrieve_customer(
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
-    merchant_id: id_type::MerchantId,
+    platform: domain::Platform,
     _profile_id_list: Option<Vec<id_type::ProfileId>>,
-    key_store: domain::MerchantKeyStore,
     request: customers::CustomerListRequest,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
@@ -596,8 +595,8 @@ pub async fn list_customers(
     let domain_customers = db
         .list_customers_by_merchant_id(
             &(&state).into(),
-            &merchant_id,
-            &key_store,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
             customer_list_constraints,
         )
         .await
@@ -621,8 +620,7 @@ pub async fn list_customers(
 #[instrument(skip(state))]
 pub async fn list_customers_with_count(
     state: SessionState,
-    merchant_id: id_type::MerchantId,
-    key_store: domain::MerchantKeyStore,
+    platform: domain::Platform,
     request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
@@ -639,8 +637,8 @@ pub async fn list_customers_with_count(
     let domain_customers = db
         .list_customers_by_merchant_id_with_count(
             &(&state).into(),
-            &merchant_id,
-            &key_store,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
             customer_list_constraints,
         )
         .await
@@ -1079,16 +1077,16 @@ pub async fn update_customer(
     #[cfg(feature = "v1")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: &update_customer.customer_id,
-        merchant_account: platform.get_processor().get_account(),
-        key_store: platform.get_processor().get_key_store(),
+        merchant_account: platform.get_provider().get_account(),
+        key_store: platform.get_provider().get_key_store(),
         key_manager_state,
     };
 
     #[cfg(feature = "v2")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         id: &update_customer.id,
-        merchant_account: platform.get_processor().get_account(),
-        key_store: platform.get_processor().get_key_store(),
+        merchant_account: platform.get_provider().get_account(),
+        key_store: platform.get_provider().get_key_store(),
         key_manager_state,
     };
 
@@ -1300,8 +1298,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let update_address_for_update_customer = AddressStructForDbUpdate {
             update_customer: self,
-            merchant_account: platform.get_processor().get_account(),
-            key_store: platform.get_processor().get_key_store(),
+            merchant_account: platform.get_provider().get_account(),
+            key_store: platform.get_provider().get_key_store(),
             key_manager_state,
             state,
             domain_customer,
@@ -1312,7 +1310,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .await?;
 
         let key = platform
-            .get_processor()
+            .get_provider()
             .get_key_store()
             .key
             .get_inner()
@@ -1334,7 +1332,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone()),
+            Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone()),
             key,
         )
         .await
@@ -1349,7 +1347,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .update_customer_by_customer_id_merchant_id(
                 key_manager_state,
                 domain_customer.customer_id.to_owned(),
-                platform.get_processor().get_account().get_id().to_owned(),
+                platform.get_provider().get_account().get_id().to_owned(),
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
@@ -1370,8 +1368,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     address_id: address.clone().map(|addr| addr.address_id),
                     last_modified_by: None,
                 },
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .switch()?;
@@ -1409,7 +1407,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .async_map(|billing_address| {
                 create_encrypted_data(
                     key_manager_state,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     billing_address,
                 )
             })
@@ -1423,7 +1421,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .async_map(|shipping_address| {
                 create_encrypted_data(
                     key_manager_state,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     shipping_address,
                 )
             })
@@ -1433,7 +1431,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
         let key = platform
-            .get_processor()
+            .get_provider()
             .get_key_store()
             .key
             .get_inner()
@@ -1455,7 +1453,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     },
                 ),
             ),
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone()),
+            Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone()),
             key,
         )
         .await
@@ -1493,8 +1491,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     status: None,
                     last_modified_by: None,
                 })),
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .switch()?;
