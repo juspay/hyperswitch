@@ -536,6 +536,7 @@ where
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
+            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -636,6 +637,7 @@ where
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
+            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -1233,6 +1235,7 @@ where
         initiator_merchant.merchant_account_type,
         is_connected_allowed,
         is_platform_allowed,
+        state.conf().platform.enabled,
     )?;
 
     let (merchant, key_store, platform_account_with_key_store) =
@@ -2556,6 +2559,7 @@ where
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
+            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -4539,16 +4543,26 @@ pub fn check_merchant_access(
     merchant_account_type: MerchantAccountType,
     is_connected_allowed: bool,
     is_platform_allowed: bool,
+    is_platform_enabled: bool,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match merchant_account_type {
         MerchantAccountType::Connected => is_connected_allowed.then_some(()).ok_or_else(|| {
             report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
                 .attach_printable("Connected Merchant is not authorized to access the resource")
         }),
-        MerchantAccountType::Platform => is_platform_allowed.then_some(()).ok_or_else(|| {
-            report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
-                .attach_printable("Platform Merchant is not authorized to access the resource")
-        }),
+        MerchantAccountType::Platform => {
+            // Check if platform feature is enabled
+            fp_utils::when(!is_platform_enabled, || {
+                Err(report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported))
+                    .attach_printable("Platform feature is not enabled")
+            })?;
+
+            // Check if platform is allowed for this resource
+            is_platform_allowed.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
+                    .attach_printable("Platform Merchant is not authorized to access the resource")
+            })
+        }
         MerchantAccountType::Standard => Ok(()),
     }
 }
