@@ -705,6 +705,14 @@ pub struct Locker {
     pub decryption_scheme: DecryptionScheme,
 }
 
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub enum DecryptionScheme {
     #[default]
@@ -731,7 +739,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
