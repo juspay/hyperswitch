@@ -95,7 +95,6 @@ pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;
-pub use network_tokenization::*;
 pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;

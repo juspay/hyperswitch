@@ -4018,16 +4018,22 @@ pub struct AdditionalNetworkTokenInfo {
     /// Card type, can be either `credit` or `debit`
     pub card_type: Option<String>,
 
+    /// The issuing country of the card
     pub card_issuing_country: Option<String>,
+
+    /// The bank code of the card
     pub bank_code: Option<String>,
 
     /// Last 4 digits of the card number
     pub last4: Option<String>,
 
+    /// The expiry month of the token
     pub token_exp_month: Option<Secret<String>>,
 
+    /// The expiry year of the token
     pub token_exp_year: Option<Secret<String>>,
 
+    /// The card holder's name
     pub card_holder_name: Option<Secret<String>>,
 }
 

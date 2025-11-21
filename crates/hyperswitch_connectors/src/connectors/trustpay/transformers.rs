@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::payments::SessionToken;
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -10,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
@@ -238,7 +238,7 @@ pub enum TrustpayPaymentsRequest {
 pub struct PaymentRequestNetworkToken {
     pub amount: StringMajorUnit,
     pub currency: enums::Currency,
-    pub pan: NetworkTokenNumber,
+    pub pan: NetworkToken,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
     #[serde(rename = "RedirectUrl")]

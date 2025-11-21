@@ -187,8 +187,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
-                | PaymentMethodType::Paypal
-                | PaymentMethodType::NetworkToken => match capture_method {
+                | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
@@ -215,8 +214,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Skrill
-                | PaymentMethodType::Paypal
-                | PaymentMethodType::NetworkToken => match capture_method {
+                | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
@@ -354,7 +352,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
-                | PaymentMethodType::OpenBanking => {
+                | PaymentMethodType::OpenBanking
+                | PaymentMethodType::NetworkToken => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -3309,17 +3308,6 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods2.clone(),
-            specific_features: None,
-        },
-    );
-
-    adyen_supported_payment_methods.add(
-        enums::PaymentMethod::NetworkToken,
-        PaymentMethodType::NetworkToken,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods1.clone(),
             specific_features: None,
         },
     );

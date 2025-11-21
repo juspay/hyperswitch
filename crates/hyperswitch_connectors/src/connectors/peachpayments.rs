@@ -841,17 +841,6 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
             },
         );
 
-        peachpayments_supported_payment_methods.add(
-            enums::PaymentMethod::NetworkToken,
-            enums::PaymentMethodType::NetworkToken,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-
         peachpayments_supported_payment_methods
     });
 

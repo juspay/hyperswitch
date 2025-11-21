@@ -12,6 +12,7 @@ use api_models::{
     payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
 };
 use base64::Engine;
+use cards::NetworkToken;
 use common_enums::{
     enums,
     enums::{
@@ -53,7 +54,6 @@ use hyperswitch_domain_models::router_request_types::fraud_check::{
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
         NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
@@ -6978,7 +6978,7 @@ impl CardData for api_models::payouts::CardPayout {
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token(&self) -> NetworkToken;
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
@@ -7019,12 +7019,12 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     }
 
     #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.token_number.clone()
     }
 
     #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 
@@ -7110,17 +7110,10 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
 }
 
 impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
-    #[cfg(feature = "v1")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.network_token.peek())
     }
 
-    #[cfg(feature = "v2")]
-    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
-        get_card_issuer(self.network_token.peek())
-    }
-
-    #[cfg(feature = "v1")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
@@ -7129,56 +7122,22 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
         Secret::new(year)
     }
 
-    #[cfg(feature = "v2")]
-    fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.token_exp_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
-    }
-
-    #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 
-    #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
-        self.network_token.clone()
-    }
-
-    #[cfg(feature = "v1")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.token_exp_month.clone()
     }
 
-    #[cfg(feature = "v2")]
-    fn get_network_token_expiry_month(&self) -> Secret<String> {
-        self.token_exp_month.clone()
-    }
-
-    #[cfg(feature = "v1")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.token_exp_year.clone()
     }
 
-    #[cfg(feature = "v2")]
-    fn get_network_token_expiry_year(&self) -> Secret<String> {
-        self.token_exp_year.clone()
-    }
-
-    #[cfg(feature = "v1")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         None
     }
 
-    #[cfg(feature = "v2")]
-    fn get_cryptogram(&self) -> Option<Secret<String>> {
-        None
-    }
-
-    #[cfg(feature = "v1")]
     fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.token_exp_year.clone();
         let year = binding.peek();
@@ -7189,32 +7148,6 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
         ))
     }
 
-    #[cfg(feature = "v2")]
-    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
-        let binding = self.token_exp_year.clone();
-        let year = binding.peek();
-        Ok(Secret::new(
-            year.get(year.len() - 2..)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
-        ))
-    }
-
-    #[cfg(feature = "v1")]
-    fn get_token_expiry_month_year_2_digit_with_delimiter(
-        &self,
-        delimiter: String,
-    ) -> Result<Secret<String>, errors::ConnectorError> {
-        let year = self.get_token_expiry_year_2_digit()?;
-        Ok(Secret::new(format!(
-            "{}{}{}",
-            self.token_exp_month.peek(),
-            delimiter,
-            year.peek()
-        )))
-    }
-
-    #[cfg(feature = "v2")]
     fn get_token_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
