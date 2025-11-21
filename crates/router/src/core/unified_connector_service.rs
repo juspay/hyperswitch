@@ -38,7 +38,6 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
-use hyperswitch_interfaces::helpers::ForeignTryFrom;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -67,8 +66,8 @@ use crate::{
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
-        transformers::ForeignFrom, UcsAuthorizeResponseData, UcsRepeatPaymentResponseData,
-        UcsSetupMandateResponseData,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
     },
 };
 
