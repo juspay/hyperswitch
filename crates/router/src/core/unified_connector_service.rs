@@ -41,10 +41,13 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
+// use unified_connector_service_client::payments::{
+//     self as payments_grpc, payment_method::PaymentMethod, wallet_payment_method_type::WalletType,
+//     CardDetails, CardPaymentMethodType, CryptoCurrency, CryptoCurrencyPaymentMethodType,
+//     PaymentServiceAuthorizeResponse, RewardPaymentMethodType, WalletPaymentMethodType,
+// };
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, wallet_payment_method_type::WalletType,
-    CardDetails, CardPaymentMethodType, CryptoCurrency, CryptoCurrencyPaymentMethodType,
-    PaymentServiceAuthorizeResponse, RewardPaymentMethodType, WalletPaymentMethodType,
+    self as payments_grpc, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -749,225 +752,227 @@ pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: PaymentMethodType,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
-    match payment_method_data {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-            let card_exp_month = card
-                .get_card_expiry_month_2_digit()
-                .attach_printable("Failed to extract 2-digit expiry month from card")
-                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
-                })?
-                .peek()
-                .to_string();
+    todo!();
+    // match payment_method_data {
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
+    //         let card_exp_month = card
+    //             .get_card_expiry_month_2_digit()
+    //             .attach_printable("Failed to extract 2-digit expiry month from card")
+    //             .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+    //                 field_name: "card_exp_month",
+    //             })?
+    //             .peek()
+    //             .to_string();
 
-            let card_network = card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_try_from)
-                .transpose()?;
+    //         let card_network = card
+    //             .card_network
+    //             .clone()
+    //             .map(payments_grpc::CardNetwork::foreign_try_from)
+    //             .transpose()?;
 
-            let card_details = CardDetails {
-                card_number: Some(
-                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Failed to parse card number".to_string(),
-                        ),
-                    )?,
-                ),
-                card_exp_month: Some(card_exp_month.into()),
-                card_exp_year: Some(card.card_exp_year.expose().into()),
-                card_cvc: Some(card.card_cvc.expose().into()),
-                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: card.card_type.clone(),
-                bank_code: card.bank_code.clone(),
-                nick_name: card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: card.card_issuing_country.clone(),
-            };
+    //         let card_details = CardDetails {
+    //             card_number: Some(
+    //                 CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+    //                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+    //                         "Failed to parse card number".to_string(),
+    //                     ),
+    //                 )?,
+    //             ),
+    //             card_exp_month: Some(card_exp_month.into()),
+    //             card_exp_year: Some(card.card_exp_year.expose().into()),
+    //             card_cvc: Some(card.card_cvc.expose().into()),
+    //             card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+    //             card_issuer: card.card_issuer.clone(),
+    //             card_network: card_network.map(|card_network| card_network.into()),
+    //             card_type: card.card_type.clone(),
+    //             bank_code: card.bank_code.clone(),
+    //             nick_name: card.nick_name.map(|n| n.expose()),
+    //             card_issuing_country_alpha2: card.card_issuing_country.clone(),
+    //         };
 
-            let grpc_card_type = match payment_method_type {
-                PaymentMethodType::Credit => {
-                    payments_grpc::card_payment_method_type::CardType::Credit(card_details)
-                }
-                PaymentMethodType::Debit => {
-                    payments_grpc::card_payment_method_type::CardType::Debit(card_details)
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-                    ))
-                    .into());
-                }
-            };
+    //         let grpc_card_type = match payment_method_type {
+    //             PaymentMethodType::Credit => {
+    //                 payments_grpc::card_payment_method_type::CardType::Credit(card_details)
+    //             }
+    //             PaymentMethodType::Debit => {
+    //                 payments_grpc::card_payment_method_type::CardType::Debit(card_details)
+    //             }
+    //             _ => {
+    //                 return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //                     "Unimplemented payment method subtype: {payment_method_type:?}"
+    //                 ))
+    //                 .into());
+    //             }
+    //         };
 
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
-                    card_type: Some(grpc_card_type),
-                })),
-            })
-        }
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
-            let upi_type = match upi_data {
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
-                    upi_collect_data,
-                ) => {
-                    let upi_details = payments_grpc::UpiCollect {
-                        vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
-                    };
-                    PaymentMethod::UpiCollect(upi_details)
-                }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { app_name: None };
-                    PaymentMethod::UpiIntent(upi_details)
-                }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
-                    let upi_details = payments_grpc::UpiQr {};
-                    PaymentMethod::UpiQr(upi_details)
-                }
-            };
+    //         Ok(payments_grpc::PaymentMethod {
+    //             payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
+    //                 card_type: Some(grpc_card_type),
+    //             })),
+    //         })
+    //     }
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
+    //         let upi_type = match upi_data {
+    //             hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
+    //                 upi_collect_data,
+    //             ) => {
+    //                 let upi_details = payments_grpc::UpiCollect {
+    //                     vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+    //                 };
+    //                 PaymentMethod::UpiCollect(upi_details)
+    //             }
+    //             hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
+    //                 let upi_details = payments_grpc::UpiIntent { app_name: None };
+    //                 PaymentMethod::UpiIntent(upi_details)
+    //             }
+    //             hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
+    //                 let upi_details = payments_grpc::UpiQr {};
+    //                 PaymentMethod::UpiQr(upi_details)
+    //             }
+    //         };
 
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(upi_type),
-            })
-        }
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-            bank_redirect_data,
-        ) => match bank_redirect_data {
-            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
-                issuer,
-                country,
-            } => {
-                let open_banking_uk = payments_grpc::OpenBankingUk {
-                    issuer: issuer.map(|issuer| issuer.to_string()),
-                    country: country.map(|country| country.to_string()),
-                };
+    //         Ok(payments_grpc::PaymentMethod {
+    //             payment_method: Some(upi_type),
+    //         })
+    //     }
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+    //         bank_redirect_data,
+    //     ) => match bank_redirect_data {
+    //         hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk {
+    //             issuer,
+    //             country,
+    //         } => {
+    //             let open_banking_uk = payments_grpc::OpenBankingUk {
+    //                 issuer: issuer.map(|issuer| issuer.to_string()),
+    //                 country: country.map(|country| country.to_string()),
+    //             };
 
-                Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::OnlineBanking(
-                            payments_grpc::OnlineBankingPaymentMethodType {
-                                online_banking_type: Some(
-                                    payments_grpc::online_banking_payment_method_type::OnlineBankingType::OpenBankingUk(open_banking_uk)
-                                ),
-                            }
-                        )),
-                    })
-            }
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented bank redirect type: {bank_redirect_data:?}"
-            ))
-            .into()),
-        },
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
-            match payment_method_type {
-                PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
-                        reward_type: 1,
-                    })),
-                }),
-                PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
-                        reward_type: 2,
-                    })),
-                }),
-                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                    "Unimplemented payment method subtype: {payment_method_type:?}"
-                ))
-                .into()),
-            }
-        }
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
-            match wallet_data {
-                hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
-                    mifinity_data,
-                ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
-                        wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
-                            date_of_birth: Some(
-                                mifinity_data.date_of_birth.peek().to_string().into(),
-                            ),
-                            language_preference: mifinity_data.language_preference,
-                        })),
-                    })),
-                }),
-                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                    "Unimplemented payment method subtype: {payment_method_type:?}"
-                ))
-                .into()),
-            }
-        }
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => {
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Crypto(CryptoCurrencyPaymentMethodType {
-                    crypto_currency: Some(CryptoCurrency {
-                        pay_currency: crypto_data.pay_currency.clone(),
-                        network: crypto_data.network.clone(),
-                    }),
-                })),
-            })
-        }
-        _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-            "Unimplemented payment method: {payment_method_data:?}"
-        ))
-        .into()),
-    }
+    //             Ok(payments_grpc::PaymentMethod {
+    //                     payment_method: Some(PaymentMethod::OnlineBanking(
+    //                         payments_grpc::OnlineBankingPaymentMethodType {
+    //                             online_banking_type: Some(
+    //                                 payments_grpc::online_banking_payment_method_type::OnlineBankingType::OpenBankingUk(open_banking_uk)
+    //                             ),
+    //                         }
+    //                     )),
+    //                 })
+    //         }
+    //         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //             "Unimplemented bank redirect type: {bank_redirect_data:?}"
+    //         ))
+    //         .into()),
+    //     },
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
+    //         match payment_method_type {
+    //             PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethod {
+    //                 payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+    //                     reward_type: 1,
+    //                 })),
+    //             }),
+    //             PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethod {
+    //                 payment_method: Some(PaymentMethod::Reward(RewardPaymentMethodType {
+    //                     reward_type: 2,
+    //                 })),
+    //             }),
+    //             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //                 "Unimplemented payment method subtype: {payment_method_type:?}"
+    //             ))
+    //             .into()),
+    //         }
+    //     }
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+    //         match wallet_data {
+    //             hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
+    //                 mifinity_data,
+    //             ) => Ok(payments_grpc::PaymentMethod {
+    //                 payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+    //                     wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
+    //                         date_of_birth: Some(
+    //                             mifinity_data.date_of_birth.peek().to_string().into(),
+    //                         ),
+    //                         language_preference: mifinity_data.language_preference,
+    //                     })),
+    //                 })),
+    //             }),
+    //             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //                 "Unimplemented payment method subtype: {payment_method_type:?}"
+    //             ))
+    //             .into()),
+    //         }
+    //     }
+    //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => {
+    //         Ok(payments_grpc::PaymentMethod {
+    //             payment_method: Some(PaymentMethod::Crypto(CryptoCurrencyPaymentMethodType {
+    //                 crypto_currency: Some(CryptoCurrency {
+    //                     pay_currency: crypto_data.pay_currency.clone(),
+    //                     network: crypto_data.network.clone(),
+    //                 }),
+    //             })),
+    //         })
+    //     }
+    //     _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //         "Unimplemented payment method: {payment_method_data:?}"
+    //     ))
+    //     .into()),
+    // }
 }
 
 pub fn build_unified_connector_service_payment_method_for_external_proxy(
     payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
     payment_method_type: PaymentMethodType,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
-    match payment_method_data {
-        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
-            external_vault_card,
-        ) => {
-            let card_network = external_vault_card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_try_from)
-                .transpose()?;
-            let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
-                )?),
-                card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
-                card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
-                card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: external_vault_card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: external_vault_card.card_type.clone(),
-                bank_code: external_vault_card.bank_code.clone(),
-                nick_name: external_vault_card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
-            };
-            let grpc_card_type = match payment_method_type {
-                PaymentMethodType::Credit => {
-                    payments_grpc::card_payment_method_type::CardType::CreditProxy(card_details)
-                }
-                PaymentMethodType::Debit => {
-                    payments_grpc::card_payment_method_type::CardType::DebitProxy(card_details)
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-                    ))
-                    .into());
-                }
-            };
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
-                    card_type: Some(grpc_card_type),
-                })),
-            })
-        }
-        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
-            Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-            ))
-            .into())
-        }
-    }
+    todo!();
+    // match payment_method_data {
+    //     hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+    //         external_vault_card,
+    //     ) => {
+    //         let card_network = external_vault_card
+    //             .card_network
+    //             .clone()
+    //             .map(payments_grpc::CardNetwork::foreign_try_from)
+    //             .transpose()?;
+    //         let card_details = CardDetails {
+    //             card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
+    //                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
+    //             )?),
+    //             card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+    //             card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+    //             card_cvc: Some(external_vault_card.card_cvc.expose().into()),
+    //             card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
+    //             card_issuer: external_vault_card.card_issuer.clone(),
+    //             card_network: card_network.map(|card_network| card_network.into()),
+    //             card_type: external_vault_card.card_type.clone(),
+    //             bank_code: external_vault_card.bank_code.clone(),
+    //             nick_name: external_vault_card.nick_name.map(|n| n.expose()),
+    //             card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
+    //         };
+    //         let grpc_card_type = match payment_method_type {
+    //             PaymentMethodType::Credit => {
+    //                 payments_grpc::card_payment_method_type::CardType::CreditProxy(card_details)
+    //             }
+    //             PaymentMethodType::Debit => {
+    //                 payments_grpc::card_payment_method_type::CardType::DebitProxy(card_details)
+    //             }
+    //             _ => {
+    //                 return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //                     "Unimplemented payment method subtype: {payment_method_type:?}"
+    //                 ))
+    //                 .into());
+    //             }
+    //         };
+    //         Ok(payments_grpc::PaymentMethod {
+    //             payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
+    //                 card_type: Some(grpc_card_type),
+    //             })),
+    //         })
+    //     }
+    //     hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+    //         Err(UnifiedConnectorServiceError::NotImplemented(format!(
+    //                     "Unimplemented payment method subtype: {payment_method_type:?}"
+    //         ))
+    //         .into())
+    //     }
+    // }
 }
 
 /// Gets the UCS client from session state

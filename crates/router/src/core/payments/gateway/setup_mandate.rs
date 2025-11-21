@@ -112,7 +112,7 @@ where
             setup_mandate_request,
             header_payload,
             |mut router_data, setup_mandate_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_authorize_granular(
+                let response = Box::pin(client.payment_setup_mandate_granular(
                     setup_mandate_request,
                     connector_auth_metadata,
                     grpc_headers,

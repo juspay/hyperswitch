@@ -320,6 +320,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            encoded_data: None,
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
@@ -2759,6 +2760,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            merchant_account_metadata: HashMap::new(),
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
             transaction_id: Some(transaction_id),
@@ -2830,6 +2832,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            merchant_account_metadata: HashMap::new(),
             request_ref_id,
             transaction_id: Some(transaction_id),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
