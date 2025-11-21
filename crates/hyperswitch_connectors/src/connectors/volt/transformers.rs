@@ -284,16 +284,17 @@ fn get_attempt_status(
     (item, current_status): (VoltPaymentStatus, enums::AttemptStatus),
 ) -> enums::AttemptStatus {
     match item {
-        VoltPaymentStatus::AuthorisedByUser => enums::AttemptStatus::Authorized,
         VoltPaymentStatus::Received | VoltPaymentStatus::Settled => enums::AttemptStatus::Charged,
-        VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => {
-            enums::AttemptStatus::Pending
-        }
+        VoltPaymentStatus::Completed
+        | VoltPaymentStatus::DelayedAtBank
+        | VoltPaymentStatus::AuthorisedByUser
+        | VoltPaymentStatus::ApprovedByRisk => enums::AttemptStatus::Pending,
         VoltPaymentStatus::NewPayment
         | VoltPaymentStatus::BankRedirect
         | VoltPaymentStatus::AwaitingCheckoutAuthorisation
-        | VoltPaymentStatus::AdditionalAuthorizationRequired
-        | VoltPaymentStatus::ApprovedByRisk => enums::AttemptStatus::AuthenticationPending,
+        | VoltPaymentStatus::AdditionalAuthorizationRequired => {
+            enums::AttemptStatus::AuthenticationPending
+        }
         VoltPaymentStatus::RefusedByBank
         | VoltPaymentStatus::RefusedByRisk
         | VoltPaymentStatus::NotReceived
