@@ -305,8 +305,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let business_profile = business_profile.clone();
             let payment_method_type = resp.request.payment_method_type;
             let payment_method_billing_address = payment_method_billing_address.cloned();
-
-            let cloned_merchant_context = merchant_context.clone();
             let payment_method_token = payment_data.payment_method_token.clone();
 
             let cloned_platform = platform.clone();
