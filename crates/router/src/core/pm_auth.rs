@@ -132,7 +132,6 @@ pub async fn create_link_token(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &(&state).into(),
             platform.get_processor().get_account().get_id(),
             &selected_config.mca_id,
             platform.get_processor().get_key_store(),
@@ -255,7 +254,6 @@ pub async fn exchange_token_core(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &(&state).into(),
             platform.get_processor().get_account().get_id(),
             &config.mca_id,
             platform.get_processor().get_key_store(),
@@ -327,7 +325,6 @@ async fn store_bank_details_in_payment_methods(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &payload.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -342,7 +339,6 @@ async fn store_bank_details_in_payment_methods(
 
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
-            &((&state).into()),
             platform.get_processor().get_key_store(),
             &customer_id,
             platform.get_processor().get_account().get_id(),
@@ -541,7 +537,6 @@ async fn store_bank_details_in_payment_methods(
     }
 
     store_in_db(
-        &state,
         platform.get_processor().get_key_store(),
         update_entries,
         new_entries,
@@ -566,26 +561,20 @@ async fn store_bank_details_in_payment_methods(
 }
 
 async fn store_in_db(
-    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     update_entries: Vec<(domain::PaymentMethod, storage::PaymentMethodUpdate)>,
     new_entries: Vec<domain::PaymentMethod>,
     db: &dyn StorageInterface,
     storage_scheme: MerchantStorageScheme,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state.into());
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| {
-            db.update_payment_method(key_manager_state, key_store, pm, pm_update, storage_scheme)
-        })
+        .map(|(pm, pm_update)| db.update_payment_method(key_store, pm, pm_update, storage_scheme))
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| {
-            db.insert_payment_method(key_manager_state, key_store, pm_new, storage_scheme)
-        })
+        .map(|pm_new| db.insert_payment_method(key_store, pm_new, storage_scheme))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);
@@ -785,20 +774,14 @@ pub async fn retrieve_payment_method_from_auth_service(
     let connector = PaymentAuthConnectorData::get_connector_by_name(
         auth_token.connector_details.connector.as_str(),
     )?;
-    let key_manager_state = &state.into();
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &payment_intent.merchant_id,
-            key_store,
-        )
+        .find_merchant_account_by_merchant_id(&payment_intent.merchant_id, key_store)
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             &payment_intent.merchant_id,
             &auth_token.connector_details.mca_id,
             key_store,

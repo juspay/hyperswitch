@@ -31,7 +31,6 @@ pub async fn generate_sample_data_for_user(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &(&state).into(),
             &user_from_token.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -95,7 +94,6 @@ pub async fn delete_sample_data_for_user(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id_del,
             &state.store.get_master_key().to_vec().into(),
         )

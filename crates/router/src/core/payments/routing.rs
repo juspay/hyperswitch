@@ -856,7 +856,6 @@ pub async fn refresh_cgraph_cache(
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             &key_store.merchant_id,
             false,
             key_store,
@@ -2746,7 +2745,6 @@ pub async fn get_active_mca_ids(
     let db_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             &key_store.merchant_id,
             false,
             key_store,
