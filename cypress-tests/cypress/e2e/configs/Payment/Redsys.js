@@ -287,6 +287,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -467,5 +470,18 @@ export const connectorDetails = {
         amount: 6000,
       },
     }),
+    PaymentWithBilling: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: Address,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
   },
 };

@@ -114,11 +114,12 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         };
         let revenue_recovery_payment_data =
             extract_data_and_perform_action(state, &tracking_data).await?;
-        let merchant_context_from_revenue_recovery_payment_data =
-            domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-                revenue_recovery_payment_data.merchant_account.clone(),
-                revenue_recovery_payment_data.key_store.clone(),
-            )));
+        let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
@@ -127,7 +128,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         >(
             state,
             state.get_req_state(),
-            merchant_context_from_revenue_recovery_payment_data.clone(),
+            platform_from_revenue_recovery_payment_data.clone(),
             revenue_recovery_payment_data.profile.clone(),
             payments::operations::PaymentGetIntent,
             request,
@@ -142,7 +143,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data.clone(),
+                    platform_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -154,7 +155,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data.clone(),
+                    platform_from_revenue_recovery_payment_data.clone(),
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -167,7 +168,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     state,
                     &process,
                     &revenue_recovery_payment_data.profile.clone(),
-                    merchant_context_from_revenue_recovery_payment_data,
+                    platform_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
@@ -197,37 +198,23 @@ pub(crate) async fn extract_data_and_perform_action(
 ) -> Result<pcr_storage_types::RevenueRecoveryPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
-    let key_manager_state = &state.into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &tracking_data.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &tracking_data.merchant_id,
-            &key_store,
-        )
+        .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
         .await?;
 
     let profile = db
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            &tracking_data.profile_id,
-        )
+        .find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
         .await?;
 
     let billing_mca = db
-        .find_merchant_connector_account_by_id(
-            key_manager_state,
-            &tracking_data.billing_mca_id,
-            &key_store,
-        )
+        .find_merchant_connector_account_by_id(&tracking_data.billing_mca_id, &key_store)
         .await?;
 
     let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {
