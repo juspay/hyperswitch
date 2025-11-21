@@ -943,24 +943,8 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 nick_name: external_vault_card.nick_name.map(|n| n.expose()),
                 card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
             };
-            let grpc_card_type = match payment_method_type {
-                PaymentMethodType::Credit => {
-                    payments_grpc::card_payment_method_type::CardType::CreditProxy(card_details)
-                }
-                PaymentMethodType::Debit => {
-                    payments_grpc::card_payment_method_type::CardType::DebitProxy(card_details)
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented payment method subtype: {payment_method_type:?}"
-                    ))
-                    .into());
-                }
-            };
             Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
-                    card_type: Some(grpc_card_type),
-                })),
+                payment_method: Some(PaymentMethod::CardProxy(card_details)),
             })
         }
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
