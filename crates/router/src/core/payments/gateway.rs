@@ -2,7 +2,7 @@ pub mod authorize_gateway;
 pub mod context;
 pub mod payment_method_token_create_gateway;
 pub mod psync_gateway;
-
+pub mod session_token_gateway;
 use std::sync;
 
 use hyperswitch_domain_models::router_flow_types::payments;
