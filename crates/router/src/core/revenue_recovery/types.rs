@@ -259,7 +259,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let payments_response = psync_response
                     .clone()
-                    .generate_response(state, None, None, None, &merchant_context, profile, None)
+                    .generate_response(state, None, None, None, &platform, profile, None)
                     .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                     .attach_printable("Failed while generating response for payment")?;
 
@@ -267,7 +267,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &process_tracker.clone(),
                     profile,
-                    merchant_context.clone(),
+                    platform.clone(),
                     payment_intent,
                     revenue_recovery_payment_data,
                     psync_response.payment_attempt.get_id(),
@@ -279,7 +279,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     common_enums::EventClass::Payments,
                     event_status,
                     payment_intent,
-                    &merchant_context,
+                    &platform,
                     profile,
                     recovery_payment_attempt
                         .attempt_id
