@@ -287,7 +287,7 @@ pub async fn handle_metadata_update(
                 PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
             let pm_cards = cards::PmCards {
-                    state: &state.into(),
+                state: &state.into(),
                 merchant_context,
             };
 

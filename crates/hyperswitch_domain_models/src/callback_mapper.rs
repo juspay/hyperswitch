@@ -1,3 +1,4 @@
+use common_utils::errors;
 use common_enums::enums as common_enums;
 use common_types::callback_mapper::CallbackMapperData;
 
@@ -26,4 +27,18 @@ impl CallbackMapper {
             last_modified_at,
         }
     }
+}
+
+#[async_trait::async_trait]
+pub trait CallbackMapperInterface {
+    type Error;
+    async fn insert_call_back_mapper(
+        &self,
+        call_back_mapper: CallbackMapper,
+    ) -> errors::CustomResult<CallbackMapper, Self::Error>;
+
+    async fn find_call_back_mapper_by_id(
+        &self,
+        id: &str,
+    ) -> errors::CustomResult<CallbackMapper, Self::Error>;
 }

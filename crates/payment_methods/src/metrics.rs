@@ -6,7 +6,13 @@ counter_metric!(DELETE_FROM_LOCKER, GLOBAL_METER);
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
 counter_metric!(GET_FROM_LOCKER, GLOBAL_METER);
 counter_metric!(STORED_TO_LOCKER, GLOBAL_METER);
-histogram_metric_f64!(CARD_GET_TIME, GLOBAL_METER);
+counter_metric!(CONNECTOR_PAYMENT_METHOD_TOKENIZATION, GLOBAL_METER);
 histogram_metric_f64!(CARD_DELETE_TIME, GLOBAL_METER);
-histogram_metric_f64!(DELETE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric_f64!(CARD_ADD_TIME, GLOBAL_METER);
+
+// Network Tokenization metrics
+histogram_metric_f64!(GENERATE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(FETCH_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(DELETE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric_f64!(CHECK_NETWORK_TOKEN_STATUS_TIME, GLOBAL_METER);

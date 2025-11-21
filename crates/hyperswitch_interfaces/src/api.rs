@@ -12,6 +12,7 @@ pub mod files_v2;
 pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
+pub mod mandates;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -24,6 +25,7 @@ pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
 pub mod subscriptions;
 pub mod subscriptions_v2;
+pub mod tokenization;
 pub mod vault;
 pub mod vault_v2;
 

@@ -628,7 +628,7 @@ pub async fn save_payout_data_to_locker(
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         payout_data.payment_method = Some(
             cards::PmCards {
-                    state: &state.into(),
+                state: &state.into(),
                 merchant_context,
             }
             .create_payment_method(

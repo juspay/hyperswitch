@@ -2353,42 +2353,6 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
-pub async fn construct_vault_router_data<F>(
-    state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-    merchant_connector_account: &MerchantConnectorAccount,
-    payment_method_vaulting_data: Option<
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
-    >,
-    connector_vault_id: Option<String>,
-    connector_customer_id: Option<String>,
-    should_generate_multiple_tokens: Option<bool>,
-) -> RouterResult<VaultRouterDataV2<F>> {
-    let connector_auth_type = merchant_connector_account
-        .get_connector_account_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let resource_common_data = VaultConnectorFlowData {
-        merchant_id: merchant_id.to_owned(),
-    };
-
-    let router_data = types::RouterDataV2 {
-        flow: PhantomData,
-        resource_common_data,
-        tenant_id: state.tenant.tenant_id.clone(),
-        connector_auth_type,
-        request: types::VaultRequestData {
-            payment_method_vaulting_data,
-            connector_vault_id,
-            connector_customer_id,
-            should_generate_multiple_tokens,
-        },
-        response: Ok(types::VaultResponseData::default()),
-    };
-
-    Ok(router_data)
-}
-
 pub fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
     match data {
         types::MerchantAccountData::Iban { iban, .. } => validate_iban(iban),

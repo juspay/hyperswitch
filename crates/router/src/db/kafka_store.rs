@@ -23,6 +23,7 @@ use hyperswitch_domain_models::payouts::{
 };
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
+    callback_mapper::CallbackMapperInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,

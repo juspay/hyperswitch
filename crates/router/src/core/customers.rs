@@ -886,7 +886,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
                         cards::PmCards {
-                    state: &state.into(),
+                            state: &state.into(),
                             merchant_context,
                         }
                         .delete_card_from_locker(

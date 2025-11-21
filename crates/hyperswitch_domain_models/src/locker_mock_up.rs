@@ -14,8 +14,6 @@ pub trait LockerMockUpInterface {
         new: LockerMockUpNew,
     ) -> CustomResult<LockerMockUp, Self::Error>;
 
-    async fn delete_locker_mock_up(
-        &self,
-        card_id: &str,
-    ) -> CustomResult<LockerMockUp, Self::Error>;
+    async fn delete_locker_mock_up(&self, card_id: &str)
+        -> CustomResult<LockerMockUp, Self::Error>;
 }

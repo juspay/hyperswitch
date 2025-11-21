@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
 use crate::{
-    services,
     configs::settings,
-    core::{errors, cards::mk_basilisk_req},
-    headers,
+    core::{cards::mk_basilisk_req, errors},
+    headers, services, state,
 };
+use api_models::payment_methods;
 #[cfg(all(feature = "v1", feature = "payouts"))]
 use api_models::payouts::Bank as BankPayout;
 use api_models::{
@@ -17,14 +17,18 @@ use common_utils::encryption;
 use common_utils::errors::CustomResult;
 use common_utils::ext_traits::Encode;
 use common_utils::request::RequestContent;
-use common_utils::{
-    encryption, id_type,
-};
+use common_utils::{encryption, id_type};
+use error_stack::report;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::ext_traits::OptionExt;
+use hyperswitch_domain_models::{
+    ext_traits::OptionExt, merchant_connector_account, payment_method_data::PaymentMethodData,
+    router_data_v2, router_request_types, router_response_types, types,
+};
 use masking::{PeekInterface, Secret};
 use router_env::RequestId;
+use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardResp {
@@ -328,4 +332,161 @@ pub fn mk_add_bank_response_hs(
     _merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     todo!()
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub(crate) async fn get_payment_method_create_request(
+    payment_method_data: Option<&PaymentMethodData>,
+    payment_method: Option<common_enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    customer_id: &Option<id_type::CustomerId>,
+    billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
+) -> errors::PmResult<payment_methods::PaymentMethodCreate> {
+    match payment_method_data {
+        Some(pm_data) => match payment_method {
+            Some(payment_method) => match pm_data {
+                PaymentMethodData::Card(card) => {
+                    let card_network = get_card_network_with_us_local_debit_network_override(
+                        card.card_network.clone(),
+                        card.co_badged_card_data.as_ref(),
+                    );
+
+                    let card_detail = payment_methods::CardDetail {
+                        card_number: card.card_number.clone(),
+                        card_exp_month: card.card_exp_month.clone(),
+                        card_exp_year: card.card_exp_year.clone(),
+                        card_holder_name: billing_name,
+                        nick_name: card.nick_name.clone(),
+                        card_issuing_country: card.card_issuing_country.clone(),
+                        card_network: card_network.clone(),
+                        card_issuer: card.card_issuer.clone(),
+                        card_type: card.card_type.clone(),
+                        card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
+                    };
+                    let payment_method_request = payment_methods::PaymentMethodCreate {
+                        payment_method: Some(payment_method),
+                        payment_method_type,
+                        payment_method_issuer: card.card_issuer.clone(),
+                        payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        wallet: None,
+                        card: Some(card_detail),
+                        metadata: None,
+                        customer_id: customer_id.clone(),
+                        card_network: card_network
+                            .clone()
+                            .as_ref()
+                            .map(|card_network| card_network.to_string()),
+                        client_secret: None,
+                        payment_method_data: None,
+                        //TODO: why are we using api model in router internally
+                        billing: payment_method_billing_address.cloned().map(From::from),
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
+                    };
+                    Ok(payment_method_request)
+                }
+                _ => {
+                    let payment_method_request = payment_methods::PaymentMethodCreate {
+                        payment_method: Some(payment_method),
+                        payment_method_type,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        wallet: None,
+                        card: None,
+                        metadata: None,
+                        customer_id: customer_id.clone(),
+                        card_network: None,
+                        client_secret: None,
+                        payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
+                    };
+
+                    Ok(payment_method_request)
+                }
+            },
+            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_type"
+            })
+            .attach_printable("PaymentMethodType Required")),
+        },
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "payment_method_data"
+        })
+        .attach_printable("PaymentMethodData required Or Card is already saved")),
+    }
+}
+
+/// Determines the appropriate card network to to be stored.
+///
+/// If the provided card network is a US local network, this function attempts to
+/// override it with the first global network from the co-badged card data, if available.
+/// Otherwise, it returns the original card network as-is.
+///
+fn get_card_network_with_us_local_debit_network_override(
+    card_network: Option<common_enums::CardNetwork>,
+    co_badged_card_data: Option<&payment_methods::CoBadgedCardData>,
+) -> Option<common_enums::CardNetwork> {
+    if let Some(true) = card_network
+        .as_ref()
+        .map(|network| network.is_us_local_network())
+    {
+        logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
+                data.co_badged_card_networks_info
+                    .0
+                    .iter()
+                    .find(|info| info.network.is_signature_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
+    } else {
+        card_network
+    }
+}
+
+pub async fn construct_vault_router_data<F>(
+    state: &state::PaymentMethodsState,
+    merchant_id: &id_type::MerchantId,
+    merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    payment_method_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    >,
+    connector_vault_id: Option<String>,
+    connector_customer_id: Option<String>,
+    should_generate_multiple_tokens: Option<bool>,
+) -> errors::PmResult<types::VaultRouterDataV2<F>> {
+    let connector_auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let resource_common_data = router_data_v2::VaultConnectorFlowData {
+        merchant_id: merchant_id.to_owned(),
+    };
+
+    let router_data = router_data_v2::RouterDataV2 {
+        flow: PhantomData,
+        resource_common_data,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_auth_type,
+        request: router_request_types::VaultRequestData {
+            payment_method_vaulting_data,
+            connector_vault_id,
+            connector_customer_id,
+            should_generate_multiple_tokens,
+        },
+        response: Ok(router_response_types::VaultResponseData::default()),
+    };
+
+    Ok(router_data)
 }

@@ -1,8 +1,17 @@
+use crate::{core::errors, helpers::validate_payment_method_type_against_payment_method};
+use api_models::payment_methods::PaymentMethodCreate;
 use common_utils::id_type;
 use error_stack::report;
+use hyperswitch_domain_models::router_data::{self, ErrorResponse};
+use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
+use hyperswitch_interfaces::connector_integration_interface::BoxedConnectorIntegrationInterface;
 use serde::{Deserialize, Serialize};
-use crate::{core::errors,helpers::validate_payment_method_type_against_payment_method};
-use api_models::payment_methods::{PaymentMethodCreate};
+use masking::Secret;
+
+pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
+pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,4 +102,78 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
         )?;
         Ok(())
     }
+}
+
+pub struct PaymentMethodTokenResult {
+    pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
+    pub is_payment_method_tokenization_performed: bool,
+    pub connector_response: Option<router_data::ConnectorResponseData>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultResponse {
+    #[cfg(feature = "v2")]
+    pub entity_id: Option<id_type::GlobalCustomerId>,
+    #[cfg(feature = "v1")]
+    pub entity_id: Option<id_type::CustomerId>,
+    #[cfg(feature = "v2")]
+    pub vault_id: domain::VaultId,
+    #[cfg(feature = "v1")]
+    pub vault_id: hyperswitch_domain_models::router_response_types::VaultIdType,
+    pub fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub enum TokenizationAction {
+    TokenizeInRouter,
+    TokenizeInConnector,
+    TokenizeInConnectorAndRouter,
+    ConnectorToken(String),
+    SkipConnectorTokenization,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub enum TokenizationAction {
+    TokenizeInConnector,
+    SkipConnectorTokenization,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardNetworkTokenResponsePayload {
+    pub card_brand: api_enums::CardNetwork,
+    pub card_fingerprint: Option<Secret<String>>,
+    pub card_reference: String,
+    pub correlation_id: String,
+    pub customer_id: String,
+    pub par: String,
+    pub token: cards::CardNumber,
+    pub token_expiry_month: Secret<String>,
+    pub token_expiry_year: Secret<String>,
+    pub token_isin: String,
+    pub token_last_four: String,
+    pub token_status: String,
+}
+#[cfg(feature = "v1")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardData {
+    pub card_number: cards::CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardData {
+    pub card_number: CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_security_code: Option<Secret<String>>,
 }

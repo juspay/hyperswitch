@@ -7500,22 +7500,6 @@ pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_root_signing_keys: Secret<String>,
     pub google_pay_recipient_id: Secret<String>,
 }
-#[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
-pub enum TokenizationAction {
-    TokenizeInRouter,
-    TokenizeInConnector,
-    TokenizeInConnectorAndRouter,
-    ConnectorToken(String),
-    SkipConnectorTokenization,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
-pub enum TokenizationAction {
-    TokenizeInConnector,
-    SkipConnectorTokenization,
-}
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]

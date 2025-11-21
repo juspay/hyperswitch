@@ -7,6 +7,7 @@ pub use hyperswitch_domain_models::{
 pub type PmResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type PmResponse<T> = CustomResult<api::ApplicationResponse<T>, ApiErrorResponse>;
 pub type VaultResult<T> = CustomResult<T, VaultError>;
+pub type NetworkTokenizationResult<T> = CustomResult<T, NetworkTokenizationError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum VaultError {
@@ -47,7 +48,6 @@ pub enum VaultError {
     #[error("Failed while calling locker API")]
     ApiError,
 }
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum NetworkTokenizationError {

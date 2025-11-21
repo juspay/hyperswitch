@@ -108,6 +108,7 @@ pub use hyperswitch_interfaces::types::{
     PayoutRecipientAccountType, PayoutRecipientType, PayoutSyncType,
 };
 pub use hyperswitch_interfaces::{
+    api::tokenization::Tokenizable,
     disputes::DisputePayload,
     types::{
         AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
@@ -1243,10 +1244,6 @@ impl<'a> ForeignFrom<&'a SetupMandateRouterData> for AuthorizeSessionTokenData {
             amount: data.request.amount,
         }
     }
-}
-
-pub trait Tokenizable {
-    fn set_session_token(&mut self, token: Option<String>);
 }
 
 impl Tokenizable for SetupMandateRequestData {

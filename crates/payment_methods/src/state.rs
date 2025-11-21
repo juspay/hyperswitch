@@ -4,7 +4,7 @@ use common_utils::types::keymanager;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
-    cards_info, connector_endpoints, customer, locker_mock_up, merchant_connector_account,
+    cards_info, callback_mapper,connector_endpoints, customer, locker_mock_up, merchant_connector_account,
     merchant_key_store, payment_methods as pm_domain,
 };
 use hyperswitch_interfaces::{
@@ -21,6 +21,7 @@ pub trait PaymentMethodsStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + pm_domain::PaymentMethodInterface<Error = errors::StorageError>
+    + callback_mapper::CallbackMapperInterface<Error = errors::StorageError>
     + cards_info::CardsInfoInterface<Error = errors::StorageError>
     + customer::CustomerInterface<Error = errors::StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = errors::StorageError>

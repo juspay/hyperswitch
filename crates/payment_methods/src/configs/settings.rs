@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::{errors::CustomResult, id_type};
 pub use hyperswitch_interfaces::{
-    configs::{DecryptionScheme, Locker, Jwekey},
+    configs::{DecryptionScheme, Jwekey, Locker},
     secrets_interface::{
         secret_handler::SecretsHandler,
         secret_state::{RawSecret, SecretStateContainer, SecuredSecret},

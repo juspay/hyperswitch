@@ -842,35 +842,6 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
-/// Determines the appropriate card network to to be stored.
-///
-/// If the provided card network is a US local network, this function attempts to
-/// override it with the first global network from the co-badged card data, if available.
-/// Otherwise, it returns the original card network as-is.
-///
-fn get_card_network_with_us_local_debit_network_override(
-    card_network: Option<common_enums::CardNetwork>,
-    co_badged_card_data: Option<&payment_methods::CoBadgedCardData>,
-) -> Option<common_enums::CardNetwork> {
-    if let Some(true) = card_network
-        .as_ref()
-        .map(|network| network.is_us_local_network())
-    {
-        services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
-            .and_then(|data| {
-                data.co_badged_card_networks_info
-                    .0
-                    .iter()
-                    .find(|info| info.network.is_signature_network())
-                    .cloned()
-            });
-        info.map(|data| data.network)
-    } else {
-        card_network
-    }
-}
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn create_payment_method(

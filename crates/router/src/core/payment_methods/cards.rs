@@ -74,10 +74,7 @@ use crate::{
     core::{
         configs,
         errors::{self, StorageErrorExt},
-        payment_methods::{
-             transformers as payment_methods, utils as payment_method_utils,
-            vault,
-        },
+        payment_methods::{transformers as payment_methods, utils as payment_method_utils, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -112,7 +109,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let cards = PmCards {
-                    state: &state.into(),
+        state: &state.into(),
         merchant_context,
     };
     #[cfg(not(feature = "payouts"))]
@@ -228,7 +225,7 @@ pub async fn add_payment_method_data(
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let cards = PmCards {
-                    state: &(&state).into(),
+        state: &(&state).into(),
         merchant_context: &merchant_context,
     };
 
@@ -3223,7 +3220,7 @@ pub async fn get_pm_list_context(
     merchant_context: &domain::MerchantContext,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let cards = PmCards {
-                    state: &state.into(),
+        state: &state.into(),
         merchant_context,
     };
     let payment_method_retrieval_context = match payment_method {

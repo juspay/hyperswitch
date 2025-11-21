@@ -1,4 +1,4 @@
-pub use ::payment_methods::{core::transformers::DataDuplicationCheck,controller::DeleteCardResp};
+pub use ::payment_methods::{controller::DeleteCardResp, core::transformers::DataDuplicationCheck};
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodResponseItem;
 use api_models::{enums as api_enums, payment_methods::Card};

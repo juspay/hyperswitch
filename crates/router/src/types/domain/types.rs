@@ -35,10 +35,7 @@ impl From<&app::SessionState> for pm_state::PaymentMethodsState {
                 jwekey: state.conf.jwekey.clone(),
                 proxy: state.conf.proxy.clone(),
                 connectors: state.conf.connectors.clone(),
-                network_tokenization_service: state
-                    .conf
-                    .network_tokenization_service
-                    .clone(),
+                network_tokenization_service: state.conf.network_tokenization_service.clone(),
             },
             tenant: state.tenant.clone(),
             api_client: state.api_client.clone(),

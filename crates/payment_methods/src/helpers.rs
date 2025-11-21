@@ -1,10 +1,14 @@
 use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "v1")]
 use common_utils::{ext_traits::AsyncExt, id_type};
-pub use hyperswitch_domain_models::{errors::api_error_response, payment_methods as domain, merchant_connector_account, merchant_key_store};
+use error_stack::ResultExt;
+pub use hyperswitch_domain_models::{
+    errors::api_error_response,
+    merchant_connector_account, merchant_key_store, payment_methods as domain,
+    router_data::{ErrorResponse, RouterData},
+};
 #[cfg(feature = "v1")]
 use router_env::logger;
-use error_stack::ResultExt;
 
 use crate::{core::errors::CustomResult, state};
 #[cfg(feature = "v1")]
@@ -418,4 +422,74 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         logger::error!("payment mandate reference not found");
     }
     Ok(())
+}
+
+/// This function replaces the request and response type of routerdata with the
+/// request and response type passed
+/// # Arguments
+///
+/// * `router_data` - original router data
+/// * `request` - new request core/helper
+/// * `response` - new response
+pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
+    router_data: RouterData<F1, Req1, Res1>,
+    request: Req2,
+    response: Result<Res2, ErrorResponse>,
+) -> RouterData<F2, Req2, Res2> {
+    RouterData {
+        flow: std::marker::PhantomData,
+        request,
+        response,
+        merchant_id: router_data.merchant_id,
+        tenant_id: router_data.tenant_id,
+        address: router_data.address,
+        amount_captured: router_data.amount_captured,
+        minor_amount_captured: router_data.minor_amount_captured,
+        auth_type: router_data.auth_type,
+        connector: router_data.connector,
+        connector_auth_type: router_data.connector_auth_type,
+        connector_meta_data: router_data.connector_meta_data,
+        description: router_data.description,
+        payment_id: router_data.payment_id,
+        payment_method: router_data.payment_method,
+        payment_method_type: router_data.payment_method_type,
+        status: router_data.status,
+        attempt_id: router_data.attempt_id,
+        access_token: router_data.access_token,
+        session_token: router_data.session_token,
+        payment_method_status: router_data.payment_method_status,
+        reference_id: router_data.reference_id,
+        payment_method_token: router_data.payment_method_token,
+        customer_id: router_data.customer_id,
+        connector_customer: router_data.connector_customer,
+        preprocessing_id: router_data.preprocessing_id,
+        payment_method_balance: router_data.payment_method_balance,
+        recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
+        connector_request_reference_id: router_data.connector_request_reference_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: router_data.test_mode,
+        connector_api_version: router_data.connector_api_version,
+        connector_http_status_code: router_data.connector_http_status_code,
+        external_latency: router_data.external_latency,
+        apple_pay_flow: router_data.apple_pay_flow,
+        frm_metadata: router_data.frm_metadata,
+        refund_id: router_data.refund_id,
+        dispute_id: router_data.dispute_id,
+        connector_response: router_data.connector_response,
+        integrity_check: Ok(()),
+        connector_wallets_details: router_data.connector_wallets_details,
+        additional_merchant_data: router_data.additional_merchant_data,
+        header_payload: router_data.header_payload,
+        connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        authentication_id: router_data.authentication_id,
+        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        raw_connector_response: router_data.raw_connector_response,
+        is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
+        l2_l3_data: router_data.l2_l3_data,
+        minor_amount_capturable: router_data.minor_amount_capturable,
+        authorized_amount: router_data.authorized_amount,
+    }
 }

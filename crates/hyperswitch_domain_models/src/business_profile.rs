@@ -13,7 +13,7 @@ use common_utils::{
 };
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
-use diesel_models::business_profile::{
+pub use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
     ProfileUpdateInternal, WebhookDetails,

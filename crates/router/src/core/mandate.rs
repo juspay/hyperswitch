@@ -6,6 +6,7 @@ use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
+use hyperswitch_interfaces::api::mandates::MandateBehaviour;
 use router_env::{instrument, logger, tracing};
 
 use super::payments::helpers as payment_helper;
@@ -435,16 +436,4 @@ impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
             _ => None,
         }
     }
-}
-
-pub trait MandateBehaviour {
-    fn get_amount(&self) -> i64;
-    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
-    fn get_mandate_id(&self) -> Option<&payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: Option<payments::MandateIds>);
-    fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
-    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance>;
 }

@@ -1,19 +1,18 @@
 use std::fmt::Debug;
 
 use crate::core::migration::validate_card_expiry;
+use crate::types::PaymentMethodCreateExt;
 use crate::{
-    core::{cards, transformers::{self, DataDuplicationCheck}, errors, network_tokenization},
+    core::{
+        cards, errors, network_tokenization,
+        transformers::{self, DataDuplicationCheck},
+    },
     helpers::{self, domain, StorageErrorExt},
     metrics, state,
 };
-use api_models::payouts::PayoutMethodData;
-use common_utils::types::keymanager::Identifier;
-use common_utils::types::keymanager::KeyManagerState;
-use common_utils::encryption::Encryption;
-use hyperswitch_domain_models::type_encryption::AsyncLift;
-use crate::types::PaymentMethodCreateExt;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
+use api_models::payouts::PayoutMethodData;
 use api_models::{
     enums as api_enums,
     payment_methods::{self as api, Card, CardDetailsPaymentMethod, PaymentMethodsData},
@@ -23,6 +22,9 @@ use common_enums::enums as common_enums;
 use common_utils::crypto::Encryptable;
 #[cfg(feature = "v2")]
 use common_utils::encryption;
+use common_utils::encryption::Encryption;
+use common_utils::types::keymanager::Identifier;
+use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
     consts, crypto,
     ext_traits::{self, AsyncExt},
@@ -32,12 +34,13 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
+use hyperswitch_domain_models::type_encryption::AsyncLift;
 use hyperswitch_domain_models::{
     api as domain_api, customer::CustomerUpdate, ext_traits::OptionExt, merchant_context,
     merchant_key_store, payment_methods, type_encryption,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{instrument, tracing, logger};
+use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
@@ -68,10 +71,7 @@ pub async fn create_encrypted_data<T>(
     key_manager_state: &KeyManagerState,
     key_store: &merchant_key_store::MerchantKeyStore,
     data: T,
-) -> Result<
-    Encryptable<Secret<serde_json::Value>>,
-    error_stack::Report<storage_errors::StorageError>,
->
+) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<storage_errors::StorageError>>
 where
     T: Debug + Serialize,
 {
@@ -353,6 +353,7 @@ impl PmCards<'_> {
             card_network: network_token_data.card_network.clone(),
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
+            card_cvc: None,
         };
 
         logger::debug!(
@@ -489,17 +490,17 @@ impl PmCards<'_> {
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
-        _resp: &api::PaymentMethodResponse,
-        _req: &api::PaymentMethodCreate,
-        _key_store: &merchant_key_store::MerchantKeyStore,
-        _merchant_id: &id_type::MerchantId,
-        _customer_id: &id_type::CustomerId,
-        _pm_metadata: Option<serde_json::Value>,
-        _customer_acceptance: Option<serde_json::Value>,
-        _locker_id: Option<String>,
-        _connector_mandate_details: Option<serde_json::Value>,
-        _network_transaction_id: Option<String>,
-        _payment_method_billing_address: Option<encryption::Encryption>,
+        resp: &api::PaymentMethodResponse,
+        req: &api::PaymentMethodCreate,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        pm_metadata: Option<serde_json::Value>,
+        customer_acceptance: Option<serde_json::Value>,
+        locker_id: Option<String>,
+        connector_mandate_details: Option<serde_json::Value>,
+        network_transaction_id: Option<String>,
+        payment_method_billing_address: Option<encryption::Encryption>,
     ) -> errors::PmResult<payment_methods::PaymentMethod> {
         todo!()
     }
@@ -550,17 +551,16 @@ impl PmCards<'_> {
             Ok(hex::encode(e.peek()))
         })?;
 
-        let payload =
-            transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
-                merchant_id: self
-                    .merchant_context
-                    .get_merchant_account()
-                    .get_id()
-                    .to_owned(),
-                merchant_customer_id: customer_id.to_owned(),
-                enc_data,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            });
+        let payload = transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
+            merchant_id: self
+                .merchant_context
+                .get_merchant_account()
+                .get_id()
+                .to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            enc_data,
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+        });
         let store_resp = cards::add_card_to_hs_locker(
             self.state,
             &payload,
@@ -577,14 +577,14 @@ impl PmCards<'_> {
         Ok((payment_method_resp, store_resp.duplication_check))
     }
 
-    async fn add_card_to_locker(
+    pub(crate) async fn add_card_to_locker(
         &self,
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
         card_reference: Option<&str>,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)> {
-         metrics::STORED_TO_LOCKER.add(1, &[]);
+        metrics::STORED_TO_LOCKER.add(1, &[]);
         let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
             async {
                 self.add_card_hs(
@@ -735,7 +735,7 @@ impl PmCards<'_> {
         })
     }
 
-        #[cfg(feature = "v1")]
+    #[cfg(feature = "v1")]
     pub async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -830,7 +830,8 @@ impl PmCards<'_> {
             prev_status,
             curr_status,
             merchant_id,
-        ).await
+        )
+        .await
     }
 
     #[cfg(feature = "v1")]
@@ -857,17 +858,17 @@ impl PmCards<'_> {
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<api::CardDetailFromLocker> {
         let card = cards::get_card_from_locker(
-        self.state,
-        &pm.customer_id,
-        &pm.merchant_id,
-        pm.locker_id.as_ref().unwrap_or(pm.get_id()),
-    )
-    .await
-    .attach_printable("Error getting card from card vault")?;
+            self.state,
+            &pm.customer_id,
+            &pm.merchant_id,
+            pm.locker_id.as_ref().unwrap_or(pm.get_id()),
+        )
+        .await
+        .attach_printable("Error getting card from card vault")?;
 
-    cards::get_card_detail(pm, card)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Get Card Details Failed")
+        cards::get_card_detail(pm, card)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Get Card Details Failed")
     }
 
     #[cfg(feature = "v1")]
@@ -1025,6 +1026,7 @@ impl PmCards<'_> {
     }
 
     #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     pub async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
@@ -1214,9 +1216,10 @@ impl PmCards<'_> {
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Unable to encrypt payment method data")?;
 
-                        let pm_update = payment_methods::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                            payment_method_data: pm_data_encrypted.map(Into::into),
-                        };
+                        let pm_update =
+                            payment_methods::PaymentMethodUpdate::PaymentMethodDataUpdate {
+                                payment_method_data: pm_data_encrypted.map(Into::into),
+                            };
 
                         db.update_payment_method(
                             self.merchant_context.get_merchant_key_store(),

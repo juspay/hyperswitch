@@ -1,19 +1,13 @@
 use std::fmt::Debug;
 
 use crate::{
-    metrics,
     configs::settings,
     controller,
-    core::{errors,transformers},
+    core::{cards::common_enums::MerchantStorageScheme, errors, transformers},
     headers,
     helpers::domain,
-    state,
+    metrics, state,
 };
-use masking::ExposeOptionInterface;
-use hyperswitch_domain_models::locker_mock_up;
-use time::Duration;
-use scheduler::workflows::storage as sch_storage;
-use scheduler::errors::ProcessTrackerError;
 use api_models::{
     enums as api_enums,
     payment_methods::{self as api, Card},
@@ -22,24 +16,28 @@ use api_models::{
 use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]
 use common_utils::encryption;
-use common_utils::errors::CustomResult;
-use common_utils::ext_traits::BytesExt;
-use common_utils::ext_traits::Encode;
-use common_utils::ext_traits::StringExt;
-use common_utils::request::Method;
-use common_utils::request::Request;
-use common_utils::request::RequestContent;
 use common_utils::{
     consts, encryption,
-    generate_id, id_type, type_name,
+    errors::CustomResult,
+    ext_traits::{BytesExt, Encode, StringExt},
+    generate_id, id_type,
+    request::{Method, Request, RequestContent},
+    type_name,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::ext_traits::OptionExt;
+use hyperswitch_domain_models::{
+    ext_traits::OptionExt, locker_mock_up, merchant_key_store, payment_methods::PaymentMethodUpdate,
+    mandates::CommonMandateReference, 
+};
 use hyperswitch_interfaces::api_client;
 use josekit::jwe;
+use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use router_env::{instrument, tracing, RequestId};
+use scheduler::errors::ProcessTrackerError;
+use scheduler::workflows::storage as sch_storage;
+use time::Duration;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
@@ -675,15 +673,17 @@ pub async fn mock_call_to_locker_hs(
         enc_card_data: None,
     };
     locker_mock_up = match payload {
-        transformers::StoreLockerReq::LockerCard(store_card_req) => locker_mock_up::LockerMockUpNew {
-            merchant_id: store_card_req.merchant_id.to_owned(),
-            card_number: store_card_req.card.card_number.peek().to_string(),
-            card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
-            card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
-            name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
-            nickname: store_card_req.card.nick_name.to_owned(),
-            ..locker_mock_up
-        },
+        transformers::StoreLockerReq::LockerCard(store_card_req) => {
+            locker_mock_up::LockerMockUpNew {
+                merchant_id: store_card_req.merchant_id.to_owned(),
+                card_number: store_card_req.card.card_number.peek().to_string(),
+                card_exp_year: store_card_req.card.card_exp_year.peek().to_string(),
+                card_exp_month: store_card_req.card.card_exp_month.peek().to_string(),
+                name_on_card: store_card_req.card.name_on_card.to_owned().expose_option(),
+                nickname: store_card_req.card.nick_name.to_owned(),
+                ..locker_mock_up
+            }
+        }
         transformers::StoreLockerReq::LockerGeneric(store_generic_req) => {
             locker_mock_up::LockerMockUpNew {
                 merchant_id: store_generic_req.merchant_id.to_owned(),
@@ -707,4 +707,111 @@ pub async fn mock_call_to_locker_hs(
         error_message: None,
         payload: Some(payload),
     })
+}
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_metadata_and_last_used(
+    key_store: &merchant_key_store::MerchantKeyStore,
+    db: &dyn state::PaymentMethodsStorageInterface,
+    pm: domain::PaymentMethod,
+    pm_metadata: Option<serde_json::Value>,
+    storage_scheme: MerchantStorageScheme,
+) -> CustomResult<(), errors::VaultError> {
+    let pm_update = PaymentMethodUpdate::MetadataUpdateAndLastUsed {
+        metadata: pm_metadata,
+        last_used_at: common_utils::date_time::now(),
+    };
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+pub async fn update_payment_method_and_last_used(
+    key_store: &merchant_key_store::MerchantKeyStore,
+    db: &dyn state::PaymentMethodsStorageInterface,
+    pm: domain::PaymentMethod,
+    payment_method_update: Option<encryption::Encryption>,
+    storage_scheme: MerchantStorageScheme,
+    card_scheme: Option<String>,
+) -> CustomResult<(), errors::VaultError> {
+    let pm_update = PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+        payment_method_data: payment_method_update,
+        scheme: card_scheme,
+        last_used_at: common_utils::date_time::now(),
+    };
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+pub async fn update_last_used_at(
+    payment_method: &domain::PaymentMethod,
+    state: &state::PaymentMethodsState,
+    storage_scheme: MerchantStorageScheme,
+    key_store: &merchant_key_store::MerchantKeyStore,
+) -> errors::PmResult<()> {
+    let update_last_used = PaymentMethodUpdate::LastUsedUpdate {
+        last_used_at: common_utils::date_time::now(),
+    };
+
+    state
+        .store
+        .update_payment_method(
+            key_store,
+            payment_method.clone(),
+            update_last_used,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the last_used_at in db")?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn update_payment_method_connector_mandate_details(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    connector_mandate_details: Option<CommonMandateReference>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_connector_mandate_details(
+    key_store: &merchant_key_store::MerchantKeyStore,
+    db: &dyn state::PaymentMethodsStorageInterface,
+    pm: domain::PaymentMethod,
+    connector_mandate_details: Option<CommonMandateReference>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::VaultResult<()> {
+    let connector_mandate_details_value = connector_mandate_details
+        .map(|common_mandate| {
+            common_mandate.get_mandate_details_value().map_err(|err| {
+                router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                errors::VaultError::UpdateInPaymentMethodDataTableFailed
+            })
+        })
+        .transpose()?;
+
+    let pm_update = PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details: connector_mandate_details_value,
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
 }
