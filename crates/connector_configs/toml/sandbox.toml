@@ -7641,3 +7641,7 @@ api_key = "API Key"
   key1="Password"
   api_secret="Vault Id"
 
+
+[peachpaymentsdemo]
+[peachpaymentsdemo.connector_auth.HeaderKey]
+api_key = "API Key"
