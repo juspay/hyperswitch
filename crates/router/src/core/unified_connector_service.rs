@@ -1316,6 +1316,17 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     Ok((router_data_response, status_code))
 }
 
+/// Handles the unified connector service response for create access token
+pub fn handle_unified_connector_service_response_for_create_access_token(
+    response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+) -> CustomResult<(Result<AccessToken, ErrorResponse>, u16), UnifiedConnectorServiceError> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let access_token_result = Result::<AccessToken, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((access_token_result, status_code))
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,
