@@ -1725,7 +1725,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
     ) -> Result<Self, Self::Error> {
         match payment_data {
             common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => Ok(
-                payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(
+                Self::EncryptedData(
                     encrypted_data.clone(),
                 ),
             ),
@@ -1741,7 +1741,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(
-                    payments_grpc::apple_wallet::payment_data::PaymentData::DecryptedData(
+                    Self::DecryptedData(
                         payments_grpc::ApplePayPredecryptData {
                             application_primary_account_number: Some(
                                 application_primary_account_number,
@@ -1789,7 +1789,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
     ) -> Result<Self, Self::Error> {
         match tokenization_data {
             common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => Ok(
-                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(
+                Self::EncryptedData(
                     payments_grpc::GpayEncryptedTokenizationData {
                         token_type: encrypted_data.token_type.clone(),
                         token: encrypted_data.token.clone(),
@@ -1807,7 +1807,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(payments_grpc::google_wallet::tokenization_data::TokenizationData::DecryptedData(
+                Ok(Self::DecryptedData(
                     payments_grpc::GPayPredecryptData {
                         card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
                         card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
