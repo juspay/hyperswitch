@@ -4351,7 +4351,7 @@ where
     )
     .await?;
 
-    if matches!(
+    let ucs_flow = if matches!(
         execution_path,
         ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
     ) {
@@ -4368,13 +4368,16 @@ where
         if let Some(access_token) = cached_access_token {
             router_data.access_token = Some(access_token);
         }
-    }
+        true
+    } else {
+        false
+    };
 
     let is_ucs_granular_flow =
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-    if is_ucs_granular_flow {
-        logger::info!("Current flow is UCS Composite flow");
+    if is_ucs_granular_flow && ucs_flow {
+        logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -4402,7 +4405,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
         call_connector_service(
-            state,
+            &updated_state,
             req_state,
             platform,
             connector,

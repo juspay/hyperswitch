@@ -83,23 +83,23 @@ pub enum UnifiedConnectorServiceError {
     PaymentCreateOrderFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
     PaymentAuthorizeGranularFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Session Token Create from gRPC Server")]
     PaymentCreateSessionTokenFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Access Token Create from gRPC Server")]
     PaymentCreateAccessTokenFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Method Token Create from gRPC Server")]
     PaymentMethodTokenCreateFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Connector Customer Create from gRPC Server")]
     PaymentConnectorCustomerCreateFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
@@ -115,7 +115,7 @@ pub enum UnifiedConnectorServiceError {
     PaymentAuthenticateFailure,
 
     /// Failed to perform Payment Authenticate from gRPC Server
-    #[error("Failed to perform Payment Poat Authenticate from gRPC Server")]
+    #[error("Failed to perform Payment Post Authenticate from gRPC Server")]
     PaymentPostAuthenticateFailure,
 
     /// Failed to perform Payment Get from gRPC Server

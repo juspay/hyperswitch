@@ -14,10 +14,8 @@ use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     core::{
-        payments::gateway::context::RouterGatewayContext,
-        unified_connector_service::{
-            self, handle_unified_connector_service_response_for_create_order,
-        },
+        payments::gateway::context::RouterGatewayContext, unified_connector_service,
+        unified_connector_service::handle_unified_connector_service_response_for_session_token_create,
     },
     routes::SessionState,
     services::logger,
@@ -25,26 +23,26 @@ use crate::{
 };
 
 // =============================================================================
-// PaymentGateway Implementation for domain::CreateOrder
+// PaymentGateway Implementation for domain::AuthorizeSessionToken
 // =============================================================================
 
-/// Implementation of PaymentGateway for api::CreateOrder flow
+/// Implementation of PaymentGateway for api::PSync flow
 #[async_trait]
 impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         Self,
-        types::CreateOrderRequestData,
+        types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::CreateOrder
+    > for domain::AuthorizeSessionToken
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::CreateOrderRequestData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
 {
     async fn execute(
         self: Box<Self>,
@@ -52,16 +50,20 @@ where
         _connector_integration: BoxedConnectorIntegrationInterface<
             Self,
             RCD,
-            types::CreateOrderRequestData,
+            types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
         >,
-        router_data: &RouterData<Self, types::CreateOrderRequestData, types::PaymentsResponseData>,
+        router_data: &RouterData<
+            Self,
+            types::AuthorizeSessionTokenData,
+            types::PaymentsResponseData,
+        >,
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<Self, types::CreateOrderRequestData, types::PaymentsResponseData>,
+        RouterData<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -70,6 +72,7 @@ where
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
         let merchant_order_reference_id = header_payload.x_reference_id.clone();
+
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -77,10 +80,10 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let create_order_request =
-            payments_grpc::PaymentServiceCreateOrderRequest::foreign_try_from(router_data)
+        let authorize_session_token_request =
+            payments_grpc::PaymentServiceCreateSessionTokenRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Create Order Request")?;
+                .attach_printable("Failed to construct Payment Session Create Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -107,22 +110,23 @@ where
         let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
             router_data.clone(),
             state,
-            create_order_request,
+            authorize_session_token_request,
             header_payload,
-            |mut router_data, create_order_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_create_order(
-                    create_order_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to create order")?;
+            |mut router_data, authorize_session_token_request, grpc_headers| async move {
+                let response = client
+                    .payment_session_token_create(
+                        authorize_session_token_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                    )
+                    .await
+                    .attach_printable("Failed to get payment")?;
 
-                let create_order_response = response.into_inner();
+                let payment_session_token_response = response.into_inner();
 
-                let (router_data_response, _status_code) =
-                    handle_unified_connector_service_response_for_create_order(
-                        create_order_response.clone(),
+                let (router_data_response, status_code) =
+                    handle_unified_connector_service_response_for_session_token_create(
+                        payment_session_token_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
@@ -131,24 +135,9 @@ where
                     response
                 });
                 router_data.response = router_data_response;
-                let connector_response_reference_id = create_order_response
-                    .order_id
-                    .as_ref()
-                    .and_then(|identifier| {
-                        identifier
-                            .id_type
-                            .clone()
-                            .and_then(|id_type| match id_type {
-                                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                                payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                                    Some(encoded_data)
-                                }
-                                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                            })
-                    });
-                router_data.reference_id = connector_response_reference_id;
+                router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, create_order_response))
+                Ok((router_data, payment_session_token_response))
             },
         ))
         .await
@@ -158,23 +147,23 @@ where
     }
 }
 
-/// Implementation of FlowGateway for api::CreateOrder
+/// Implementation of FlowGateway for api::PSync
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
-        types::CreateOrderRequestData,
+        types::AuthorizeSessionTokenData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::CreateOrder
+    > for domain::AuthorizeSessionToken
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::CreateOrderRequestData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -183,7 +172,7 @@ where
             SessionState,
             RCD,
             Self,
-            types::CreateOrderRequestData,
+            types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
             RouterGatewayContext,
         >,
