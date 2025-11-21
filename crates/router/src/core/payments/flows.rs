@@ -48,7 +48,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -62,7 +62,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -72,7 +72,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -103,7 +103,7 @@ pub trait Feature<F, T> {
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
@@ -224,7 +224,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
         _merchant_order_reference_id: Option<String>,
@@ -246,7 +246,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         _unified_connector_service_execution_mode: ExecutionMode,
         _merchant_order_reference_id: Option<String>,
@@ -269,7 +269,7 @@ pub trait Feature<F, T> {
         _lineage_ids: grpc_client::LineageIds,
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _unified_connector_service_execution_mode: ExecutionMode,
         _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>

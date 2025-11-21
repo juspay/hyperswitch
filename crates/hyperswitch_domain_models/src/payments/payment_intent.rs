@@ -48,7 +48,6 @@ pub trait PaymentIntentInterface {
     type Error;
     async fn update_payment_intent(
         &self,
-        state: &KeyManagerState,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
@@ -57,7 +56,6 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
-        state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -66,7 +64,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
@@ -75,7 +72,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::PaymentReferenceId,
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
@@ -85,7 +81,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -94,7 +89,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -104,7 +98,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
@@ -122,7 +115,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -132,7 +124,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -1970,7 +1961,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge,
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|cb| cb.to_string()),
+            created_by: created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             payment_channel: None,
@@ -1983,6 +1974,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
         })
     }
     async fn convert_back(
@@ -2228,7 +2220,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
@@ -2240,6 +2232,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: self.enable_partial_authorization,
+            tokenization: None,
         })
     }
 }
@@ -2309,7 +2302,7 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -2325,6 +2318,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
         })
     }
 
@@ -2436,6 +2430,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_overcapture: storage_model.enable_overcapture,
                 mit_category: storage_model.mit_category,
                 billing_descriptor: storage_model.billing_descriptor,
+                tokenization: storage_model.tokenization,
             })
         }
         .await
@@ -2503,7 +2498,7 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -2519,6 +2514,7 @@ impl behaviour::Conversion for PaymentIntent {
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
         })
     }
 }

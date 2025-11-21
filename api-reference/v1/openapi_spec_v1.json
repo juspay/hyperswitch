@@ -26731,6 +26731,14 @@
               }
             ],
             "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27243,6 +27251,14 @@
               }
             ],
             "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27538,6 +27554,11 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
             "nullable": true
           },
           "payment_experience": {
@@ -27900,6 +27921,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
               }
             ],
             "nullable": true
@@ -28763,6 +28792,14 @@
               }
             ],
             "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -29074,6 +29111,11 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
             "nullable": true
           },
           "unified_code": {
@@ -29446,6 +29488,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
               }
             ],
             "nullable": true
@@ -30091,6 +30141,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
+          "tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Tokenization"
               }
             ],
             "nullable": true
@@ -36483,6 +36541,14 @@
           "single_use_token",
           "multi_use_token",
           "network_token"
+        ]
+      },
+      "Tokenization": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "skip_psp",
+          "tokenize_at_psp"
         ]
       },
       "TokenizeCardRequest": {
