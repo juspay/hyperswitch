@@ -1,4 +1,7 @@
-use api_models::errors::types::Extra;
+use api_models::{
+    errors::types::Extra,
+    oidc::{OidcAuthorizationError, OidcTokenError},
+};
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
@@ -303,6 +306,16 @@ pub enum ApiErrorResponse {
     },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "The Status token for connector costumer id {resource} is locked by different PaymentIntent ID")]
     InvalidPaymentIdProvided { resource: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "{error}: {description}")]
+    OidcAuthorizationError {
+        error: OidcAuthorizationError,
+        description: String,
+    },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_49", message = "{error}: {description}")]
+    OidcTokenError {
+        error: OidcTokenError,
+        description: String,
+    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -719,6 +732,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
+            }
+            Self::OidcAuthorizationError { error, description } => {
+                AER::BadRequest(ApiError::new("IR", 48, format!("{}: {}", error, description), None))
+            }
+            Self::OidcTokenError { error, description } => {
+                AER::BadRequest(ApiError::new("IR", 49, format!("{}: {}", error, description), None))
             }
         }
     }
