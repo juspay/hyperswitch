@@ -84,6 +84,7 @@ use self::transformers as stripe;
 #[cfg(feature = "payouts")]
 use crate::utils::{PayoutsData as OtherPayoutsData, RouterData as OtherRouterData};
 use crate::{
+    connectors::stripe::transformers::get_stripe_compatible_connect_account_header,
     constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
         ResponseRouterData, RetrieveFileRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
@@ -895,33 +896,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
-
-        // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
-        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-            stripe_split_payment,
-        )) = &req.request.split_payments
-        {
-            if stripe_split_payment.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                let mut customer_account_header = vec![(
-                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    stripe_split_payment
-                        .transfer_account_id
-                        .clone()
-                        .into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-        // if request doesn't have transfer_account_id, but stripe_split_payment_metadata has it, append it
-        else if let Some(transfer_account_id) =
-            stripe_split_payment_metadata.transfer_account_id.clone()
-        {
+        if let Some(id) = get_stripe_compatible_connect_account_header(req)? {
             let mut customer_account_header = vec![(
                 STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                transfer_account_id.into_masked(),
+                id.into_masked(),
             )];
             header.append(&mut customer_account_header);
         }
