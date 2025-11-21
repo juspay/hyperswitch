@@ -770,6 +770,10 @@ impl Payments {
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
+                web::resource("/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
@@ -813,6 +817,10 @@ impl Payments {
                 .service(
                     web::resource("/get-intent")
                         .route(web::get().to(payments::payments_get_intent)),
+                )
+                .service(
+                    web::resource("/get-revenue-recovery-intent")
+                        .route(web::get().to(payments::revenue_recovery_get_intent)),
                 )
                 .service(
                     web::resource("/update-intent")
