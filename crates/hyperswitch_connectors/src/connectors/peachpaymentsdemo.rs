@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, PaymentMethodDetails, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -127,11 +127,11 @@ impl ConnectorCommon for Peachpaymentsdemo {
             "V1".to_string().into(),
         ),
         (
-            "x-exi-tenant-id".to_string(),
+            "x-tenant-id".to_string(),
             auth.tenant_id.expose().clone().into(),
         ),
         (
-            "x-exi-api-key".to_string(),
+            "x-api-key".to_string(),
             auth.api_key.expose().clone().into(),
         )
         ])
@@ -229,6 +229,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         Ok(format!("{}/transactions/create-and-confirm", base_url))
+        // Ok(format!("https://webhook.site/d69db132-a153-4676-a1c2-ff1443c82b43"))
     }
 
     fn get_request_body(
@@ -622,13 +623,63 @@ impl webhooks::IncomingWebhook for Peachpaymentsdemo {
 }
 
 static PEACHPAYMENTSDEMO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+        LazyLock::new(|| {
+        let supported_capture_methods = vec![common_enums::CaptureMethod::Automatic];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+        ];
+
+        let mut peachpaymentsdemo_supported_payment_methods = SupportedPaymentMethods::new();
+
+        peachpaymentsdemo_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        peachpaymentsdemo_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        peachpaymentsdemo_supported_payment_methods
+    });
 
 static PEACHPAYMENTSDEMO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Peachpaymentsdemo",
-    description: "Peachpaymentsdemo connector",
+    description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static PEACHPAYMENTSDEMO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
@@ -645,4 +696,5 @@ impl ConnectorSpecifications for Peachpaymentsdemo {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PEACHPAYMENTSDEMO_SUPPORTED_WEBHOOK_FLOWS)
     }
+
 }

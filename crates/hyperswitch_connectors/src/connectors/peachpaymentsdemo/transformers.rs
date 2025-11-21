@@ -31,6 +31,7 @@ impl<T> From<(MinorUnit, T)> for PeachpaymentsdemoRouterData<T> {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsdemoPaymentsRequest {
     payment_method: PeachPaymentMethod,
     reference_id: String,
@@ -44,17 +45,23 @@ pub enum PeachPaymentMethod {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct EcommerceCardPaymentOnlyTransactionData {
-    merchant_information: MerchantInformation,
-    routing_reference: Secret<String>,
+    merchant_reference: MerchantInformation,
+    routing_reference: PaymentMethodRouteData,
     card: PeachpaymentsdemoCard,
     amount: AmountDetails,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodRouteData {
+    merchant_payment_method_route_id: Secret<String>,
+}
+
 
 #[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsdemoCard {
     pan: cards::CardNumber,
     expiry_month: Secret<String>,
@@ -72,7 +79,7 @@ pub struct AmountDetails {
 
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct MerchantInformation {
     client_merchant_reference_id: Secret<String>,
 }
@@ -91,15 +98,17 @@ impl TryFrom<&PeachpaymentsdemoRouterData<&PaymentsAuthorizeRouterData>>
             PaymentMethodData::Card(card_data) => {
                 Ok(Self {
                     payment_method: PeachPaymentMethod::EcommerceCardPaymentOnly,
-                    reference_id: item.router_data.request.connector_request_reference_id.clone(),
+                    reference_id: item.router_data.connector_request_reference_id.clone(),
                     ecommerce_card_payment_only_transaction_data:
                         EcommerceCardPaymentOnlyTransactionData {
-                            merchant_information: MerchantInformation {
+                            merchant_reference: MerchantInformation {
                                 client_merchant_reference_id: auth
                                     .client_merchant_reference_id
                                     .clone(),
                             },
-                            routing_reference: auth.routing_reference.clone(),
+                            routing_reference: PaymentMethodRouteData {
+                                merchant_payment_method_route_id: auth.routing_reference.clone()
+                            },
                             card: PeachpaymentsdemoCard {
                                 pan: card_data.card_number.clone(),
                                 expiry_month: card_data.get_card_expiry_year_2_digit()?,
