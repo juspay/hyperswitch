@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
 use common_utils::{ext_traits::Encode, request::Method, types};
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     mandates::MandateData,
@@ -331,6 +331,47 @@ impl
         })
     }
 }
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            api::AuthorizeSessionToken,
+            router_request_types::AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceCreateSessionTokenRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            api::AuthorizeSessionToken,
+            router_request_types::AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data
+                .request
+                .amount
+                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
+            currency: currency.into(),
+            minor_amount: router_data
+                .request
+                .amount
+                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
+            metadata: HashMap::new(),
+            state: None,
+            browser_info: None,
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -2580,6 +2621,44 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             update_mandate_id: mandate_data.update_mandate_id.clone(),
             customer_acceptance,
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            // For session token creation, we typically return a successful response with the session token
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::SessionTokenResponse {
+                    session_token: response.session_token.clone(),
+                },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
     }
 }
 
