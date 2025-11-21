@@ -311,7 +311,7 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             payment_method_data: Some(data.payment_method_data),
             description: None,
             phone: None,
-            name: None,
+            name: data.customer_name.clone(),
             preprocessing_id: None,
             split_payments: data.split_payments,
             setup_future_usage: data.setup_future_usage,

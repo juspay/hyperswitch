@@ -1044,8 +1044,8 @@ async fn call_unified_connector_service_authorize(
                 router_data.connector_customer = Some(connector_customer_id);
             });
 
-            ucs_data.connector_response.map(|customer_response| {
-                router_data.connector_response = Some(customer_response);
+            ucs_data.connector_response.map(|connector_response| {
+                router_data.connector_response = Some(connector_response);
             });
 
             Ok((router_data, (), payment_authorize_response))
