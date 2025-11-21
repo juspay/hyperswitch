@@ -2919,7 +2919,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .unwrap_or_default();
 
         Ok(Self {
-            merchant_account_metadata: HashMap::new(),
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
             transaction_id: Some(transaction_id),
@@ -3003,7 +3002,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .unwrap_or_default();
 
         Ok(Self {
-            merchant_account_metadata: HashMap::new(),
             request_ref_id,
             transaction_id: Some(transaction_id),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
