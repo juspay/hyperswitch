@@ -228,8 +228,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        Ok(format!("{}/transactions/create-and-confirm", base_url))
-        // Ok(format!("https://webhook.site/d69db132-a153-4676-a1c2-ff1443c82b43"))
+         match req.request.capture_method.unwrap_or_default() {
+            CaptureMethod::Automatic => Ok(format!(
+                "{}/transactions/create-and-confirm",
+                self.base_url(connectors)
+            )),
+            CaptureMethod::Manual 
+            | CaptureMethod::ManualMultiple
+            | CaptureMethod::Scheduled
+            | CaptureMethod::SequentialAutomatic => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 
     fn get_request_body(
