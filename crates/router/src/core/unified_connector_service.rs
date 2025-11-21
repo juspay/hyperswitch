@@ -943,7 +943,6 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 nick_name: external_vault_card.nick_name.map(|n| n.expose()),
                 card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
             };
-
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::CardProxy(card_details)),
             })
@@ -1325,6 +1324,17 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
+}
+
+/// Handles the unified connector service response for create access token
+pub fn handle_unified_connector_service_response_for_create_access_token(
+    response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+) -> CustomResult<(Result<AccessToken, ErrorResponse>, u16), UnifiedConnectorServiceError> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let access_token_result = Result::<AccessToken, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((access_token_result, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(
