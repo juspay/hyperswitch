@@ -80,6 +80,26 @@ pub enum UnifiedConnectorServiceError {
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentAuthorizeGranularFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentCreateSessionTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentCreateAccessTokenFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentMethodTokenCreateFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentConnectorCustomerCreateFailure,
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentAuthorizeFailure,
 
     /// Failed to perform Payment Authenticate from gRPC Server

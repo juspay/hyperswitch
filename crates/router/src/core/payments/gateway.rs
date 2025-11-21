@@ -1,3 +1,4 @@
+pub mod authorize_gateway;
 pub mod context;
 pub mod psync_gateway;
 pub mod session_token_gateway;
