@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
 use common_utils::{ext_traits::Encode, request::Method, types};
 use diesel_models::enums as storage_enums;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     mandates::MandateData,
@@ -240,6 +240,39 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            api::CreateOrder,
+            router_request_types::CreateOrderRequestData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceCreateOrderRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            api::CreateOrder,
+            router_request_types::CreateOrderRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.minor_amount.get_amount_as_i64(),
+            currency: currency.into(),
+
+            metadata: HashMap::new(),
+            webhook_url: None,
         })
     }
 }
@@ -2425,6 +2458,55 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateOrderResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let order_id = response
+                .order_id
+                .id_type
+                .clone()
+                .and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                        Some(encoded_data)
+                    }
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+
+            // For order creation, we typically return a successful response with the order_id
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::PaymentsCreateOrderResponse { order_id },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
     }
 }
 
