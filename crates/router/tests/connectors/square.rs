@@ -72,6 +72,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         setup_future_usage: None,
         customer_acceptance: None,
         setup_mandate_details: None,
+        payment_method_type: None,
     })
 }
 
@@ -450,6 +451,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 setup_future_usage: None,
                 customer_acceptance: None,
                 setup_mandate_details: None,
+                payment_method_type: None,
             }),
             get_default_payment_info(None),
         )
@@ -486,6 +488,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 setup_future_usage: None,
                 customer_acceptance: None,
                 setup_mandate_details: None,
+                payment_method_type: None,
             }),
             get_default_payment_info(None),
         )
@@ -522,6 +525,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 setup_future_usage: None,
                 customer_acceptance: None,
                 setup_mandate_details: None,
+                payment_method_type: None,
             }),
             get_default_payment_info(None),
         )

@@ -3722,6 +3722,7 @@ async fn create_single_use_tokenization_flow(
         setup_future_usage: None,
         customer_acceptance: None,
         setup_mandate_details: None,
+        payment_method_type: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(

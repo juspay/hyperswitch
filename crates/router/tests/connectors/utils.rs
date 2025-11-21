@@ -1146,6 +1146,7 @@ impl Default for TokenType {
             setup_future_usage: None,
             customer_acceptance: None,
             setup_mandate_details: None,
+            payment_method_type: None,
         };
         Self(data)
     }
