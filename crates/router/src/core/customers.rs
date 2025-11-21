@@ -578,7 +578,11 @@ pub async fn list_customers(
     };
 
     let domain_customers = db
-        .list_customers_by_merchant_id(platform.get_provider().get_account().get_id(), platform.get_provider().get_key_store(), customer_list_constraints)
+        .list_customers_by_merchant_id(
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
+            customer_list_constraints,
+        )
         .await
         .switch()?;
 

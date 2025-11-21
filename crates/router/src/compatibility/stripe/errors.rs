@@ -720,7 +720,9 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::PlatformUnauthorizedRequest | Self::ConnectedUnauthorizedRequest => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized
+            | Self::PlatformUnauthorizedRequest
+            | Self::ConnectedUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY

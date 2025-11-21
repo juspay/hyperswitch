@@ -675,7 +675,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidPlatformOperation => {
                 AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
             }
-            
             Self::ExternalVaultFailed => {
                 AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
@@ -694,7 +693,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidConnectedOperation => {
                 AER::Unauthorized(ApiError::new("IR", 50, "Invalid connected account operation", None))
             }
-            
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }
