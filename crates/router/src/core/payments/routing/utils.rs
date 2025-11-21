@@ -814,6 +814,9 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(auth_type.to_string())),
         );
     }
+    if let Some(extended_bin) = input.payment.extended_card_bin {
+        params.insert("extended_card_bin".to_string(), Some(ValueType::StrValue(extended_bin)));
+    }
     if let Some(bin) = input.payment.card_bin {
         params.insert("card_bin".to_string(), Some(ValueType::StrValue(bin)));
     }
