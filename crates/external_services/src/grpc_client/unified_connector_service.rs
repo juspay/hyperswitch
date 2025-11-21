@@ -415,15 +415,15 @@ impl UnifiedConnectorServiceClient {
 
         self.client
             .clone()
-            .register(request)
+            .register_only(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_setup_mandate",
+                    method="payment_setup_mandate_granular",
                     connector_name=?connector_name,
-                    "UCS payment setup mandate gRPC call failed"
+                    "UCS payment granular setup mandate gRPC call failed"
                 )
             })
     }
