@@ -31,11 +31,9 @@ pub async fn rust_locker_migration(
     use crate::db::customers::CustomerListConstraints;
 
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -43,7 +41,7 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -57,21 +55,22 @@ pub async fn rust_locker_migration(
     };
 
     let domain_customers = db
-        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store, constraints)
+        .list_customers_by_merchant_id(merchant_id, &key_store, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let mut customers_moved = 0;
     let mut cards_moved = 0;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
-                key_manager_state,
                 &key_store,
                 &customer.customer_id,
                 merchant_id,
@@ -79,13 +78,7 @@ pub async fn rust_locker_migration(
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
-                call_to_locker(
-                    &state,
-                    pm,
-                    &customer.customer_id,
-                    merchant_id,
-                    &merchant_context,
-                )
+                call_to_locker(&state, pm, &customer.customer_id, merchant_id, &platform)
             })
             .await?;
 
@@ -109,7 +102,7 @@ pub async fn call_to_locker(
     payment_methods: Vec<domain::PaymentMethod>,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
@@ -170,7 +163,7 @@ pub async fn call_to_locker(
 
         let add_card_result = cards::PmCards{
             state,
-            merchant_context,
+            platform,
         }.add_card_hs(
                 pm_create,
                 &card_details,
@@ -210,7 +203,7 @@ pub async fn call_to_locker(
     _payment_methods: Vec<domain::PaymentMethod>,
     _customer_id: &id_type::CustomerId,
     _merchant_id: &id_type::MerchantId,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     todo!()
 }

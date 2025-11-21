@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
+use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
@@ -21,7 +21,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
@@ -34,7 +33,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _merchant_key_store: &MerchantKeyStore,
@@ -52,7 +50,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _time_range: &common_utils::types::TimeRange,
         _key_store: &MerchantKeyStore,
@@ -98,7 +95,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        _state: &KeyManagerState,
         _merchant_id: &common_utils::id_type::MerchantId,
         _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _key_store: &MerchantKeyStore,
@@ -117,7 +113,6 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_payment_intent(
         &self,
-        _state: &KeyManagerState,
         new: PaymentIntent,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -132,7 +127,6 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
-        state: &KeyManagerState,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
         key_store: &MerchantKeyStore,
@@ -152,7 +146,8 @@ impl PaymentIntentInterface for MockDb {
             .change_context(StorageError::EncryptionError)?;
 
         *payment_intent = PaymentIntent::convert_back(
-            state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             diesel_payment_intent_update.apply_changeset(diesel_payment_intent),
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
@@ -168,7 +163,6 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
-        _state: &KeyManagerState,
         _this: PaymentIntent,
         _update: PaymentIntentUpdate,
         _key_store: &MerchantKeyStore,
@@ -182,7 +176,6 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
-        _state: &KeyManagerState,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -202,7 +195,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
-        _state: &KeyManagerState,
         id: &common_utils::id_type::GlobalPaymentId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -220,7 +212,6 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
-        _state: &KeyManagerState,
         merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
         profile_id: &common_utils::id_type::ProfileId,
         _merchant_key_store: &MerchantKeyStore,
