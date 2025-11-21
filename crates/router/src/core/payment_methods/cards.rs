@@ -2080,26 +2080,24 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     let jwekey = state.conf.jwekey.get_inner();
 
     let payment_method_data = if !locker.mock_locker {
-        let request = payment_methods::mk_get_card_request_hs(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: payment_method_reference.to_string(),
+        };
+
+        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::mk_generic_locker_request(
+            state,
             jwekey,
             locker,
-            customer_id,
-            merchant_id,
-            payment_method_reference,
+            &payload,
+            "/cards/retrieve",
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
         .attach_printable("Making get payment method request failed")?;
-
-        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
-            state,
-            request,
-            "get_pm_from_locker",
-        )
-        .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
 
         let retrieve_card_resp = get_card_resp
             .payload
@@ -2133,17 +2131,17 @@ pub async fn add_card_to_hs_locker(
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        let request = payment_methods::mk_add_locker_request_hs(
+        payment_methods::mk_generic_locker_request(
+            state,
             jwekey,
             locker,
             payload,
+            "/cards/add",
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
-        .await?;
-        call_locker_api::<payment_methods::StoreCardResp>(state, request, "add_card_to_hs_locker")
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)?
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)?
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
@@ -2305,25 +2303,24 @@ pub async fn get_card_from_hs_locker<'a>(
     let jwekey = &state.conf.jwekey.get_inner();
 
     if !locker.mock_locker {
-        let request = payment_methods::mk_get_card_request_hs(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: card_reference.to_string(),
+        };
+
+        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::mk_generic_locker_request(
+            state,
             jwekey,
             locker,
-            customer_id,
-            merchant_id,
-            card_reference,
+            &payload,
+            "/cards/retrieve",
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Making get card request failed")?;
-        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
-            state,
-            request,
-            "get_card_from_locker",
-        )
-        .await
-        .change_context(errors::VaultError::FetchCardFailed)?;
 
         let retrieve_card_resp = get_card_resp
             .payload
@@ -2350,27 +2347,25 @@ pub async fn delete_card_from_hs_locker<'a>(
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
 
-    let request = payment_methods::mk_delete_card_request_hs(
-        jwekey,
-        locker,
-        customer_id,
-        merchant_id,
-        card_reference,
-        state.tenant.tenant_id.clone(),
-        state.request_id.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::DeleteCardFailed)
-    .attach_printable("Making delete card request failed")?;
-
     if !locker.mock_locker {
-        call_locker_api::<payment_methods::DeleteCardResp>(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: card_reference.to_string(),
+        };
+
+        payment_methods::mk_generic_locker_request(
             state,
-            request,
-            "delete_card_from_locker",
+            jwekey,
+            locker,
+            &payload,
+            "/cards/delete",
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::DeleteCardFailed)
+        .attach_printable("Making delete card request failed")
     } else {
         Ok(mock_delete_card_hs(&*state.store, card_reference)
             .await

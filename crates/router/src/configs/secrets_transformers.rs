@@ -32,20 +32,13 @@ impl SecretsHandler for settings::Jwekey {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let jwekey = value.get_inner();
-        let (
-            vault_encryption_key,
-            rust_locker_encryption_key,
-            vault_private_key,
-            tunnel_private_key,
-        ) = tokio::try_join!(
+        let (vault_encryption_key, vault_private_key, tunnel_private_key) = tokio::try_join!(
             secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
-            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
             secret_management_client.get_secret(jwekey.vault_private_key.clone()),
             secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
         )?;
         Ok(value.transition_state(|_| Self {
             vault_encryption_key,
-            rust_locker_encryption_key,
             vault_private_key,
             tunnel_private_key,
         }))

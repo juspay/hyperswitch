@@ -23,6 +23,7 @@ use crate::{
     core::errors::{self, CustomResult},
     headers,
     pii::{prelude::*, Secret},
+    routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},
     utils::OptionExt,
@@ -359,16 +360,18 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_generic_locker_request<T>(
+pub async fn mk_generic_locker_request<Req, Res>(
+    state: &routes::SessionState,
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    payload: &T,
+    payload: &Req,
     endpoint_path: &str,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError>
+) -> CustomResult<Res, errors::VaultError>
 where
-    T: for<'a> Encode<'a> + Serialize,
+    Req: for<'a> Encode<'a> + Serialize,
+    Res: serde::de::DeserializeOwned,
 {
     let encoded_payload = payload
         .encode_to_vec()
@@ -382,15 +385,11 @@ where
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
 
-    let mut url = locker.host.to_owned();
-    url.push_str(endpoint_path);
+    let url = locker.get_host(endpoint_path);
 
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
+    request.add_header(headers::X_TENANT_ID, tenant_id.get_string_repr().into());
 
     if let Some(req_id) = request_id {
         request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
@@ -398,17 +397,12 @@ where
 
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
 
-    Ok(request)
-}
+    let response =
+        crate::core::payment_methods::cards::call_locker_api::<Res>(state, request, endpoint_path)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)?;
 
-pub async fn mk_add_locker_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    payload: &StoreLockerReq,
-    tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError> {
-    mk_generic_locker_request(jwekey, locker, payload, "/cards/add", tenant_id, request_id).await
+    Ok(response)
 }
 
 #[cfg(all(feature = "v1", feature = "payouts"))]
@@ -603,32 +597,6 @@ pub fn generate_payment_method_response(
     Ok(resp)
 }
 
-pub async fn mk_get_card_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
-    card_reference: &str,
-    tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let card_req_body = CardReqBody {
-        merchant_id: merchant_id.to_owned(),
-        merchant_customer_id: customer_id.to_owned(),
-        card_reference: card_reference.to_owned(),
-    };
-
-    mk_generic_locker_request(
-        jwekey,
-        locker,
-        &card_req_body,
-        "/cards/retrieve",
-        tenant_id,
-        request_id,
-    )
-    .await
-}
-
 pub fn mk_get_card_request(
     locker: &settings::Locker,
     locker_id: &'static str,
@@ -664,35 +632,11 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
     })
 }
 
-pub async fn mk_delete_card_request_hs(
-    jwekey: &settings::Jwekey,
-    locker: &settings::Locker,
-    customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
-    card_reference: &str,
-    tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let card_req_body = CardReqBody {
-        merchant_id: merchant_id.to_owned(),
-        merchant_customer_id: customer_id.to_owned(),
-        card_reference: card_reference.to_owned(),
-    };
-
-    mk_generic_locker_request(
-        jwekey,
-        locker,
-        &card_req_body,
-        "/cards/delete",
-        tenant_id,
-        request_id,
-    )
-    .await
-}
-
 // Need to fix this once we start moving to v2 completion
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn mk_delete_card_request_hs_by_id(
+    state: &routes::SessionState,
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     id: &String,
@@ -700,7 +644,7 @@ pub async fn mk_delete_card_request_hs_by_id(
     card_reference: &str,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError> {
+) -> CustomResult<DeleteCardResp, errors::VaultError> {
     let card_req_body = CardReqBodyV2 {
         merchant_id: merchant_id.to_owned(),
         merchant_customer_id: id.to_owned(),
@@ -708,6 +652,7 @@ pub async fn mk_delete_card_request_hs_by_id(
     };
 
     mk_generic_locker_request(
+        state,
         jwekey,
         locker,
         &card_req_body,
