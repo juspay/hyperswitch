@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, PaymentMethodDetails, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -122,18 +123,16 @@ impl ConnectorCommon for Peachpaymentsdemo {
         let auth = peachpaymentsdemo::PeachpaymentsdemoAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        Ok(vec![(
-            "x-exi-auth-ver".to_string(),
-            "V1".to_string().into(),
-        ),
-        (
-            "x-tenant-id".to_string(),
-            auth.tenant_id.expose().clone().into(),
-        ),
-        (
-            "x-api-key".to_string(),
-            auth.api_key.expose().clone().into(),
-        )
+        Ok(vec![
+            ("x-exi-auth-ver".to_string(), "V1".to_string().into()),
+            (
+                "x-tenant-id".to_string(),
+                auth.tenant_id.expose().clone().into(),
+            ),
+            (
+                "x-api-key".to_string(),
+                auth.api_key.expose().clone().into(),
+            ),
         ])
     }
 
@@ -142,7 +141,7 @@ impl ConnectorCommon for Peachpaymentsdemo {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-            let response: peachpaymentsdemo::PeachpaymentsErrorResponse = res
+        let response: peachpaymentsdemo::PeachpaymentsErrorResponse = res
             .response
             .parse_struct("PeachpaymentsErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -228,12 +227,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-         match req.request.capture_method.unwrap_or_default() {
+        match req.request.capture_method.unwrap_or_default() {
             CaptureMethod::Automatic => Ok(format!(
                 "{}/transactions/create-and-confirm",
                 self.base_url(connectors)
             )),
-            CaptureMethod::Manual 
+            CaptureMethod::Manual
             | CaptureMethod::ManualMultiple
             | CaptureMethod::Scheduled
             | CaptureMethod::SequentialAutomatic => {
@@ -633,7 +632,7 @@ impl webhooks::IncomingWebhook for Peachpaymentsdemo {
 }
 
 static PEACHPAYMENTSDEMO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-        LazyLock::new(|| {
+    LazyLock::new(|| {
         let supported_capture_methods = vec![common_enums::CaptureMethod::Automatic];
 
         let supported_card_network = vec![
@@ -706,5 +705,4 @@ impl ConnectorSpecifications for Peachpaymentsdemo {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PEACHPAYMENTSDEMO_SUPPORTED_WEBHOOK_FLOWS)
     }
-
 }
