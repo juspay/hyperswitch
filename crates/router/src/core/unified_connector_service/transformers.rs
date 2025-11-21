@@ -1,7 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
-use common_utils::{ext_traits::Encode, request::Method, types};
+use common_utils::{
+    ext_traits::{Encode, OptionExt},
+    request::Method,
+    types,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -62,6 +66,75 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
             }),
             connector_customer_id: None,
         }
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            api::PaymentMethodToken,
+            router_request_types::PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            api::PaymentMethodToken,
+            router_request_types::PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let connector_ref_id = router_data
+            .connector_request_reference_id
+            .clone()
+            .map(|id| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            });
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let payment_method = router_data
+            .request
+            .payment_method_type
+            .map(|payment_method_type| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    router_data.request.payment_method_data.clone(),
+                    payment_method_type,
+                )
+            })
+            .transpose()?;
+
+        // TODO: Fix the type of address field in UCS request and pass address
+        // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        let amount = router_data.request.amount.get_required_value("amount")?;
+
+        Ok(Self {
+            request_ref_id: connector_ref_id,
+            merchant_account_metadata,
+            amount,
+            currency: currency.into(),
+            minor_amount: amount,
+            payment_method,
+            customer_name: None,
+            email: None,
+            customer_id: None,
+            address: None,
+            metadata: HashMap::new(),
+        })
     }
 }
 
@@ -2425,6 +2498,44 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            // For connector PM token creation, we typically return a successful response with the connector payment method
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::TokenizationResponse {
+                    token: response.payment_method_token,
+                },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
     }
 }
 
