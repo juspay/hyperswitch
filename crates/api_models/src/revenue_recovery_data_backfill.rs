@@ -97,7 +97,7 @@ pub struct ComprehensiveCardData {
     pub card_network: Option<CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub daily_retry_history: Option<HashMap<Date, i32>>,
+    pub daily_retry_history: Option<HashMap<PrimitiveDateTime, i32>>,
     pub is_active: Option<bool>,
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
