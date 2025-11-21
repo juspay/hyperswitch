@@ -79,23 +79,23 @@ pub enum UnifiedConnectorServiceError {
     HeaderInjectionFailed(String),
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
     PaymentAuthorizeGranularFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Session Token Create from gRPC Server")]
     PaymentCreateSessionTokenFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Access Token Create from gRPC Server")]
     PaymentCreateAccessTokenFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Payment Method Token Create from gRPC Server")]
     PaymentMethodTokenCreateFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    #[error("Failed to perform Connector Customer Create from gRPC Server")]
     PaymentConnectorCustomerCreateFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
@@ -125,10 +125,6 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Setup Mandate from gRPC Server
     #[error("Failed to perform Setup Mandate from gRPC Server")]
     PaymentRegisterFailure,
-
-    /// Failed to perform Payment Session token create from gRPC Server
-    #[error("Failed to perform Session token create from gRPC Server")]
-    PaymentCreateSessionTokenFailure,
 
     /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
