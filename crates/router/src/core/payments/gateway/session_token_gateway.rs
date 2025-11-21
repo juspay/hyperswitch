@@ -135,8 +135,6 @@ where
                     response
                 });
                 router_data.response = router_data_response;
-                router_data.session_token =
-                    Some(payment_session_token_response.session_token.clone());
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, payment_session_token_response))
