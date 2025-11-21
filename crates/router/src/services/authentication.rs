@@ -4552,8 +4552,8 @@ pub fn check_merchant_access(
         }),
         MerchantAccountType::Platform => {
             // Check if platform feature is enabled
-            fp_utils::when(!is_platform_enabled, || {
-                Err(report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported))
+            is_platform_enabled.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
                     .attach_printable("Platform feature is not enabled")
             })?;
 
