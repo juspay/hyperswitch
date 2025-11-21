@@ -21,6 +21,7 @@ impl ConnectorApiIntegrationPayload {
         let mut card_redirect_details: Vec<Provider> = Vec::new();
         let mut open_banking_details: Vec<Provider> = Vec::new();
         let mut mobile_payment_details: Vec<Provider> = Vec::new();
+        let mut network_token_details: Vec<Provider> = Vec::new();
 
         if let Some(payment_methods_enabled) = response.payment_methods_enabled.clone() {
             for methods in payment_methods_enabled {
@@ -235,7 +236,16 @@ impl ConnectorApiIntegrationPayload {
                         }
                     }
                     api_models::enums::PaymentMethod::NetworkToken => {
-                        // NetworkToken is not yet supported in the response modifier
+                        if let Some(payment_method_types) = methods.payment_method_types {
+                            for method_type in payment_method_types {
+                                network_token_details.push(Provider {
+                                    payment_method_type: method_type.payment_method_type,
+                                    accepted_currencies: method_type.accepted_currencies.clone(),
+                                    accepted_countries: method_type.accepted_countries.clone(),
+                                    payment_experience: method_type.payment_experience,
+                                })
+                            }
+                        }
                     }
                 }
             }

@@ -2,6 +2,7 @@ use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
+use cards::NetworkToken;
 use common_enums::{enums, FutureUsage};
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{
@@ -19,7 +20,6 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         SamsungPayWalletData, WalletData,
@@ -216,26 +216,6 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     None,
                 )
             }
-            PaymentMethodData::NetworkToken(token_data) => {
-                let transaction_type = if item.request.off_session == Some(true) {
-                    TransactionType::StoredCredentials
-                } else {
-                    TransactionType::InApp
-                };
-
-                (
-                    PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
-                        tokenized_card: NetworkTokenizedCard {
-                            number: token_data.get_network_token(),
-                            expiration_month: token_data.get_network_token_expiry_month(),
-                            expiration_year: token_data.get_network_token_expiry_year(),
-                            cryptogram: token_data.get_cryptogram().clone(),
-                            transaction_type,
-                        },
-                    })),
-                    None,
-                )
-            }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
                     Some(payment_method_token) => match payment_method_token {
@@ -378,6 +358,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -553,7 +534,7 @@ pub struct CaptureOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkTokenizedCard {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Option<Secret<String>>,
@@ -1866,134 +1847,6 @@ impl
 impl
     TryFrom<(
         &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
-        hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsForNetworkTransactionId,
-    )> for CybersourcePaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (item, token_data): (
-            &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
-            hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsForNetworkTransactionId,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let transaction_type = if item.router_data.request.off_session == Some(true) {
-            TransactionType::StoredCredentials
-        } else {
-            TransactionType::InApp
-        };
-
-        let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
-        let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
-
-        let card_issuer = token_data.get_card_issuer();
-        let card_type = match card_issuer {
-            Ok(issuer) => Some(String::from(issuer)),
-            Err(_) => None,
-        };
-
-        // For all card payments, we are explicitly setting `pares_status` to `AuthenticationSuccessful`
-        // to indicate that the Payer Authentication was successful, regardless of actual ACS response.
-        // This is a default behavior and may be adjusted based on future integration requirements.
-        let pares_status = Some(CybersourceParesStatus::AuthenticationSuccessful);
-
-        let payment_information =
-            PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
-                tokenized_card: NetworkTokenizedCard {
-                    number: token_data.get_network_token(),
-                    expiration_month: token_data.get_network_token_expiry_month(),
-                    expiration_year: token_data.get_network_token_expiry_year(),
-                    cryptogram: token_data.get_cryptogram().clone(),
-                    transaction_type,
-                },
-            }));
-
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
-        let client_reference_information = ClientReferenceInformation::from(item);
-        let merchant_defined_information = item
-            .router_data
-            .request
-            .metadata
-            .clone()
-            .map(convert_metadata_to_merchant_defined_info);
-
-        let consumer_authentication_information = item
-            .router_data
-            .request
-            .authentication_data
-            .as_ref()
-            .map(|authn_data| {
-                let effective_authentication_type = authn_data.authentication_type.map(Into::into);
-
-                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
-                    if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
-                    } else {
-                        (None, Some(authn_data.cavv.clone()), None)
-                    };
-                let authentication_date = date_time::format_date(
-                    authn_data.created_at,
-                    date_time::DateFormat::YYYYMMDDHHmmss,
-                )
-                .ok();
-                let network_score = (token_data.card_network
-                    == Some(common_enums::CardNetwork::CartesBancaires))
-                .then_some(authn_data.message_extension.as_ref())
-                .flatten()
-                .map(|secret| secret.clone().expose())
-                .and_then(|exposed| {
-                    serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
-                        .map_err(|err| {
-                            router_env::logger::error!(
-                                "Failed to deserialize message_extension: {:?}",
-                                err
-                            );
-                        })
-                        .ok()
-                        .and_then(|exts| extract_score_id(&exts))
-                });
-
-                let cavv_algorithm = Some("2".to_string());
-
-                CybersourceConsumerAuthInformation {
-                    pares_status,
-                    ucaf_collection_indicator,
-                    cavv,
-                    ucaf_authentication_data,
-                    xid: None,
-                    directory_server_transaction_id: authn_data
-                        .ds_trans_id
-                        .clone()
-                        .map(Secret::new),
-                    specification_version: authn_data.message_version.clone(),
-                    pa_specification_version: authn_data.message_version.clone(),
-                    veres_enrolled: Some("Y".to_string()),
-                    eci_raw: authn_data.eci.clone(),
-                    authentication_date,
-                    effective_authentication_type,
-                    challenge_code: authn_data.challenge_code.clone(),
-                    signed_pares_status_reason: authn_data.challenge_code_reason.clone(),
-                    challenge_cancel_code: authn_data.challenge_cancel.clone(),
-                    network_score,
-                    acs_transaction_id: authn_data.acs_trans_id.clone(),
-                    cavv_algorithm,
-                }
-            });
-
-        Ok(Self {
-            processing_information,
-            payment_information,
-            order_information,
-            client_reference_information,
-            consumer_authentication_information,
-            merchant_defined_information,
-        })
-    }
-}
-
-impl
-    TryFrom<(
-        &CybersourceRouterData<&PaymentsAuthorizeRouterData>,
         Box<hyperswitch_domain_models::router_data::PazeDecryptedData>,
     )> for CybersourcePaymentsRequest
 {
@@ -2749,9 +2602,6 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
                         Self::try_from((item, card))
                     }
-                    PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
-                        network_token,
-                    ) => Self::try_from((item, network_token)),
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::PayLater(_)
                     | PaymentMethodData::BankRedirect(_)
@@ -2765,7 +2615,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
-                    | PaymentMethodData::CardToken(_) => {
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
