@@ -94,9 +94,9 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Authorize from gRPC Server")]
     PaymentMethodTokenCreateFailure,
 
-    /// Failed to perform Create Connector Customer Granular from gRPC Server
-    #[error("Failed to perform Create Connector Customer Granular from gRPC Server")]
-    CreateConnectorCustomerGranularFailure,
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentConnectorCustomerCreateFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
@@ -283,6 +283,8 @@ impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartialCharged),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Failure),
             payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
+            payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }
     }
 }

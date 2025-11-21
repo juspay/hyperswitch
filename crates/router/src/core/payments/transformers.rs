@@ -1874,11 +1874,21 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_status: payment_data
+            .payment_method_info
+            .clone()
+            .map(|info| info.status),
         payment_method_token: payment_data
             .pm_token
             .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
-        connector_customer: payment_data.connector_customer_id,
+        connector_customer: core_utils::get_connector_customer_id(
+            &state.conf,
+            connector_id,
+            payment_data.connector_customer_id.clone(),
+            &payment_data.payment_intent.customer_id,
+            &payment_data.payment_method_info,
+            &payment_data.payment_attempt,
+        )?,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,

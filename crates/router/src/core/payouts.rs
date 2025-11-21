@@ -2188,6 +2188,7 @@ pub async fn create_recipient_disburse_account(
                     merchant_connector_id.clone(),
                     PayoutsMandateReferenceRecord {
                         transfer_method_id: Some(connector_payout_id),
+                        connector_customer_id: None,
                     },
                 )]);
 
