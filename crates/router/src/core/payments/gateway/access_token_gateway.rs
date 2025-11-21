@@ -72,9 +72,7 @@ where
         >,
         ConnectorError,
     > {
-        let connector_name = router_data.connector.clone();
         let merchant_connector_account = context.merchant_connector_account;
-        let creds_identifier = context.creds_identifier;
         let platform = context.platform;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
@@ -102,8 +100,6 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-
-        let merchant_connector_id = merchant_connector_account.get_mca_id();
 
         let merchant_reference_id = header_payload
             .x_reference_id
@@ -144,26 +140,13 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                // Extract and store access token if successful
-                if let Ok(access_token) = &access_token_result {
-                    if let Err(error) = unified_connector_service::set_access_token_for_ucs(
-                        state,
-                        &platform,
-                        &connector_name,
-                        access_token.clone(),
-                        merchant_connector_id.as_ref(),
-                        creds_identifier,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from create access token response"
-                        );
-                    } else {
-                        logger::debug!(
-                            "Successfully stored access token from UCS create access token response"
-                        );
+                // Update router_data with access token
+                match &access_token_result {
+                    Ok(access_token) => {
+                        router_data.access_token = Some(access_token.clone());
+                    }
+                    Err(_) => {
+                        // Error case - access_token remains None
                     }
                 }
 

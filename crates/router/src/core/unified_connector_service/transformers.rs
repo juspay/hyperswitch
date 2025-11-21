@@ -3175,7 +3175,7 @@ impl
             }),
             merchant_account_metadata: HashMap::new(),
             // depricated field we have to remove this/ Default to unspecified connector
-            connector: 0 as i32,
+            connector: 0_i32,
         })
     }
 }
