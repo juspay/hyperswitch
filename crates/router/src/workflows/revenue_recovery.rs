@@ -473,6 +473,7 @@ async fn should_force_schedule_due_to_missed_slots(
     .unwrap_or(false))
 }
 
+#[cfg(feature = "v2")]
 pub fn convert_hourly_retry_history(
     input: Option<HashMap<time::PrimitiveDateTime, i32>>,
 ) -> HashMap<String, i32> {
