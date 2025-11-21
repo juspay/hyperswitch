@@ -486,4 +486,18 @@ impl ConnectorSpecifications for Adyenplatform {
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
         None
     }
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id.as_ref().map(|cid| {
+            format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                cid.get_string_repr()
+            )
+        })
+    }
 }
