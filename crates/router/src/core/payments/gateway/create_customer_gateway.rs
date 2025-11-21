@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
-use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
+use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::RouterData, router_flow_types as domain,
@@ -21,7 +21,6 @@ use crate::{
         unified_connector_service::handle_unified_connector_service_response_for_create_connector_customer,
     },
     routes::SessionState,
-    services::logger,
     types::{self, transformers::ForeignTryFrom},
 };
 
@@ -66,32 +65,13 @@ where
         ConnectorError,
     > {
         let connector_name = router_data.connector.clone();
-        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
+        let _connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
         let platform = context.platform;
         let lineage_ids = context.lineage_ids;
-        let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let merchant_order_reference_id = header_payload.x_reference_id.clone();
-        let is_ucs_psync_disabled = state
-            .conf
-            .grpc_client
-            .unified_connector_service
-            .as_ref()
-            .is_some_and(|config| {
-                config
-                    .ucs_psync_disabled_connectors
-                    .contains(&connector_enum)
-            });
 
-        if is_ucs_psync_disabled {
-            logger::info!(
-                "UCS PSync call disabled for connector: {}, skipping UCS call",
-                connector_name
-            );
-            return Ok(router_data.clone());
-        }
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -114,26 +94,17 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .or(merchant_order_reference_id)
-            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-            .transpose()
-            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-            .ok()
-            .flatten()
-            .map(ucs_types::UcsReferenceId::Payment);
-        let header_payload = state
+
+        let grpc_headers = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
-            .merchant_reference_id(merchant_reference_id)
+            .merchant_reference_id(None)
             .lineage_ids(lineage_ids);
         let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
             router_data.clone(),
             state,
             create_connector_customer_request,
-            header_payload,
+            grpc_headers,
             |mut router_data, create_connector_customer_request, grpc_headers| async move {
                 let response = Box::pin(client.create_connector_customer(
                     create_connector_customer_request,
