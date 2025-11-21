@@ -3264,7 +3264,7 @@ dependencies = [
  "quick-xml",
  "reqwest 0.11.27",
  "router_env",
- "rust-grpc-client 0.1.0 (git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9)",
+ "rust-grpc-client",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -3789,26 +3789,6 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9#8edf9f744597c4f8712550a060a2bc1700c174d9"
-dependencies = [
- "axum 0.8.4",
- "error-stack 0.5.0",
- "g2h",
- "heck 0.5.0",
- "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
- "prost",
- "prost-build",
- "prost-types",
- "serde",
- "tonic 0.13.1",
- "tonic-build",
- "ucs_cards 0.1.0 (git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9)",
-]
-
-[[package]]
-name = "grpc-api-types"
-version = "0.1.0"
 source = "git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c#e139d32b93567b96a0be54aabf5338517b73aa4c"
 dependencies = [
  "axum 0.8.4",
@@ -3823,7 +3803,7 @@ dependencies = [
  "serde",
  "tonic 0.13.1",
  "tonic-build",
- "ucs_cards 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "ucs_cards",
 ]
 
 [[package]]
@@ -4425,7 +4405,7 @@ dependencies = [
  "mime",
  "reqwest 0.11.27",
  "router_env",
- "rust-grpc-client 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "rust-grpc-client",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -7334,7 +7314,7 @@ dependencies = [
  "ring 0.17.14",
  "router_derive",
  "router_env",
- "rust-grpc-client 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "rust-grpc-client",
  "rust-i18n",
  "rust_decimal",
  "rustc-hash 1.1.0",
@@ -7358,7 +7338,7 @@ dependencies = [
  "tokio 1.48.0",
  "totp-rs",
  "tracing-futures",
- "ucs_cards 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "ucs_cards",
  "unicode-segmentation",
  "url",
  "urlencoding",
@@ -7447,17 +7427,9 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9#8edf9f744597c4f8712550a060a2bc1700c174d9"
-dependencies = [
- "grpc-api-types 0.1.0 (git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9)",
-]
-
-[[package]]
-name = "rust-grpc-client"
-version = "0.1.0"
 source = "git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c#e139d32b93567b96a0be54aabf5338517b73aa4c"
 dependencies = [
- "grpc-api-types 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "grpc-api-types",
 ]
 
 [[package]]
@@ -10245,22 +10217,6 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9#8edf9f744597c4f8712550a060a2bc1700c174d9"
-dependencies = [
- "bytes 1.10.1",
- "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
- "prost",
- "regex",
- "serde",
- "thiserror 1.0.69",
- "time",
- "ucs_common_utils 0.1.0 (git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9)",
-]
-
-[[package]]
-name = "ucs_cards"
-version = "0.1.0"
 source = "git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c#e139d32b93567b96a0be54aabf5338517b73aa4c"
 dependencies = [
  "bytes 1.10.1",
@@ -10271,18 +10227,7 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "time",
- "ucs_common_utils 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
-]
-
-[[package]]
-name = "ucs_common_enums"
-version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9#8edf9f744597c4f8712550a060a2bc1700c174d9"
-dependencies = [
- "serde",
- "strum 0.26.3",
- "thiserror 1.0.69",
- "utoipa",
+ "ucs_common_utils",
 ]
 
 [[package]]
@@ -10294,44 +10239,6 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "utoipa",
-]
-
-[[package]]
-name = "ucs_common_utils"
-version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9#8edf9f744597c4f8712550a060a2bc1700c174d9"
-dependencies = [
- "anyhow",
- "base64 0.21.7",
- "blake3",
- "bytes 1.10.1",
- "chrono",
- "error-stack 0.4.1",
- "hex",
- "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
- "md5",
- "nanoid",
- "once_cell",
- "quick-xml",
- "rand 0.8.5",
- "regex",
- "reqwest 0.11.27",
- "ring 0.17.14",
- "rust_decimal",
- "semver 1.0.26",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "strum 0.26.3",
- "thiserror 1.0.69",
- "time",
- "tonic 0.13.1",
- "tracing",
- "ucs_common_enums 0.1.0 (git+https://github.com/juspay/connector-service?rev=8edf9f744597c4f8712550a060a2bc1700c174d9)",
- "url",
- "utoipa",
- "uuid",
 ]
 
 [[package]]
@@ -10366,7 +10273,7 @@ dependencies = [
  "time",
  "tonic 0.13.1",
  "tracing",
- "ucs_common_enums 0.1.0 (git+https://github.com/juspay/connector-service?rev=e139d32b93567b96a0be54aabf5338517b73aa4c)",
+ "ucs_common_enums",
  "url",
  "utoipa",
  "uuid",

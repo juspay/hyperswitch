@@ -263,38 +263,30 @@ impl
             common_enums::CallConnectorAction,
         ),
     ) -> Result<Self, Self::Error> {
-        let request_ref_id = router_data
-            .connector_request_reference_id
-            .clone()
-            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "connector_request_reference_id",
-            })?;
+        let request_ref_id = router_data.connector_request_reference_id.clone();
 
         Ok(Self {
-            request_ref_id: Some(payments_grpc::Identifier {
+            request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata: std::collections::HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
             customer_name: router_data.request.description.clone(),
             email: router_data
                 .request
                 .email
-                .as_ref()
-                .map(|email| payments_grpc::SecretString {
-                    value: email.peek().to_string(),
-                }),
-            customer_id: router_data.customer_id.clone(),
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_id: router_data
+                .customer_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string()),
             phone_number: router_data
                 .request
                 .phone
                 .as_ref()
-                .map(|phone| phone.number.peek().to_string()),
-            address: router_data
-                .address
-                .billing
-                .as_ref()
-                .map(payments_grpc::Address::foreign_from),
-            metadata: std::collections::HashMap::new(),
+                .map(|phone| phone.peek().to_string()),
+            address: None,
+            metadata: HashMap::new(),
         })
     }
 }
@@ -1746,6 +1738,47 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 status,
             ))
         };
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCustomerResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            router_env::logger::error!(
+                error_message = ?response.error_message,
+                error_code = ?response.error_code,
+                status_code,
+                "UCS create connector customer failed"
+            );
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            use hyperswitch_domain_models::router_response_types::ConnectorCustomerResponseData;
+            Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(response.connector_customer_id),
+            ))
+        };
+
         Ok(response)
     }
 }

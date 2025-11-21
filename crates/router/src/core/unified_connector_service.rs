@@ -1158,24 +1158,13 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 
 pub fn handle_unified_connector_service_response_for_create_connector_customer(
     response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
-) -> CustomResult<(String, u16), UnifiedConnectorServiceError> {
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
-    let connector_customer_id = response.connector_customer_id;
 
-    // Check for errors
-    if let Some(error_message) = response.error_message {
-        logger::error!(
-            ?error_message,
-            error_code = ?response.error_code,
-            error_reason = ?response.error_reason,
-            status_code,
-            "UCS create connector customer failed"
-        );
+    let connector_customer_result =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
-        return Err(UnifiedConnectorServiceError::CreateConnectorCustomerGranularFailure.into());
-    }
-
-    Ok((connector_customer_id, status_code))
+    Ok((connector_customer_result, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(

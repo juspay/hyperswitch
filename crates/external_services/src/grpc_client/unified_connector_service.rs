@@ -183,7 +183,7 @@ impl UnifiedConnectorServiceClient {
     }
 
     /// Performs Create Connector Customer Granular
-    pub async fn create_connector_customer_granular(
+    pub async fn create_connector_customer(
         &self,
         create_customer_request: payments_grpc::PaymentServiceCreateConnectorCustomerRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
@@ -202,7 +202,7 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_connector_customer(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayementConnectorCustomerCreateFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentConnectorCustomerCreateFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,

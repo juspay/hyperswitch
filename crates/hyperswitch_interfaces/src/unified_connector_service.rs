@@ -36,29 +36,6 @@ pub fn handle_unified_connector_service_response_for_payment_get(
     Ok((router_data_response, status_code))
 }
 
-#[allow(missing_docs)]
-pub fn handle_unified_connector_service_response_for_create_connector_customer(
-    response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
-) -> CustomResult<(String, u16), UnifiedConnectorServiceError> {
-    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
-    let connector_customer_id = response.connector_customer_id;
-
-    // Check for errors
-    if let Some(error_message) = response.error_message {
-        router_env::logger::error!(
-            ?error_message,
-            error_code = ?response.error_code,
-            error_reason = ?response.error_reason,
-            status_code,
-            "UCS create connector customer failed"
-        );
-
-        return Err(UnifiedConnectorServiceError::CreateConnectorCustomerGranularFailure.into());
-    }
-
-    Ok((connector_customer_id, status_code))
-}
-
 /// Extracts the payments response from UCS webhook content
 pub fn get_payments_response_from_ucs_webhook_content(
     webhook_content: payments_grpc::WebhookResponseContent,
