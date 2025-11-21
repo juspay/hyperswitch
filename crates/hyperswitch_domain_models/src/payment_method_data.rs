@@ -2325,24 +2325,20 @@ pub fn get_applepay_wallet_info(
     item: ApplePayWalletData,
     payment_method_token: Option<PaymentMethodToken>,
 ) -> payment_methods::PaymentMethodDataWalletInfo {
-    let (card_exp_month, card_exp_year) = match item
-        .payment_data
-        .get_decrypted_apple_pay_payment_data_optional()
-    {
-        Some(token) => (
+    let (card_exp_month, card_exp_year) = match (
+        item.payment_data
+            .get_decrypted_apple_pay_payment_data_optional(),
+        payment_method_token,
+    ) {
+        (Some(token), _) => (
             Some(token.application_expiration_month.clone()),
             Some(token.application_expiration_year.clone()),
         ),
-        None => {
-            if let Some(PaymentMethodToken::ApplePayDecrypt(token)) = payment_method_token {
-                (
-                    Some(token.application_expiration_month.clone()),
-                    Some(token.application_expiration_year.clone()),
-                )
-            } else {
-                (None, None)
-            }
-        }
+        (None, Some(PaymentMethodToken::ApplePayDecrypt(token))) => (
+            Some(token.application_expiration_month.clone()),
+            Some(token.application_expiration_year.clone()),
+        ),
+        _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
         last4: item
@@ -2366,24 +2362,20 @@ pub fn get_googlepay_wallet_info(
     item: GooglePayWalletData,
     payment_method_token: Option<PaymentMethodToken>,
 ) -> payment_methods::PaymentMethodDataWalletInfo {
-    let (card_exp_month, card_exp_year) = match item
-        .tokenization_data
-        .get_decrypted_google_pay_payment_data_optional()
-    {
-        Some(token) => (
+    let (card_exp_month, card_exp_year) = match (
+        item.tokenization_data
+            .get_decrypted_google_pay_payment_data_optional(),
+        payment_method_token,
+    ) {
+        (Some(token), None) => (
             Some(token.card_exp_month.clone()),
             Some(token.card_exp_year.clone()),
         ),
-        None => {
-            if let Some(PaymentMethodToken::GooglePayDecrypt(token)) = payment_method_token {
-                (
-                    Some(token.card_exp_month.clone()),
-                    Some(token.card_exp_year.clone()),
-                )
-            } else {
-                (None, None)
-            }
-        }
+        (None, Some(PaymentMethodToken::GooglePayDecrypt(token))) => (
+            Some(token.card_exp_month.clone()),
+            Some(token.card_exp_year.clone()),
+        ),
+        _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
         last4: item.info.card_details,

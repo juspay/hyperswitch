@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -15,6 +13,9 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_method_data::{
+    get_applepay_wallet_info, get_googlepay_wallet_info,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     callback_mapper::CallbackMapper,
@@ -23,6 +24,7 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
+use std::collections::HashMap;
 
 use super::helpers;
 #[cfg(feature = "v1")]
@@ -229,10 +231,6 @@ where
                 };
 
             let pm_id = if customer_acceptance.is_some() {
-                use hyperswitch_domain_models::payment_method_data::{
-                    get_applepay_wallet_info, get_googlepay_wallet_info,
-                };
-
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
                 let payment_method_create_request =
