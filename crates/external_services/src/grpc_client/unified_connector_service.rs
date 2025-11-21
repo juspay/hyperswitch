@@ -153,6 +153,35 @@ impl UnifiedConnectorServiceClient {
         }
     }
 
+    /// Performs Payment Granular Authorize
+    pub async fn payment_authorize_granular(
+        &self,
+        payment_authorize_only_request: payments_grpc::PaymentServiceAuthorizeOnlyRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
+        let mut request = tonic::Request::new(payment_authorize_only_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .authorize_only(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeGranularFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="authorize_only",
+                    connector_name=?connector_name,
+                    "UCS authorize_only gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Pre Authenticate
     pub async fn payment_pre_authenticate(
         &self,
@@ -536,7 +565,7 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_access_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::CreateAccessTokenGranularFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentCreateAccessTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
