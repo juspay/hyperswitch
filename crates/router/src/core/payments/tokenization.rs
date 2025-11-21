@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -24,7 +26,6 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
-use std::collections::HashMap;
 
 use super::helpers;
 #[cfg(feature = "v1")]
