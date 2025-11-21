@@ -898,6 +898,8 @@ pub struct BillingDescriptor {
     pub statement_descriptor: Option<String>,
     /// Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_suffix: Option<String>,
+    /// A reference to be shown on billing description
+    pub reference: Option<String>,
 }
 
 impl_to_sql_from_sql_json!(BillingDescriptor);
