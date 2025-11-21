@@ -82,16 +82,12 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .map(|payment_method_type| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
-                    payment_method_type,
-                )
-            })
-            .transpose()?;
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -768,7 +764,6 @@ impl
                 .transpose()?,
             order_category: None,
             payment_experience: None,
-            order_details: Vec::new(),
             authentication_data,
             request_extended_authorization: None,
             merchant_order_reference_id: None,
@@ -911,7 +906,6 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            order_details: Vec::new(),
             authentication_data,
             request_extended_authorization: router_data
                 .request
@@ -1056,7 +1050,6 @@ impl
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            order_details: Vec::new(),
             authentication_data,
             request_extended_authorization: router_data
                 .request
