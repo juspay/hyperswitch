@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.12.0-hotfix5
+
+### Bug Fixes
+
+- Resolved Diff checks of Hyperswitch<>UCS tunnel ([#10360](https://github.com/juspay/hyperswitch/pull/10360)) ([`d9ebad6`](https://github.com/juspay/hyperswitch/commit/d9ebad6d43502ba4cffe85e39d001b4363c87030))
+
+**Full Changelog:** [`2025.11.12.0-hotfix4...2025.11.12.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.11.12.0-hotfix4...2025.11.12.0-hotfix5)
+
+- - -
+
 ## 2025.11.12.0-hotfix4
 
 ### Bug Fixes
