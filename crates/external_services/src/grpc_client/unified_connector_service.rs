@@ -460,6 +460,36 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Setup Mandate
+    pub async fn payment_setup_mandate_granular(
+        &self,
+        payment_register_request: payments_grpc::PaymentServiceRegisterRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRegisterResponse>>
+    {
+        let mut request = tonic::Request::new(payment_register_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .register_only(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_setup_mandate_granular",
+                    connector_name=?connector_name,
+                    "UCS payment granular setup mandate gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment repeat (MIT - Merchant Initiated Transaction).
     pub async fn payment_repeat(
         &self,
