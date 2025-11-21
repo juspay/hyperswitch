@@ -1724,11 +1724,9 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
         payment_data: &common_types::payments::ApplePayPaymentData,
     ) -> Result<Self, Self::Error> {
         match payment_data {
-            common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => Ok(
-                Self::EncryptedData(
-                    encrypted_data.clone(),
-                ),
-            ),
+            common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => {
+                Ok(Self::EncryptedData(encrypted_data.clone()))
+            }
             common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
                 let application_primary_account_number = CardNumber::from_str(
                     &decrypted_data
@@ -1740,40 +1738,34 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(
-                    Self::DecryptedData(
-                        payments_grpc::ApplePayPredecryptData {
-                            application_primary_account_number: Some(
-                                application_primary_account_number,
-                            ),
-                            application_expiration_month: Some(
-                                decrypted_data
-                                    .application_expiration_month
-                                    .clone()
-                                    .expose()
-                                    .into(),
-                            ),
-                            application_expiration_year: Some(
-                                decrypted_data
-                                    .application_expiration_year
-                                    .clone()
-                                    .expose()
-                                    .into(),
-                            ),
-                            payment_data: Some(payments_grpc::ApplePayCryptogramData {
-                                online_payment_cryptogram: Some(
-                                    decrypted_data
-                                        .payment_data
-                                        .online_payment_cryptogram
-                                        .clone()
-                                        .expose()
-                                        .into(),
-                                ),
-                                eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
-                            }),
-                        },
+                Ok(Self::DecryptedData(payments_grpc::ApplePayPredecryptData {
+                    application_primary_account_number: Some(application_primary_account_number),
+                    application_expiration_month: Some(
+                        decrypted_data
+                            .application_expiration_month
+                            .clone()
+                            .expose()
+                            .into(),
                     ),
-                )
+                    application_expiration_year: Some(
+                        decrypted_data
+                            .application_expiration_year
+                            .clone()
+                            .expose()
+                            .into(),
+                    ),
+                    payment_data: Some(payments_grpc::ApplePayCryptogramData {
+                        online_payment_cryptogram: Some(
+                            decrypted_data
+                                .payment_data
+                                .online_payment_cryptogram
+                                .clone()
+                                .expose()
+                                .into(),
+                        ),
+                        eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
+                    }),
+                }))
             }
         }
     }
@@ -1789,12 +1781,10 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
     ) -> Result<Self, Self::Error> {
         match tokenization_data {
             common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => Ok(
-                Self::EncryptedData(
-                    payments_grpc::GpayEncryptedTokenizationData {
-                        token_type: encrypted_data.token_type.clone(),
-                        token: encrypted_data.token.clone(),
-                    },
-                ),
+                Self::EncryptedData(payments_grpc::GpayEncryptedTokenizationData {
+                    token_type: encrypted_data.token_type.clone(),
+                    token: encrypted_data.token.clone(),
+                }),
             ),
             common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
                 let application_primary_account_number = CardNumber::from_str(
@@ -1807,15 +1797,16 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(Self::DecryptedData(
-                    payments_grpc::GPayPredecryptData {
-                        card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
-                        card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
-                        application_primary_account_number: Some(application_primary_account_number),
-                        cryptogram: decrypted_data.cryptogram.clone().map(|cryptogram| cryptogram.expose().into()),
-                        eci_indicator: decrypted_data.eci_indicator.clone(),
-                    }
-                ))
+                Ok(Self::DecryptedData(payments_grpc::GPayPredecryptData {
+                    card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
+                    card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
+                    application_primary_account_number: Some(application_primary_account_number),
+                    cryptogram: decrypted_data
+                        .cryptogram
+                        .clone()
+                        .map(|cryptogram| cryptogram.expose().into()),
+                    eci_indicator: decrypted_data.eci_indicator.clone(),
+                }))
             }
         }
     }
