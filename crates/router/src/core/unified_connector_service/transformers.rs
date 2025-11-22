@@ -44,6 +44,37 @@ use crate::{
     },
 };
 
+/// Utility function to convert serde_json::Value map to HashMap<String, String>
+/// Propagates serialization errors instead of using defaults
+fn convert_value_map_to_hashmap(
+    value: &serde_json::Value,
+) -> Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>> {
+    match value.as_object() {
+        Some(map) => map
+            .iter()
+            .map(|(k, v)| {
+                let string_value = v
+                    .as_str()
+                    .map(|s| s.to_string())
+                    .or_else(|| {
+                        serde_json::to_string(v)
+                            .ok()
+                    })
+                    .ok_or_else(|| {
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                                "Failed to serialize metadata value for key: {}",
+                                k
+                            ))
+                        )
+                    })?;
+                Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>((k.clone(), string_value))
+            })
+            .collect::<Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>>>(),
+        None => Ok(HashMap::new()),
+    }
+}
+
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
         Self {
@@ -447,12 +478,8 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -536,12 +563,8 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -620,23 +643,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -721,12 +736,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             browser_info,
             multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
@@ -793,23 +804,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
         let authentication_data = router_data
             .request
@@ -924,23 +927,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
         let setup_future_usage = router_data
             .request
@@ -1171,22 +1166,14 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
@@ -1279,13 +1266,8 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .map(|secret| secret.peek())
-                .and_then(|val| val.as_object()) //secret
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|secret| convert_value_map_to_hashmap(secret.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1311,12 +1293,8 @@ impl
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
@@ -1392,22 +1370,14 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
@@ -3003,16 +2973,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .request
             .connector_metadata
             .as_ref()
-            .map(|metadata| {
-                metadata
-                    .as_object()
-                    .map(|obj| {
-                        obj.iter()
-                            .map(|(k, v)| (k.clone(), v.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
 
         // Convert refund_connector_metadata to gRPC format
@@ -3020,18 +2982,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .request
             .refund_connector_metadata
             .as_ref()
-            .map(|metadata| {
-                metadata
-                    .clone()
-                    .expose()
-                    .as_object()
-                    .map(|obj| {
-                        obj.iter()
-                            .map(|(k, v)| (k.clone(), v.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            })
+            .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
+            .transpose()?
             .unwrap_or_default();
 
         let state = router_data
@@ -3159,18 +3111,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .request
                 .refund_connector_metadata
                 .as_ref()
-                .map(|metadata| {
-                    metadata
-                        .clone()
-                        .expose()
-                        .as_object()
-                        .map(|obj| {
-                            obj.iter()
-                                .map(|(k, v)| (k.clone(), v.to_string()))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                })
+                .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
+                .transpose()?
                 .unwrap_or_default(),
         })
     }
@@ -3270,12 +3212,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             state: None,
         })
