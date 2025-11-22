@@ -713,13 +713,25 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     result: Vec<T>,
     flow: String,
 ) {
-    let is_equal = de_result
-        .iter()
-        .zip(result.iter())
-        .all(|(a, b)| T::is_equal(a, b));
+    let is_equal = if de_result.is_empty() && result.is_empty() {
+        true
+    } else {
+        de_result
+            .iter()
+            .zip(result.iter())
+            .all(|(a, b)| T::is_equal(a, b))
+    };
 
     let is_equal_in_length = de_result.len() == result.len();
-    router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, is_equal_length=?is_equal_in_length, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
+
+    router_env::logger::debug!(
+        routing_flow=?flow,
+        is_equal=?is_equal,
+        is_equal_length=?is_equal_in_length,
+        de_response=?to_json_string(&de_result),
+        hs_response=?to_json_string(&result),
+        "decision_engine_euclid"
+    );
 }
 
 pub trait RoutingEq<T> {
@@ -800,6 +812,12 @@ pub fn convert_backend_input_to_routing_eval(
         params.insert(
             "authentication_type".to_string(),
             Some(ValueType::EnumVariant(auth_type.to_string())),
+        );
+    }
+    if let Some(extended_bin) = input.payment.extended_card_bin {
+        params.insert(
+            "extended_card_bin".to_string(),
+            Some(ValueType::StrValue(extended_bin)),
         );
     }
     if let Some(bin) = input.payment.card_bin {
@@ -1477,7 +1495,10 @@ pub async fn select_routing_result<T>(
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
     de_result: T,
-) -> T {
+) -> T
+where
+    T: Clone + IntoIterator,
+{
     let routing_result_source: Option<api_routing::RoutingResultSource> = state
         .store
         .find_config_by_key(&format!(
@@ -1486,15 +1507,33 @@ pub async fn select_routing_result<T>(
         ))
         .await
         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
+        .unwrap_or(None);
+
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
-        de_result
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Decision Engine routing result"
+        );
+
+        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+        if is_de_result_empty {
+            logger::debug!(
+                business_profile_id=?business_profile.get_id(),
+                "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+            );
+            hyperswitch_result
+        } else {
+            de_result
+        }
     } else {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Hyperswitch routing result"
+        );
         hyperswitch_result
     }
 }
+
 pub trait DecisionEngineErrorsInterface {
     fn get_error_message(&self) -> String;
     fn get_error_code(&self) -> String;

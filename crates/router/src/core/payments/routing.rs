@@ -488,21 +488,35 @@ pub async fn perform_static_routing_v1(
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed);
     };
+
+    let fallback_config = get_merchant_fallback_config().await?;
+
     let algorithm_id = if let Some(id) = algorithm_id {
         id
     } else {
-        let fallback_config = get_merchant_fallback_config().await?;
         logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
         return Ok((fallback_config, None));
     };
-    let cached_algorithm = ensure_algorithm_cached_v1(
+
+    let cached_algorithm = match ensure_algorithm_cached_v1(
         state,
         merchant_id,
         algorithm_id,
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
     )
-    .await?;
+    .await
+    {
+        Ok(algo) => algo,
+        Err(err) => {
+            logger::error!(
+                error=?err,
+                "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+            );
+
+            return Ok((fallback_config, None));
+        }
+    };
 
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -535,7 +549,7 @@ pub async fn perform_static_routing_v1(
             backend_input.clone(),
             business_profile,
             payment_id,
-            get_merchant_fallback_config().await?,
+            fallback_config,
         )
         .await
         .map_err(|e|
