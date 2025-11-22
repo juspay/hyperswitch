@@ -6,7 +6,7 @@ use common_utils::ext_traits::StringExt;
 pub mod utils;
 #[cfg(feature = "v1")]
 use api_models::authentication::{
-    AuthPaymentMethodData, AuthPaymentMethodType, AuthTokenData, AuthTokenType,
+    AuthPaymentMethodData, AuthPaymentMethodType, AuthTokenData,
     AuthenticationEligibilityCheckRequest, AuthenticationEligibilityCheckResponse,
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
     AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
@@ -1864,17 +1864,17 @@ pub async fn authentication_sync_core(
                     {
                         (
                             Some(AuthTokenData::Network {
-                                payment_token,
-                                token_cryptogram,
-                                token_expiration_month: None,
-                                token_expiration_year: None,
-                                auth_token_type: AuthTokenType::NetworkToken,
+                                network_token: payment_token,
+                                network_token_cryptogram: token_cryptogram,
+                                network_token_expiry_month: None,
+                                network_token_expiry_year: None,
+                                auth_token_type: AuthPaymentMethodType::NetworkTokenData,
                             }),
                             Some(AuthPaymentMethodData::Network {
-                                payment_token: None,
-                                token_cryptogram: None,
-                                token_expiration_month: Some(token_expiration_month),
-                                token_expiration_year: Some(token_expiration_year),
+                                network_token: None,
+                                network_token_cryptogram: None,
+                                network_token_expiry_month: Some(token_expiration_month),
+                                network_token_expiry_year: Some(token_expiration_year),
                                 payment_method_type: AuthPaymentMethodType::NetworkTokenData,
                             }),
                         )
@@ -1891,7 +1891,7 @@ pub async fn authentication_sync_core(
                                 card_cvc,
                                 card_expiry_year: None,
                                 card_expiry_month: None,
-                                auth_token_type: AuthTokenType::CardToken,
+                                auth_token_type: AuthPaymentMethodType::CardData,
                             }),
                             Some(AuthPaymentMethodData::Card {
                                 card_number: None,

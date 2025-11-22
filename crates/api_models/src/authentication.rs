@@ -746,19 +746,19 @@ pub enum AuthPaymentMethodData {
     Network {
         /// Token id for network_token
         #[schema(value_type = String)]
-        payment_token: Option<masking::Secret<String>>,
+        network_token: Option<masking::Secret<String>>,
 
         /// Token id for tavv
         #[schema(value_type = String)]
-        token_cryptogram: Option<masking::Secret<String>>,
+        network_token_cryptogram: Option<masking::Secret<String>>,
 
         /// Token id for token_expiration_month
         #[schema(value_type = String)]
-        token_expiration_month: Option<masking::Secret<String>>,
+        network_token_expiry_month: Option<masking::Secret<String>>,
 
         /// Token id for token_expiration_year
         #[schema(value_type = String)]
-        token_expiration_year: Option<masking::Secret<String>>,
+        network_token_expiry_year: Option<masking::Secret<String>>,
 
         /// auth_token_type
         #[serde(rename = "type")]
@@ -800,23 +800,23 @@ pub enum AuthTokenData {
     Network {
         /// Token id for network_token
         #[schema(value_type = String)]
-        payment_token: masking::Secret<String>,
+        network_token: masking::Secret<String>,
 
         /// Token id for tavv
         #[schema(value_type = String)]
-        token_cryptogram: Option<masking::Secret<String>>,
+        network_token_cryptogram: Option<masking::Secret<String>>,
 
         /// Token id for token_expiration_month
         #[schema(value_type = String)]
-        token_expiration_month: Option<masking::Secret<String>>,
+        network_token_expiry_month: Option<masking::Secret<String>>,
 
         /// Token id for token_expiration_year
         #[schema(value_type = String)]
-        token_expiration_year: Option<masking::Secret<String>>,
+        network_token_expiry_year: Option<masking::Secret<String>>,
 
         /// auth_token_type
         #[serde(rename = "type")]
-        auth_token_type: AuthTokenType,
+        auth_token_type: AuthPaymentMethodType,
     },
     Card {
         /// card number for card
@@ -837,15 +837,8 @@ pub enum AuthTokenData {
 
         /// auth_token_type
         #[serde(rename = "type")]
-        auth_token_type: AuthTokenType,
+        auth_token_type: AuthPaymentMethodType,
     },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum AuthTokenType {
-    CardToken,
-    NetworkToken,
 }
 
 #[cfg(feature = "v1")]
