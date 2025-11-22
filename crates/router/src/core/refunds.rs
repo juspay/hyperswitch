@@ -10,8 +10,9 @@ use common_utils::{
 };
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
+use external_services::grpc_client;
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+    payments::HeaderPayload, router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
@@ -25,7 +26,10 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, helpers, helpers::MerchantConnectorAccountType},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers,
+            helpers::MerchantConnectorAccountType,
+        },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
         utils::{
@@ -205,12 +209,26 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let lineage_ids =
+        grpc_client::LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: creds_identifier.clone(),
+        platform: platform.clone(),
+        header_payload: HeaderPayload::default(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: common_enums::ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -818,12 +836,26 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
+    let lineage_ids =
+        grpc_client::LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: creds_identifier.clone(),
+        platform: platform.clone(),
+        header_payload: HeaderPayload::default(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: common_enums::ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 

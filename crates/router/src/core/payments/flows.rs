@@ -105,6 +105,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,

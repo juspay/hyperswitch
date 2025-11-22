@@ -3996,6 +3996,7 @@ where
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &context,
         )
         .await?;
 
@@ -5386,12 +5387,22 @@ where
         )
         .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::new(
+        platform.clone(),
+        header_payload.clone(),
+        business_profile,
+        merchant_connector_account.clone(),
+        ExecutionPath::Direct,
+        None,
+    );
+
     let add_access_token_result = router_data
         .add_access_token(
             state,
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &gateway_context,
         )
         .await?;
 
@@ -5461,26 +5472,6 @@ where
             header_payload.clone(),
         )
         .await?;
-
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    // TODO: determine execution path for proxy call connector service
-    let execution_path = ExecutionPath::Direct;
-    // Execution mode is irrelevant for Direct execution path
-    let execution_mode = ExecutionMode::NotApplicable;
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path,
-        execution_mode,
-    };
 
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
