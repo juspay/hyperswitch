@@ -19,7 +19,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
-  RUST_MIN_STACK: 10485760
+  RUST_MIN_STACK: 11534336
 
 jobs:
   formatter:

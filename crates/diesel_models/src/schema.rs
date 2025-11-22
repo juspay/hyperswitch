@@ -1205,6 +1205,7 @@ diesel::table! {
         billing_descriptor -> Nullable<Jsonb>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        partner_merchant_identifier_details -> Nullable<Jsonb>,
     }
 }
 
