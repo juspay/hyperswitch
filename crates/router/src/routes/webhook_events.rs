@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::webhook_events::EventSearchConfig;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -22,12 +21,10 @@ pub async fn list_initial_webhook_delivery_attempts(
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<EventListConstraints>,
-    search_config: web::Query<EventSearchConfig>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let merchant_id = path.into_inner();
     let constraints = json_payload.into_inner();
-    let search_config = search_config.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: merchant_id.clone(),
@@ -44,7 +41,6 @@ pub async fn list_initial_webhook_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
-                search_config,
             )
         },
         auth::auth_type(
@@ -65,11 +61,9 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<EventListConstraints>,
-    search_config: web::Query<EventSearchConfig>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
     let constraints = json_payload.into_inner();
-    let search_config = search_config.into_inner();
 
     let request_internal = EventListRequestInternal {
         merchant_id: common_utils::id_type::MerchantId::default(),
@@ -92,7 +86,6 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
-                search_config,
             )
         },
         &auth::JWTAuth {

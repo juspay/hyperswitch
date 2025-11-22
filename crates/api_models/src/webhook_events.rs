@@ -6,12 +6,6 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]
-pub struct EventSearchConfig {
-    #[serde(default)]
-    pub search_config: Option<bool>,
-}
-
 /// The constraints to apply when filtering events.
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct EventListConstraints {
@@ -60,9 +54,11 @@ pub enum EventListConstraintsInternal {
         event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
     },
-    SearchFilter {
-        object_id: Option<String>,
-        event_id: Option<String>,
+    ObjectIdFilter {
+        object_id: String,
+    },
+    EventIdFilter {
+        event_id: String,
     },
 }
 

@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use api_models::webhook_events::EventSearchConfig;
 use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -28,7 +27,6 @@ pub async fn list_initial_delivery_attempts(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     api_constraints: api::webhook_events::EventListConstraints,
-    search_config: EventSearchConfig,
 ) -> RouterResponse<api::webhook_events::TotalEventsResponse> {
     let profile_id = api_constraints.profile_id.clone();
     let constraints = api::webhook_events::EventListConstraintsInternal::foreign_try_from(
@@ -45,8 +43,41 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::SearchFilter {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter {
             object_id,
+        } => {
+            let events =
+                match account {
+                    MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
+                        .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+                            key_manager_state,
+                            merchant_account.get_id(),
+                            Some(object_id.as_str()),
+                            None,
+                            &key_store,
+                        )
+                        .await,
+                    MerchantAccountOrProfile::Profile(business_profile) => {
+                        store
+                            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+                                key_manager_state,
+                                business_profile.get_id(),
+                                Some(object_id.as_str()),
+                                None,
+                                &key_store,
+                            )
+                            .await
+                    }
+                }
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to list events with specified constraints")?;
+
+            let total_count = i64::try_from(events.len())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while converting from usize to i64")?;
+            (events, total_count)
+        }
+        api_models::webhook_events::EventListConstraintsInternal::EventIdFilter {
             event_id,
         } => {
             let events =
@@ -55,10 +86,9 @@ pub async fn list_initial_delivery_attempts(
                         .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                             key_manager_state,
                             merchant_account.get_id(),
-                            object_id.as_deref(),
-                            event_id.as_deref(),
+                            None,
+                            Some(event_id.as_str()),
                             &key_store,
-                            search_config,
                         )
                         .await,
                     MerchantAccountOrProfile::Profile(business_profile) => {
@@ -66,10 +96,9 @@ pub async fn list_initial_delivery_attempts(
                             .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
                                 key_manager_state,
                                 business_profile.get_id(),
-                                object_id.as_deref(),
-                                event_id.as_deref(),
+                                None,
+                                Some(event_id.as_str()),
                                 &key_store,
-                                search_config,
                             )
                             .await
                     }

@@ -789,7 +789,6 @@ impl EventInterface for KafkaStore {
         primary_object_id: Option<&str>,
         initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
-        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
@@ -798,7 +797,6 @@ impl EventInterface for KafkaStore {
                 primary_object_id,
                 initial_attempt_id,
                 merchant_key_store,
-                search_config,
             )
             .await
     }
@@ -854,7 +852,6 @@ impl EventInterface for KafkaStore {
         primary_object_id: Option<&str>,
         initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
-        search_config: api_models::webhook_events::EventSearchConfig,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
@@ -863,7 +860,6 @@ impl EventInterface for KafkaStore {
                 primary_object_id,
                 initial_attempt_id,
                 merchant_key_store,
-                search_config,
             )
             .await
     }
