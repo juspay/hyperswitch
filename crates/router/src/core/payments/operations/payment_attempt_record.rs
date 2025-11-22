@@ -118,19 +118,20 @@ impl<F: Send + Clone + Sync>
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsAttemptRecordRequest,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentAttemptRecordData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
+                key_manager_state,
                 payment_id,
-                platform.get_processor().get_key_store(),
+                merchant_context.get_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -160,8 +161,8 @@ impl<F: Send + Clone + Sync>
                         },
                     ),
                 ),
-                common_utils::types::keymanager::Identifier::Merchant(platform.get_processor().get_account().get_id().to_owned()),
-                platform.get_processor().get_key_store().key.peek(),
+                common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+                merchant_context.get_merchant_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_batchoperation())
@@ -186,7 +187,8 @@ impl<F: Send + Clone + Sync>
 
         let payment_attempt = db
             .insert_payment_attempt(
-                platform.get_processor().get_key_store(),
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
             )
@@ -274,6 +276,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -292,11 +295,11 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsAttemptRecordRequest, PaymentAt
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsAttemptRecordRequest,
-        platform: &'a domain::Platform,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-            storage_scheme: platform.get_processor().get_account().storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -344,7 +347,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsAttemptRecordRequest, PaymentAtte
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         _state: &SessionState,
         _payment_data: &mut PaymentAttemptRecordData<F>,

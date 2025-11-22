@@ -4,10 +4,7 @@ pub use hyperswitch_domain_models::merchant_key_store::{self, MerchantKeyStoreIn
 mod tests {
     use std::{borrow::Cow, sync::Arc};
 
-    use common_utils::{
-        type_name,
-        types::keymanager::{Identifier, KeyManagerState},
-    };
+    use common_utils::{type_name, types::keymanager::Identifier};
     use hyperswitch_domain_models::master_key::MasterKeyInterface;
     use time::macros::datetime;
     use tokio::sync::oneshot;
@@ -40,12 +37,9 @@ mod tests {
                 || {},
             )
             .unwrap();
-        let mock_db = MockDb::new(
-            &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
-        )
-        .await
-        .expect("Failed to create mock DB");
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();
@@ -53,6 +47,7 @@ mod tests {
         let key_manager_state = &state.into();
         let merchant_key1 = mock_db
             .insert_merchant_key_store(
+                key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
                     key: domain::types::crypto_operation(
@@ -75,7 +70,11 @@ mod tests {
             .unwrap();
 
         let found_merchant_key1 = mock_db
-            .get_merchant_key_store_by_merchant_id(&merchant_id, &master_key.to_vec().into())
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &master_key.to_vec().into(),
+            )
             .await
             .unwrap();
 
@@ -84,6 +83,7 @@ mod tests {
 
         let insert_duplicate_merchant_key1_result = mock_db
             .insert_merchant_key_store(
+                key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
                     key: domain::types::crypto_operation(
@@ -110,6 +110,7 @@ mod tests {
 
         let find_non_existent_merchant_key_result = mock_db
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &non_existent_merchant_id,
                 &master_key.to_vec().into(),
             )
@@ -117,7 +118,11 @@ mod tests {
         assert!(find_non_existent_merchant_key_result.is_err());
 
         let find_merchant_key_with_incorrect_master_key_result = mock_db
-            .get_merchant_key_store_by_merchant_id(&merchant_id, &vec![0; 32].into())
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &vec![0; 32].into(),
+            )
             .await;
         assert!(find_merchant_key_with_incorrect_master_key_result.is_err());
     }

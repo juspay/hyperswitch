@@ -149,44 +149,25 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
         };
         let connector_merchant_config =
             CybersourceConnectorMetadataObject::try_from(&item.connector_meta_data)?;
-        let skip_psp_tokenization = matches!(
-            item.request.tokenization,
-            Some(common_enums::Tokenization::SkipPsp)
+
+        let (action_list, action_token_types, authorization_options) = (
+            Some(vec![CybersourceActionsList::TokenCreate]),
+            Some(vec![
+                CybersourceActionsTokenType::PaymentInstrument,
+                CybersourceActionsTokenType::Customer,
+            ]),
+            Some(CybersourceAuthorizationOptions {
+                initiator: Some(CybersourcePaymentInitiator {
+                    initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                    credential_stored_on_file: Some(true),
+                    stored_credential_used: None,
+                }),
+                merchant_initiated_transaction: None,
+                ignore_avs_result: connector_merchant_config.disable_avs,
+                ignore_cv_result: connector_merchant_config.disable_cvn,
+            }),
         );
-        let (action_list, action_token_types, authorization_options) = if skip_psp_tokenization {
-            (
-                None,
-                None,
-                Some(CybersourceAuthorizationOptions {
-                    initiator: Some(CybersourcePaymentInitiator {
-                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(false),
-                        stored_credential_used: None,
-                    }),
-                    merchant_initiated_transaction: None,
-                    ignore_avs_result: connector_merchant_config.disable_avs,
-                    ignore_cv_result: connector_merchant_config.disable_cvn,
-                }),
-            )
-        } else {
-            (
-                Some(vec![CybersourceActionsList::TokenCreate]),
-                Some(vec![
-                    CybersourceActionsTokenType::PaymentInstrument,
-                    CybersourceActionsTokenType::Customer,
-                ]),
-                Some(CybersourceAuthorizationOptions {
-                    initiator: Some(CybersourcePaymentInitiator {
-                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                        credential_stored_on_file: Some(true),
-                        stored_credential_used: None,
-                    }),
-                    merchant_initiated_transaction: None,
-                    ignore_avs_result: connector_merchant_config.disable_avs,
-                    ignore_cv_result: connector_merchant_config.disable_cvn,
-                }),
-            )
-        };
+
         let client_reference_information = ClientReferenceInformation {
             code: Some(item.connector_request_reference_id.clone()),
         };
@@ -835,45 +816,23 @@ impl
                     .clone()
                     .is_some_and(|mandate_details| mandate_details.customer_acceptance.is_some()))
         {
-            let skip_psp_tokenization = matches!(
-                item.router_data.request.tokenization,
-                Some(common_enums::Tokenization::SkipPsp)
-            );
-            if skip_psp_tokenization {
-                // COMPLETELY SKIP TOKENIZATION - don't send any tokenization fields
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(false),
-                            stored_credential_used: None,
-                        }),
-                        ignore_avs_result: connector_merchant_config.disable_avs,
-                        ignore_cv_result: connector_merchant_config.disable_cvn,
-                        merchant_initiated_transaction: None,
+            (
+                Some(vec![CybersourceActionsList::TokenCreate]),
+                Some(vec![
+                    CybersourceActionsTokenType::PaymentInstrument,
+                    CybersourceActionsTokenType::Customer,
+                ]),
+                Some(CybersourceAuthorizationOptions {
+                    initiator: Some(CybersourcePaymentInitiator {
+                        initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                        credential_stored_on_file: Some(true),
+                        stored_credential_used: None,
                     }),
-                )
-            } else {
-                (
-                    Some(vec![CybersourceActionsList::TokenCreate]),
-                    Some(vec![
-                        CybersourceActionsTokenType::PaymentInstrument,
-                        CybersourceActionsTokenType::Customer,
-                    ]),
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                            credential_stored_on_file: Some(true),
-                            stored_credential_used: None,
-                        }),
-                        ignore_avs_result: connector_merchant_config.disable_avs,
-                        ignore_cv_result: connector_merchant_config.disable_cvn,
-                        merchant_initiated_transaction: None,
-                    }),
-                )
-            }
+                    ignore_avs_result: connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
+                    merchant_initiated_transaction: None,
+                }),
+            )
         } else if item.router_data.request.mandate_id.is_some() {
             match item
                 .router_data
@@ -1177,44 +1136,23 @@ impl
             if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
             //TODO check for customer acceptance also
             {
-                let skip_psp_tokenization = matches!(
-                    item.router_data.request.tokenization,
-                    Some(common_enums::Tokenization::SkipPsp)
-                );
-                if skip_psp_tokenization {
-                    (
-                        None,
-                        None,
-                        Some(CybersourceAuthorizationOptions {
-                            initiator: Some(CybersourcePaymentInitiator {
-                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                                credential_stored_on_file: Some(false),
-                                stored_credential_used: None,
-                            }),
-                            merchant_initiated_transaction: None,
-                            ignore_avs_result: connector_merchant_config.disable_avs,
-                            ignore_cv_result: connector_merchant_config.disable_cvn,
+                (
+                    Some(vec![CybersourceActionsList::TokenCreate]),
+                    Some(vec![
+                        CybersourceActionsTokenType::PaymentInstrument,
+                        CybersourceActionsTokenType::Customer,
+                    ]),
+                    Some(CybersourceAuthorizationOptions {
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
+                            credential_stored_on_file: Some(true),
+                            stored_credential_used: None,
                         }),
-                    )
-                } else {
-                    (
-                        Some(vec![CybersourceActionsList::TokenCreate]),
-                        Some(vec![
-                            CybersourceActionsTokenType::PaymentInstrument,
-                            CybersourceActionsTokenType::Customer,
-                        ]),
-                        Some(CybersourceAuthorizationOptions {
-                            initiator: Some(CybersourcePaymentInitiator {
-                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Customer),
-                                credential_stored_on_file: Some(true),
-                                stored_credential_used: None,
-                            }),
-                            merchant_initiated_transaction: None,
-                            ignore_avs_result: connector_merchant_config.disable_avs,
-                            ignore_cv_result: connector_merchant_config.disable_cvn,
-                        }),
-                    )
-                }
+                        merchant_initiated_transaction: None,
+                        ignore_avs_result: connector_merchant_config.disable_avs,
+                        ignore_cv_result: connector_merchant_config.disable_cvn,
+                    }),
+                )
             } else {
                 (None, None, None)
             };

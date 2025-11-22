@@ -39,7 +39,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     mut connector_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
@@ -48,7 +48,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + std::fmt::Debug + 'static,
+    F: Clone + Send + Sync + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
@@ -87,7 +87,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -102,7 +102,7 @@ where
             original_connector_data,
             operation,
             customer,
-            platform,
+            merchant_context,
             payment_data,
             router_data,
             validate_result,
@@ -129,7 +129,7 @@ where
                     retries = get_retries(
                         state,
                         retries,
-                        platform.get_processor().get_account().get_id(),
+                        merchant_context.get_merchant_account().get_id(),
                         business_profile,
                     )
                     .await;
@@ -206,7 +206,7 @@ where
                         &connector,
                         operation,
                         customer,
-                        platform,
+                        merchant_context,
                         payment_data,
                         router_data,
                         validate_result,
@@ -344,7 +344,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     connector: &'a api::ConnectorData,
     operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
     customer: &'a Option<domain::Customer>,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
@@ -356,7 +356,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + std::fmt::Debug + 'static,
+    F: Clone + Send + Sync + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
@@ -374,8 +374,8 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
-        platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account().storage_scheme,
         router_data,
         is_step_up,
     )
@@ -384,7 +384,7 @@ where
     let (merchant_connector_account, router_data, tokenization_action) =
         payments::call_connector_service_prerequisites(
             state,
-            platform,
+            merchant_context,
             connector.clone(),
             operation,
             payment_data,
@@ -399,7 +399,7 @@ where
     let (router_data, _mca) = payments::decide_unified_connector_service_call(
         state,
         req_state,
-        platform,
+        merchant_context,
         connector.clone(),
         operation,
         payment_data,
@@ -467,6 +467,7 @@ where
     );
 
     let db = &*state.store;
+    let key_manager_state = &state.into();
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
             payment_data
@@ -549,7 +550,6 @@ where
                     .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
-                tokenization: None,
             };
 
             #[cfg(feature = "v1")]
@@ -635,7 +635,12 @@ where
 
     #[cfg(feature = "v2")]
     let payment_attempt = db
-        .insert_payment_attempt(key_store, new_payment_attempt, storage_scheme)
+        .insert_payment_attempt(
+            key_manager_state,
+            key_store,
+            new_payment_attempt,
+            storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;
@@ -645,6 +650,7 @@ where
 
     let payment_intent = db
         .update_payment_intent(
+            key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),
@@ -748,7 +754,6 @@ pub fn make_new_payment_attempt(
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
-        tokenization: Default::default(),
     }
 }
 

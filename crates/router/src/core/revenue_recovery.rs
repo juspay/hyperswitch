@@ -18,8 +18,9 @@ use common_utils::{
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
+    merchant_context,
     payments::{PaymentIntent, PaymentIntentData, PaymentStatusData},
-    platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
+    revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
 
@@ -55,7 +56,7 @@ pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
 pub async fn upsert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
     state: &SessionState,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     recovery_intent_from_payment_intent: &domain_revenue_recovery::RecoveryPaymentIntent,
     business_profile: &domain::Profile,
     intent_retry_count: u16,
@@ -111,7 +112,7 @@ pub async fn upsert_calculate_pcr_task(
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 billing_mca_id: billing_connector_account.get_id(),
                 global_payment_id: payment_id.clone(),
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
                 profile_id: business_profile.get_id().to_owned(),
                 payment_attempt_id,
                 revenue_recovery_retry,
@@ -167,7 +168,7 @@ pub async fn record_internal_attempt_and_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -199,7 +200,7 @@ pub async fn record_internal_attempt_and_execute_payment(
                 payment_intent,
                 execute_task_process,
                 profile,
-                platform,
+                merchant_context,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
                 &record_attempt_response.id,
@@ -233,7 +234,7 @@ pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -301,7 +302,7 @@ pub async fn perform_execute_payment(
                         state,
                         execute_task_process,
                         profile,
-                        platform,
+                        merchant_context,
                         payment_intent,
                         revenue_recovery_payment_data,
                         &tracking_data.payment_attempt_id,
@@ -318,7 +319,7 @@ pub async fn perform_execute_payment(
                         state,
                         execute_task_process,
                         profile,
-                        platform,
+                        merchant_context,
                         tracking_data,
                         revenue_recovery_payment_data,
                         payment_intent,
@@ -479,7 +480,7 @@ pub async fn perform_payments_sync(
     state: &SessionState,
     process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -514,7 +515,7 @@ pub async fn perform_payments_sync(
             payment_intent,
             process.clone(),
             profile,
-            platform,
+            merchant_context,
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
@@ -529,7 +530,7 @@ pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -553,12 +554,11 @@ pub async fn perform_calculate_workflow(
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-    );
+    let merchant_context_from_revenue_recovery_payment_data =
+        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        )));
 
     let retry_algorithm_type = match profile
         .revenue_recovery_retry_algorithm_type
@@ -582,7 +582,7 @@ pub async fn perform_calculate_workflow(
         state,
         &tracking_data.global_payment_id,
         revenue_recovery_payment_data,
-        &platform_from_revenue_recovery_payment_data,
+        &merchant_context_from_revenue_recovery_payment_data,
         active_payment_attempt_id,
     )
     .await?;
@@ -756,7 +756,7 @@ pub async fn perform_calculate_workflow(
             common_enums::EventClass::Payments,
             event_kind,
             payment_intent,
-            &platform,
+            &merchant_context,
             profile,
             tracking_data.payment_attempt_id.get_string_repr().to_string(),
             response
@@ -1098,12 +1098,11 @@ pub async fn resume_revenue_recovery_process_tracker(
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to extract the revenue recovery data".to_owned(),
             })?;
-    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-    );
+    let merchant_context_from_revenue_recovery_payment_data =
+        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        )));
     let create_intent_response = payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,
@@ -1113,7 +1112,7 @@ pub async fn resume_revenue_recovery_process_tracker(
     >(
         state.clone(),
         state.get_req_state(),
-        platform_from_revenue_recovery_payment_data,
+        merchant_context_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
         payments::operations::PaymentGetIntent,
         request,
@@ -1178,7 +1177,7 @@ pub async fn get_payment_response_using_payment_get_operation(
     state: &SessionState,
     payment_intent_id: &id_type::GlobalPaymentId,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
 ) -> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
     match active_payment_attempt_id {
@@ -1196,7 +1195,7 @@ pub async fn get_payment_response_using_payment_get_operation(
                 None,
                 None,
                 None,
-                platform,
+                merchant_context,
                 &revenue_recovery_payment_data.profile,
                 None,
             )?;

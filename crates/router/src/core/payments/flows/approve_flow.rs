@@ -4,9 +4,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
-        payments::{
-            self, access_token, flows::gateway_context, helpers, transformers, PaymentData,
-        },
+        payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::SessionState,
     services,
@@ -23,7 +21,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -37,7 +35,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -52,7 +50,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -77,7 +75,6 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),
@@ -89,7 +86,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(

@@ -15,7 +15,7 @@ use crate::redis::{
 use crate::{
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
+    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
 };
 
 #[async_trait::async_trait]
@@ -24,22 +24,24 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn insert_merchant_key_store(
         &self,
+        state: &KeyManagerState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
         self.router_store
-            .insert_merchant_key_store(merchant_key_store, key)
+            .insert_merchant_key_store(state, merchant_key_store, key)
             .await
     }
 
     #[instrument(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
         self.router_store
-            .get_merchant_key_store_by_merchant_id(merchant_id, key)
+            .get_merchant_key_store_by_merchant_id(state, merchant_id, key)
             .await
     }
 
@@ -57,21 +59,25 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn list_multiple_key_stores(
         &self,
+        state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
         self.router_store
-            .list_multiple_key_stores(merchant_ids, key)
+            .list_multiple_key_stores(state, merchant_ids, key)
             .await
     }
 
     async fn get_all_key_stores(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
-        self.router_store.get_all_key_stores(key, from, to).await
+        self.router_store
+            .get_all_key_stores(state, key, from, to)
+            .await
     }
 }
 
@@ -81,6 +87,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_merchant_key_store(
         &self,
+        state: &KeyManagerState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
@@ -93,12 +100,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|error| report!(Self::Error::from(error)))?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                key,
-                merchant_id.into(),
-            )
+            .convert(state, key, merchant_id.into())
             .await
             .change_context(Self::Error::DecryptionError)
     }
@@ -106,6 +108,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
@@ -119,9 +122,6 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(Self::Error::from(error)))
         };
-        let state = self
-            .get_keymanager_state()
-            .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -186,6 +186,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn list_multiple_key_stores(
         &self,
+        state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
@@ -203,12 +204,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key,
-                    merchant_id.into(),
-                )
+                .convert(state, key, merchant_id.into())
                 .await
                 .change_context(Self::Error::DecryptionError)
         }))
@@ -217,6 +213,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
 
     async fn get_all_key_stores(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         from: u32,
         to: u32,
@@ -231,12 +228,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         futures::future::try_join_all(stores.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key,
-                    merchant_id.into(),
-                )
+                .convert(state, key, merchant_id.into())
                 .await
                 .change_context(Self::Error::DecryptionError)
         }))
@@ -249,6 +241,7 @@ impl MerchantKeyStoreInterface for MockDb {
     type Error = StorageError;
     async fn insert_merchant_key_store(
         &self,
+        state: &KeyManagerState,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
@@ -270,18 +263,14 @@ impl MerchantKeyStoreInterface for MockDb {
         locked_merchant_key_store.push(merchant_key.clone());
         let merchant_id = merchant_key.merchant_id.clone();
         merchant_key
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                key,
-                merchant_id.into(),
-            )
+            .convert(state, key, merchant_id.into())
             .await
             .change_context(StorageError::DecryptionError)
     }
 
     async fn get_merchant_key_store_by_merchant_id(
         &self,
+        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, StorageError> {
@@ -294,12 +283,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .ok_or(StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
             )))?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                key,
-                merchant_id.clone().into(),
-            )
+            .convert(state, key, merchant_id.clone().into())
             .await
             .change_context(StorageError::DecryptionError)
     }
@@ -322,6 +306,7 @@ impl MerchantKeyStoreInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
+        state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, StorageError> {
@@ -333,12 +318,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 .map(|merchant_key| async {
                     merchant_key
                         .to_owned()
-                        .convert(
-                            self.get_keymanager_state()
-                                .attach_printable("Missing KeyManagerState")?,
-                            key,
-                            merchant_key.merchant_id.clone().into(),
-                        )
+                        .convert(state, key, merchant_key.merchant_id.clone().into())
                         .await
                         .change_context(StorageError::DecryptionError)
                 }),
@@ -347,6 +327,7 @@ impl MerchantKeyStoreInterface for MockDb {
     }
     async fn get_all_key_stores(
         &self,
+        state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         _from: u32,
         _to: u32,
@@ -356,12 +337,7 @@ impl MerchantKeyStoreInterface for MockDb {
         futures::future::try_join_all(merchant_key_stores.iter().map(|merchant_key| async {
             merchant_key
                 .to_owned()
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key,
-                    merchant_key.merchant_id.clone().into(),
-                )
+                .convert(state, key, merchant_key.merchant_id.clone().into())
                 .await
                 .change_context(StorageError::DecryptionError)
         }))

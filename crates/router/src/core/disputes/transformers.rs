@@ -15,7 +15,7 @@ use crate::{
 
 pub async fn get_evidence_request_data(
     state: &SessionState,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
     dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
@@ -23,7 +23,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.cancellation_policy,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -31,7 +31,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.customer_communication,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -39,7 +39,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.customer_signature,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -47,7 +47,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.receipt,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -55,7 +55,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.refund_policy,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -63,7 +63,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.service_documentation,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -71,7 +71,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.shipping_documentation,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -80,7 +80,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.invoice_showing_distinct_transactions,
             None,
-            platform,
+            merchant_context,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -89,7 +89,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.recurring_transaction_agreement,
             None,
-            platform,
+            merchant_context,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -97,7 +97,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.uncategorized_file,
         None,
-        platform,
+        merchant_context,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -210,14 +210,14 @@ pub fn update_dispute_evidence(
 
 pub async fn get_dispute_evidence_block(
     state: &SessionState,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     evidence_type: EvidenceType,
     file_id: String,
 ) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
     let file_metadata = state
         .store
         .find_file_metadata_by_merchant_id_file_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &file_id,
         )
         .await
@@ -281,7 +281,7 @@ pub fn delete_evidence_file(
 
 pub async fn get_dispute_evidence_vec(
     state: &SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
     let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
@@ -289,7 +289,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::CancellationPolicy,
                 cancellation_policy_block,
             )
@@ -300,7 +300,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::CustomerCommunication,
                 customer_communication_block,
             )
@@ -311,7 +311,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::CustomerSignature,
                 customer_signature_block,
             )
@@ -320,15 +320,20 @@ pub async fn get_dispute_evidence_vec(
     }
     if let Some(receipt_block) = dispute_evidence.receipt {
         dispute_evidence_blocks.push(
-            get_dispute_evidence_block(state, &platform, EvidenceType::Receipt, receipt_block)
-                .await?,
+            get_dispute_evidence_block(
+                state,
+                &merchant_context,
+                EvidenceType::Receipt,
+                receipt_block,
+            )
+            .await?,
         )
     }
     if let Some(refund_policy_block) = dispute_evidence.refund_policy {
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::RefundPolicy,
                 refund_policy_block,
             )
@@ -339,7 +344,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::ServiceDocumentation,
                 service_documentation_block,
             )
@@ -350,7 +355,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::ShippingDocumentation,
                 shipping_documentation_block,
             )
@@ -363,7 +368,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::InvoiceShowingDistinctTransactions,
                 invoice_showing_distinct_transactions_block,
             )
@@ -376,7 +381,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::RecurringTransactionAgreement,
                 recurring_transaction_agreement_block,
             )
@@ -387,7 +392,7 @@ pub async fn get_dispute_evidence_vec(
         dispute_evidence_blocks.push(
             get_dispute_evidence_block(
                 state,
-                &platform,
+                &merchant_context,
                 EvidenceType::UncategorizedFile,
                 uncategorized_file_block,
             )

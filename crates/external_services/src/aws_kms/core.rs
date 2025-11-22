@@ -16,7 +16,7 @@ use crate::{consts, metrics};
 #[serde(default)]
 pub struct AwsKmsConfig {
     /// The AWS key identifier of the KMS key used to encrypt or decrypt data.
-    pub key_id: Option<String>,
+    pub key_id: String,
 
     /// The AWS region to send KMS requests to.
     pub region: String,
@@ -26,7 +26,7 @@ pub struct AwsKmsConfig {
 #[derive(Debug, Clone)]
 pub struct AwsKmsClient {
     inner_client: Client,
-    key_id: Option<String>,
+    key_id: String,
 }
 
 impl AwsKmsClient {
@@ -52,13 +52,10 @@ impl AwsKmsClient {
             .change_context(AwsKmsError::Base64DecodingFailed)?;
         let ciphertext_blob = Blob::new(data);
 
-        let mut decryption_builder = self.inner_client.decrypt();
-
-        if let Some(key_id) = &self.key_id {
-            decryption_builder = decryption_builder.key_id(key_id);
-        }
-
-        let decrypt_output = decryption_builder
+        let decrypt_output = self
+            .inner_client
+            .decrypt()
+            .key_id(&self.key_id)
             .ciphertext_blob(ciphertext_blob)
             .send()
             .await
@@ -91,15 +88,10 @@ impl AwsKmsClient {
         let start = Instant::now();
         let plaintext_blob = Blob::new(data.as_ref());
 
-        let mut encryption_builder = self.inner_client.encrypt();
-
-        match &self.key_id {
-            Some(key_id) => encryption_builder = encryption_builder.key_id(key_id),
-            None => {
-                return Err(report!(AwsKmsError::MissingKeyId));
-            }
-        };
-        let encrypted_output = encryption_builder
+        let encrypted_output = self
+            .inner_client
+            .encrypt()
+            .key_id(&self.key_id)
             .plaintext(plaintext_blob)
             .send()
             .await
@@ -156,16 +148,16 @@ pub enum AwsKmsError {
     /// The AWS KMS client has not been initialized.
     #[error("The AWS KMS client has not been initialized")]
     AwsKmsClientNotInitialized,
-
-    /// AWS KMS key id not provided.
-    #[error("AWS KMS key id not provided")]
-    MissingKeyId,
 }
 
 impl AwsKmsConfig {
     /// Verifies that the [`AwsKmsClient`] configuration is usable.
     pub fn validate(&self) -> Result<(), &'static str> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+
+        when(self.key_id.is_default_or_empty(), || {
+            Err("KMS AWS key ID must not be empty")
+        })?;
 
         when(self.region.is_default_or_empty(), || {
             Err("KMS AWS region must not be empty")
@@ -181,7 +173,7 @@ mod tests {
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
         let config = AwsKmsConfig {
-            key_id: Some("YOUR AWS KMS KEY ID".to_string()),
+            key_id: "YOUR AWS KMS KEY ID".to_string(),
             region: "AWS REGION".to_string(),
         };
 
@@ -202,7 +194,7 @@ mod tests {
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
         let config = AwsKmsConfig {
-            key_id: Some("YOUR AWS KMS KEY ID".to_string()),
+            key_id: "YOUR AWS KMS KEY ID".to_string(),
             region: "AWS REGION".to_string(),
         };
 

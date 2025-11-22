@@ -53,12 +53,8 @@ pub async fn add_access_token_for_external_vault<F: Clone + 'static>(
     {
         let merchant_id = merchant_account.get_id();
         let store = &*state.store;
-        let key = common_utils::access_token::get_default_access_token_key(
-            merchant_id,
-            connector.connector.id(),
-        );
         let old_access_token = store
-            .get_access_token(key)
+            .get_access_token(merchant_id, connector.connector.id())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -95,12 +91,12 @@ pub async fn add_access_token_for_external_vault<F: Clone + 'static>(
                         let store = &*state.store;
                         // This error should not be propagated, we don't want payments to fail once we have
                         // the access token, the next request will create new access token
-                        let key = common_utils::access_token::get_default_access_token_key(
-                            merchant_id,
-                            connector.connector.id(),
-                        );
                         let _ = store
-                            .set_access_token(key, access_token.clone())
+                            .set_access_token(
+                                merchant_id,
+                                connector.connector.id(),
+                                access_token.clone(),
+                            )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("DB error when setting the access token");

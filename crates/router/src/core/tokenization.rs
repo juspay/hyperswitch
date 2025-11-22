@@ -40,6 +40,7 @@ pub async fn create_vault_token_core(
     // Generate a unique vault ID
     let vault_id = domain::VaultId::generate(uuid::Uuid::now_v7().to_string());
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let customer_id = req.customer_id.clone();
     // Create vault request
     let payload = pm_types::AddVaultRequest {
@@ -78,7 +79,11 @@ pub async fn create_vault_token_core(
 
     // Insert into database
     let tokenization = db
-        .insert_tokenization(tokenization_new, &(merchant_key_store.clone()))
+        .insert_tokenization(
+            tokenization_new,
+            &(merchant_key_store.clone()),
+            key_manager_state,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert tokenization record")?;
@@ -97,15 +102,20 @@ pub async fn create_vault_token_core(
 #[instrument(skip_all)]
 pub async fn delete_tokenized_data_core(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     token_id: &id_type::GlobalTokenId,
     payload: api_models::tokenization::DeleteTokenDataRequest,
 ) -> RouterResponse<api_models::tokenization::DeleteTokenDataResponse> {
     let db = &*state.store;
+    let key_manager_state = &(&state).into();
 
     // Retrieve the tokenization record
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(token_id, platform.get_processor().get_key_store())
+        .get_entity_id_vault_id_by_token_id(
+            token_id,
+            merchant_context.get_merchant_key_store(),
+            key_manager_state,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::TokenizationRecordNotFound {
             id: token_id.get_string_repr().to_string(),
@@ -132,7 +142,7 @@ pub async fn delete_tokenized_data_core(
     //delete card from vault
     pm_vault::delete_payment_method_data_from_vault_internal(
         &state,
-        &platform,
+        &merchant_context,
         vault_id,
         &tokenization_record.customer_id,
     )
@@ -147,7 +157,8 @@ pub async fn delete_tokenized_data_core(
     db.update_tokenization_record(
         tokenization_record,
         tokenization_update,
-        platform.get_processor().get_key_store(),
+        merchant_context.get_merchant_key_store(),
+        key_manager_state,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -169,9 +180,14 @@ pub async fn get_token_vault_core(
     query: id_type::GlobalTokenId,
 ) -> CustomResult<serde_json::Value, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let tokenization_record = db
-        .get_entity_id_vault_id_by_token_id(&query, &(merchant_key_store.clone()))
+        .get_entity_id_vault_id_by_token_id(
+            &query,
+            &(merchant_key_store.clone()),
+            key_manager_state,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get tokenization record")?;

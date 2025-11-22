@@ -51,7 +51,7 @@ pub trait Domain<F, D>: Send + Sync {
         req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>>
     where
@@ -62,7 +62,7 @@ pub trait Domain<F, D>: Send + Sync {
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData>
     where
@@ -76,7 +76,7 @@ pub trait Domain<F, D>: Send + Sync {
         _state: &SessionState,
         _req_state: ReqState,
         frm_data: &mut FrmData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,

@@ -172,7 +172,7 @@ pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
         &'b self,
         request: &R,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 
@@ -181,7 +181,7 @@ pub trait ValidateRequest<F, R, D> {
     fn validate_request(
         &self,
         request: &R,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<ValidateResult>;
 }
 
@@ -210,7 +210,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &R,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
@@ -222,7 +222,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &R,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<D>>;
@@ -234,7 +234,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _state: &'a SessionState,
         _payment_id: &common_utils::id_type::GlobalPaymentId,
         _request: &R,
-        _merchant_context: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _split_amount_data: (
@@ -322,7 +322,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         state: &SessionState,
         request: &R,
         payment_intent: &storage::PaymentIntent,
@@ -342,7 +342,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
@@ -353,7 +353,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         _connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -395,7 +395,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_data: &mut D,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -404,7 +404,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -424,7 +424,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
         state: &SessionState,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -437,7 +437,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn update_payment_method<'a>(
         &'a self,
         state: &SessionState,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         payment_data: &mut D,
     ) {
     }
@@ -467,7 +467,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     //     &'a self,
     //     _state: &SessionState,
     //     _req_state: ReqState,
-    //     _platform: &domain::Platform,
+    //     _merchant_context: &domain::MerchantContext,
     //     _business_profile: &domain::Profile,
     //     _payment_method_data: Option<&domain::PaymentMethodData>,
     //     _connector: api::ConnectorData,
@@ -565,7 +565,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &self,
         _state: &SessionState,
         _resp: &types::RouterData<F, R, PaymentsResponseData>,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -610,6 +610,7 @@ where
                 // This function is to retrieve customer details. If the customer is deleted, it returns
                 // customer details that contains the fields as Redacted
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -628,7 +629,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &api::PaymentsRetrieveRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -658,7 +659,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -695,6 +696,7 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
+                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -749,7 +751,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &api::PaymentsCaptureRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -761,7 +763,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -798,6 +800,7 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
+                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -852,7 +855,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &api::PaymentsCancelRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -864,7 +867,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -935,7 +938,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &api::PaymentsRejectRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -947,7 +950,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut D,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

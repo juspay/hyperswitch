@@ -37,7 +37,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -58,7 +58,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -74,7 +74,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -107,7 +107,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -144,7 +143,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                         call_connector_action.clone(),
                         business_profile,
                         header_payload,
-                        gateway_context,
                     ))
                     .await?;
                 }
@@ -157,7 +155,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -237,7 +235,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -257,7 +255,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                         header_payload,
                         lineage_ids.clone(),
                         merchant_connector_account.clone(),
-                        platform,
+                        merchant_context,
                         connector_data,
                         unified_connector_service_execution_mode,
                         merchant_order_reference_id.clone(),
@@ -292,7 +290,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -306,7 +304,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             header_payload,
             lineage_ids,
             merchant_connector_account,
-            platform,
+            merchant_context,
             connector_data.connector_name,
             unified_connector_service_execution_mode,
             merchant_order_reference_id,
@@ -327,7 +325,7 @@ async fn handle_preprocessing_through_unified_connector_service(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     connector_data: &api::ConnectorData,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -364,7 +362,7 @@ async fn handle_preprocessing_through_unified_connector_service(
                     header_payload,
                     lineage_ids,
                     merchant_connector_account,
-                    platform,
+                    merchant_context,
                     connector_data.connector_name,
                     unified_connector_service_execution_mode,
                     merchant_order_reference_id,
@@ -407,7 +405,7 @@ async fn handle_preprocessing_through_unified_connector_service(
                     header_payload,
                     lineage_ids,
                     merchant_connector_account,
-                    platform,
+                    merchant_context,
                     unified_connector_service_execution_mode,
                     merchant_order_reference_id,
                 )
@@ -515,7 +513,7 @@ async fn call_unified_connector_service_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -534,7 +532,7 @@ async fn call_unified_connector_service_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        merchant_context,
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -633,7 +631,7 @@ async fn call_unified_connector_service_post_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> RouterResult<Option<router_request_types::UcsAuthenticationData>> {
@@ -651,7 +649,7 @@ async fn call_unified_connector_service_post_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        merchant_context,
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -851,7 +849,7 @@ async fn call_unified_connector_service_complete_authorize(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     _connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -870,7 +868,7 @@ async fn call_unified_connector_service_complete_authorize(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        merchant_context,
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -953,7 +951,6 @@ async fn call_unified_connector_service_complete_authorize(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn process_capture_flow(
     mut router_data: types::RouterData<
         api::CompleteAuthorize,
@@ -966,7 +963,6 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    gateway_context: payments::flows::gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<
         api::CompleteAuthorize,
@@ -989,7 +985,6 @@ async fn process_capture_flow(
         call_connector_action,
         business_profile,
         header_payload,
-        gateway_context,
     )
     .await;
 

@@ -7,7 +7,7 @@ use euclid::{
     backend::{self, inputs as dsl_inputs, EuclidBackend},
     frontend::ast,
 };
-use hyperswitch_domain_models::platform::Platform;
+use hyperswitch_domain_models::merchant_context::MerchantContext;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -23,12 +23,12 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn execute_three_ds_decision_rule(
     state: SessionState,
-    platform: Platform,
+    merchant_context: MerchantContext,
     request: api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
 ) -> RouterResponse<api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse> {
     let decision = get_three_ds_decision_rule_output(
         &state,
-        platform.get_processor().get_account().get_id(),
+        merchant_context.get_merchant_account().get_id(),
         request.clone(),
     )
     .await?;

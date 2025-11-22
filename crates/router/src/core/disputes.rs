@@ -49,14 +49,14 @@ pub(crate) fn should_call_connector_for_dispute_sync(
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: dispute_models::DisputeRetrieveRequest,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -72,10 +72,11 @@ pub async fn retrieve_dispute(
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
+                    &(&state).into(),
                     &dispute.payment_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -83,8 +84,8 @@ pub async fn retrieve_dispute(
             let payment_attempt = db
                 .find_payment_attempt_by_attempt_id_merchant_id(
                     &dispute.attempt_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -105,7 +106,7 @@ pub async fn retrieve_dispute(
                 &state,
                 &payment_intent,
                 &payment_attempt,
-                &platform,
+                &merchant_context,
                 &dispute,
             )
             .await?;
@@ -134,7 +135,8 @@ pub async fn retrieve_dispute(
             let business_profile = state
                 .store
                 .find_business_profile_by_profile_id(
-                    platform.get_processor().get_key_store(),
+                    &(&state).into(),
+                    merchant_context.get_merchant_key_store(),
                     &payment_attempt.profile_id,
                 )
                 .await
@@ -144,7 +146,7 @@ pub async fn retrieve_dispute(
 
             update_dispute_data(
                 &state,
-                platform,
+                merchant_context,
                 business_profile,
                 Some(dispute.clone()),
                 dispute_sync_response,
@@ -166,7 +168,7 @@ pub async fn retrieve_dispute(
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
@@ -174,7 +176,7 @@ pub async fn retrieve_disputes_list(
     let disputes = state
         .store
         .find_disputes_by_constraints(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             dispute_list_constraints,
         )
         .await
@@ -191,7 +193,7 @@ pub async fn retrieve_disputes_list(
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -202,13 +204,13 @@ pub async fn accept_dispute(
 #[instrument(skip(state))]
 pub async fn get_filters_for_disputes(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
 ) -> RouterResponse<api_models::disputes::DisputeListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
+            merchant_context.get_merchant_account().get_id().to_owned(),
             profile_id_list,
         )
         .await?
@@ -256,7 +258,7 @@ pub async fn get_filters_for_disputes(
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -264,7 +266,7 @@ pub async fn accept_dispute(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -291,10 +293,11 @@ pub async fn accept_dispute(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -302,8 +305,8 @@ pub async fn accept_dispute(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -322,7 +325,7 @@ pub async fn accept_dispute(
         &state,
         &payment_intent,
         &payment_attempt,
-        &platform,
+        &merchant_context,
         &dispute,
     )
     .await?;
@@ -366,7 +369,7 @@ pub async fn accept_dispute(
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -377,7 +380,7 @@ pub async fn submit_evidence(
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -385,7 +388,7 @@ pub async fn submit_evidence(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -410,14 +413,15 @@ pub async fn submit_evidence(
         },
     )?;
     let submit_evidence_request_data =
-        transformers::get_evidence_request_data(&state, &platform, req, &dispute).await?;
+        transformers::get_evidence_request_data(&state, &merchant_context, req, &dispute).await?;
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -425,8 +429,8 @@ pub async fn submit_evidence(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -446,7 +450,7 @@ pub async fn submit_evidence(
         &state,
         &payment_intent,
         &payment_attempt,
-        &platform,
+        &merchant_context,
         &dispute,
         submit_evidence_request_data,
     )
@@ -486,7 +490,7 @@ pub async fn submit_evidence(
             &state,
             &payment_intent,
             &payment_attempt,
-            &platform,
+            &merchant_context,
             &dispute,
         )
         .await?;
@@ -539,7 +543,7 @@ pub async fn submit_evidence(
 
 pub async fn attach_evidence(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -551,7 +555,7 @@ pub async fn attach_evidence(
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &dispute_id,
         )
         .await
@@ -574,7 +578,7 @@ pub async fn attach_evidence(
     )?;
     let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
-        platform,
+        merchant_context,
         attach_evidence_request.create_file_request,
     ))
     .await?;
@@ -615,14 +619,14 @@ pub async fn attach_evidence(
 #[instrument(skip(state))]
 pub async fn retrieve_dispute_evidence(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -637,20 +641,20 @@ pub async fn retrieve_dispute_evidence(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while parsing dispute evidence record")?;
     let dispute_evidence_vec =
-        transformers::get_dispute_evidence_vec(&state, platform, dispute_evidence).await?;
+        transformers::get_dispute_evidence_vec(&state, merchant_context, dispute_evidence).await?;
     Ok(services::ApplicationResponse::Json(dispute_evidence_vec))
 }
 
 pub async fn delete_evidence(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     delete_evidence_request: dispute_models::DeleteEvidenceRequest,
 ) -> RouterResponse<serde_json::Value> {
     let dispute_id = delete_evidence_request.dispute_id.clone();
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &dispute_id,
         )
         .await
@@ -688,14 +692,14 @@ pub async fn delete_evidence(
 #[instrument(skip(state))]
 pub async fn get_aggregates_for_disputes(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
     let db = state.store.as_ref();
     let dispute_status_with_count = db
         .get_dispute_status_with_count(
-            platform.get_processor().get_account().get_id(),
+            merchant_context.get_merchant_account().get_id(),
             profile_id_list,
             &time_range,
         )
@@ -721,7 +725,7 @@ pub async fn get_aggregates_for_disputes(
 #[instrument(skip(state))]
 pub async fn connector_sync_disputes(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     merchant_connector_id: String,
     payload: disputes::DisputeFetchQueryData,
 ) -> RouterResponse<FetchDisputesResponse> {
@@ -748,7 +752,7 @@ pub async fn connector_sync_disputes(
     };
     Box::pin(fetch_disputes_from_connector(
         state,
-        platform,
+        merchant_context,
         connector_id,
         fetch_dispute_request,
     ))
@@ -759,17 +763,19 @@ pub async fn connector_sync_disputes(
 #[instrument(skip(state))]
 pub async fn fetch_disputes_from_connector(
     state: SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let key_manager_state = &(&state).into();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
     let merchant_connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
             merchant_id,
             &merchant_connector_id,
-            platform.get_processor().get_key_store(),
+            merchant_context.get_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -819,7 +825,7 @@ pub async fn fetch_disputes_from_connector(
         let payment_attempt = webhooks::incoming::get_payment_attempt_from_object_reference_id(
             &state,
             dispute.object_reference_id.clone(),
-            &platform,
+            &merchant_context,
         )
         .await;
 
@@ -869,7 +875,7 @@ pub async fn fetch_disputes_from_connector(
 #[instrument(skip_all)]
 pub async fn update_dispute_data(
     state: &SessionState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: DisputeSyncResponse,
@@ -881,8 +887,8 @@ pub async fn update_dispute_data(
         state.clone(),
         option_dispute,
         dispute_data,
-        platform.get_processor().get_account().get_id(),
-        &platform.get_processor().get_account().organization_id,
+        merchant_context.get_merchant_account().get_id(),
+        &merchant_context.get_merchant_account().organization_id,
         &payment_attempt,
         dispute_details.dispute_status,
         &business_profile,
@@ -894,7 +900,7 @@ pub async fn update_dispute_data(
 
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform,
+        merchant_context,
         business_profile,
         event_type,
         storage_enums::EventClass::Disputes,

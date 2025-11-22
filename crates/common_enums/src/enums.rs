@@ -2492,7 +2492,6 @@ pub enum ExecutionMode {
     #[default]
     Primary,
     Shadow,
-    NotApplicable,
 }
 
 #[derive(
@@ -8109,13 +8108,6 @@ impl PayoutStatus {
             Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
         )
     }
-
-    pub fn is_non_terminal_status(&self) -> bool {
-        !matches!(
-            self,
-            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
-        )
-    }
 }
 
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
@@ -8428,30 +8420,6 @@ impl AuthenticationConnectors {
 pub enum VaultSdk {
     VgsSdk,
     HyperswitchSdk,
-}
-
-/// The type of tokenization to use for the payment method
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum Tokenization {
-    /// Skip PSP-level tokenization
-    SkipPsp,
-    /// Tokenize at PSP Level
-    TokenizeAtPsp,
 }
 
 #[derive(

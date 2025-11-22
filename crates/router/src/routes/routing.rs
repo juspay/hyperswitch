@@ -12,7 +12,7 @@ use api_models::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::platform::MerchantKeyStore;
+use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
 use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
     tracing::{self, instrument},
@@ -46,10 +46,12 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::create_routing_algorithm_under_profile(
                 state,
-                platform,
+                merchant_context,
                 auth.profile_id,
                 payload.clone(),
                 transaction_type
@@ -87,10 +89,12 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::create_routing_algorithm_under_profile(
                 state,
-                platform,
+                merchant_context,
                 Some(auth.profile.get_id().clone()),
                 payload,
                 transaction_type,
@@ -132,10 +136,12 @@ pub async fn routing_link_config(
         &req,
         path.into_inner(),
         |state, auth: auth::AuthenticationData, algorithm, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::link_routing_config(
                 state,
-                platform,
+                merchant_context,
                 auth.profile_id,
                 algorithm,
                 transaction_type
@@ -179,10 +185,12 @@ pub async fn routing_link_config(
         &req,
         wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::link_routing_config_under_profile(
                 state,
-                platform,
+                merchant_context,
                 wrapper.profile_id,
                 wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
@@ -225,10 +233,12 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                platform,
+                merchant_context,
                 auth.profile_id,
                 algorithm_id,
             )
@@ -263,10 +273,12 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                platform,
+                merchant_context,
                 Some(auth.profile.get_id().clone()),
                 algorithm_id,
             )
@@ -306,10 +318,12 @@ pub async fn list_routing_configs(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query_params, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                platform,
+                merchant_context,
                 None,
                 query_params.clone(),
                 transaction_type
@@ -347,10 +361,12 @@ pub async fn list_routing_configs_for_profile(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query_params, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                platform,
+                merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 query_params.clone(),
                 transaction_type
@@ -389,8 +405,15 @@ pub async fn routing_unlink_config(
         &req,
         path.clone(),
         |state, auth: auth::AuthenticationData, path, _| {
-            let platform = auth.into();
-            routing::unlink_routing_config_under_profile(state, platform, path, transaction_type)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::unlink_routing_config_under_profile(
+                state,
+                merchant_context,
+                path,
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -429,10 +452,12 @@ pub async fn routing_unlink_config(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload_req, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::unlink_routing_config(
                 state,
-                platform,
+                merchant_context,
                 payload_req.clone(),
                 auth.profile_id,
                 transaction_type
@@ -473,10 +498,12 @@ pub async fn routing_update_default_config(
         &req,
         wrapper,
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::update_default_fallback_routing(
                 state,
-                platform,
+                merchant_context,
                 wrapper.profile_id,
                 wrapper.connectors,
             )
@@ -515,10 +542,12 @@ pub async fn routing_update_default_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, updated_config, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::update_default_routing_config(
                 state,
-                platform,
+                merchant_context,
                 updated_config,
                 transaction_type,
             )
@@ -552,8 +581,14 @@ pub async fn routing_retrieve_default_config(
         &req,
         path.clone(),
         |state, auth: auth::AuthenticationData, profile_id, _| {
-            let platform = auth.into();
-            routing::retrieve_default_fallback_algorithm_for_profile(state, platform, profile_id)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::retrieve_default_fallback_algorithm_for_profile(
+                state,
+                merchant_context,
+                profile_id,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -590,11 +625,13 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_default_routing_config(
                 state,
                 auth.profile_id,
-                platform,
+                merchant_context,
                 transaction_type,
             )
         },
@@ -627,10 +664,12 @@ pub async fn upsert_surcharge_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             surcharge_decision_config::upsert_surcharge_decision_config(
                 state,
-                platform,
+                merchant_context,
                 update_decision,
             )
         },
@@ -666,8 +705,10 @@ pub async fn delete_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            let platform = auth.into();
-            surcharge_decision_config::delete_surcharge_decision_config(state, platform)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            surcharge_decision_config::delete_surcharge_decision_config(state, merchant_context)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -702,8 +743,10 @@ pub async fn retrieve_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            surcharge_decision_config::retrieve_surcharge_decision_config(state, platform)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            surcharge_decision_config::retrieve_surcharge_decision_config(state, merchant_context)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -739,8 +782,10 @@ pub async fn upsert_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            let platform = auth.into();
-            conditional_config::upsert_conditional_config(state, platform, update_decision)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            conditional_config::upsert_conditional_config(state, merchant_context, update_decision)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -816,8 +861,10 @@ pub async fn delete_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            let platform = auth.into();
-            conditional_config::delete_conditional_config(state, platform)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            conditional_config::delete_conditional_config(state, merchant_context)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -889,8 +936,10 @@ pub async fn retrieve_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            conditional_config::retrieve_conditional_config(state, platform)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            conditional_config::retrieve_conditional_config(state, merchant_context)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -930,10 +979,12 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let platform = auth.clone().into();
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(auth.merchant_account, auth.key_store),
+                ));
                 routing::retrieve_linked_routing_config(
                     state,
-                    platform,
+                    merchant_context,
                     auth.profile_id,
                     query_params,
                     transaction_type
@@ -962,10 +1013,12 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let platform = auth.clone().into();
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(auth.merchant_account, auth.key_store),
+                ));
                 routing::retrieve_linked_routing_config(
                     state,
-                    platform,
+                    merchant_context,
                     auth.profile_id,
                     query_params,
                     transaction_type
@@ -1010,10 +1063,12 @@ pub async fn routing_retrieve_linked_config(
         &req,
         wrapper.clone(),
         |state, auth: AuthenticationData, wrapper, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::retrieve_routing_config_under_profile(
                 state,
-                platform,
+                merchant_context,
                 wrapper.routing_query,
                 wrapper.profile_id,
                 transaction_type,
@@ -1054,8 +1109,14 @@ pub async fn routing_retrieve_default_config_for_profiles(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            routing::retrieve_default_routing_config_for_profiles(state, platform, transaction_type)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::retrieve_default_routing_config_for_profiles(
+                state,
+                merchant_context,
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -1103,10 +1164,12 @@ pub async fn routing_update_default_config_for_profile(
         &req,
         routing_payload_wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::update_default_routing_config_for_profile(
                 state,
-                platform,
+                merchant_context,
                 wrapper.updated_config,
                 wrapper.profile_id,
                 transaction_type,
@@ -1150,10 +1213,12 @@ pub async fn toggle_success_based_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ToggleDynamicRoutingWrapper,
          _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::toggle_specific_dynamic_routing(
                 state,
-                platform,
+                merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
@@ -1203,10 +1268,12 @@ pub async fn create_success_based_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::CreateDynamicRoutingWrapper,
          _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::create_specific_dynamic_routing(
                 state,
-                platform,
+                merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
@@ -1341,10 +1408,12 @@ pub async fn contract_based_routing_setup_config(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingSetupPayloadWrapper,
          _| async move {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             Box::pin(routing::contract_based_dynamic_routing_setup(
                 state,
-                platform,
+                merchant_context,
                 wrapper.profile_id,
                 wrapper.features_to_enable,
                 wrapper.config,
@@ -1390,11 +1459,13 @@ pub async fn contract_based_routing_update_configs(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingPayloadWrapper,
          _| async {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             Box::pin(routing::contract_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
-                platform,
+                merchant_context,
                 wrapper.algorithm_id,
                 wrapper.profile_id,
             ))
@@ -1438,10 +1509,12 @@ pub async fn toggle_elimination_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ToggleDynamicRoutingWrapper,
          _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::toggle_specific_dynamic_routing(
                 state,
-                platform,
+                merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::EliminationRouting,
@@ -1491,10 +1564,12 @@ pub async fn create_elimination_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::CreateDynamicRoutingWrapper,
          _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::create_specific_dynamic_routing(
                 state,
-                platform,
+                merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::EliminationRouting,
@@ -1544,10 +1619,12 @@ pub async fn set_dynamic_routing_volume_split(
          auth: auth::AuthenticationData,
          payload: api_models::routing::RoutingVolumeSplitWrapper,
          _| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             routing::configure_dynamic_routing_volume_split(
                 state,
-                platform,
+                merchant_context,
                 payload.profile_id,
                 payload.routing_info,
             )
@@ -1584,8 +1661,14 @@ pub async fn get_dynamic_routing_volume_split(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
-            routing::retrieve_dynamic_routing_volume_split(state, platform, payload.profile_id)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::retrieve_dynamic_routing_volume_split(
+                state,
+                merchant_context,
+                payload.profile_id,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -1661,15 +1744,12 @@ pub async fn migrate_routing_rules_for_profile(
         |state, _, query_params, _| async move {
             let merchant_id = query_params.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let platform = domain::Platform::new(
-                merchant_account.clone(),
-                key_store.clone(),
-                merchant_account,
-                key_store,
-            );
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
             let res = Box::pin(routing::migrate_rules_for_profile(
                 state,
-                platform,
+                merchant_context,
                 query_params,
             ))
             .await?;
@@ -1686,9 +1766,11 @@ async fn get_merchant_account(
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
 {
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1697,7 +1779,7 @@ async fn get_merchant_account(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))

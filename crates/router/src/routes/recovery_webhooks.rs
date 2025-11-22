@@ -31,13 +31,15 @@ pub async fn recovery_receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            let platform = auth.clone().into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                platform,
+                merchant_context,
                 auth.profile,
                 &connector_id,
                 body.clone(),

@@ -7,6 +7,7 @@ use crate::db::MockDb;
 pub trait PaymentMethodsSessionInterface {
     async fn insert_payment_methods_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity: i64,
@@ -14,6 +15,7 @@ pub trait PaymentMethodsSessionInterface {
 
     async fn update_payment_method_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
@@ -25,6 +27,7 @@ pub trait PaymentMethodsSessionInterface {
 
     async fn get_payment_methods_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<
@@ -57,6 +60,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn insert_payment_methods_session(
             &self,
+            _state: &common_utils::types::keymanager::KeyManagerState,
             _key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
             validity_in_seconds: i64,
@@ -82,6 +86,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_payment_methods_session(
             &self,
+            state: &common_utils::types::keymanager::KeyManagerState,
             key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         ) -> CustomResult<
@@ -104,12 +109,7 @@ mod storage {
             );
 
             db_model
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    &key_store.key,
-                    key_manager_identifier,
-                )
+                .convert(state, &key_store.key, key_manager_identifier)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")
@@ -118,6 +118,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn update_payment_method_session(
             &self,
+            state: &common_utils::types::keymanager::KeyManagerState,
             key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
             session_id: &common_utils::id_type::GlobalPaymentMethodSessionId,
             update_request: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
@@ -152,12 +153,7 @@ mod storage {
             );
 
             db_model
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    &key_store.key,
-                    key_manager_identifier,
-                )
+                .convert(state, &key_store.key, key_manager_identifier)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("Failed to decrypt payment methods session")
@@ -169,6 +165,7 @@ mod storage {
 impl PaymentMethodsSessionInterface for MockDb {
     async fn insert_payment_methods_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
         validity_in_seconds: i64,
@@ -178,6 +175,7 @@ impl PaymentMethodsSessionInterface for MockDb {
 
     async fn update_payment_method_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
         payment_methods_session: hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum,
@@ -192,6 +190,7 @@ impl PaymentMethodsSessionInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn get_payment_methods_session(
         &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         id: &common_utils::id_type::GlobalPaymentMethodSessionId,
     ) -> CustomResult<

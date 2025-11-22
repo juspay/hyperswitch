@@ -17,7 +17,7 @@ use crate::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
-    types::api as api_types,
+    types::{api as api_types, domain},
 };
 
 #[cfg(feature = "v1")]
@@ -59,7 +59,9 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -70,7 +72,7 @@ pub async fn setup_intents_create(
             >(
                 state,
                 req_state,
-                platform,
+                merchant_context,
                 None,
                 payments::PaymentCreate,
                 req,
@@ -139,7 +141,9 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -150,7 +154,7 @@ pub async fn setup_intents_retrieve(
             >(
                 state,
                 req_state,
-                platform,
+                merchant_context,
                 None,
                 payments::PaymentStatus,
                 payload,
@@ -221,7 +225,9 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -232,7 +238,7 @@ pub async fn setup_intents_update(
             >(
                 state,
                 req_state,
-                platform,
+                merchant_context,
                 None,
                 payments::PaymentUpdate,
                 req,
@@ -304,7 +310,9 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -315,7 +323,7 @@ pub async fn setup_intents_confirm(
             >(
                 state,
                 req_state,
-                platform,
+                merchant_context,
                 None,
                 payments::PaymentConfirm,
                 req,

@@ -8,7 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hex::encode;
@@ -55,13 +55,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Dlocal {
-    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_convertor: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Dlocal {
     pub fn new() -> &'static Self {
         &Self {
-            amount_convertor: &FloatMajorUnitForConnector,
+            amount_convertor: &MinorUnitForConnector,
         }
     }
 }
@@ -89,21 +89,16 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let dlocal_req = self.get_request_body(req, connectors)?;
+
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-
-        let sign_req: String = if dlocal_req.get_inner_value().peek() == r#""{}""# {
-            format!("{}{}", auth.x_login.peek(), date)
-        } else {
-            format!(
-                "{}{}{}",
-                auth.x_login.peek(),
-                date,
-                dlocal_req.get_inner_value().peek()
-            )
-        };
-
+        let sign_req: String = format!(
+            "{}{}{}",
+            auth.x_login.peek(),
+            date,
+            dlocal_req.get_inner_value().peek().to_owned()
+        );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
             auth.secret.peek().as_bytes(),
@@ -139,7 +134,7 @@ impl ConnectorCommon for Dlocal {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -166,8 +161,8 @@ impl ConnectorCommon for Dlocal {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.to_string(),
-            message: response.message.clone(),
-            reason: Some(response.message),
+            message: response.message,
+            reason: response.param,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -315,13 +310,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dlo
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let sync_data = dlocal::DlocalPaymentsSyncRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/status",
             self.base_url(connectors),
-            req.request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+            sync_data.authz_id,
         ))
     }
 
@@ -396,14 +389,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
-            self.amount_convertor,
-            req.request.minor_amount_to_capture,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = DlocalRouterData::try_from((amount, req))?;
-        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(&connector_router_data)?;
+        let connector_req = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -475,10 +461,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let cancel_data = dlocal::DlocalPaymentsCancelRequest::try_from(req)?;
         Ok(format!(
             "{}payments/{}/cancel",
             self.base_url(connectors),
-            req.request.connector_transaction_id.clone(),
+            cancel_data.cancel_id
         ))
     }
 
@@ -632,14 +619,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req.request.connector_refund_id.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_refund_id",
-            },
-        )?;
+        let sync_data = dlocal::DlocalRefundsSyncRequest::try_from(req)?;
         Ok(format!(
-            "{}refunds/{refund_id}/status",
+            "{}refunds/{}/status",
             self.base_url(connectors),
+            sync_data.refund_id,
         ))
     }
 

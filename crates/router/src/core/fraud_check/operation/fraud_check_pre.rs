@@ -167,7 +167,7 @@ where
         _req_state: ReqState,
         _payment_data: &mut D,
         _frm_data: &mut FrmData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         todo!()
@@ -181,14 +181,14 @@ where
         _req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Transaction, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            platform,
+            merchant_context,
             customer,
         )
         .await?;
@@ -217,14 +217,14 @@ where
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Checkout, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            platform,
+            merchant_context,
             customer,
         )
         .await?;

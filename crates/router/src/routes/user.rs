@@ -512,33 +512,6 @@ pub async fn accept_invite_from_email(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
-    query: web::Query<user_api::ValidateOnlyQueryParam>,
-) -> HttpResponse {
-    let flow = Flow::AcceptInviteFromEmail;
-    let status_check = query.into_inner().status_check;
-    Box::pin(api::server_wrap(
-        flow.clone(),
-        state,
-        &req,
-        payload.into_inner(),
-        |state, user, req_payload, _| {
-            user_core::accept_invite_from_email_token_only_flow(
-                state,
-                user,
-                req_payload,
-                status_check,
-            )
-        },
-        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvitationFromEmail),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-#[cfg(feature = "email")]
-pub async fn terminate_accept_invite(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
 ) -> HttpResponse {
     let flow = Flow::AcceptInviteFromEmail;
     Box::pin(api::server_wrap(
@@ -547,7 +520,7 @@ pub async fn terminate_accept_invite(
         &req,
         payload.into_inner(),
         |state, user, req_payload, _| {
-            user_core::terminate_accept_invite_only_flow(state, user, req_payload)
+            user_core::accept_invite_from_email_token_only_flow(state, user, req_payload)
         },
         &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvitationFromEmail),
         api_locking::LockAction::NotApplicable,

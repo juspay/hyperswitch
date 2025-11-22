@@ -1385,10 +1385,6 @@ pub struct PaymentsRequest {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-
-    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
-    pub tokenization: Option<enums::Tokenization>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -6853,10 +6849,6 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
 
-    #[schema(example = "Insufficient Funds")]
-    #[smithy(value_type = "Option<String>")]
-    pub error_reason: Option<String>,
-
     /// error code unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]
     #[smithy(value_type = "Option<String>")]
@@ -7134,10 +7126,6 @@ pub struct PaymentsResponse {
     /// Billing descriptor information for the payment
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
-
-    /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    #[schema(value_type = Option<Tokenization>,example="skip_psp")]
-    pub tokenization: Option<enums::Tokenization>,
 }
 
 #[cfg(feature = "v2")]
@@ -10883,7 +10871,7 @@ pub enum PaymentLinkData {
     PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,

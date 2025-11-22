@@ -38,7 +38,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -48,7 +48,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,7 +68,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -83,7 +83,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -106,7 +106,6 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -127,7 +126,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(

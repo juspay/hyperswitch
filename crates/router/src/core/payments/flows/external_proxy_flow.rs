@@ -20,8 +20,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
-            tokenization, transformers, PaymentData,
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },
@@ -48,7 +47,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -65,7 +64,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                platform,
+                merchant_context,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -89,7 +88,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::ExternalVaultProxy,
@@ -120,7 +118,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, self, creds_identifier).await
@@ -375,7 +373,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
@@ -394,7 +392,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                platform,
+                merchant_context,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;

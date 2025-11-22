@@ -179,7 +179,7 @@ where
         _req_state: ReqState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         if frm_data.fraud_check.last_step != FraudCheckLastStep::Processing {
@@ -190,7 +190,7 @@ where
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            platform,
+            merchant_context,
             customer,
         )
         .await?;
@@ -217,7 +217,7 @@ where
         _state: &SessionState,
         _req_state: ReqState,
         _frm_data: &mut FrmData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,
@@ -234,7 +234,7 @@ where
         state: &SessionState,
         req_state: ReqState,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         _frm_configs: FrmConfigsObject,
         frm_suggestion: &mut Option<FrmSuggestion>,
         payment_data: &mut D,
@@ -264,7 +264,7 @@ where
             >(
                 state.clone(),
                 req_state.clone(),
-                platform.clone(),
+                merchant_context.clone(),
                 None,
                 payments::PaymentCancel,
                 cancel_req,
@@ -285,7 +285,7 @@ where
                 state,
                 payment_data,
                 &mut frm_data.to_owned(),
-                platform,
+                merchant_context,
                 customer,
             )
             .await?;
@@ -321,7 +321,7 @@ where
             >(
                 state.clone(),
                 req_state.clone(),
-                platform.clone(),
+                merchant_context.clone(),
                 None,
                 payments::PaymentCapture,
                 capture_request,
@@ -348,14 +348,14 @@ where
         state: &'a SessionState,
         payment_data: &mut D,
         frm_data: &mut FrmData,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
-            platform,
+            merchant_context,
             customer,
         )
         .await?;
@@ -409,6 +409,7 @@ where
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let frm_check_update = match frm_router_data.response {
             FrmResponse::Sale(response) => match response {
                 Err(err) => Some(FraudCheckUpdate::ErrorUpdate {
@@ -606,6 +607,7 @@ where
 
             let payment_intent = db
                 .update_payment_intent(
+                    key_manager_state,
                     payment_data.get_payment_intent().clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,

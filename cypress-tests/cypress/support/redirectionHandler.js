@@ -1188,14 +1188,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "redsys":
-          // Suppress cross-origin JavaScript errors from Redsys's website
-          cy.on("uncaught:exception", (err) => {
-            if (err.message.includes("$ is not defined")) {
-              return false; // Prevent test failure
-            }
-            return true;
-          });
-
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
           break;

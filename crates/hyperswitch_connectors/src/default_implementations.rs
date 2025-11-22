@@ -1662,6 +1662,7 @@ default_imp_for_create_customer!(
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
+    connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,

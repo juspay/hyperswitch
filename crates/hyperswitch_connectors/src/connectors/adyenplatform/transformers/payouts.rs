@@ -295,7 +295,17 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
             .into());
         };
 
-        let customer_id_reference = router_data.get_connector_customer_id()?;
+        let customer_id_reference = match router_data.get_connector_customer_id() {
+            Ok(connector_customer_id) => connector_customer_id,
+            Err(_) => {
+                let customer_id = router_data.get_customer_id()?;
+                format!(
+                    "{}_{}",
+                    router_data.merchant_id.get_string_repr(),
+                    customer_id.get_string_repr()
+                )
+            }
+        };
 
         Ok(Self {
             address: Some(address),
@@ -326,7 +336,17 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder 
 
         let full_name = router_data.get_billing_full_name()?;
 
-        let customer_id_reference = router_data.get_connector_customer_id()?;
+        let customer_id_reference = match router_data.get_connector_customer_id() {
+            Ok(connector_customer_id) => connector_customer_id,
+            Err(_) => {
+                let customer_id = router_data.get_customer_id()?;
+                format!(
+                    "{}_{}",
+                    router_data.merchant_id.get_string_repr(),
+                    customer_id.get_string_repr()
+                )
+            }
+        };
 
         Ok(Self {
             address: Some(address),
@@ -371,10 +391,22 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                     })?
                     .try_into()?;
 
-                let customer_id_reference = stored_payment
-                    .item
-                    .router_data
-                    .get_connector_customer_id()?;
+                let customer_id_reference =
+                    match stored_payment.item.router_data.get_connector_customer_id() {
+                        Ok(connector_customer_id) => connector_customer_id,
+                        Err(_) => {
+                            let customer_id = stored_payment.item.router_data.get_customer_id()?;
+                            format!(
+                                "{}_{}",
+                                stored_payment
+                                    .item
+                                    .router_data
+                                    .merchant_id
+                                    .get_string_repr(),
+                                customer_id.get_string_repr()
+                            )
+                        }
+                    };
 
                 let card_holder = AdyenAccountHolder {
                     address: Some(address),

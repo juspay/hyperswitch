@@ -50,7 +50,7 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = state
                     .store
-                    .find_payment_method(key_store, &pm_id, storage_scheme)
+                    .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                 Ok(ProxyRecord::PaymentMethodRecord(Box::new(
@@ -64,9 +64,10 @@ impl ProxyRequestWrapper {
                         "Error while coneverting from string to GlobalTokenId type",
                     )?;
                 let db = state.store.as_ref();
+                let key_manager_state = &(state).into();
 
                 let tokenization_record = db
-                    .get_entity_id_vault_id_by_token_id(&token_id, key_store)
+                    .get_entity_id_vault_id_by_token_id(&token_id, key_store, key_manager_state)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while fetching tokenization record from vault")?;
@@ -123,13 +124,13 @@ impl ProxyRecord {
     pub async fn get_vault_data(
         &self,
         state: &SessionState,
-        platform: domain::Platform,
+        merchant_context: domain::MerchantContext,
     ) -> RouterResult<Value> {
         match self {
             Self::PaymentMethodRecord(_) => {
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
                     state,
-                    &platform,
+                    &merchant_context,
                     &self.get_vault_id()?,
                     &self.get_customer_id(),
                 )

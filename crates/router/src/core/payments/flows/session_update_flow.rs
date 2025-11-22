@@ -24,7 +24,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -40,7 +40,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                platform,
+                merchant_context,
                 customer,
                 merchant_connector_account,
             ),
@@ -53,7 +53,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -80,7 +80,6 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SdkSessionUpdate,
@@ -105,7 +104,7 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(

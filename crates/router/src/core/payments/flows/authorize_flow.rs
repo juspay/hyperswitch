@@ -24,8 +24,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, helpers, tokenization,
-            transformers, PaymentData,
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -58,7 +57,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -74,7 +73,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -86,7 +85,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -99,7 +98,7 @@ impl
         if *is_open_banking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                platform,
+                merchant_context,
                 connector,
                 state,
             )
@@ -123,7 +122,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -144,7 +143,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            platform,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -158,7 +157,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -174,7 +173,7 @@ impl
                 Ok(if *is_open_banking {
                     payments::get_merchant_bank_data_for_open_banking_connectors(
                         merchant_connector_account,
-                        platform,
+                        merchant_context,
                         connector,
                         state,
                     )
@@ -204,7 +203,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         business_profile: &domain::Profile,
         header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
-        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -252,7 +250,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             call_connector_action.clone(),
                             business_profile,
                             header_payload,
-                            gateway_context,
                         ))
                         .await?;
                     }
@@ -268,7 +265,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -544,7 +541,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -558,7 +555,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 header_payload,
                 lineage_ids,
                 merchant_connector_account,
-                platform,
+                merchant_context,
                 unified_connector_service_execution_mode,
                 merchant_order_reference_id,
                 creds_identifier,
@@ -598,7 +595,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         header_payload,
                         lineage_ids,
                         merchant_connector_account,
-                        platform,
+                        merchant_context,
                         connector_data.connector_name,
                         unified_connector_service_execution_mode,
                         merchant_order_reference_id,
@@ -623,7 +620,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         header_payload,
                         lineage_ids,
                         merchant_connector_account,
-                        platform,
+                        merchant_context,
                         unified_connector_service_execution_mode,
                         merchant_order_reference_id,
                         creds_identifier,
@@ -876,7 +873,6 @@ impl<F>
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn process_capture_flow(
     mut router_data: types::RouterData<
         api::Authorize,
@@ -889,7 +885,6 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: domain_payments::HeaderPayload,
-    context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 > {
@@ -908,7 +903,6 @@ async fn process_capture_flow(
         call_connector_action,
         business_profile,
         header_payload,
-        context,
     )
     .await;
 
@@ -932,7 +926,7 @@ async fn call_unified_connector_service_authorize(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
     creds_identifier: Option<String>,
@@ -952,7 +946,7 @@ async fn call_unified_connector_service_authorize(
     let merchant_connector_id = merchant_connector_account.get_mca_id();
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
@@ -997,7 +991,7 @@ async fn call_unified_connector_service_authorize(
             // Extract and store access token if present
             if let Some(access_token) = get_access_token_from_ucs_response(
                 state,
-                platform,
+                merchant_context,
                 &router_data.connector,
                 merchant_connector_id.as_ref(),
                 creds_identifier.clone(),
@@ -1007,7 +1001,7 @@ async fn call_unified_connector_service_authorize(
             {
                 if let Err(error) = set_access_token_for_ucs(
                     state,
-                    platform,
+                    merchant_context,
                     &router_data.connector,
                     access_token,
                     merchant_connector_id.as_ref(),
@@ -1148,7 +1142,7 @@ async fn call_unified_connector_service_pre_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -1166,7 +1160,7 @@ async fn call_unified_connector_service_pre_authenticate(
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
@@ -1246,7 +1240,7 @@ async fn call_unified_connector_service_repeat_payment(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    merchant_context: &domain::MerchantContext,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
     creds_identifier: Option<String>,
@@ -1266,7 +1260,7 @@ async fn call_unified_connector_service_repeat_payment(
     let merchant_connector_id = merchant_connector_account.get_mca_id();
 
     let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
+        build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
@@ -1311,7 +1305,7 @@ async fn call_unified_connector_service_repeat_payment(
             // Extract and store access token if present
             if let Some(access_token) = get_access_token_from_ucs_response(
                 state,
-                platform,
+                merchant_context,
                 &router_data.connector,
                 merchant_connector_id.as_ref(),
                 creds_identifier.clone(),
@@ -1321,7 +1315,7 @@ async fn call_unified_connector_service_repeat_payment(
             {
                 if let Err(error) = set_access_token_for_ucs(
                     state,
-                    platform,
+                    merchant_context,
                     &router_data.connector,
                     access_token,
                     merchant_connector_id.as_ref(),

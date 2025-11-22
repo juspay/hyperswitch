@@ -49,7 +49,7 @@ use crate::{
 pub async fn payments_session_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     operation: Op,
     req: Req,
@@ -77,7 +77,7 @@ where
         payments_session_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            platform.clone(),
+            merchant_context.clone(),
             profile,
             operation.clone(),
             req,
@@ -96,7 +96,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
-        &platform,
+        &merchant_context,
     )
 }
 
@@ -105,7 +105,7 @@ where
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
-    platform: domain::Platform,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     operation: Op,
     req: Req,
@@ -132,7 +132,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, &merchant_context)?;
 
     let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
@@ -140,7 +140,7 @@ where
             state,
             &payment_id,
             &req,
-            &platform,
+            &merchant_context,
             &profile,
             &header_payload,
         )
@@ -151,8 +151,8 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -162,7 +162,7 @@ where
         state,
         req_state.clone(),
         &customer,
-        &platform,
+        &merchant_context,
         &operation,
         &profile,
         &mut payment_data,
@@ -172,7 +172,12 @@ where
 
     let connector = operation
         .to_domain()?
-        .perform_routing(&platform, &profile, &state.clone(), &mut payment_data)
+        .perform_routing(
+            &merchant_context,
+            &profile,
+            &state.clone(),
+            &mut payment_data,
+        )
         .await?;
 
     let payment_data = match connector {
@@ -189,9 +194,9 @@ where
                     req_state,
                     payment_data.clone(),
                     customer.clone(),
-                    platform.get_processor().get_account().storage_scheme,
+                    merchant_context.get_merchant_account().storage_scheme,
                     None,
-                    platform.get_processor().get_key_store(),
+                    merchant_context.get_merchant_key_store(),
                     None,
                     header_payload.clone(),
                 )
@@ -199,7 +204,7 @@ where
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,
-                &platform,
+                &merchant_context,
                 connectors,
                 &operation,
                 payment_data,

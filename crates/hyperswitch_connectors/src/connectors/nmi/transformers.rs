@@ -431,7 +431,6 @@ pub struct NmiValidateRequest {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(untagged)]
 pub enum NmiValidatePaymentData {
     ApplePay(Box<ApplePayData>),
     Card(Box<CardData>),

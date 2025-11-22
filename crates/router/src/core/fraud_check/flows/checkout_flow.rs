@@ -30,7 +30,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -45,7 +45,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
@@ -70,7 +70,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: platform.get_processor().get_account().get_id().clone(),
+            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             customer_id,
             tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
@@ -179,9 +179,16 @@ impl FeatureFrm<frm_api::Checkout, FraudCheckCheckoutData> for FrmCheckoutRouter
         state: &SessionState,
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<Self> {
-        decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
+        decide_frm_flow(
+            &mut self,
+            state,
+            connector,
+            call_connector_action,
+            merchant_context,
+        )
+        .await
     }
 }
 
@@ -190,7 +197,7 @@ pub async fn decide_frm_flow(
     state: &SessionState,
     connector: &FraudCheckConnectorData,
     call_connector_action: payments::CallConnectorAction,
-    _platform: &domain::Platform,
+    _merchant_context: &domain::MerchantContext,
 ) -> RouterResult<FrmCheckoutRouterData> {
     let connector_integration: services::BoxedFrmConnectorIntegrationInterface<
         frm_api::Checkout,

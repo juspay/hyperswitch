@@ -228,7 +228,7 @@ pub struct PaymentIntentRequest {
     pub moto: Option<bool>,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct IntentCharges {
     pub application_fee_amount: Option<MinorUnit>,
     #[serde(
@@ -1825,7 +1825,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 _ => None,
             });
 
-        let (transfer_account_id, charge_type) = if let Some(secret_value) =
+        let (transfer_account_id, charge_type, application_fees) = if let Some(secret_value) =
             mandate_metadata.as_ref().and_then(|s| s.as_ref())
         {
             let json_value = secret_value.clone().expose();
@@ -1833,11 +1833,15 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             let parsed: Result<StripeSplitPaymentRequest, _> = serde_json::from_value(json_value);
 
             match parsed {
-                Ok(data) => (data.transfer_account_id, data.charge_type),
-                Err(_) => (None, None),
+                Ok(data) => (
+                    data.transfer_account_id,
+                    data.charge_type,
+                    data.application_fees,
+                ),
+                Err(_) => (None, None, None),
             }
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let payment_method_token = match &item.request.split_payments {
@@ -2147,19 +2151,25 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             }
             Some(SplitPaymentsRequest::AdyenSplitPayment(_))
             | Some(SplitPaymentsRequest::XenditSplitPayment(_))
-            | None => match charge_type {
+            | None => None,
+        };
+
+        let charges_in = if charges.is_none() {
+            match charge_type {
                 Some(PaymentChargeType::Stripe(StripeChargeType::Direct)) => Some(IntentCharges {
-                    application_fee_amount: None, // default to 0 if None
+                    application_fee_amount: application_fees, // default to 0 if None
                     destination_account_id: None,
                 }),
                 Some(PaymentChargeType::Stripe(StripeChargeType::Destination)) => {
                     Some(IntentCharges {
-                        application_fee_amount: None,
+                        application_fee_amount: application_fees,
                         destination_account_id: transfer_account_id,
                     })
                 }
                 _ => None,
-            },
+            }
+        } else {
+            charges
         };
 
         let pm = match (payment_method, payment_method_token.clone()) {
@@ -2229,7 +2239,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
-            charges,
+            charges: charges_in,
             moto: is_moto,
         })
     }
@@ -2406,86 +2416,86 @@ pub struct StripeSplitPaymentRequest {
     pub transfer_account_id: Option<String>,
 }
 
-pub fn get_stripe_compatible_connect_account_header(
-    request: &PaymentsAuthorizeRouterData,
-) -> Result<Option<String>, error_stack::Report<ConnectorError>> {
-    let cit_metadata = request
-        .request
-        .mandate_id
-        .as_ref()
-        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-        .and_then(|reference_id| match reference_id {
-            payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                mandate_data.get_mandate_metadata()
-            }
-            _ => None,
-        })
-        .and_then(|secret_value| {
-            let json_value = secret_value.clone().expose();
-            match serde_json::from_value::<StripeSplitPaymentRequest>(json_value.clone()) {
-                Ok(val) => Some(val),
-                Err(err) => {
-                    router_env::logger::info!(
-                        "STRIPE: Picking stripe splitpayment from metadata {:?}",
-                        err
-                    );
-                    None
+impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        //extracting mandate metadata from CIT call if CIT call was a Split Payment
+        let from_metadata = item
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
+            .and_then(|reference_id| match reference_id {
+                payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                    mandate_data.get_mandate_metadata()
                 }
-            }
-        });
+                _ => None,
+            })
+            .and_then(|secret_value| {
+                let json_value = secret_value.clone().expose();
+                match serde_json::from_value::<Self>(json_value.clone()) {
+                    Ok(val) => Some(val),
+                    Err(err) => {
+                        router_env::logger::info!(
+                            "STRIPE: Picking merchant_account_id and merchant_config_currency from payments request: {:?}", err
+                        );
+                        None
+                    }
+                }
+            });
 
-    let split_payment_new = request.request.split_payments.clone();
-
-    let transfer_id = match (cit_metadata, split_payment_new) {
-        // MIT Payments where split payment request is passed
-        (
-            Some(cit_metadata),
-            Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object)),
-        ) => {
-            if cit_metadata.charge_type != Some(split_payment_object.charge_type.clone())
-                || cit_metadata.transfer_account_id
-                    != Some(split_payment_object.transfer_account_id.clone())
+        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
+        if from_metadata.is_some() && item.request.split_payments.is_some() {
+            let mut mit_charge_type = None;
+            let mut mit_application_fees = None;
+            let mut mit_transfer_account_id = None;
+            if let Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) =
+                item.request.split_payments.as_ref()
             {
-                let mismatched_fields = ["transfer_account_id", "charge_type"];
+                mit_charge_type = Some(stripe_split_payment.charge_type.clone());
+                mit_application_fees = stripe_split_payment.application_fees;
+                mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
+            }
+
+            if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
+                || mit_application_fees != from_metadata.as_ref().and_then(|m| m.application_fees)
+                || mit_transfer_account_id
+                    != from_metadata
+                        .as_ref()
+                        .and_then(|m| m.transfer_account_id.clone())
+            {
+                let mismatched_fields = ["transfer_account_id", "application_fees", "charge_type"];
 
                 let field_str = mismatched_fields.join(", ");
                 return Err(error_stack::Report::from(
                     ConnectorError::MandatePaymentDataMismatch { fields: field_str },
                 ));
             }
-            if split_payment_object.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                Some(split_payment_object.transfer_account_id.clone())
-            } else {
-                None
-            }
         }
 
-        // Only MIT : when no split payments is provided, uses previous transfer_account_id
-        (Some(cit), _) => {
-            if cit.charge_type == Some(PaymentChargeType::Stripe(StripeChargeType::Direct)) {
-                cit.transfer_account_id.clone()
+        // If Mandate Metadata from CIT call has something, populate it
+        let (charge_type, mut transfer_account_id, application_fees) =
+            if let Some(ref metadata) = from_metadata {
+                (
+                    metadata.charge_type.clone(),
+                    metadata.transfer_account_id.clone(),
+                    metadata.application_fees,
+                )
             } else {
-                None
-            }
-        }
+                (None, None, None)
+            };
 
-        // CIT payments
-        (None, Some(SplitPaymentsRequest::StripeSplitPayment(split_payment_object))) => {
-            if split_payment_object.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                Some(split_payment_object.transfer_account_id.clone())
-            } else {
-                None
-            }
+        // If Charge Type is Destination, transfer_account_id need not be appended in headers
+        if charge_type == Some(PaymentChargeType::Stripe(StripeChargeType::Destination)) {
+            transfer_account_id = None;
         }
-        // cit or mit
-        (None, _) => None,
-    };
-
-    Ok(transfer_id)
+        Ok(Self {
+            charge_type,
+            transfer_account_id,
+            application_fees,
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]

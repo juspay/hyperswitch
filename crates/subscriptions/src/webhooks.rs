@@ -6,7 +6,7 @@ use common_utils::{consts, errors::CustomResult, generate_id};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, errors::api_error_response as errors, invoice, merchant_connector_account,
-    platform,
+    merchant_context,
 };
 use hyperswitch_interfaces::{
     api::ConnectorCommon, connector_integration_interface, errors::ConnectorError,
@@ -23,7 +23,7 @@ use crate::subscription_handler::SubscriptionHandler;
 #[instrument(skip_all)]
 pub async fn incoming_webhook_flow(
     state: SessionState,
-    platform: platform::Platform,
+    merchant_context: merchant_context::MerchantContext,
     business_profile: business_profile::Profile,
     _webhook_details: api_models::webhooks::IncomingWebhookDetails,
     source_verified: bool,
@@ -59,11 +59,14 @@ pub async fn incoming_webhook_flow(
 
     let profile_id = business_profile.get_id().clone();
 
-    let profile = SubscriptionHandler::find_business_profile(&state, &platform, &profile_id)
-        .await
-        .attach_printable("subscriptions: failed to find business profile in get_subscription")?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in get_subscription",
+            )?;
 
-    let handler = SubscriptionHandler::new(&state, &platform);
+    let handler = SubscriptionHandler::new(&state, &merchant_context);
 
     let subscription_id = mit_payment_data.subscription_id.clone();
 

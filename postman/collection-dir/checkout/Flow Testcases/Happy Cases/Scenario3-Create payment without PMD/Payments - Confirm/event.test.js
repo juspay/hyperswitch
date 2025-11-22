@@ -63,12 +63,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "processing" or "succeeded" for "status"
+// Response body should have value "processing" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments:id/confirm - Content check if value for 'status' matches 'processing' or 'succeeded'",
+    "[POST]::/payments:id/confirm - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(["processing", "succeeded"]).to.include(jsonData.status);
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }

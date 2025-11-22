@@ -139,7 +139,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
-        platform: &domain::Platform,
+        merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
@@ -153,12 +153,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             .await?;
         }
         let key_manager_state = &state.into();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_intent = db
             .find_payment_intent_by_id(
+                key_manager_state,
                 payment_id,
-                platform.get_processor().get_key_store(),
+                merchant_context.get_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -205,8 +205,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(platform.get_processor().get_account().get_id().to_owned()),
-            platform.get_processor().get_key_store().key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -342,6 +342,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         F: 'b + Send,
     {
         let db = &*state.store;
+        let key_manager_state = &state.into();
 
         let intent = payment_data.payment_intent.clone();
 
@@ -395,6 +396,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
 
         let new_payment_intent = db
             .update_payment_intent(
+                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -418,11 +420,11 @@ impl<F: Send + Clone>
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsUpdateIntentRequest,
-        platform: &'a domain::Platform,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-            storage_scheme: platform.get_processor().get_account().storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -470,7 +472,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         _state: &SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
@@ -482,7 +484,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

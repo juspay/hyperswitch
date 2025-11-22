@@ -21,6 +21,7 @@ pub mod mandates;
 pub mod master_key;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -29,7 +30,6 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
-pub mod platform;
 pub mod refunds;
 pub mod relay;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

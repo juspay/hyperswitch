@@ -823,7 +823,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .map(|descriptor| CheckoutBillingDescriptor {
                     name: descriptor.name.clone(),
                     city: descriptor.city.clone(),
-                    reference: descriptor.reference.clone(),
+                    reference: descriptor.statement_descriptor.clone(),
                 });
 
         let request = Self {
