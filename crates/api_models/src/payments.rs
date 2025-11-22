@@ -6137,6 +6137,8 @@ pub enum NextActionType {
     DisplayWaitScreen,
     CollectOtp,
     RedirectInsidePopup,
+    InvokeUpiIntentSdk,
+    InvokeUpiQrSdk,
 }
 
 #[derive(
@@ -6197,10 +6199,25 @@ pub enum NextActionData {
         #[smithy(value_type = "String")]
         qr_code_fetch_url: Url,
     },
-    /// Contains the SDK UPI intent URI for payment processing
-    SdkUpiIntentInformation {
+    InvokeUpiIntentSdk {
         #[schema(value_type = String)]
         sdk_uri: Url,
+        #[smithy(value_type = "i128")]
+        display_from_timestamp: i128,
+        #[smithy(value_type = "Option<i128>")]
+        display_to_timestamp: Option<i128>,
+        #[smithy(value_type = "Option<PollConfig>")]
+        poll_config: Option<PollConfig>,
+    },
+    InvokeUpiQrSdk {
+        #[schema(value_type = String)]
+        sdk_uri: Url,
+        #[smithy(value_type = "i128")]
+        display_from_timestamp: i128,
+        #[smithy(value_type = "Option<i128>")]
+        display_to_timestamp: Option<i128>,
+        #[smithy(value_type = "Option<PollConfig>")]
+        poll_config: Option<PollConfig>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -6387,11 +6404,6 @@ pub struct SdkNextActionData {
 pub struct FetchQrCodeInformation {
     #[smithy(value_type = "String")]
     pub qr_code_fetch_url: Url,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct SdkUpiIntentInformation {
-    pub sdk_uri: Url,
 }
 
 #[derive(

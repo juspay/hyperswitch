@@ -22721,19 +22721,68 @@
           },
           {
             "type": "object",
-            "description": "Contains the SDK UPI intent URI for payment processing",
             "required": [
               "sdk_uri",
+              "display_from_timestamp",
               "type"
             ],
             "properties": {
               "sdk_uri": {
                 "type": "string"
               },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
-                  "sdk_upi_intent_information"
+                  "invoke_upi_intent_sdk"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sdk_uri",
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "sdk_uri": {
+                "type": "string"
+              },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_upi_qr_sdk"
                 ]
               }
             }
@@ -22878,7 +22927,9 @@
           "display_bank_transfer_information",
           "display_wait_screen",
           "collect_otp",
-          "redirect_inside_popup"
+          "redirect_inside_popup",
+          "invoke_upi_intent_sdk",
+          "invoke_upi_qr_sdk"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
