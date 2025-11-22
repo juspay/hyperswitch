@@ -56,7 +56,7 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
-        PaymentMethodData,
+        NetworkTokenDetailsForNetworkTransactionId, PaymentMethodData,
     },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
@@ -6374,6 +6374,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
+    NetworkTransactionIdAndNetworkTokenDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
     InstantBankTransferFinland,
@@ -6389,6 +6390,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
+            }
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndNetworkTokenDetails
             }
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -7019,6 +7023,59 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
         Ok(Secret::new(format!(
             "{}{}{}",
             self.network_token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+}
+
+impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.network_token.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+
+    fn get_network_token(&self) -> NetworkTokenNumber {
+        self.network_token.clone()
+    }
+
+    fn get_network_token_expiry_month(&self) -> Secret<String> {
+        self.token_exp_month.clone()
+    }
+
+    fn get_network_token_expiry_year(&self) -> Secret<String> {
+        self.token_exp_year.clone()
+    }
+
+    fn get_cryptogram(&self) -> Option<Secret<String>> {
+        None
+    }
+
+    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_token_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_token_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.token_exp_month.peek(),
             delimiter,
             year.peek()
         )))

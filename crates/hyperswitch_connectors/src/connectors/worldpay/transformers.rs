@@ -205,10 +205,13 @@ fn fetch_payment_instrument(
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
-        | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
-        .into()),
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into())
+        }
     }
 }
 

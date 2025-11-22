@@ -63,6 +63,9 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use hyperswitch_domain_models::{
+    payment_method_data::{
+        CardDetailsForNetworkTransactionId, NetworkTokenDetailsForNetworkTransactionId,
+    },
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
@@ -8766,7 +8769,7 @@ async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsFo
     business_profile: &domain::Profile,
 ) -> RouterResult<(
     api_models::payments::MandateReferenceId,
-    hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     api::ConnectorData,
 )>
 where
@@ -8778,13 +8781,6 @@ where
         .get_recurring_details()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable("Failed to fetch recurring details for mit")?;
-
-    let (mandate_reference_id, card_details_for_network_transaction_id)= hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and card details").attach_printable("Failed to fetch network transaction id and card details for mit")?;
-
-    helpers::validate_card_expiry(
-        &card_details_for_network_transaction_id.card_exp_month,
-        &card_details_for_network_transaction_id.card_exp_year,
-    )?;
 
     let network_transaction_id_supported_connectors = &state
         .conf
@@ -8815,11 +8811,44 @@ where
         .attach_printable(
             "No eligible connector found for the network transaction id based mit flow",
         )?;
-    Ok((
-        mandate_reference_id,
-        card_details_for_network_transaction_id,
-        eligible_connector_data.clone(),
-    ))
+
+    match recurring_payment_details.clone() {
+        RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+            let (mandate_reference_id, card_details_for_network_transaction_id) =
+                CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(
+                    recurring_payment_details.clone(),
+                )
+                .get_required_value("network transaction id and card details")
+                .attach_printable(
+                    "Failed to fetch network transaction id and card details for mit",
+                )?;
+            helpers::validate_card_expiry(
+                &card_details_for_network_transaction_id.card_exp_month,
+                &card_details_for_network_transaction_id.card_exp_year,
+            )?;
+
+            Ok((
+                mandate_reference_id,
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id),
+                eligible_connector_data.clone(),
+            ))
+        }
+        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+            let (mandate_reference_id, network_token_details_for_network_transaction_id) = NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and network token details").attach_printable("Failed to fetch network transaction id and network token details for mit")?;
+            helpers::validate_card_expiry(
+                &network_token_details_for_network_transaction_id.token_exp_month,
+                &network_token_details_for_network_transaction_id.token_exp_year,
+            )?;
+
+            Ok((
+                mandate_reference_id,
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(network_token_details_for_network_transaction_id),
+                eligible_connector_data.clone(),
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+            .attach_printable("Invalid recurring details for nti based mit flow")?,
+    }
 }
 
 pub async fn set_eligible_connector_for_nti_in_payment_data<F, D>(
@@ -8833,34 +8862,37 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (mandate_reference_id, card_details_for_network_transaction_id, eligible_connector_data) =
-        match connector_choice {
-            api::ConnectorChoice::StraightThrough(straight_through) => {
-                get_eligible_connector_for_nti(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::Decide => {
-                get_eligible_connector_for_nti(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::DecideConnector,
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::SessionMultiple(_) => {
-                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "Invalid routing rule configured for nti and card details based mit flow",
-                )?
-            }
-        };
+    let (
+        mandate_reference_id,
+        payment_method_details_for_network_transaction_id,
+        eligible_connector_data,
+    ) = match connector_choice {
+        api::ConnectorChoice::StraightThrough(straight_through) => {
+            get_eligible_connector_for_nti(
+                state,
+                key_store,
+                payment_data,
+                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::Decide => {
+            get_eligible_connector_for_nti(
+                state,
+                key_store,
+                payment_data,
+                core_routing::DecideConnector,
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::SessionMultiple(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Invalid routing rule configured for nti and card details based mit flow",
+            )?
+        }
+    };
 
     // Set the eligible connector in the attempt
     payment_data
@@ -8873,9 +8905,7 @@ where
     });
 
     // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id),
-    ));
+    payment_data.set_payment_method_data(Some(payment_method_details_for_network_transaction_id));
 
     Ok(eligible_connector_data)
 }

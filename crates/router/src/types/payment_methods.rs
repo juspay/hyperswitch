@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
 use api_models::enums as api_enums;
-#[cfg(feature = "v1")]
-use cards::CardNumber;
-#[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_types::primitive_wrappers;
@@ -265,7 +262,7 @@ pub struct GetCardToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: CardNumber, //network token
+    pub token: NetworkToken, //network token
 }
 
 #[cfg(feature = "v2")]
