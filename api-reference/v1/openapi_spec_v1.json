@@ -12721,6 +12721,11 @@
             "type": "string",
             "description": "Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.",
             "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "description": "A reference to be shown on billing description",
+            "nullable": true
           }
         }
       },

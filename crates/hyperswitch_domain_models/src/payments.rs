@@ -311,6 +311,7 @@ impl PaymentIntent {
                     .statement_descriptor_suffix
                     .clone()
                     .or_else(|| self.statement_descriptor_suffix.clone()),
+                reference: descriptor.reference.clone(),
             })
     }
 }
