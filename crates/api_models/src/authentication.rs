@@ -752,17 +752,17 @@ pub enum AuthenticationVaultTokenData {
         /// token representing card_number
         #[schema(value_type = String)]
         #[serde(rename = "card_number")]
-        tokenized_card_number: masking::Secret<String>,
+        tokenized_card_number: Option<masking::Secret<String>>,
 
         /// token representing card_numcard_expiry_yearber
         #[schema(value_type = String)]
         #[serde(rename = "card_expiry_year")]
-        tokenized_card_expiry_year: masking::Secret<String>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing card_expiry_month
         #[schema(value_type = String)]
         #[serde(rename = "card_expiry_month")]
-        tokenized_card_expiry_month: masking::Secret<String>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
 
         /// token representing card_cvc
         #[schema(value_type = Option<String>)]
@@ -773,17 +773,17 @@ pub enum AuthenticationVaultTokenData {
         /// token representing payment_token
         #[schema(value_type = String)]
         #[serde(rename = "payment_token")]
-        tokenized_payment_token: masking::Secret<String>,
+        tokenized_payment_token: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_year
         #[schema(value_type = String)]
         #[serde(rename = "token_expiry_year")]
-        tokenized_expiry_year: masking::Secret<String>,
+        tokenized_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_month
         #[schema(value_type = String)]
         #[serde(rename = "token_expiry_month")]
-        tokenized_expiry_month: masking::Secret<String>,
+        tokenized_expiry_month: Option<masking::Secret<String>>,
 
         /// token representing token_cryptogram
         #[schema(value_type = Option<String>)]

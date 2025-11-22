@@ -10066,19 +10066,27 @@ pub enum ExemptionIndicator {
 #[serde(rename_all = "snake_case")]
 pub enum VaultTokenType {
     /// Card number
+    #[strum(serialize = "card_number")]
     CardNumber,
     /// Card cvc
+    #[strum(serialize = "card_cvc")]
     CardCvc,
     /// Card expiry year
+    #[strum(serialize = "card_exp_year")]
     CardExpiryYear,
     /// Card expiry month
+    #[strum(serialize = "card_exp_month")]
     CardExpiryMonth,
     /// Network token
+    #[strum(serialize = "network_token")]
     NetworkToken,
     /// Token expiry year
+    #[strum(serialize = "network_token_exp_year")]
     NetworkTokenExpiryYear,
     /// Token expiry month
+    #[strum(serialize = "network_token_exp_month")]
     NetworkTokenExpiryMonth,
     /// Token cryptogram
+    #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
 }

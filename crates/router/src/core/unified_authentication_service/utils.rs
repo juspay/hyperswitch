@@ -399,10 +399,17 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
 
                 let vault_data = get_vault_details(authentication_details)?;
 
+                // decide which fields to tokenize in vault
+                let vault_custom_data =
+                    crate::core::payment_methods::get_payment_method_custom_data(
+                        vault_data.clone(),
+                        external_vault_details.vault_token_selector,
+                    )?;
+
                 let external_vault_response = Box::pin(
                     crate::core::payment_methods::vault_payment_method_external_v1(
                         state,
-                        &vault_data,
+                        &vault_custom_data,
                         platform.get_processor().get_account(),
                         merchant_connector_account_details,
                         Some(true),
@@ -410,11 +417,14 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 )
                 .await?;
 
-                Ok(Some(
-                    external_vault_response
-                        .vault_id
-                        .get_auth_vault_token_data()?,
-                ))
+                let auth_token_data = external_vault_response
+                    .vault_id
+                    .get_auth_vault_token_data()?;
+
+                Ok(Some(merge_vault_data_with_insensitive_raw_data(
+                    auth_token_data,
+                    vault_data,
+                )?))
             }
             business_profile::ExternalVaultDetails::Skip => {
                 Err(ApiErrorResponse::InternalServerError)
@@ -490,5 +500,55 @@ pub fn get_raw_authentication_token_data<F, Req>(
         authentication_details.into()
     } else {
         None
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn merge_vault_data_with_insensitive_raw_data(
+    auth_token_data: api_models::authentication::AuthenticationVaultTokenData,
+    raw_data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+) -> RouterResult<api_models::authentication::AuthenticationVaultTokenData> {
+    // if token_data is present, fill it first with token data ,if not then populate it with insensitive raw data
+    match (auth_token_data, raw_data) {
+        (
+            api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                tokenized_card_number,
+                tokenized_card_expiry_year,
+                tokenized_card_expiry_month,
+                tokenized_card_cvc,
+            },
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details),
+        ) => Ok(
+            api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                tokenized_card_number,
+                tokenized_card_expiry_year: tokenized_card_expiry_year
+                    .or(Some(card_details.card_exp_year)),
+                tokenized_card_expiry_month: tokenized_card_expiry_month
+                    .or(Some(card_details.card_exp_month)),
+                tokenized_card_cvc,
+            },
+        ),
+        (
+            api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                tokenized_payment_token,
+                tokenized_expiry_year,
+                tokenized_expiry_month,
+                tokenized_cryptogram,
+            },
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                network_token_details,
+            ),
+        ) => Ok(
+            api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                tokenized_payment_token,
+                tokenized_expiry_year: tokenized_expiry_year
+                    .or(Some(network_token_details.network_token_exp_year)),
+                tokenized_expiry_month: tokenized_expiry_month
+                    .or(Some(network_token_details.network_token_exp_month)),
+                tokenized_cryptogram,
+            },
+        ),
+        _ => Err(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unexpected behaviour, vault_type and payemnt_type doesn't match"),
     }
 }
