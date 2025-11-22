@@ -4597,7 +4597,7 @@ where
         .then_some(())
         .ok_or_else(|| {
             report!(errors::ApiErrorResponse::InvalidPlatformOperation)
-                .attach_printable("Access for merchant id Unauthorized")
+                .attach_printable("Connected merchant belongs to a different organization")
         })?;
 
     (connected_merchant_account.merchant_account_type == MerchantAccountType::Connected)
