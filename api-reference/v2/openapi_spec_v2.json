@@ -15797,11 +15797,6 @@
         "type": "object",
         "required": [
           "status",
-          "token_expiry_month",
-          "token_expiry_year",
-          "card_last_four",
-          "token_last_four",
-          "card_expiry",
           "payment_method_id",
           "customer_id"
         ],
@@ -15811,23 +15806,33 @@
           },
           "token_expiry_month": {
             "type": "string",
-            "description": "The expiry month of the network token if active"
+            "description": "The expiry month of the network token if active",
+            "nullable": true
           },
           "token_expiry_year": {
             "type": "string",
-            "description": "The expiry year of the network token if active"
+            "description": "The expiry year of the network token if active",
+            "nullable": true
           },
           "card_last_four": {
             "type": "string",
-            "description": "The last four digits of the card"
+            "description": "The last four digits of the card if active",
+            "nullable": true
           },
           "token_last_four": {
             "type": "string",
-            "description": "The last four digits of the network token"
+            "description": "The last four digits of the network token if active",
+            "nullable": true
           },
-          "card_expiry": {
+          "card_expiry_month": {
             "type": "string",
-            "description": "The expiry date of the card in MM/YY format"
+            "description": "The expiry month of the card if active",
+            "nullable": true
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the card if active",
+            "nullable": true
           },
           "payment_method_id": {
             "type": "string",
@@ -26805,8 +26810,10 @@
         "type": "string",
         "enum": [
           "ACTIVE",
+          "INACTIVE",
           "SUSPENDED",
-          "DEACTIVATED"
+          "EXPIRED",
+          "DELETED"
         ]
       },
       "TokenType": {

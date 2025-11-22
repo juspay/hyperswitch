@@ -525,8 +525,12 @@ impl From<PermissionScope> for ReconPermissionScope {
 pub enum TokenStatus {
     /// Indicates that the token is active and can be used for payments
     Active,
+    /// Indicates that the token is inactive and can't be used for payments
+    Inactive,
     /// Indicates that the token is suspended from network's end for some reason and can't be used for payments until it is re-activated
     Suspended,
-    /// Indicates that the token is deactivated and further can't be used for payments
-    Deactivated,
+    /// Indicates that the token is expired and can't be used for payments
+    Expired,
+    /// Indicates that the token is deleted and further can't be used for payments
+    Deleted,
 }
