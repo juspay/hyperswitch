@@ -198,6 +198,39 @@ impl AttemptStatus {
         }
     }
 
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
@@ -1789,6 +1822,10 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// The payment has been authorized for a partial amount and requires capture
     PartiallyAuthorizedAndRequiresCapture,
+    /// The payment has been captured partially and the remaining amount can be authorized/capturable.
+    /// The other amount is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
+    PartiallyCapturedAndProcessing,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
     /// The payment expired before it could be captured.
@@ -1813,7 +1850,8 @@ impl IntentStatus {
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
-            | Self::Conflicted => false,
+            | Self::Conflicted
+            | Self::PartiallyCapturedAndProcessing => false,
         }
     }
 
@@ -1834,7 +1872,8 @@ impl IntentStatus {
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            | Self::PartiallyAuthorizedAndRequiresCapture => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture
+            | Self::PartiallyCapturedAndProcessing => true,
         }
     }
 }
@@ -9939,6 +9978,7 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::RequiresCapture
             | IntentStatus::PartiallyCaptured
             | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
             | IntentStatus::RequiresCustomerAction

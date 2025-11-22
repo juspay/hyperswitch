@@ -314,6 +314,13 @@ impl PaymentIntent {
                 reference: descriptor.reference.clone(),
             })
     }
+
+    #[cfg(feature = "v2")]
+    pub fn is_partial_authorization_flow(&self) -> bool {
+        self.enable_partial_authorization
+            .map(|val| *val)
+            .unwrap_or(false)
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -394,7 +401,23 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
+    }
+
+    pub fn get_order_amount_for_recovery_data(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        // Validate that amount_captured doesn't exceed order_amount
+        let captured_amount = self.amount_captured.unwrap_or(MinorUnit::zero());
+        if captured_amount > self.order_amount {
+            return Err(error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::InvalidRequestData {
+                    message: "Amount captured cannot exceed the order amount".to_string()
+                }
+            ));
+        };
+        Ok(self.order_amount - captured_amount)
     }
 
     pub fn create_split_attempt_amount_details(
@@ -432,6 +455,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -468,6 +492,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -821,6 +846,12 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
+    pub fn get_recovery_order_amount(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        Ok(self.amount_details.get_order_amount_for_recovery_data()?)
+    }
+
     pub fn create_revenue_recovery_attempt_data(
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
@@ -851,8 +882,9 @@ impl PaymentIntent {
                 )
             })?;
 
+        let amount = self.amount_details.get_order_amount_for_recovery_data()?;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
-            amount: self.amount_details.order_amount,
+            amount,
             currency: self.amount_details.currency,
             merchant_reference_id,
             connector_transaction_id: None, // No connector id
@@ -921,6 +953,7 @@ impl PaymentIntent {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Conflicted => false,
         }
     }
@@ -1147,6 +1180,10 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let active_attempt_id = match self.revenue_recovery_data.triggered_by {
+            common_enums::TriggeredBy::Internal => Some(self.payment_attempt.id.clone()),
+            common_enums::TriggeredBy::External => None,
+        };
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()

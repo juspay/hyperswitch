@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::ToEncryptable,
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
@@ -77,7 +77,9 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
         match intent_status {
             // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::PartiallyCaptured => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
@@ -261,14 +263,29 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
             common_enums::TriggeredBy::External => None,
         };
+        let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
+        let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::GroupID);
+        let amount_captured = payment_data.payment_intent.amount_captured;
+        let status = if amount_captured > Some(MinorUnit::new(0))
+            && *payment_data
+                .payment_intent
+                .enable_partial_authorization
+                .unwrap_or(false.into())
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            common_enums::IntentStatus::from(payment_data.payment_attempt.status)
+        };
         let payment_intent_update =
 
     hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
         {
-            status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
+            status,
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
-            active_attempt_id
+            active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
         }
     ;
         payment_data.payment_intent = state

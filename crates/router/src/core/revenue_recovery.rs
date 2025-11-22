@@ -253,7 +253,7 @@ pub async fn perform_execute_payment(
         revenue_recovery_metadata
             .payment_connector_transmission
             .unwrap_or_default(),
-        payment_intent.active_attempt_id.clone(),
+        payment_intent.active_attempt_id.as_ref(),
         revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
     )
@@ -329,7 +329,6 @@ pub async fn perform_execute_payment(
                 }
             };
         }
-
         types::Decision::Psync(attempt_status, attempt_id) => {
             // find if a psync task is already present
             let task = PSYNC_WORKFLOW;
@@ -1169,9 +1168,12 @@ pub async fn resume_revenue_recovery_process_tracker(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
-            message: "Invalid Payment Status ".to_owned(),
-        })),
+        | enums::IntentStatus::Expired
+        | enums::IntentStatus::PartiallyCapturedAndProcessing => {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Invalid Payment Status ".to_owned(),
+            }))
+        }
     }
 }
 pub async fn get_payment_response_using_payment_get_operation(
