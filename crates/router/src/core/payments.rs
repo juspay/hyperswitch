@@ -4377,6 +4377,7 @@ where
     let is_ucs_granular_flow =
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
+    let is_ucs_granular_flow = true;
     if is_ucs_granular_flow && ucs_flow {
         logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5406,7 +5407,9 @@ where
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data = router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
 
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,

@@ -10,6 +10,7 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
+use hyperswitch_interfaces::api::gateway;
 use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -132,6 +133,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -145,13 +147,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             &self,
             types::AuthorizeSessionTokenData::foreign_from(&self),
         ));
-        let resp = services::execute_connector_processing_step(
+        let resp = gateway::execute_payment_gateway(
             state,
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            gateway_context.clone(),
         )
         .await
         .to_payment_failed_response()?;

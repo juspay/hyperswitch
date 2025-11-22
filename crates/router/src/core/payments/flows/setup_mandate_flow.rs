@@ -7,7 +7,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -176,6 +176,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -189,13 +190,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             &self,
             types::AuthorizeSessionTokenData::foreign_from(&self),
         ));
-        let resp = services::execute_connector_processing_step(
+        let resp = gateway::execute_payment_gateway(
             state,
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
             None,
             None,
+            gateway_context.clone(),
         )
         .await
         .to_payment_failed_response()?;
