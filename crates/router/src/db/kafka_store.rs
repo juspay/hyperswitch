@@ -1120,23 +1120,17 @@ impl MerchantAccountInterface for KafkaStore {
 impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        key: String,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
-        self.diesel_store
-            .get_access_token(merchant_id, merchant_connector_id)
-            .await
+        self.diesel_store.get_access_token(key).await
     }
 
     async fn set_access_token(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        key: String,
         access_token: AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        self.diesel_store
-            .set_access_token(merchant_id, merchant_connector_id, access_token)
-            .await
+        self.diesel_store.set_access_token(key, access_token).await
     }
 }
 
