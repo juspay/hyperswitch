@@ -361,7 +361,7 @@ function bankRedirectRedirection(
 
           case "stripe":
             if (
-              ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
+              ["eps", "ideal", "giropay", "sofort", "przelewy24", "bancontact_card"].includes(
                 paymentMethodType
               )
             ) {

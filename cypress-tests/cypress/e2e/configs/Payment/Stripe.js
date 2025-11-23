@@ -843,6 +843,18 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -984,6 +996,40 @@ export const connectorDetails = {
                 email: "guest@juspay.in",
               },
             },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Bancontact: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Brussels",
+            state: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+32",
           },
         },
       },
