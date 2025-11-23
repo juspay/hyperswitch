@@ -1828,12 +1828,6 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
             }));
         }
 
-        if item.object_id.is_some() && item.event_id.is_some() {
-            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Cannot specify both `object_id` and `event_id`. Please provide only one.".to_string()
-            }));
-        }
-
         match (item.object_id.clone(), item.event_id.clone()) {
             (Some(object_id), None) => Ok(Self::ObjectIdFilter {
                 object_id,
@@ -1853,9 +1847,9 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 is_delivered: item.is_delivered,
             }),
 
-            (Some(_), Some(_)) => {
-                unreachable!("Both object_id and event_id provided, should have been caught by validation")
-            }
+            (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot specify both `object_id` and `event_id`. Please provide only one.".to_string()
+            })),
         }
     }
 }
