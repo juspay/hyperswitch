@@ -133,6 +133,8 @@ pub struct PaymentIntent {
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<BillingDescriptor>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 impl PaymentIntent {
@@ -311,6 +313,7 @@ impl PaymentIntent {
                     .statement_descriptor_suffix
                     .clone()
                     .or_else(|| self.statement_descriptor_suffix.clone()),
+                reference: descriptor.reference.clone(),
             })
     }
 }
