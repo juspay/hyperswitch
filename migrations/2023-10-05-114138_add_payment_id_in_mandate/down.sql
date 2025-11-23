@@ -1,1 +1,0 @@
-ALTER TABLE mandate DROP COLUMN original_payment_id;

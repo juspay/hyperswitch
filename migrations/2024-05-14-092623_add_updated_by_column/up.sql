@@ -1,6 +1,0 @@
--- Your SQL goes here
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS updated_by VARCHAR(64);
-
-ALTER TABLE mandate ADD COLUMN IF NOT EXISTS updated_by VARCHAR(64);
-
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_by VARCHAR(64);

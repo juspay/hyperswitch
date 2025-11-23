@@ -1,1 +1,0 @@
-ALTER TABLE customers DROP COLUMN connector_customer;

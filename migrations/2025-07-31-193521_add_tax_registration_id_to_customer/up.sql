@@ -1,3 +1,0 @@
-ALTER TABLE customers
-ADD COLUMN
-IF NOT EXISTS tax_registration_id BYTEA DEFAULT NULL;

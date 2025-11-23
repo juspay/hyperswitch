@@ -1,5 +1,0 @@
-{
-  "payment_id": "{{payment_id}}",
-  "client_secret": "{{client_secret}}",
-  "wallets": []
-}

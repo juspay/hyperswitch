@@ -1,1 +1,0 @@
-ALTER TABLE dispute DROP COLUMN evidence;

@@ -1,1 +1,0 @@
-ALTER TABLE authentication DROP COLUMN IF EXISTS directory_server_id;
