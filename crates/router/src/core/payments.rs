@@ -576,7 +576,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -1284,7 +1284,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
