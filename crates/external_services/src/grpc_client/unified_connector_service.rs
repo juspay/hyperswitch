@@ -153,7 +153,7 @@ impl UnifiedConnectorServiceClient {
         }
     }
 
-    /// Performs Payment Granular Authorize
+    /// Performs Payment Method Token Create
     pub async fn payment_method_token_create(
         &self,
         pm_token_create_request: payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest,
