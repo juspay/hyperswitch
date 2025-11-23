@@ -314,13 +314,11 @@ pub async fn revenue_recovery_get_intent(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             payments::revenue_recovery_get_intent_core(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 auth.profile,
                 req,
                 global_payment_id.clone(),
@@ -1745,10 +1743,8 @@ pub async fn revenue_recovery_invoices_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payments::revenue_recovery_list_payments(state, merchant_context, req)
+            let platform = auth.into();
+            payments::revenue_recovery_list_payments(state, platform, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

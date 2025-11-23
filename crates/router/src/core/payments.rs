@@ -2646,7 +2646,7 @@ where
 pub async fn revenue_recovery_get_intent_core(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     request: api_models::payments::PaymentsGetIntentRequest,
     global_payment_id: id_type::GlobalPaymentId,
@@ -2668,7 +2668,7 @@ pub async fn revenue_recovery_get_intent_core(
     >(
         &state,
         req_state,
-        merchant_context.clone(),
+        platform.clone(),
         profile.clone(),
         operations::PaymentGetIntent,
         request.clone(),
@@ -2691,9 +2691,8 @@ pub async fn revenue_recovery_get_intent_core(
         state
             .store
             .find_merchant_connector_account_by_id(
-                &(&state).into(),
                 &billing_mca_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .ok()
@@ -8401,7 +8400,7 @@ pub async fn list_payments(
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn revenue_recovery_list_payments(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
@@ -8412,11 +8411,10 @@ pub async fn revenue_recovery_list_payments(
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
-                    &(&state).into(),
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &fetch_constraints,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -8438,15 +8436,12 @@ pub async fn revenue_recovery_list_payments(
             let billing_connector_futures: Vec<_> = billing_connector_ids
                 .into_iter()
                 .map(|billing_mca_id| {
-                    let state_clone = state.clone();
-                    let merchant_context_clone = merchant_context.clone();
-
+                    let platform_clone = platform.clone(); // Clone for each future
                     async move {
                         if let Some(billing_mca_id) = billing_mca_id {
                             db.find_merchant_connector_account_by_id(
-                                &(&state_clone).into(),
                                 &billing_mca_id,
-                                merchant_context_clone.get_merchant_key_store(),
+                                platform_clone.get_processor().get_key_store(),
                             )
                             .await
                             .ok()
@@ -8492,9 +8487,9 @@ pub async fn revenue_recovery_list_payments(
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &fetch_constraints,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -8511,7 +8506,7 @@ pub async fn revenue_recovery_list_payments(
                     .collect::<Vec<String>>();
 
                 db.get_total_count_of_filtered_payment_attempts(
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &active_attempt_ids,
                     constraints.connector,
                     constraints.payment_method_type,
@@ -8519,7 +8514,7 @@ pub async fn revenue_recovery_list_payments(
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
                     constraints.card_network,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -8537,7 +8532,7 @@ pub async fn revenue_recovery_list_payments(
         &metrics::PAYMENT_LIST_LATENCY,
         router_env::metric_attributes!((
             "merchant_id",
-            merchant_context.get_merchant_account().get_id().clone()
+            platform.get_processor().get_account().get_id().clone()
         )),
     )
     .await
