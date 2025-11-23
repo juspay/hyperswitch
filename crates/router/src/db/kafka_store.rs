@@ -737,8 +737,8 @@ impl EventInterface for KafkaStore {
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
@@ -794,8 +794,8 @@ impl EventInterface for KafkaStore {
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         profile_id: &id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store

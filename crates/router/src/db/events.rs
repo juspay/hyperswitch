@@ -46,8 +46,8 @@ where
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -74,8 +74,8 @@ where
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
@@ -187,8 +187,8 @@ impl EventInterface for Store {
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -302,8 +302,8 @@ impl EventInterface for Store {
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -521,21 +521,35 @@ impl EventInterface for MockDb {
     async fn list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
-        let events = locked_events
-            .iter()
-            .filter(|event| {
+
+        let events = if let Some(event_id) = initial_attempt_id {
+            if let Some(event) = locked_events.iter().find(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
                     && event.initial_attempt_id.as_deref() == Some(&event.event_id)
-                    && (event.primary_object_id == primary_object_id
-                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+                    && event.initial_attempt_id.as_deref() == Some(event_id)
+            }) {
+                vec![event.clone()]
+            } else {
+                vec![]
+            }
+        } else if let Some(obj_id) = primary_object_id {
+            locked_events
+                .iter()
+                .filter(|event| {
+                    event.merchant_id == Some(merchant_id.to_owned())
+                        && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                        && event.primary_object_id.as_str() == obj_id
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
 
         let mut domain_events = Vec::with_capacity(events.len());
 
@@ -659,21 +673,35 @@ impl EventInterface for MockDb {
     async fn list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
-        primary_object_id: &str,
-        initial_attempt_id: &str,
+        primary_object_id: Option<&str>,
+        initial_attempt_id: Option<&str>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
-        let events = locked_events
-            .iter()
-            .filter(|event| {
+
+        let events = if let Some(event_id) = initial_attempt_id {
+            if let Some(event) = locked_events.iter().find(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id.as_ref() == Some(&event.event_id)
-                    && (event.primary_object_id == primary_object_id
-                        || event.initial_attempt_id.as_deref() == Some(initial_attempt_id))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.event_id == event_id
+            }) {
+                vec![event.clone()]
+            } else {
+                vec![]
+            }
+        } else if let Some(obj_id) = primary_object_id {
+            locked_events
+                .iter()
+                .filter(|event| {
+                    event.business_profile_id == Some(profile_id.to_owned())
+                        && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                        && event.primary_object_id.as_str() == obj_id
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
 
         let mut domain_events = Vec::with_capacity(events.len());
 
@@ -1453,9 +1481,9 @@ mod tests {
             .store
             .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
                 &business_profile.merchant_id,
-                &primary_object_id.clone(),
-                &initial_attempt_id.clone(),
-                platform.get_processor().get_key_store(),
+                Some(primary_object_id.as_str()),
+                Some(initial_attempt_id.as_str()),
+                &merchant_key_store,
             )
             .await?;
 
