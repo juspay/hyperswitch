@@ -1,3 +1,0 @@
-ALTER TABLE mandate DROP CONSTRAINT mandate_pkey;
-
-ALTER TABLE mandate ADD PRIMARY KEY (id);

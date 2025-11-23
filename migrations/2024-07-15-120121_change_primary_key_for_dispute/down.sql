@@ -1,3 +1,0 @@
-ALTER TABLE dispute DROP CONSTRAINT dispute_pkey;
-
-ALTER TABLE dispute ADD PRIMARY KEY (id);

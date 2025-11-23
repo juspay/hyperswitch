@@ -1,3 +1,21 @@
+# HyperSwitch          ← Title at the very top
+
+## Description         ← Right after title
+HyperSwitch is a tool that [briefly describe what your project does].
+
+## Installation        ← After description
+1. Clone the repository:
+   git clone https://github.com/Komali0706/hyperswitch.git
+2. Install dependencies (if any):
+   npm install      # or pip install -r requirements.txt
+3. Start the application:
+   python main.py   # or your start command
+
+## How to Run          ← After installation
+Example usage:
+python main.py --help
+python main.py --start
+
 <p align="center">
   <img src="./docs/imgs/hyperswitch-logo-dark.svg#gh-dark-mode-only" alt="Hyperswitch-Logo" width="40%" />
   <img src="./docs/imgs/hyperswitch-logo-light.svg#gh-light-mode-only" alt="Hyperswitch-Logo" width="40%" />
