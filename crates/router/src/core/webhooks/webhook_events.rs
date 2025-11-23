@@ -42,9 +42,7 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter {
-            object_id,
-        } => {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
             let events =
                 match account {
                     MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
@@ -74,9 +72,7 @@ pub async fn list_initial_delivery_attempts(
                 .attach_printable("Error while converting from usize to i64")?;
             (events, total_count)
         }
-        api_models::webhook_events::EventListConstraintsInternal::EventIdFilter {
-            event_id,
-        } => {
+        api_models::webhook_events::EventListConstraintsInternal::EventIdFilter { event_id } => {
             let events =
                 match account {
                     MerchantAccountOrProfile::MerchantAccount(merchant_account) => store

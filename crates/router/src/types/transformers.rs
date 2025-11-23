@@ -1829,13 +1829,9 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
-                object_id,
-            }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
 
-            (None, Some(event_id)) => Ok(Self::EventIdFilter {
-                event_id,
-            }),
+            (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
             (None, None) => Ok(Self::GenericFilter {
                 created_after: item.created_after,
@@ -1848,7 +1844,8 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
             }),
 
             (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Cannot specify both `object_id` and `event_id`. Please provide only one.".to_string()
+                message: "Cannot specify both `object_id` and `event_id`. Please provide only one."
+                    .to_string()
             })),
         }
     }

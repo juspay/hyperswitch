@@ -70,10 +70,9 @@ impl Event {
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                 .and(dsl::initial_attempt_id.eq(event_id.to_owned()));
 
-            let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-                conn, predicate,
-            )
-            .await;
+            let result =
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate)
+                    .await;
 
             match result {
                 Ok(event) => Ok(vec![event]),
@@ -196,10 +195,9 @@ impl Event {
                 .and(dsl::business_profile_id.eq(profile_id.to_owned()))
                 .and(dsl::initial_attempt_id.eq(event_id.to_owned()));
 
-            let result = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-                conn, predicate,
-            )
-            .await;
+            let result =
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate)
+                    .await;
 
             match result {
                 Ok(event) => Ok(vec![event]),
