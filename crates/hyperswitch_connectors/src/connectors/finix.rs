@@ -1084,7 +1084,7 @@ static FINIX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Finix",
     description: "Finix is a payments technology provider enabling businesses to accept and send payments online or in person",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: ConnectorIntegrationStatus::Alpha,
+    integration_status: ConnectorIntegrationStatus::Sandbox,
 };
 
 static FINIX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

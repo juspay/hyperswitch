@@ -767,7 +767,7 @@ static AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Amazon Pay",
     description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

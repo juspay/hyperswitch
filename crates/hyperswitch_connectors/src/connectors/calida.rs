@@ -744,7 +744,7 @@ static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Calida",
     description: "Calida Financial is a licensed e-money institution based in Malta and they provide customized financial infrastructure and payment solutions across the EU and EEA. As part of The Payments Group, it focuses on embedded finance, prepaid services, and next-generation digital payment products.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
