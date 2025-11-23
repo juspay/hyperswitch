@@ -490,6 +490,7 @@ pub(crate) async fn fetch_raw_secrets(
     Settings {
         server: conf.server,
         chat,
+        hypersense: conf.hypersense,
         master_database,
         redis: conf.redis,
         log: conf.log,

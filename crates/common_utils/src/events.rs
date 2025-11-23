@@ -106,6 +106,7 @@ pub enum ApiEventsType {
     FraudCheck,
     Recon,
     ExternalServiceAuth,
+    ExternalServiceHypersense,
     Dispute {
         dispute_id: String,
     },
