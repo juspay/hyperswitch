@@ -1389,6 +1389,11 @@ pub struct PaymentsRequest {
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
+
+    /// Information identifying partner and merchant details
+    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7138,6 +7143,11 @@ pub struct PaymentsResponse {
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
+
+    /// Information identifying partner and merchant details
+    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[cfg(feature = "v2")]
