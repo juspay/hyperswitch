@@ -182,6 +182,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Create Connector Customer Granular
+    pub async fn create_connector_customer(
+        &self,
+        create_customer_request: payments_grpc::PaymentServiceCreateConnectorCustomerRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceCreateConnectorCustomerResponse>,
+    > {
+        let mut request = tonic::Request::new(create_customer_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .create_connector_customer(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentConnectorCustomerCreateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="create_connector_customer_granular",
+                    connector_name=?connector_name,
+                    "UCS create connector customer granular gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Create Order
     pub async fn payment_create_order(
         &self,
