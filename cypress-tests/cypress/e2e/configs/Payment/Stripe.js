@@ -843,7 +843,7 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: (paymentMethodType) =>
+    PaymentIntent: (_paymentMethodType) =>
       getCustomExchange({
         Request: {
           currency: "EUR",
