@@ -965,6 +965,9 @@ export const connectorDetails = {
       },
     },
     Blik: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -977,10 +980,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "payment_intent_invalid_parameter",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
