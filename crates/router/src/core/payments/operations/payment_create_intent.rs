@@ -148,7 +148,6 @@ impl<F: Send + Clone + Sync>
 
         let payment_intent = db
             .insert_payment_intent(
-                key_manager_state,
                 payment_intent_domain,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -253,7 +252,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::Pa
         if let Some(id) = payment_data.payment_intent.customer_id.clone() {
             state
                 .store
-                .find_customer_by_global_id(&state.into(), &id, merchant_key_store, storage_scheme)
+                .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                 .await?;
         }
         Ok((Box::new(self), None))

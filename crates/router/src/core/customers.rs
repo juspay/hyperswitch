@@ -57,7 +57,6 @@ pub async fn create_customer(
         merchant_id,
         merchant_account: platform.get_processor().get_account(),
         key_store: platform.get_processor().get_key_store(),
-        key_manager_state,
     };
 
     // We first need to validate whether the customer with the given customer id already exists
@@ -84,7 +83,6 @@ pub async fn create_customer(
     let customer = db
         .insert_customer(
             domain_customer,
-            key_manager_state,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -145,7 +143,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             customer_id: merchant_reference_id.as_ref(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,
             key_store: platform.get_processor().get_key_store(),
-            key_manager_state,
             state,
         };
 
@@ -368,7 +365,6 @@ struct AddressStructForDbEntry<'a> {
     customer_id: Option<&'a id_type::CustomerId>,
     storage_scheme: common_enums::MerchantStorageScheme,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
     state: &'a SessionState,
 }
 
@@ -400,7 +396,7 @@ impl AddressStructForDbEntry<'_> {
 
         encrypted_customer_address
             .async_map(|encrypt_add| async {
-                db.insert_address_for_customers(self.key_manager_state, encrypt_add, self.key_store)
+                db.insert_address_for_customers(encrypt_add, self.key_store)
                     .await
                     .switch()
                     .attach_printable("Failed while inserting new address")
@@ -415,7 +411,6 @@ struct MerchantReferenceIdForCustomer<'a> {
     merchant_id: &'a id_type::MerchantId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
 }
 
 #[cfg(feature = "v1")]
@@ -440,7 +435,6 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
         match db
             .find_customer_by_customer_id_merchant_id(
-                self.key_manager_state,
                 cus,
                 self.merchant_id,
                 self.key_store,
@@ -487,7 +481,6 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
         match db
             .find_customer_by_merchant_reference_id_merchant_id(
-                self.key_manager_state,
                 merchant_ref,
                 self.merchant_id,
                 self.key_store,
@@ -518,11 +511,9 @@ pub async fn retrieve_customer(
     customer_id: id_type::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let response = db
         .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-            key_manager_state,
             &customer_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -534,13 +525,9 @@ pub async fn retrieve_customer(
 
     let address = match &response.address_id {
         Some(address_id) => Some(api_models::payments::AddressDetails::from(
-            db.find_address_by_address_id(
-                key_manager_state,
-                address_id,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .switch()?,
+            db.find_address_by_address_id(address_id, platform.get_processor().get_key_store())
+                .await
+                .switch()?,
         )),
         None => None,
     };
@@ -557,11 +544,9 @@ pub async fn retrieve_customer(
     id: id_type::GlobalCustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let response = db
         .find_customer_by_global_id(
-            key_manager_state,
             &id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
@@ -594,12 +579,7 @@ pub async fn list_customers(
     };
 
     let domain_customers = db
-        .list_customers_by_merchant_id(
-            &(&state).into(),
-            &merchant_id,
-            &key_store,
-            customer_list_constraints,
-        )
+        .list_customers_by_merchant_id(&merchant_id, &key_store, customer_list_constraints)
         .await
         .switch()?;
 
@@ -638,7 +618,6 @@ pub async fn list_customers_with_count(
 
     let domain_customers = db
         .list_customers_by_merchant_id_with_count(
-            &(&state).into(),
             &merchant_id,
             &key_store,
             customer_list_constraints,
@@ -693,7 +672,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let customer_orig = db
             .find_customer_by_global_id(
-                key_manager_state,
                 self,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
@@ -713,7 +691,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
 
         match db
             .find_payment_method_list_by_global_customer_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 self,
                 None,
@@ -802,7 +779,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             }));
 
         db.update_customer_by_global_id(
-            key_manager_state,
             self,
             customer_orig,
             updated_customer,
@@ -861,7 +837,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let customer_orig = db
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 self,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -886,7 +861,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 self,
                 platform.get_processor().get_account().get_id(),
@@ -924,7 +898,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                     }
 
                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                        key_manager_state,
                         platform.get_processor().get_key_store(),
                         platform.get_processor().get_account().get_id(),
                         &pm.payment_method_id,
@@ -999,7 +972,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
         match db
             .update_address_by_merchant_id_customer_id(
-                key_manager_state,
                 self,
                 platform.get_processor().get_account().get_id(),
                 update_address,
@@ -1044,7 +1016,6 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         };
 
         db.update_customer_by_customer_id_merchant_id(
-            key_manager_state,
             self.clone(),
             platform.get_processor().get_account().get_id().to_owned(),
             customer_orig,
@@ -1081,7 +1052,6 @@ pub async fn update_customer(
         merchant_reference_id: &update_customer.customer_id,
         merchant_account: platform.get_processor().get_account(),
         key_store: platform.get_processor().get_key_store(),
-        key_manager_state,
     };
 
     #[cfg(feature = "v2")]
@@ -1136,7 +1106,6 @@ struct AddressStructForDbUpdate<'a> {
     update_customer: &'a customers::CustomerUpdateRequest,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
     state: &'a SessionState,
     domain_customer: &'a domain::Customer,
 }
@@ -1164,15 +1133,10 @@ impl AddressStructForDbUpdate<'_> {
                         .switch()
                         .attach_printable("Failed while encrypting Address while Update")?;
                     Some(
-                        db.update_address(
-                            self.key_manager_state,
-                            address_id,
-                            update_address,
-                            self.key_store,
-                        )
-                        .await
-                        .switch()
-                        .attach_printable(format!(
+                        db.update_address(address_id, update_address, self.key_store)
+                            .await
+                            .switch()
+                            .attach_printable(format!(
                             "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
                             self.merchant_account.get_id(),
                             self.domain_customer.customer_id
@@ -1196,27 +1160,19 @@ impl AddressStructForDbUpdate<'_> {
                         .switch()
                         .attach_printable("Failed while encrypting address")?;
                     Some(
-                        db.insert_address_for_customers(
-                            self.key_manager_state,
-                            address,
-                            self.key_store,
-                        )
-                        .await
-                        .switch()
-                        .attach_printable("Failed while inserting new address")?,
+                        db.insert_address_for_customers(address, self.key_store)
+                            .await
+                            .switch()
+                            .attach_printable("Failed while inserting new address")?,
                     )
                 }
             }
         } else {
             match &self.domain_customer.address_id {
                 Some(address_id) => Some(
-                    db.find_address_by_address_id(
-                        self.key_manager_state,
-                        address_id,
-                        self.key_store,
-                    )
-                    .await
-                    .switch()?,
+                    db.find_address_by_address_id(address_id, self.key_store)
+                        .await
+                        .switch()?,
                 ),
                 None => None,
             }
@@ -1231,7 +1187,6 @@ struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: &'a id_type::CustomerId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
-    key_manager_state: &'a KeyManagerState,
 }
 
 #[cfg(feature = "v2")]
@@ -1251,7 +1206,6 @@ impl VerifyIdForUpdateCustomer<'_> {
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                self.key_manager_state,
                 self.merchant_reference_id,
                 self.merchant_account.get_id(),
                 self.key_store,
@@ -1272,7 +1226,6 @@ impl VerifyIdForUpdateCustomer<'_> {
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
         let customer = db
             .find_customer_by_global_id(
-                self.key_manager_state,
                 self.id,
                 self.key_store,
                 self.merchant_account.storage_scheme,
@@ -1302,7 +1255,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             update_customer: self,
             merchant_account: platform.get_processor().get_account(),
             key_store: platform.get_processor().get_key_store(),
-            key_manager_state,
             state,
             domain_customer,
         };
@@ -1347,7 +1299,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 domain_customer.customer_id.to_owned(),
                 platform.get_processor().get_account().get_id().to_owned(),
                 domain_customer.to_owned(),
@@ -1468,7 +1419,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_global_id(
-                key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {

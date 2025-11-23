@@ -69,7 +69,6 @@ pub async fn update_payment_method_record(
 
     let payment_method = db
         .find_payment_method(
-            &state.into(),
             platform.get_processor().get_key_store(),
             &payment_method_id,
             platform.get_processor().get_account().storage_scheme,
@@ -130,7 +129,6 @@ pub async fn update_payment_method_record(
         for merchant_connector_id in parsed_mca_ids {
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    &state.into(),
                     platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
                     platform.get_processor().get_key_store(),
@@ -149,29 +147,13 @@ pub async fn update_payment_method_record(
         None
     };
 
-    let (customer, updated_customer) = match (&req.connector_customer_id, &mca_data_cache) {
-        (Some(connector_customer_id), Some(cache)) => {
-            let customer = db
-                .find_customer_by_customer_id_merchant_id(
-                    &state.into(),
-                    &payment_method.customer_id,
-                    merchant_id,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
-            let customer_update =
-                build_connector_customer_update(&customer, connector_customer_id, cache)?;
-
-            (Some(customer), Some(customer_update))
-        }
-        _ => (None, None),
-    };
-
-    let pm_update = match (&req.payment_instrument_id, &mca_data_cache) {
-        (Some(payment_instrument_id), Some(cache)) => {
+    let pm_update = match (
+        &req.payment_instrument_id,
+        &req.connector_customer_id,
+        &mca_data_cache,
+    ) {
+        // Case: payment_instrument_id (with or without connector_customer_id)
+        (Some(payment_instrument_id), _, Some(cache)) => {
             let mandate_details = payment_method
                 .get_common_mandate_reference()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -191,6 +173,7 @@ pub async fn update_payment_method_record(
                     enums::ConnectorType::PayoutProcessor => {
                         let new_payout_record = PayoutsMandateReferenceRecord {
                             transfer_method_id: Some(payment_instrument_id.peek().to_string()),
+                            connector_customer_id: req.connector_customer_id.clone(),
                         };
 
                         if let Some(existing_record) =
@@ -200,6 +183,11 @@ pub async fn update_payment_method_record(
                             {
                                 existing_record.transfer_method_id =
                                     Some(transfer_method_id.clone());
+                            }
+                            // Update connector_customer_id if provided
+                            if req.connector_customer_id.is_some() {
+                                existing_record.connector_customer_id =
+                                    req.connector_customer_id.clone();
                             }
                         } else {
                             existing_payouts_mandate
@@ -213,6 +201,11 @@ pub async fn update_payment_method_record(
                         {
                             existing_record.connector_mandate_id =
                                 payment_instrument_id.peek().to_string();
+                            // Update connector_customer_id if provided
+                            if req.connector_customer_id.is_some() {
+                                existing_record.connector_customer_id =
+                                    req.connector_customer_id.clone();
+                            }
                         } else {
                             existing_payments_mandate.0.insert(
                                 merchant_connector_id.clone(),
@@ -224,8 +217,95 @@ pub async fn update_payment_method_record(
                                     mandate_metadata: None,
                                     connector_mandate_status: None,
                                     connector_mandate_request_reference_id: None,
+                                    connector_customer_id: req.connector_customer_id.clone(),
                                 },
                             );
+                        }
+                    }
+                }
+            }
+
+            let updated_connector_mandate_details = CommonMandateReference {
+                payments: if !existing_payments_mandate.0.is_empty() {
+                    Some(existing_payments_mandate)
+                } else {
+                    mandate_details.payments
+                },
+                payouts: if !existing_payouts_mandate.0.is_empty() {
+                    Some(existing_payouts_mandate)
+                } else {
+                    mandate_details.payouts
+                },
+            };
+
+            let connector_mandate_details_value = updated_connector_mandate_details
+                .get_mandate_details_value()
+                .map_err(|err| {
+                    logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                    errors::ApiErrorResponse::MandateUpdateFailed
+                })?;
+
+            PaymentMethodUpdate::PaymentMethodBatchUpdate {
+                connector_mandate_details: Some(pii::SecretSerdeValue::new(
+                    connector_mandate_details_value,
+                )),
+                network_transaction_id,
+                status,
+                payment_method_data: updated_payment_method_data.clone(),
+                last_modified_by: None,
+            }
+        }
+        // Case: Only connector_customer_id provided
+        (None, Some(connector_customer_id), Some(cache)) => {
+            let mandate_details = payment_method
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+
+            // Error if no mandate details exist
+            if mandate_details.payments.is_none() && mandate_details.payouts.is_none() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "connector_mandate_details does not exist".to_string(),
+                }
+                .into());
+            }
+
+            let mut existing_payments_mandate = mandate_details
+                .payments
+                .clone()
+                .unwrap_or(PaymentsMandateReference(HashMap::new()));
+            let mut existing_payouts_mandate = mandate_details
+                .payouts
+                .clone()
+                .unwrap_or(PayoutsMandateReference(HashMap::new()));
+
+            // For each merchant_connector_id, check appropriate reference based on connector_type
+            for (merchant_connector_id, mca) in cache.iter() {
+                match mca.connector_type {
+                    enums::ConnectorType::PayoutProcessor => {
+                        // Check if exists in payouts mandate
+                        if let Some(existing_record) =
+                            existing_payouts_mandate.0.get_mut(merchant_connector_id)
+                        {
+                            existing_record.connector_customer_id =
+                                Some(connector_customer_id.clone());
+                        } else {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("merchant_connector_id {} does not exist in payouts connector_mandate_details", merchant_connector_id.get_string_repr()),
+                            }.into());
+                        }
+                    }
+                    _ => {
+                        // Check if exists in payments mandate
+                        if let Some(existing_record) =
+                            existing_payments_mandate.0.get_mut(merchant_connector_id)
+                        {
+                            existing_record.connector_customer_id =
+                                Some(connector_customer_id.clone());
+                        } else {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("merchant_connector_id {} does not exist in payments connector_mandate_details", merchant_connector_id.get_string_repr()),
+                            }.into());
                         }
                     }
                 }
@@ -279,7 +359,6 @@ pub async fn update_payment_method_record(
 
     let response = db
         .update_payment_method(
-            &state.into(),
             platform.get_processor().get_key_store(),
             payment_method,
             pm_update,
@@ -291,27 +370,6 @@ pub async fn update_payment_method_record(
             "Failed to update payment method for existing pm_id: {payment_method_id:?} in db",
         ))?;
 
-    let connector_customer_response =
-        if let (Some(customer_data), Some(customer_update)) = (customer, updated_customer) {
-            let updated_customer = db
-                .update_customer_by_customer_id_merchant_id(
-                    &state.into(),
-                    response.customer_id.clone(),
-                    merchant_id.clone(),
-                    customer_data,
-                    customer_update,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer connector data")?;
-
-            updated_customer.connector_customer
-        } else {
-            None
-        };
-
     Ok(ApplicationResponse::Json(
         pm_api::PaymentMethodRecordUpdateResponse {
             payment_method_id: response.payment_method_id,
@@ -321,7 +379,6 @@ pub async fn update_payment_method_record(
                 .connector_mandate_details
                 .map(pii::SecretSerdeValue::new),
             updated_payment_method_data: Some(updated_card_expiry),
-            connector_customer: connector_customer_response,
         },
     ))
 }
@@ -359,53 +416,4 @@ impl PaymentMethodsUpdateForm {
         })?;
         Ok((self.merchant_id.clone(), records))
     }
-}
-
-#[cfg(feature = "v1")]
-fn build_connector_customer_update(
-    customer: &hyperswitch_domain_models::customer::Customer,
-    connector_customer_id: &str,
-    mca_cache: &std::collections::HashMap<
-        id_type::MerchantConnectorAccountId,
-        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-    >,
-) -> CustomResult<hyperswitch_domain_models::customer::CustomerUpdate, errors::ApiErrorResponse> {
-    use common_enums::enums;
-    use common_utils::pii;
-
-    let mut updated_connector_customer_data: std::collections::HashMap<String, serde_json::Value> =
-        customer
-            .connector_customer
-            .as_ref()
-            .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
-            .unwrap_or_default();
-
-    for (_, mca) in mca_cache.iter() {
-        let key = match mca.connector_type {
-            enums::ConnectorType::PayoutProcessor => {
-                format!(
-                    "{}_{}",
-                    mca.profile_id.get_string_repr(),
-                    mca.connector_name
-                )
-            }
-            _ => mca.merchant_connector_id.get_string_repr().to_string(),
-        };
-
-        updated_connector_customer_data.insert(
-            key,
-            serde_json::Value::String(connector_customer_id.to_string()),
-        );
-    }
-
-    Ok(
-        hyperswitch_domain_models::customer::CustomerUpdate::ConnectorCustomer {
-            connector_customer: Some(pii::SecretSerdeValue::new(
-                serde_json::to_value(updated_connector_customer_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize connector customer data")?,
-            )),
-            last_modified_by: None,
-        },
-    )
 }
