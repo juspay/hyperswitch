@@ -2,6 +2,7 @@ pub mod access_token_gateway;
 pub mod authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
+pub mod create_order_gateway;
 pub mod psync_gateway;
 pub mod session_token_gateway;
 use std::sync;
