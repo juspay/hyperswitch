@@ -271,13 +271,19 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+#[derive(Debug, Clone)]
+pub struct RetryDecision{
+    pub retry_time: time::PrimitiveDateTime,
+    pub decision_threshold: Option<f64>,
+}
+
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_for_smart_retry(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     retry_after_time: Option<prost_types::Timestamp>,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+) -> Result<Option<RetryDecision>, errors::ProcessTrackerError> {
     let card_config = &state.conf.revenue_recovery.card_config;
 
     // Not populating it right now
@@ -416,7 +422,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
                 .and(grpc_response.retry_time)
                 .and_then(|prost_ts| {
                     match date_time::convert_from_prost_timestamp(&prost_ts) {
-                        Ok(pdt) => Some(pdt),
+                        Ok(pdt) => {
+                            let response = RetryDecision{
+                                retry_time: pdt,
+                                decision_threshold: grpc_response.decision_threshold,
+                            };
+                            Some(response)
+                        }
                         Err(e) => {
                             logger::error!(
                                 "Failed to convert retry_time from prost::Timestamp: {e:?}"
@@ -573,7 +585,7 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
 #[derive(Debug, Clone)]
 pub struct ScheduledToken {
     pub token_details: PaymentProcessorTokenDetails,
-    pub schedule_time: time::PrimitiveDateTime,
+    pub retry_decision: RetryDecision,
 }
 
 #[cfg(feature = "v2")]
@@ -864,7 +876,7 @@ pub async fn calculate_smart_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
-) -> Result<(Option<time::PrimitiveDateTime>, bool), errors::ProcessTrackerError> {
+) -> Result<(Option<RetryDecision>, bool), errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
     let current_time = time::OffsetDateTime::now_utc();
     let future_time = current_time + time::Duration::hours(wait_hours);
@@ -908,16 +920,19 @@ pub async fn calculate_smart_retry_time(
             scheduled_time
         );
         return Ok((
-            Some(time::PrimitiveDateTime::new(
-                scheduled_time.date(),
-                scheduled_time.time(),
-            )),
-            true,
-        )); // force_scheduled = true
+            Some(RetryDecision {
+                retry_time: time::PrimitiveDateTime::new(
+                    scheduled_time.date(),
+                    scheduled_time.time(),
+                ),
+                decision_threshold: None,
+            }),
+            true, // force_scheduled
+        ));
     }
 
     // Normal smart retry path
-    let schedule_time = get_schedule_time_for_smart_retry(
+    let retry_decision = get_schedule_time_for_smart_retry(
         state,
         payment_intent,
         future_timestamp,
@@ -925,7 +940,7 @@ pub async fn calculate_smart_retry_time(
     )
     .await?;
 
-    Ok((schedule_time, false)) // force_scheduled = false
+    Ok((retry_decision, false)) // force_scheduled = false
 }
 
 #[cfg(feature = "v2")]
@@ -951,13 +966,13 @@ async fn process_token_for_retry(
             })
         }
         false => {
-            let (schedule_time, force_scheduled) =
+            let (retry_decision, force_scheduled) =
                 calculate_smart_retry_time(state, payment_intent, token_with_retry_info).await?;
 
             Ok(TokenProcessResult {
-                scheduled_token: schedule_time.map(|schedule_time| ScheduledToken {
+                scheduled_token: retry_decision.map(|retry_decision| ScheduledToken {
                     token_details: token_status.payment_processor_token_details.clone(),
-                    schedule_time,
+                    retry_decision,
                 }),
                 force_scheduled,
             })
@@ -993,7 +1008,11 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
 
             tokens_with_schedule_time = vec![ScheduledToken {
                 token_details: token_details.clone(),
-                schedule_time,
+                retry_decision: RetryDecision {
+                    retry_time: schedule_time,
+                    decision_threshold: None,
+                },
+                
             }];
 
             tracing::debug!(
@@ -1028,7 +1047,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
 
     let best_token = tokens_with_schedule_time
         .iter()
-        .min_by_key(|token| token.schedule_time)
+        .min_by_key(|token| token.retry_decision.retry_time)
         .cloned();
 
     let mut payment_processor_token_response;
@@ -1073,13 +1092,14 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 state,
                 connector_customer_id,
                 &token.token_details.payment_processor_token,
-                Some(token.schedule_time),
+                Some(token.retry_decision.retry_time),
+                token.retry_decision.decision_threshold,
             )
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
-                scheduled_time: token.schedule_time,
+                scheduled_time: token.retry_decision.retry_time,
             };
         }
     }

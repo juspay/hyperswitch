@@ -808,6 +808,7 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         payment_processor_token: &str,
         schedule_time: Option<PrimitiveDateTime>,
+        decision_threshold: Option<f64>,
     ) -> CustomResult<bool, errors::StorageError> {
         let updated_token =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
@@ -832,7 +833,7 @@ impl RedisTokenManager {
                     )),
                     is_active: status.is_active,
                     account_update_history: status.account_update_history.clone(),
-                    decision_threshold: status.decision_threshold,
+                    decision_threshold: decision_threshold.or(status.decision_threshold),
                 });
 
         match updated_token {
@@ -984,6 +985,7 @@ impl RedisTokenManager {
                         state,
                         connector_customer_id,
                         &t.payment_processor_token_details.payment_processor_token,
+                        None,
                         None,
                     )
                     .await?;
