@@ -213,6 +213,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Create Order
+    pub async fn payment_create_order(
+        &self,
+        payment_create_order_request: payments_grpc::PaymentServiceCreateOrderRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceCreateOrderResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_create_order_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .create_order(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCreateOrderFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="create_order",
+                    connector_name=?connector_name,
+                    "UCS create_order gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Pre Authenticate
     pub async fn payment_pre_authenticate(
         &self,
