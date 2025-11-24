@@ -91,11 +91,12 @@ pub async fn get_access_token_from_ucs_response(
         .or(creds_identifier.map(|id| id.to_string()))
         .unwrap_or(connector_name.to_string());
 
-    if let Ok(Some(cached_token)) = session_state
-        .store
-        .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
-        .await
-    {
+    let key = common_utils::access_token::get_default_access_token_key(
+        merchant_id,
+        merchant_connector_id_or_connector_name,
+    );
+
+    if let Ok(Some(cached_token)) = session_state.store.get_access_token(key).await {
         if cached_token.token.peek() == ucs_access_token.token.peek() {
             return None;
         }
@@ -119,6 +120,11 @@ pub async fn set_access_token_for_ucs(
         .or(creds_identifier.map(|id| id.to_string()))
         .unwrap_or(connector_name.to_string());
 
+    let key = common_utils::access_token::get_default_access_token_key(
+        merchant_id,
+        &merchant_connector_id_or_connector_name,
+    );
+
     let modified_access_token = AccessToken {
         expires: access_token
             .expires
@@ -135,11 +141,7 @@ pub async fn set_access_token_for_ucs(
 
     if let Err(access_token_set_error) = state
         .store
-        .set_access_token(
-            merchant_id,
-            &merchant_connector_id_or_connector_name,
-            modified_access_token,
-        )
+        .set_access_token(key, modified_access_token)
         .await
     {
         // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
@@ -943,7 +945,6 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 nick_name: external_vault_card.nick_name.map(|n| n.expose()),
                 card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
             };
-
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::CardProxy(card_details)),
             })
@@ -1156,6 +1157,29 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     })
 }
 
+pub fn handle_unified_connector_service_response_for_create_connector_customer(
+    response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let connector_customer_result =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((connector_customer_result, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_create_order(
+    response: payments_grpc::PaymentServiceCreateOrderResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     response: payments_grpc::PaymentServicePostAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {
@@ -1314,6 +1338,17 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
+}
+
+/// Handles the unified connector service response for create access token
+pub fn handle_unified_connector_service_response_for_create_access_token(
+    response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+) -> CustomResult<(Result<AccessToken, ErrorResponse>, u16), UnifiedConnectorServiceError> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let access_token_result = Result::<AccessToken, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((access_token_result, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(

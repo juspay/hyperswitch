@@ -1975,6 +1975,7 @@ impl behaviour::Conversion for PaymentIntent {
             mit_category: None,
             billing_descriptor: None,
             tokenization: None,
+            partner_merchant_identifier_details: None,
         })
     }
     async fn convert_back(
@@ -2319,6 +2320,7 @@ impl behaviour::Conversion for PaymentIntent {
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 
@@ -2431,6 +2433,8 @@ impl behaviour::Conversion for PaymentIntent {
                 mit_category: storage_model.mit_category,
                 billing_descriptor: storage_model.billing_descriptor,
                 tokenization: storage_model.tokenization,
+                partner_merchant_identifier_details: storage_model
+                    .partner_merchant_identifier_details,
             })
         }
         .await
@@ -2515,6 +2519,7 @@ impl behaviour::Conversion for PaymentIntent {
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 }

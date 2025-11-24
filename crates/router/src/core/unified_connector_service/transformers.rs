@@ -27,7 +27,7 @@ pub use hyperswitch_interfaces::{
         WebhookTransformationStatus,
     },
 };
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -47,7 +47,7 @@ use crate::{
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
         Self {
-            token: masking::Secret::new(grpc_token.token.clone()),
+            token: Secret::new(grpc_token.token.clone()),
             expires: grpc_token.expires_in_seconds.unwrap_or_default(),
         }
     }
@@ -237,6 +237,89 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            api::CreateOrder,
+            router_request_types::CreateOrderRequestData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceCreateOrderRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        router_data: &RouterData<
+            api::CreateOrder,
+            router_request_types::CreateOrderRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.minor_amount.get_amount_as_i64(),
+            currency: currency.into(),
+
+            metadata: HashMap::new(),
+            webhook_url: None,
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+            router_request_types::ConnectorCustomerData,
+            PaymentsResponseData,
+        >,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceCreateConnectorCustomerRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, _call_connector_action): (
+            &RouterData<
+                hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+                router_request_types::ConnectorCustomerData,
+                PaymentsResponseData,
+            >,
+            common_enums::CallConnectorAction,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let request_ref_id = router_data.connector_request_reference_id.clone();
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
+            }),
+            merchant_account_metadata: HashMap::new(),
+            customer_name: router_data.request.description.clone(),
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            customer_id: router_data
+                .customer_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string()),
+            phone_number: router_data
+                .request
+                .phone
+                .as_ref()
+                .map(|phone| phone.peek().to_string()),
+            address: None,
+            metadata: HashMap::new(),
         })
     }
 }
@@ -1692,6 +1775,47 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCustomerResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            router_env::logger::error!(
+                error_message = ?response.error_message,
+                error_code = ?response.error_code,
+                status_code,
+                "UCS create connector customer failed"
+            );
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            use hyperswitch_domain_models::router_response_types::ConnectorCustomerResponseData;
+            Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(response.connector_customer_id),
+            ))
+        };
+
+        Ok(response)
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -1888,6 +2012,47 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 },
                 status,
             ))
+        };
+
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessTokenResponse>
+    for Result<AccessToken, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            router_env::logger::error!(
+                error_message = ?response.error_message,
+                error_code = ?response.error_code,
+                status_code,
+                "UCS create access token failed"
+            );
+
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(AccessToken {
+                token: Secret::new(response.access_token),
+                expires: response.expires_in_seconds.unwrap_or_default(),
+            })
         };
 
         Ok(response)
@@ -2476,7 +2641,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
         Ok(Self {
             trans_status,
             eci,
-            cavv: cavv.map(masking::Secret::new),
+            cavv: cavv.map(Secret::new),
             threeds_server_transaction_id: threeds_server_transaction_id
                 .and_then(|id| id.id_type)
                 .and_then(|id_type| match id_type {
@@ -2536,6 +2701,54 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCreateOrderResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let order_id = response
+                .order_id
+                .and_then(|id| id.id_type)
+                .and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                        Some(encoded_data)
+                    }
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+
+            // For order creation, we typically return a successful response with the order_id
+            // Since this is not a standard payment response, we'll create a simple success response
+            Ok((
+                PaymentsResponseData::PaymentsCreateOrderResponse { order_id },
+                AttemptStatus::Charged, // Assuming successful creation
+            ))
+        };
+
+        Ok(response)
     }
 }
 
@@ -3274,5 +3487,40 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
         };
 
         Ok(response)
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            hyperswitch_domain_models::router_flow_types::access_token_auth::AccessTokenAuth,
+            router_request_types::AccessTokenRequestData,
+            AccessToken,
+        >,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceCreateAccessTokenRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, _call_connector_action): (
+            &RouterData<
+                hyperswitch_domain_models::router_flow_types::access_token_auth::AccessTokenAuth,
+                router_request_types::AccessTokenRequestData,
+                AccessToken,
+            >,
+            common_enums::CallConnectorAction,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let request_ref_id = router_data.connector_request_reference_id.clone();
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
+            }),
+            merchant_account_metadata: HashMap::new(),
+            // depricated field we have to remove this/ Default to unspecified connector
+            connector: 0_i32,
+        })
     }
 }

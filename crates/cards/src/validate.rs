@@ -145,7 +145,7 @@ impl FromStr for CardNumber {
         ];
         #[cfg(not(target_arch = "wasm32"))]
         let valid_test_cards = match router_env_which() {
-            Env::Development | Env::Sandbox => valid_test_cards,
+            Env::Development | Env::Sandbox | Env::Integ => valid_test_cards,
             Env::Production => vec![],
         };
 
@@ -174,7 +174,7 @@ impl FromStr for NetworkToken {
         ];
         #[cfg(not(target_arch = "wasm32"))]
         let valid_test_network_tokens = match router_env_which() {
-            Env::Development | Env::Sandbox => valid_test_network_tokens,
+            Env::Development | Env::Sandbox | Env::Integ => valid_test_network_tokens,
             Env::Production => vec![],
         };
 
