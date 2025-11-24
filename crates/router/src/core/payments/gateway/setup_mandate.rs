@@ -77,8 +77,8 @@ where
 
         let setup_mandate_request =
             payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
-            .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Get Request")?;
+                .change_context(ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(

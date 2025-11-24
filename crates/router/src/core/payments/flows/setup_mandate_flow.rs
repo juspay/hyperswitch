@@ -188,10 +188,11 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        let authorize_session_token_router_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &self,
-            types::AuthorizeSessionTokenData::foreign_from(&self),
-        ));
+        let authorize_session_token_router_data =
+            &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
+                &self,
+                types::AuthorizeSessionTokenData::foreign_from(&self),
+            ));
         // If authorize session token flow is implemented for the connector, request_option will be some.
         let request_option = connector_integration
             .build_request(&authorize_session_token_router_data, &state.conf.connectors)
@@ -211,7 +212,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             let mut router_data = self;
             router_data.session_token = resp.session_token;
             Ok(router_data)
-        }else{
+        } else {
             Ok(self)
         }
     }
