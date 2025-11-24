@@ -4,6 +4,49 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.24.0
+
+### Features
+
+- **connector:** [Airwallex] implement card mandates ([#10345](https://github.com/juspay/hyperswitch/pull/10345)) ([`67115f3`](https://github.com/juspay/hyperswitch/commit/67115f336c1ec53a7f86c15ee249774d44e902ce))
+- **core/connector:** Add partner merchant identifier field in payment intent ([#10319](https://github.com/juspay/hyperswitch/pull/10319)) ([`7d78998`](https://github.com/juspay/hyperswitch/commit/7d78998f5f9ca1ddbec4e96d8b99228551eceb41))
+
+### Bug Fixes
+
+- **checkout:** Billing descriptor reference ([#10384](https://github.com/juspay/hyperswitch/pull/10384)) ([`10e6b0e`](https://github.com/juspay/hyperswitch/commit/10e6b0e20e55e3e774750baf5a76c80723b9581a))
+
+**Full Changelog:** [`2025.11.21.1...2025.11.24.0`](https://github.com/juspay/hyperswitch/compare/2025.11.21.1...2025.11.24.0)
+
+- - -
+
+## 2025.11.21.1
+
+### Features
+
+- **core:**
+  - Implement ucs granular setup mandate flow ([#10383](https://github.com/juspay/hyperswitch/pull/10383)) ([`e005913`](https://github.com/juspay/hyperswitch/commit/e005913f643d3658ad7027a98342e192e8b8a480))
+  - Get Access Token Redis Key From Connector ([#10080](https://github.com/juspay/hyperswitch/pull/10080)) ([`18f7353`](https://github.com/juspay/hyperswitch/commit/18f7353dfd8100df1f42743244c37d1f73fb2c27))
+- **payment-links:** Expose template generation as wasm builds ([#10225](https://github.com/juspay/hyperswitch/pull/10225)) ([`431922a`](https://github.com/juspay/hyperswitch/commit/431922af1a12fd31b00e7268b6bd191da1fc145b))
+- Add granular authorize support for Unified Connector Service ([#10348](https://github.com/juspay/hyperswitch/pull/10348)) ([`d2c4b0e`](https://github.com/juspay/hyperswitch/commit/d2c4b0e016f32783279351cdac7cbdc0ff281044))
+- Implement UCS granular Session Token create Flow ([#10364](https://github.com/juspay/hyperswitch/pull/10364)) ([`27f5dce`](https://github.com/juspay/hyperswitch/commit/27f5dce90202c7321cb5dfb41a6d4907a55c4ebe))
+- Added support for granular access token HS<>UCS ([#10381](https://github.com/juspay/hyperswitch/pull/10381)) ([`b32016c`](https://github.com/juspay/hyperswitch/commit/b32016c066ae1a283a7ded65c490ad12fbf72e8f))
+- Added Create connector customer granular flow HS<>UCS tunnel ([#10397](https://github.com/juspay/hyperswitch/pull/10397)) ([`158dd75`](https://github.com/juspay/hyperswitch/commit/158dd75714de152f4b05060a0286aa1e0a1859a7))
+
+### Bug Fixes
+
+- **auth:** Change authentication data type annotation for profile create v2 ([#10373](https://github.com/juspay/hyperswitch/pull/10373)) ([`47ae5cb`](https://github.com/juspay/hyperswitch/commit/47ae5cbefd6033c78ba4210c2147ec875b595645))
+- **payouts:** Add condition to block updating the terminal status through payout webhook ([#10339](https://github.com/juspay/hyperswitch/pull/10339)) ([`4b7c095`](https://github.com/juspay/hyperswitch/commit/4b7c095801260d122ce373f0992f7d2c7b220f58))
+- Use updated state for PSync granular flow ([#10368](https://github.com/juspay/hyperswitch/pull/10368)) ([`02faf59`](https://github.com/juspay/hyperswitch/commit/02faf595d9149179b248ff6c79adc05c387fb5cb))
+
+### Refactors
+
+- **euclid:** Default fallback to hs routing result for 4xx from DE service ([#10358](https://github.com/juspay/hyperswitch/pull/10358)) ([`9d39e28`](https://github.com/juspay/hyperswitch/commit/9d39e28bda549c5d394913b3a3f99e8b94017db1))
+- Updated HS<>UCS transformers for new flattened payment_method proto change ([#10303](https://github.com/juspay/hyperswitch/pull/10303)) ([`8695ff1`](https://github.com/juspay/hyperswitch/commit/8695ff1017a8f5904016b04743cb1ccd14ab1888))
+
+**Full Changelog:** [`2025.11.21.0...2025.11.21.1`](https://github.com/juspay/hyperswitch/compare/2025.11.21.0...2025.11.21.1)
+
+- - -
+
 ## 2025.11.21.0
 
 ### Features
