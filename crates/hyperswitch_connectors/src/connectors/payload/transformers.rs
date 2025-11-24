@@ -573,9 +573,3 @@ impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsRespo
         ))
     }
 }
-
-// impl PayloadBank {
-//     fn new(currency: Currency, bank_debit_data: &BankDebitData) -> Result<self, ConnectorError> {
-//         todo!()
-//     }
-// }
