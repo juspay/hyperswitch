@@ -417,6 +417,7 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: PaymentMethodData,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
@@ -441,6 +442,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             setup_future_usage: data.setup_future_usage,
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
+            payment_method_type: data.payment_method_type,
         })
     }
 }
@@ -460,6 +462,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             setup_future_usage: data.request.setup_future_usage,
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             mandate_id: data.request.mandate_id.clone(),
+            payment_method_type: data.payment_method_type,
         }
     }
 }
@@ -478,6 +481,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             setup_future_usage: data.setup_future_usage,
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
+            payment_method_type: data.payment_method_type,
         })
     }
 }
@@ -501,6 +505,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             setup_future_usage: data.setup_future_usage,
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
+            payment_method_type: data.payment_method_type,
         })
     }
 }
