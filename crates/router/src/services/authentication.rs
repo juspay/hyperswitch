@@ -533,10 +533,10 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         check_merchant_access(
+            state,
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
-            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -634,10 +634,10 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         check_merchant_access(
+            state,
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
-            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -1232,10 +1232,10 @@ where
 
     // Validate merchant account type access
     check_merchant_access(
+        state,
         initiator_merchant.merchant_account_type,
         is_connected_allowed,
         is_platform_allowed,
-        state.conf().platform.enabled,
     )?;
 
     let (merchant, key_store, platform_account_with_key_store) =
@@ -2556,10 +2556,10 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         check_merchant_access(
+            state,
             initiator_merchant.merchant_account_type,
             self.is_connected_allowed,
             self.is_platform_allowed,
-            state.conf().platform.enabled,
         )?;
 
         let (merchant, key_store, platform_account_with_key_store) =
@@ -2744,10 +2744,10 @@ impl GetAuthType for PublishableKeyAuth {
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for PublishableKeyAuth {
     fn get_is_connected_allowed(&self) -> bool {
-        false // Publishable keys don't support connected merchant operations
+        false // Publishable key doesn't support connected merchant operations currently
     }
     fn get_is_platform_allowed(&self) -> bool {
-        false // Publishable keys don't support platform merchant operations
+        false // Publishable key doesn't support platform merchant operations currently
     }
 }
 
@@ -4539,12 +4539,15 @@ where
 }
 
 /// Validates whether the merchant account type is authorized to access the resource
-pub fn check_merchant_access(
+pub fn check_merchant_access<A>(
+    state: &A,
     merchant_account_type: MerchantAccountType,
     is_connected_allowed: bool,
     is_platform_allowed: bool,
-    is_platform_enabled: bool,
-) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>>
+where
+    A: SessionStateInfo + Sync,
+{
     match merchant_account_type {
         MerchantAccountType::Connected => is_connected_allowed.then_some(()).ok_or_else(|| {
             report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
@@ -4552,7 +4555,7 @@ pub fn check_merchant_access(
         }),
         MerchantAccountType::Platform => {
             // Check if platform feature is enabled
-            is_platform_enabled.then_some(()).ok_or_else(|| {
+            state.conf().platform.enabled.then_some(()).ok_or_else(|| {
                 report!(errors::ApiErrorResponse::PlatformAccountAuthNotSupported)
                     .attach_printable("Platform feature is not enabled")
             })?;
@@ -4593,18 +4596,12 @@ where
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-    (connected_merchant_account.organization_id == platform_org_id)
+    (connected_merchant_account.organization_id == platform_org_id
+        && connected_merchant_account.merchant_account_type == MerchantAccountType::Connected)
         .then_some(())
         .ok_or_else(|| {
             report!(errors::ApiErrorResponse::InvalidPlatformOperation)
-                .attach_printable("Connected merchant belongs to a different organization")
-        })?;
-
-    (connected_merchant_account.merchant_account_type == MerchantAccountType::Connected)
-        .then_some(())
-        .ok_or_else(|| {
-            report!(errors::ApiErrorResponse::InvalidPlatformOperation)
-                .attach_printable("Connected merchant must be of type `connected`")
+                .attach_printable("Invalid connected merchant for platform operation")
         })?;
 
     Ok((connected_merchant_account, key_store))
@@ -4614,7 +4611,7 @@ where
 async fn resolve_merchant_accounts_and_key_stores<A>(
     state: &A,
     request_headers: &HeaderMap,
-    merchant_account: domain::MerchantAccount,
+    initiator_merchant_account: domain::MerchantAccount,
     merchant_key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
     domain::MerchantAccount,
@@ -4627,7 +4624,7 @@ where
     let header_map = HeaderMapStruct::new(request_headers);
 
     let (processor_merchant_account, processor_key_store, platform_account_with_key_store) =
-        match merchant_account.merchant_account_type {
+        match initiator_merchant_account.merchant_account_type {
             MerchantAccountType::Platform => {
                 let connected_merchant_id = header_map
                     .get_id_type_from_header_if_present::<id_type::MerchantId>(
@@ -4642,18 +4639,21 @@ where
                         get_connected_account_and_key_store(
                             state,
                             connected_merchant_id,
-                            merchant_account.organization_id.clone(),
+                            initiator_merchant_account.organization_id.clone(),
                         )
                         .await?
                     }
-                    None => (merchant_account.clone(), merchant_key_store.clone()),
+                    None => (
+                        initiator_merchant_account.clone(),
+                        merchant_key_store.clone(),
+                    ),
                 };
 
                 (
                     processor_merchant_account,
                     processor_key_store,
                     Some(PlatformAccountWithKeyStore {
-                        account: merchant_account,
+                        account: initiator_merchant_account,
                         key_store: merchant_key_store,
                     }),
                 )
@@ -4674,10 +4674,10 @@ where
                 )?;
 
                 let (platform_account, platform_key_store) =
-                    get_platform_account_and_key_store(state, &merchant_account).await?;
+                    get_platform_account_and_key_store(state, &initiator_merchant_account).await?;
 
                 (
-                    merchant_account,
+                    initiator_merchant_account,
                     merchant_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: platform_account,
@@ -4700,7 +4700,7 @@ where
                     },
                 )?;
 
-                (merchant_account, merchant_key_store, None)
+                (initiator_merchant_account, merchant_key_store, None)
             }
         };
     Ok((
