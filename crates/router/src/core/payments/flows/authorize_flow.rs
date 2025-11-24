@@ -477,6 +477,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
         if connector
             .connector_name
@@ -501,13 +502,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     response_data,
                 );
 
-            let resp = services::execute_connector_processing_step(
+            let resp = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &createorder_router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payment_failed_response()?;

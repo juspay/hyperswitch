@@ -300,6 +300,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
         if connector
             .connector_name
@@ -324,13 +325,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     response_data,
                 );
 
-            let resp = services::execute_connector_processing_step(
+            let resp = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &createorder_router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context,
             )
             .await
             .to_payment_failed_response()?;

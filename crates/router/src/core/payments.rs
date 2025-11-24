@@ -4110,7 +4110,7 @@ where
     );
 
     let should_continue_further = match router_data
-        .create_order_at_connector(state, &connector, should_continue_further)
+        .create_order_at_connector(state, &connector, should_continue_further, &context)
         .await?
     {
         Some(create_order_response) => {

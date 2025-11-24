@@ -139,11 +139,11 @@ where
                     response
                 });
                 router_data.response = router_data_response;
-                router_data.payment_method_token = Some(
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                        masking::Secret::new(pm_token_create_response.payment_method_token.clone()),
-                    ),
-                );
+                // router_data.payment_method_token = Some(
+                //     hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
+                //         masking::Secret::new(pm_token_create_response.payment_method_token.clone()),
+                //     ),
+                // );
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, pm_token_create_response))
