@@ -380,7 +380,7 @@ pub async fn migrate_payment_methods(
                 let customer_migration_results = match customers::migrate_customers(
                     state.clone(),
                     customers,
-                    merchant_context.clone(),
+                    platform.clone(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?
