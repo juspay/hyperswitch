@@ -1244,12 +1244,12 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
                 "Call made to payments update intent api , with the request body {:?}",
                 payment_update_req
             );
-            api::update_payment_intent_api(
+            Box::pin(api::update_payment_intent_api(
                 state,
                 payment_intent.id.clone(),
                 revenue_recovery_payment_data,
                 payment_update_req,
-            )
+            ))
             .await
             .change_context(errors::RecoveryError::PaymentCallFailed)?;
 
