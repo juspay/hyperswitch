@@ -748,7 +748,7 @@ pub fn get_payment_link_config_based_on_priority(
             color_icon_card_cvc_error,
         };
 
-    let has_custom_tnc = payment_link_config.custom_message_for_card_terms.is_some();
+    let has_custom_tnc = payment_link_config.custom_message_for_card_terms.is_some() || payment_link_config.custom_message_for_payment_method_types.is_some();
     let is_default_domain = domain_name == default_domain_name;
     let is_test_mode = payment_create_link_config
         .and_then(|mode| mode.theme_config.payment_test_mode)
