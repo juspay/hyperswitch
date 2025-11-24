@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii::Email,
-    types::keymanager::KeyManagerState,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::{
@@ -66,12 +65,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
         helpers::allow_payment_update_enabled_for_client_auth(merchant_id, state, auth_flow)
             .await?;
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                key_manager_state,
                 &payment_id,
                 merchant_id,
                 platform.get_processor().get_key_store(),
@@ -435,7 +432,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 profile_id,
             )
@@ -578,7 +574,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .unwrap_or(false);
         if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
-            let key_manager_state: &KeyManagerState = &state.into();
 
             let merchant_connector_id = business_profile
                 .tax_connector_id
@@ -588,7 +583,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             #[cfg(feature = "v1")]
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     &business_profile.merchant_id,
                     merchant_connector_id,
                     platform.get_processor().get_key_store(),
@@ -602,11 +596,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             #[cfg(feature = "v2")]
             let mca = db
-                .find_merchant_connector_account_by_id(
-                    key_manager_state,
-                    merchant_connector_id,
-                    key_store,
-                )
+                .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -927,7 +917,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                     amount: payment_data.amount.into(),

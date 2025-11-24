@@ -48,7 +48,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static,
+    F: Clone + Send + Sync + std::fmt::Debug + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
@@ -356,7 +356,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
-    F: Clone + Send + Sync + 'static,
+    F: Clone + Send + Sync + std::fmt::Debug + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
@@ -467,7 +467,6 @@ where
     );
 
     let db = &*state.store;
-    let key_manager_state = &state.into();
     let additional_payment_method_data =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
             payment_data
@@ -636,12 +635,7 @@ where
 
     #[cfg(feature = "v2")]
     let payment_attempt = db
-        .insert_payment_attempt(
-            key_manager_state,
-            key_store,
-            new_payment_attempt,
-            storage_scheme,
-        )
+        .insert_payment_attempt(key_store, new_payment_attempt, storage_scheme)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;
@@ -651,7 +645,6 @@ where
 
     let payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_data.get_payment_intent().clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),

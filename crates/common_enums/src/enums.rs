@@ -8109,6 +8109,13 @@ impl PayoutStatus {
             Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
         )
     }
+
+    pub fn is_non_terminal_status(&self) -> bool {
+        !matches!(
+            self,
+            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+        )
+    }
 }
 
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.

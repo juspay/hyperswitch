@@ -174,6 +174,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -205,6 +206,7 @@ pub struct ConnectorTokenReferenceRecord {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PayoutsMandateReferenceRecord {
     pub transfer_method_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -441,6 +443,7 @@ impl From<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateRefere
     fn from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -449,6 +452,7 @@ impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateRefere
     fn from(value: PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -488,6 +492,7 @@ impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateRefe
             mandate_metadata: value.mandate_metadata,
             connector_mandate_status: value.connector_mandate_status,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
@@ -527,6 +532,7 @@ impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateRefe
             mandate_metadata: value.mandate_metadata,
             connector_mandate_status: value.connector_mandate_status,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            connector_customer_id: value.connector_customer_id,
         }
     }
 }
