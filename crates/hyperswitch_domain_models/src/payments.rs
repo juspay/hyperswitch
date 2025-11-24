@@ -17,10 +17,11 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::ValueExt,
-    fp_utils::when,
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
@@ -413,7 +414,7 @@ impl AmountDetails {
     ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
         // Validate that amount_captured doesn't exceed order_amount
         let captured_amount = self.amount_captured.unwrap_or(MinorUnit::zero());
-        when(captured_amount > self.order_amount, || {
+        fp_utils::when(captured_amount > self.order_amount, || {
             Err(
                 errors::api_error_response::ApiErrorResponse::InvalidRequestData {
                     message: "Amount captured cannot exceed the order amount".into(),
