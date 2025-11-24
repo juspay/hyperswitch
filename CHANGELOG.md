@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix1
+
+### Bug Fixes
+
+- **connectors:** [Adyen] Connector customer for mit ([#10396](https://github.com/juspay/hyperswitch/pull/10396)) ([`3f7b37d`](https://github.com/juspay/hyperswitch/commit/3f7b37d67e13231279dcd8e92a376f428ee48116))
+- **payouts:** Add condition to block updating the terminal status through payout webhook ([#10409](https://github.com/juspay/hyperswitch/pull/10409)) ([`ee400cf`](https://github.com/juspay/hyperswitch/commit/ee400cf5fc65a47d00619468ecbaaca770fd0529))
+- **stripe:** Remove application fee validation for splitpayments ([#10394](https://github.com/juspay/hyperswitch/pull/10394)) ([`a93aee2`](https://github.com/juspay/hyperswitch/commit/a93aee21750f17ca1f25b11b613e926a6ded4d95))
+
+**Full Changelog:** [`2025.11.19.0...2025.11.19.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0...2025.11.19.0-hotfix1)
+
+- - -
+
 ## 2025.11.19.0
 
 ### Features
