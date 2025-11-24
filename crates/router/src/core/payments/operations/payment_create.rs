@@ -1660,6 +1660,9 @@ impl PaymentCreate {
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
             tokenization: request.tokenization,
+            partner_merchant_identifier_details: request
+                .partner_merchant_identifier_details
+                .clone(),
         })
     }
 
