@@ -78,6 +78,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
+    /// Failed to perform Create Order from gRPC Server
+    #[error("Failed to perform Create Order from gRPC Server")]
+    PaymentCreateOrderFailure,
+
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
     PaymentAuthorizeGranularFailure,
