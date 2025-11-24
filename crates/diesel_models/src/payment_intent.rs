@@ -82,6 +82,9 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -101,7 +104,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub active_attempts_group_id: Option<String>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
@@ -188,6 +191,9 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -395,6 +401,7 @@ pub struct PaymentIntentNew {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[cfg(feature = "v1")]
@@ -481,6 +488,9 @@ pub struct PaymentIntentNew {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -664,6 +674,8 @@ pub struct PaymentIntentUpdateInternal {
     pub amount_captured: Option<MinorUnit>,
     pub modified_at: PrimitiveDateTime,
     pub active_attempt_id: Option<Option<common_utils::id_type::GlobalAttemptId>>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
@@ -708,6 +720,8 @@ impl PaymentIntentUpdateInternal {
             amount_captured,
             modified_at: _, // This will be ignored from self
             active_attempt_id,
+            active_attempts_group_id,
+            active_attempt_id_type,
             amount,
             currency,
             shipping_cost,
@@ -752,6 +766,8 @@ impl PaymentIntentUpdateInternal {
                 Some(v_option) => v_option,
                 None => source.active_attempt_id,
             },
+            active_attempt_id_type: active_attempt_id_type.or(source.active_attempt_id_type),
+            active_attempts_group_id: active_attempts_group_id.or(source.active_attempts_group_id),
             amount: amount.unwrap_or(source.amount),
             currency: currency.unwrap_or(source.currency),
             shipping_cost: shipping_cost.or(source.shipping_cost),
@@ -821,10 +837,10 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization: source.enable_partial_authorization,
             split_txns_enabled: source.split_txns_enabled,
             enable_overcapture: None,
-            active_attempt_id_type: source.active_attempt_id_type,
-            active_attempts_group_id: source.active_attempts_group_id,
             mit_category: None,
             billing_descriptor: source.billing_descriptor,
+            tokenization: None,
+            partner_merchant_identifier_details: source.partner_merchant_identifier_details,
         }
     }
 }
