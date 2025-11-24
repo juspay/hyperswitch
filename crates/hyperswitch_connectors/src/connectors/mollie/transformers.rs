@@ -21,7 +21,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
+        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil, CustomerData,
         PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
         RouterData as OtherRouterData,
     },
@@ -57,7 +57,7 @@ pub struct MolliePaymentsRequest {
     payment_method_data: MolliePaymentMethodData,
     metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
-    customer_id: String,
+    customer_id: Option<String>,
     capture_mode: Option<MollieCaptureMode>,
 }
 
@@ -128,7 +128,7 @@ pub struct CreditCardMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentMethodData {
-    mandate_id: String,
+    mandate_id: Secret<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -173,8 +173,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for MollieCustomerRequest {
     type Error = Error;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            name: item.request.name.to_owned(),
-            email: item.request.email.to_owned(),
+            name: item.request.get_optional_name(),
+            email: item.request.get_optional_email(),
         })
     }
 }
@@ -196,18 +196,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MollieCustomerResponse, T, PaymentsResp
         Ok(Self {
             connector_customer: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                ConnectorCustomerResponseData::new(
-                    item.response.id,
-                    item.response
-                        .name
-                        .as_ref()
-                        .map(|name| name.clone().expose()),
-                    item.response
-                        .email
-                        .as_ref()
-                        .map(|email| email.clone().expose().expose()),
-                    None,
-                ),
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
             )),
             ..item.data
         })
@@ -226,11 +215,13 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
         let description = item.router_data.get_description()?;
         let redirect_url = item.router_data.request.get_router_return_url()?;
 
-        let sequence_type = if item.router_data.request.customer_acceptance.is_some()
-            && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
+        let sequence_type = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
         {
             SequenceType::First
-        } else if item.router_data.request.mandate_id.is_some() {
+        } else if item.router_data.request.is_mit_payment() {
             SequenceType::Recurring
         } else {
             SequenceType::Oneoff
@@ -246,62 +237,49 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             None
         };
 
-        let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
-        {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::SequentialAutomatic
-            | enums::CaptureMethod::Manual => match &item.router_data.request.payment_method_data {
-                PaymentMethodData::Card(_) => {
-                    let pm_token = item.router_data.get_payment_method_token()?;
-                    Ok(MolliePaymentMethodData::CreditCard(Box::new(
-                        CreditCardMethodData {
-                            billing_address: get_billing_details(item.router_data)?,
-                            shipping_address: get_shipping_details(item.router_data)?,
-                            card_token: Some(match pm_token {
-                                PaymentMethodToken::Token(token) => token,
-                                PaymentMethodToken::ApplePayDecrypt(_) => {
-                                    Err(unimplemented_payment_method!(
-                                        "Apple Pay",
-                                        "Simplified",
-                                        "Mollie"
-                                    ))?
-                                }
-                                PaymentMethodToken::PazeDecrypt(_) => {
-                                    Err(unimplemented_payment_method!("Paze", "Mollie"))?
-                                }
-                                PaymentMethodToken::GooglePayDecrypt(_) => {
-                                    Err(unimplemented_payment_method!("Google Pay", "Mollie"))?
-                                }
-                            }),
-                        },
-                    )))
-                }
-                PaymentMethodData::BankRedirect(ref redirect_data) => {
-                    MolliePaymentMethodData::try_from((item.router_data, redirect_data))
-                }
-                PaymentMethodData::Wallet(ref wallet_data) => {
-                    get_payment_method_for_wallet(item.router_data, wallet_data)
-                }
-                PaymentMethodData::BankDebit(ref directdebit_data) => {
-                    MolliePaymentMethodData::try_from((directdebit_data, item.router_data))
-                }
-                PaymentMethodData::MandatePayment => Ok(MolliePaymentMethodData::MandatePayment(
-                    Box::new(MandatePaymentMethodData {
-                        mandate_id: item.router_data.request.get_connector_mandate_id()?,
-                    }),
-                )),
-                _ => {
-                    Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
-                }
-            },
-            _ => Err(errors::ConnectorError::FlowNotSupported {
-                flow: format!(
-                    "{} capture",
-                    item.router_data.request.capture_method.unwrap_or_default()
-                ),
-                connector: "Mollie".to_string(),
+        let customer_id = if item.router_data.request.is_mandate_payment() {
+            Some(item.router_data.get_connector_customer_id()?)
+        } else {
+            None
+        };
+
+        let payment_method_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(_) => {
+                let pm_token = item.router_data.get_payment_method_token()?;
+                Ok(MolliePaymentMethodData::CreditCard(Box::new(
+                    CreditCardMethodData {
+                        billing_address: get_billing_details(item.router_data)?,
+                        shipping_address: get_shipping_details(item.router_data)?,
+                        card_token: Some(match pm_token {
+                            PaymentMethodToken::Token(token) => token,
+                            PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                                unimplemented_payment_method!("Apple Pay", "Simplified", "Mollie"),
+                            )?,
+                            PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Mollie"))?
+                            }
+                            PaymentMethodToken::GooglePayDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Google Pay", "Mollie"))?
+                            }
+                        }),
+                    },
+                )))
             }
-            .into()),
+            PaymentMethodData::BankRedirect(ref redirect_data) => {
+                MolliePaymentMethodData::try_from((item.router_data, redirect_data))
+            }
+            PaymentMethodData::Wallet(ref wallet_data) => {
+                get_payment_method_for_wallet(item.router_data, wallet_data)
+            }
+            PaymentMethodData::BankDebit(ref directdebit_data) => {
+                MolliePaymentMethodData::try_from((directdebit_data, item.router_data))
+            }
+            PaymentMethodData::MandatePayment => Ok(MolliePaymentMethodData::MandatePayment(
+                Box::new(MandatePaymentMethodData {
+                    mandate_id: item.router_data.request.get_connector_mandate_id()?.into(),
+                }),
+            )),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
         }?;
         Ok(Self {
             amount,
@@ -318,7 +296,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             }),
             sequence_type,
             capture_mode,
-            customer_id: item.router_data.get_connector_customer_id()?,
+            customer_id,
         })
     }
 }
@@ -501,7 +479,7 @@ pub struct MolliePaymentsResponse {
     pub webhook_url: Option<String>,
     #[serde(rename = "_links")]
     pub links: Links,
-    pub mandate_id: Option<String>,
+    pub mandate_id: Option<Secret<String>>,
     pub payment_id: Option<String>,
 }
 
@@ -621,7 +599,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
             .mandate_id
             .as_ref()
             .map(|id| MandateReference {
-                connector_mandate_id: Some(id.clone()),
+                connector_mandate_id: Some(id.clone().expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: None,
