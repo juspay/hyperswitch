@@ -108,6 +108,7 @@ pub struct Connectors {
     pub paytm: ConnectorParams,
     pub payu: ConnectorParams,
     pub peachpayments: ConnectorParams,
+    pub peachpaymentsdemo: ConnectorParams,
     pub phonepe: ConnectorParams,
     pub placetopay: ConnectorParams,
     pub plaid: ConnectorParams,

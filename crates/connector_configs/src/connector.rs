@@ -329,6 +329,7 @@ pub struct ConnectorConfig {
     pub paytm: Option<ConnectorTomlConfig>,
     pub payu: Option<ConnectorTomlConfig>,
     pub peachpayments: Option<ConnectorTomlConfig>,
+    pub peachpaymentsdemo: Option<ConnectorTomlConfig>,
     pub payjustnow: Option<ConnectorTomlConfig>,
     pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,

@@ -105,6 +105,7 @@ pub struct ConnectorAuthentication {
     pub paytm: Option<HeaderKey>,
     pub payu: Option<BodyKey>,
     pub peachpayments: Option<HeaderKey>,
+    pub peachpaymentsdemo: Option<HeaderKey>,
     pub phonepe: Option<HeaderKey>,
     pub placetopay: Option<BodyKey>,
     pub plaid: Option<BodyKey>,
