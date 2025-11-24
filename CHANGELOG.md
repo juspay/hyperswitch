@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix2
+
+### Refactors
+
+- **euclid:** Default fallback to hs routing result for 4xx from DE service ([#10417](https://github.com/juspay/hyperswitch/pull/10417)) ([`be5793d`](https://github.com/juspay/hyperswitch/commit/be5793da3a463132f9e089ee34b4016a499e2020))
+- Updated HS<>UCS transformers for new flattened payment_method proto change ([#10414](https://github.com/juspay/hyperswitch/pull/10414)) ([`c1a5f68`](https://github.com/juspay/hyperswitch/commit/c1a5f6886f854e89012ae57269ad7a9eefabaa79))
+
+**Full Changelog:** [`2025.11.19.0-hotfix1...2025.11.19.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix1...2025.11.19.0-hotfix2)
+
+- - -
+
 ## 2025.11.19.0-hotfix1
 
 ### Bug Fixes
