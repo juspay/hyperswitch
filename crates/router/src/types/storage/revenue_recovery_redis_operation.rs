@@ -100,7 +100,6 @@ where
             .map_err(|_| serde::de::Error::custom(format!("Invalid date key: {}", k)))?;
 
         parsed.insert(dt, v);
-
     }
 
     Ok(parsed)
