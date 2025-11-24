@@ -11,6 +11,8 @@ use common_types::{
         AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
     },
 };
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -20,8 +22,6 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
-#[cfg(feature = "v2")]
-use common_utils::fp_utils;
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
