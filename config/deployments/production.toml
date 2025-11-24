@@ -936,7 +936,7 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 connector_list = "cybersource,peachpayments"
 
 [platform]
-enabled = false
+enabled = true
 allow_connected_merchants = false
 
 [billing_connectors_payment_sync]
