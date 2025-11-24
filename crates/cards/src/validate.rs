@@ -102,6 +102,10 @@ impl CardNumber {
         }
         Ok(no_of_supported_card_networks > 1)
     }
+
+    pub fn to_network_token(&self) -> NetworkToken {
+        NetworkToken(self.0.clone())
+    }
 }
 
 impl NetworkToken {
@@ -141,7 +145,7 @@ impl FromStr for CardNumber {
         ];
         #[cfg(not(target_arch = "wasm32"))]
         let valid_test_cards = match router_env_which() {
-            Env::Development | Env::Sandbox => valid_test_cards,
+            Env::Development | Env::Sandbox | Env::Integ => valid_test_cards,
             Env::Production => vec![],
         };
 
@@ -170,7 +174,7 @@ impl FromStr for NetworkToken {
         ];
         #[cfg(not(target_arch = "wasm32"))]
         let valid_test_network_tokens = match router_env_which() {
-            Env::Development | Env::Sandbox => valid_test_network_tokens,
+            Env::Development | Env::Sandbox | Env::Integ => valid_test_network_tokens,
             Env::Production => vec![],
         };
 

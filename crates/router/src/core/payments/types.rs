@@ -429,9 +429,47 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
+                transaction_status: authentication.trans_status.clone(),
+                exemption_indicator: None,
+                cb_network_params: None,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())
         }
+    }
+}
+
+impl ForeignTryFrom<&api_models::payments::ExternalThreeDsData> for AuthenticationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        external_auth_data: &api_models::payments::ExternalThreeDsData,
+    ) -> Result<Self, Self::Error> {
+        let cavv = match &external_auth_data.authentication_cryptogram {
+            api_models::payments::Cryptogram::Cavv {
+                authentication_cryptogram,
+            } => authentication_cryptogram.clone(),
+        };
+
+        Ok(Self {
+            eci: Some(external_auth_data.eci.clone()),
+            cavv,
+            threeds_server_transaction_id: Some(external_auth_data.ds_trans_id.clone()),
+            message_version: Some(external_auth_data.version.clone()),
+            ds_trans_id: Some(external_auth_data.ds_trans_id.clone()),
+            created_at: time::PrimitiveDateTime::new(
+                time::OffsetDateTime::now_utc().date(),
+                time::OffsetDateTime::now_utc().time(),
+            ),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            acs_trans_id: None,
+            authentication_type: None,
+            transaction_status: Some(external_auth_data.transaction_status.clone()),
+            exemption_indicator: external_auth_data.exemption_indicator.clone(),
+            cb_network_params: external_auth_data.network_params.clone(),
+        })
     }
 }

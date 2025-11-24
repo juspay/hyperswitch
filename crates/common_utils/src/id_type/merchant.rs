@@ -3,8 +3,6 @@
 //! Ids for merchant account are derived from the merchant name
 //! If there are any special characters, they are removed
 
-use std::fmt::Display;
-
 use crate::{
     date_time,
     errors::{CustomResult, ValidationError},
@@ -147,17 +145,6 @@ impl MerchantId {
         format!("poll_{}_{unique_id}", self.get_string_repr())
     }
 
-    /// get_access_token_key
-    pub fn get_access_token_key(
-        &self,
-        merchant_connector_id_or_connector_name: impl Display,
-    ) -> String {
-        format!(
-            "access_token_{}_{merchant_connector_id_or_connector_name}",
-            self.get_string_repr()
-        )
-    }
-
     /// get_skip_saving_wallet_at_connector_key
     pub fn get_skip_saving_wallet_at_connector_key(&self) -> String {
         format!("skip_saving_wallet_at_connector_{}", self.get_string_repr())
@@ -201,6 +188,14 @@ impl MerchantId {
     /// Get should call gsm key for payment
     pub fn get_should_call_gsm_key(&self) -> String {
         format!("should_call_gsm_{}", self.get_string_repr())
+    }
+
+    /// get should call auth tokenization for modular authentication
+    pub fn get_should_disable_auth_tokenization(&self) -> String {
+        format!(
+            "should_disable_auth_tokenization_{}",
+            self.get_string_repr()
+        )
     }
 
     /// get_max_auto_single_connector_payout_retries_enabled_
