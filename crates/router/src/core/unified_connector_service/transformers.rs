@@ -2827,7 +2827,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2850,14 +2850,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionToke
                 connector_metadata: None,
             })
         } else {
-            // For session token creation, we typically return a successful response with the session token
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::SessionTokenResponse {
-                    session_token: response.session_token.clone(),
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: response.session_token.clone(),
+            })
         };
 
         Ok(response)
