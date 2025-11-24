@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
-        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
+        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
@@ -765,6 +765,23 @@ impl ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
+        }
+    }
+}
+
+impl ConnectorAccessTokenSuffix for ConnectorEnum {
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
         }
     }
 }

@@ -547,7 +547,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -2141,7 +2141,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
@@ -4329,7 +4329,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
 
     // To create connector flow specific interface data
@@ -4351,7 +4351,7 @@ where
     )
     .await?;
 
-    if matches!(
+    let ucs_flow = if matches!(
         execution_path,
         ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
     ) {
@@ -4368,13 +4368,16 @@ where
         if let Some(access_token) = cached_access_token {
             router_data.access_token = Some(access_token);
         }
-    }
+        true
+    } else {
+        false
+    };
 
     let is_ucs_granular_flow =
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-    if is_ucs_granular_flow {
-        logger::info!("Current flow is UCS Composite flow");
+    if is_ucs_granular_flow && ucs_flow {
+        logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -4402,7 +4405,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
         call_connector_service(
-            state,
+            &updated_state,
             req_state,
             platform,
             connector,

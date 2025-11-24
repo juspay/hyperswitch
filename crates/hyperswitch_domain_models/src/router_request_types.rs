@@ -95,6 +95,8 @@ pub struct PaymentsAuthorizeData {
     pub mit_category: Option<common_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1468,6 +1470,8 @@ pub struct SetupMandateRequestData {
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Debug, Clone)]
