@@ -777,17 +777,17 @@ pub enum AuthenticationPaymentMethodDataResponse {
 pub enum AuthenticationVaultTokenData {
     CardData {
         /// token representing card_number
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "card_number")]
         tokenized_card_number: Option<masking::Secret<String>>,
 
         /// token representing card_expiry_year
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_year")]
         tokenized_card_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing card_expiry_month
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_month")]
         tokenized_card_expiry_month: Option<masking::Secret<String>>,
 
@@ -798,17 +798,17 @@ pub enum AuthenticationVaultTokenData {
     },
     NetworkTokenData {
         /// token representing payment_token
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token")]
         tokenized_network_token: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_year
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_year")]
         tokenized_expiry_year: Option<masking::Secret<String>>,
 
         /// token representing token_expiry_month
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_month")]
         tokenized_expiry_month: Option<masking::Secret<String>>,
 

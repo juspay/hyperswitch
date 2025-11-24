@@ -27,7 +27,7 @@ use crate::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
         },
-        payments,
+        payment_methods, payments,
     },
     db::domain,
     services::{self, execute_connector_processing_step},
@@ -212,7 +212,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize(
                             state,
                             auth_val.expose(),
                             None,
@@ -269,7 +269,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .and_then(|details| details.dynamic_data_value)
                     .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize(
                             state,
                             auth_val,
                             None,
@@ -403,22 +403,20 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 let vault_data = get_vault_details(authentication_details)?;
 
                 // decide which fields to tokenize in vault
-                let vault_custom_data =
-                    crate::core::payment_methods::get_payment_method_custom_data(
-                        vault_data.clone(),
-                        external_vault_details.vault_token_selector,
-                    )?;
+                let vault_custom_data = payment_methods::get_payment_method_custom_data(
+                    vault_data,
+                    external_vault_details.vault_token_selector,
+                )?;
 
-                let external_vault_response = Box::pin(
-                    crate::core::payment_methods::vault_payment_method_external_v1(
+                let external_vault_response =
+                    Box::pin(payment_methods::vault_payment_method_external_v1(
                         state,
                         &vault_custom_data,
                         platform.get_processor().get_account(),
                         merchant_connector_account_details,
                         Some(true),
-                    ),
-                )
-                .await?;
+                    ))
+                    .await?;
 
                 let vault_token_data = external_vault_response
                     .vault_id
@@ -500,62 +498,5 @@ pub fn get_authentication_payment_method_data<F, Req>(
         authentication_details.into()
     } else {
         None
-    }
-}
-
-#[cfg(feature = "v1")]
-pub fn get_auth_insensitive_payment_method_data<F, Req>(
-    vault_token_data: &Option<api_models::authentication::AuthenticationVaultTokenData>,
-    router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
-) -> RouterResult<Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>> {
-    if let Ok(UasAuthenticationResponseData::PostAuthentication {
-        authentication_details,
-    }) = router_data.response.clone()
-    {
-        let vault_data = get_vault_details(authentication_details)?;
-
-        // if token_data is present, fill it first with token data ,if not then populate it with insensitive raw data
-        match (vault_token_data, vault_data) {
-            (
-                Some(api_models::authentication::AuthenticationVaultTokenData::CardData {
-                    tokenized_card_expiry_year,
-                    tokenized_card_expiry_month,
-                    ..
-                }),
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_details),
-            ) => Ok(Some(
-                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
-                    card_expiry_year: tokenized_card_expiry_year
-                        .is_none()
-                        .then_some(card_details.card_exp_year),
-                    card_expiry_month: tokenized_card_expiry_month
-                        .is_none()
-                        .then_some(card_details.card_exp_month),
-                },
-            )),
-            (
-                Some(api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
-                    tokenized_expiry_year,
-                    tokenized_expiry_month,
-                    ..
-                }),
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
-                    network_token_details,
-                ),
-            ) => Ok(Some(
-                api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
-                    network_token_expiry_year: tokenized_expiry_year
-                        .is_none()
-                        .then_some(network_token_details.network_token_exp_year),
-                    network_token_expiry_month: tokenized_expiry_month
-                        .is_none()
-                        .then_some(network_token_details.network_token_exp_month),
-                },
-            )),
-            _ => Err(ApiErrorResponse::InternalServerError)
-                .attach_printable("Unexpected behaviour, vault_type and payemnt_type doesn't match"),
-        }
-    } else {
-        Ok(None)
     }
 }

@@ -1917,27 +1917,21 @@ pub async fn authentication_sync_core(
                 }
             };
 
-            let (payment_method_data, vault_token_data) = if should_disable_auth_tokenization {
-                (
-                    utils::get_authentication_payment_method_data(&post_auth_response),
-                    None,
-                )
+            let vault_token_data = if should_disable_auth_tokenization {
+                // Do not tokenize if the disable flag is present in the config
+                None
             } else {
-                let vault_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
+                Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &platform,
                     &business_profile,
                     &post_auth_response,
                 ))
-                .await?;
-
-                let payment_method_data = utils::get_auth_insensitive_payment_method_data(
-                    &vault_token_data,
-                    &post_auth_response,
-                )?;
-
-                (payment_method_data, vault_token_data)
+                .await?
             };
+
+            let payment_method_data =
+                utils::get_authentication_payment_method_data(&post_auth_response);
 
             let auth_update_response = utils::external_authentication_update_trackers(
                 &state,
