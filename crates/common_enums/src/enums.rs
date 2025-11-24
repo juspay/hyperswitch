@@ -10057,12 +10057,11 @@ pub enum ExemptionIndicator {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum VaultTokenType {
     /// Card number
-    #[strum(serialize = "card_number")]
     CardNumber,
     /// Card cvc
-    #[strum(serialize = "card_cvc")]
     CardCvc,
     /// Card expiry year
     #[strum(serialize = "card_exp_year")]
@@ -10071,7 +10070,6 @@ pub enum VaultTokenType {
     #[strum(serialize = "card_exp_month")]
     CardExpiryMonth,
     /// Network token
-    #[strum(serialize = "network_token")]
     NetworkToken,
     /// Token expiry year
     #[strum(serialize = "network_token_exp_year")]
