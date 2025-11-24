@@ -2,6 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
+#[cfg(feature = "v2")]
+use api_models::payments::RevenueRecoveryGetIntentResponse;
 #[cfg(feature = "v1")]
 use api_models::payments::PaymentMethodTokenizationDetails;
 use api_models::payments::{
@@ -2167,6 +2169,77 @@ where
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
     ) -> RouterResponse<Self>;
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub fn generate_revenue_recovery_get_intent_response<F, D>(
+    payment_data: D,
+    recovery_status: common_enums::RecoveryStatus,
+    card_attached: u32,
+) -> RevenueRecoveryGetIntentResponse
+where
+    F: Clone,
+    D: OperationSessionGetters<F>,
+{
+    let payment_intent = payment_data.get_payment_intent();
+    let client_secret = payment_data.get_client_secret();
+
+    RevenueRecoveryGetIntentResponse {
+        id: payment_intent.id.clone(),
+        profile_id: payment_intent.profile_id.clone(),
+        status: recovery_status, // Note: field is named 'status' not 'recovery_status'
+        amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
+            payment_intent.amount_details.clone(),
+        ),
+        client_secret: client_secret.clone(),
+        merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+        routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
+        capture_method: payment_intent.capture_method,
+        authentication_type: payment_intent.authentication_type,
+        billing: payment_intent
+            .billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from),
+        shipping: payment_intent
+            .shipping_address
+            .clone()
+            .map(|shipping| shipping.into_inner())
+            .map(From::from),
+        customer_id: payment_intent.customer_id.clone(),
+        customer_present: payment_intent.customer_present,
+        description: payment_intent.description.clone(),
+        return_url: payment_intent.return_url.clone(),
+        setup_future_usage: payment_intent.setup_future_usage,
+        apply_mit_exemption: payment_intent.apply_mit_exemption,
+        statement_descriptor: payment_intent.statement_descriptor.clone(),
+        order_details: payment_intent.order_details.clone().map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| order_detail.expose().convert_back())
+                .collect()
+        }),
+        allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
+        metadata: payment_intent.metadata.clone(),
+        connector_metadata: payment_intent.connector_metadata.clone(),
+        feature_metadata: payment_intent
+            .feature_metadata
+            .clone()
+            .map(|feature_metadata| feature_metadata.convert_back()),
+        payment_link_enabled: payment_intent.enable_payment_link,
+        payment_link_config: payment_intent
+            .payment_link_config
+            .clone()
+            .map(ForeignFrom::foreign_from),
+        request_incremental_authorization: payment_intent.request_incremental_authorization,
+        split_txns_enabled: payment_intent.split_txns_enabled,
+        expires_on: payment_intent.session_expiry,
+        frm_metadata: payment_intent.frm_metadata.clone(),
+        request_external_three_ds_authentication: payment_intent
+            .request_external_three_ds_authentication,
+        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        card_attached,
+    }
 }
 
 /// Generate a response from the given Data. This should be implemented on a payment data object
