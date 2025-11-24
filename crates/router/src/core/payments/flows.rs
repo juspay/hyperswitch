@@ -175,6 +175,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>>
     where
         F: Clone,

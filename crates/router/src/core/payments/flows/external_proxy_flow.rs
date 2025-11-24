@@ -202,12 +202,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }

@@ -296,24 +296,33 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::AuthorizeSessionTokenData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &self,
-            types::AuthorizeSessionTokenData::foreign_from(&self),
-        ));
-        let resp = gateway::execute_payment_gateway(
-            state,
-            connector_integration,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-            gateway_context.clone(),
-        )
-        .await
-        .to_payment_failed_response()?;
-        let mut router_data = self;
-        router_data.session_token = resp.session_token;
-        Ok(router_data)
+        let authorize_session_token_router_data =
+            &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
+                &self,
+                types::AuthorizeSessionTokenData::foreign_from(&self),
+            ));
+        // If authorize session token flow is implemented for the connector, request_option will be some.
+        let request_option = connector_integration
+            .build_request(&authorize_session_token_router_data, &state.conf.connectors)
+            .to_payment_failed_response()?;
+        if let Some(request) = request_option {
+            let resp = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                authorize_session_token_router_data,
+                payments::CallConnectorAction::Trigger,
+                Some(request),
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+            let mut router_data = self;
+            router_data.session_token = resp.session_token;
+            Ok(router_data)
+        } else {
+            Ok(self)
+        }
     }
 
     async fn add_payment_method_token<'a>(
@@ -355,12 +364,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }

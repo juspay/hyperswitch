@@ -4000,7 +4000,9 @@ where
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data = router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -4033,6 +4035,7 @@ where
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
+        &context,
     )
     .await?;
 
@@ -6691,6 +6694,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
+    gateway_context: &gateway::context::RouterGatewayContext,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -6706,7 +6710,7 @@ where
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
     let connector_name = payment_data.get_payment_attempt().connector.clone();
-
+    logger::debug!(dbg_connector_name = &connector_name);
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
@@ -6745,6 +6749,7 @@ where
                     format!("{connector_name}_{}", profile_id.get_string_repr())
                 }
             };
+            logger::debug!(dbg_label = &label);
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
@@ -6753,7 +6758,7 @@ where
                     payment_data.get_payment_attempt(),
                     &label,
                 );
-
+            logger::debug!(should_call_connector_customer = should_call_connector);
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let mut customer_router_data = payment_data
@@ -6773,7 +6778,7 @@ where
                 customer_router_data.access_token = access_token.cloned();
 
                 let connector_customer_id = customer_router_data
-                    .create_connector_customer(state, &connector)
+                    .create_connector_customer(state, &connector, gateway_context)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(

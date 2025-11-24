@@ -264,7 +264,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
-
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
@@ -285,7 +285,7 @@ impl
                 .phone
                 .as_ref()
                 .map(|phone| phone.peek().to_string()),
-            address: None,
+            address: Some(address),
             metadata: HashMap::new(),
         })
     }
