@@ -1873,7 +1873,7 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, vault_token_data) =
+    let (updated_authentication, payment_method_data, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
                 ClickToPay::post_authentication(
@@ -1917,16 +1917,26 @@ pub async fn authentication_sync_core(
                 }
             };
 
-            let vault_token_data = if should_disable_auth_tokenization {
-                utils::get_raw_authentication_token_data(&post_auth_response)
+            let (payment_method_data, vault_token_data) = if should_disable_auth_tokenization {
+                (
+                    utils::get_authentication_payment_method_data(&post_auth_response),
+                    None,
+                )
             } else {
-                Box::pin(utils::get_auth_multi_token_from_external_vault(
+                let vault_token_data = Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &platform,
                     &business_profile,
                     &post_auth_response,
                 ))
-                .await?
+                .await?;
+
+                let payment_method_data = utils::get_auth_insensitive_payment_method_data(
+                    &vault_token_data,
+                    &post_auth_response,
+                )?;
+
+                (payment_method_data, vault_token_data)
             };
 
             let auth_update_response = utils::external_authentication_update_trackers(
@@ -1942,9 +1952,9 @@ pub async fn authentication_sync_core(
             )
             .await?;
 
-            (auth_update_response, vault_token_data)
+            (auth_update_response, payment_method_data, vault_token_data)
         } else {
-            (authentication, None)
+            (authentication, None, None)
         };
 
     let eci = match auth_flow {
@@ -2086,6 +2096,7 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
+        payment_method_data,
         vault_token_data,
         billing,
         shipping,

@@ -202,25 +202,21 @@ pub struct ThreeDsMetaData {
 
 #[cfg(feature = "v1")]
 impl From<PostAuthenticationDetails>
-    for Option<api_models::authentication::AuthenticationVaultTokenData>
+    for Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>
 {
     fn from(item: PostAuthenticationDetails) -> Self {
         match (item.raw_card_details, item.token_details) {
             (Some(card_data), _) => Some(
-                api_models::authentication::AuthenticationVaultTokenData::CardToken {
-                    tokenized_card_number: None, // Do not populate sensitive data
-                    tokenized_card_expiry_year: Some(card_data.expiration_year),
-                    tokenized_card_expiry_month: Some(card_data.expiration_month),
-                    tokenized_card_cvc: None, // Do not populate sensitive data
+                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
+                    card_expiry_year: Some(card_data.expiration_year),
+                    card_expiry_month: Some(card_data.expiration_month),
                 },
             ),
             (None, Some(network_token_data)) => {
                 Some(
-                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                        tokenized_payment_token: None, // Do not populate sensitive data
-                        tokenized_expiry_year: Some(network_token_data.token_expiration_year),
-                        tokenized_expiry_month: Some(network_token_data.token_expiration_month),
-                        tokenized_cryptogram: None, // Do not populate sensitive data
+                    api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
+                        network_token_expiry_year: Some(network_token_data.token_expiration_year),
+                        network_token_expiry_month: Some(network_token_data.token_expiration_month),
                     },
                 )
             }
