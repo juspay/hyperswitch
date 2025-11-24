@@ -2777,7 +2777,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2814,10 +2814,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::PaymentsCreateOrderResponse { order_id },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id })
         };
 
         Ok(response)
@@ -2825,7 +2822,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2848,14 +2845,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
                 connector_metadata: None,
             })
         } else {
-            // For connector PM token creation, we typically return a successful response with the connector payment method
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::TokenizationResponse {
-                    token: response.payment_method_token,
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::TokenizationResponse {
+                token: response.payment_method_token,
+            })
         };
 
         Ok(response)

@@ -215,13 +215,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = services::execute_connector_processing_step(
+            let mut auth_router_data = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &self,
                 call_connector_action.clone(),
                 connector_request,
                 return_raw_connector_response,
+                gateway_context.clone(),
             )
             .await
             .to_payment_failed_response()?;

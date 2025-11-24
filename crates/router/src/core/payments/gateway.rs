@@ -6,6 +6,7 @@ pub mod create_order_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod psync_gateway;
 pub mod session_token_gateway;
+pub mod setup_mandate;
 use std::sync;
 
 use hyperswitch_domain_models::router_flow_types::payments;
