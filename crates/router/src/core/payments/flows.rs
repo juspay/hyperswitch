@@ -132,6 +132,7 @@ pub trait Feature<F, T> {
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,

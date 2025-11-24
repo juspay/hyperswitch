@@ -213,6 +213,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
         if connector
             .connector
@@ -226,6 +227,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
                 should_continue_payment,
+                gateway_context,
             )
             .await
         } else {

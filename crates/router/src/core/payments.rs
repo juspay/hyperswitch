@@ -4160,6 +4160,7 @@ where
             &connector,
             &tokenization_action,
             should_continue_further,
+            &context,
         )
         .await?;
 
