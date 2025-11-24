@@ -10655,23 +10655,23 @@
           {
             "type": "object",
             "required": [
-              "card_number",
-              "card_expiry_year",
-              "card_expiry_month",
               "type"
             ],
             "properties": {
               "card_number": {
                 "type": "string",
-                "description": "token representing card_number"
+                "description": "token representing card_number",
+                "nullable": true
               },
               "card_expiry_year": {
                 "type": "string",
-                "description": "token representing card_expiry_year"
+                "description": "token representing card_expiry_year",
+                "nullable": true
               },
               "card_expiry_month": {
                 "type": "string",
-                "description": "token representing card_expiry_month"
+                "description": "token representing card_expiry_month",
+                "nullable": true
               },
               "card_cvc": {
                 "type": "string",
@@ -10689,23 +10689,23 @@
           {
             "type": "object",
             "required": [
-              "network_token",
-              "network_token_expiry_year",
-              "network_token_expiry_month",
               "type"
             ],
             "properties": {
               "network_token": {
                 "type": "string",
-                "description": "token representing payment_token"
+                "description": "token representing payment_token",
+                "nullable": true
               },
               "network_token_expiry_year": {
                 "type": "string",
-                "description": "token representing token_expiry_year"
+                "description": "token representing token_expiry_year",
+                "nullable": true
               },
               "network_token_expiry_month": {
                 "type": "string",
-                "description": "token representing token_expiry_month"
+                "description": "token representing token_expiry_month",
+                "nullable": true
               },
               "network_token_cryptogram": {
                 "type": "string",
