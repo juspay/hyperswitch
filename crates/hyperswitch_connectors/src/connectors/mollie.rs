@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        TokenizationRouterData,
+        SetupMandateRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -335,15 +335,78 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Mollie {
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}payments", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data =
+            mollie::MollieRouterData::from((StringMajorUnit::zero_decimal(), req));
+        let connector_req = mollie::MolliePaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Mollie".to_string())
-                .into(),
-        )
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
+        let response: mollie::MolliePaymentsResponse = res
+            .response
+            .parse_struct("MolliePaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -992,6 +1055,7 @@ impl ConnectorSpecifications for Mollie {
         Some(&*MOLLIE_SUPPORTED_WEBHOOK_FLOWS)
     }
 
+    #[cfg(feature = "v1")]
     fn should_call_connector_customer(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,

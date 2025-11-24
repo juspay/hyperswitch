@@ -21,8 +21,9 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil, CustomerData,
-        PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
+        get_unimplemented_payment_method_error_message, AddressDetailsData, BrowserInformationData,
+        CardData as CardDataUtil, CustomerData, PaymentMethodTokenizationRequestData,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
         RouterData as OtherRouterData,
     },
 };
@@ -199,6 +200,86 @@ impl<F, T> TryFrom<ResponseRouterData<F, MollieCustomerResponse, T, PaymentsResp
                 ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
             )),
             ..item.data
+        })
+    }
+}
+
+impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymentsRequest {
+    type Error = Error;
+    fn try_from(
+        item: &MollieRouterData<&types::SetupMandateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let payment_method_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(_) => {
+                let pm_token = item.router_data.get_payment_method_token()?;
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    billing_address: get_address_details(
+                        item.router_data
+                            .get_optional_billing()
+                            .and_then(|billing| billing.address.as_ref()),
+                    )?,
+                    shipping_address: get_address_details(
+                        item.router_data
+                            .get_optional_shipping()
+                            .and_then(|shipping| shipping.address.as_ref()),
+                    )?,
+                    card_token: Some(match pm_token {
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Mollie"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Mollie"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Mollie"))?
+                        }
+                    }),
+                }))
+            }
+            PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::MobilePayment(_) => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Mollie"),
+                )
+                .into());
+            }
+        };
+
+        Ok(Self {
+            amount: Amount {
+                currency: item.router_data.request.currency,
+                value: item.amount.clone(),
+            },
+            description: item.router_data.get_description()?,
+            redirect_url: item.router_data.request.get_router_return_url()?,
+            cancel_url: None,
+            /* webhook_url is a mandatory field. */
+            webhook_url: "".to_string(),
+            locale: None,
+            payment_method_data,
+            metadata: Some(MollieMetadata {
+                order_id: item.router_data.connector_request_reference_id.clone(),
+            }),
+            sequence_type: SequenceType::First,
+            capture_mode: None,
+            customer_id: Some(item.router_data.get_connector_customer_id()?),
         })
     }
 }
