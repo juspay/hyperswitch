@@ -1,8 +1,6 @@
 use common_enums::enums;
 use common_utils::{
     errors::ParsingError,
-    ext_traits::ValueExt,
-    id_type,
     pii::{Email, IpAddress},
     request::Method,
     types::{MinorUnit, StringMajorUnit},
@@ -18,10 +16,7 @@ use hyperswitch_domain_models::{
         PSync,
     },
     router_request_types::{PaymentsSyncData, ResponseId},
-    router_response_types::{
-        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
-        RefundsResponseData,
-    },
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::errors;
@@ -183,30 +178,7 @@ pub struct AirwallexPaymentsRequest {
     payment_method: AirwallexPaymentMethod,
     payment_method_options: Option<AirwallexPaymentOptions>,
     return_url: Option<String>,
-    device_data: Option<DeviceData>,
-    payment_consent: Option<PaymentConsentData>,
-    customer_id: Option<String>,
-    payment_consent_id: Option<String>,
-    triggered_by: Option<TriggeredBy>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PaymentConsentData {
-    next_triggered_by: TriggeredBy,
-    merchant_trigger_reason: MerchantTriggeredReason,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MerchantTriggeredReason {
-    Unscheduled,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TriggeredBy {
-    Merchant,
-    Customer,
+    device_data: DeviceData,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Default)]
@@ -273,12 +245,6 @@ pub enum AirwallexPaymentMethod {
     PayLater(AirwallexPayLaterData),
     BankRedirect(AirwallexBankRedirectData),
     BankTransfer(AirwallexBankTransferData),
-    PaymentMethodId(AirwallexPaymentMethodId),
-}
-
-#[derive(Debug, Serialize)]
-pub struct AirwallexPaymentMethodId {
-    id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -552,30 +518,10 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bankredirect_data) => {
                 get_bankredirect_details(bankredirect_data, item)
             }
-            PaymentMethodData::MandatePayment => {
-                let mandate_data = item
-                    .router_data
-                    .request
-                    .get_connector_mandate_data()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_data",
-                    })?;
-                let mandate_metadata: AirwallexMandateMetadata = mandate_data
-                    .get_mandate_metadata()
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
-                    .clone()
-                    .parse_value("AirwallexMandateMetadata")
-                    .change_context(errors::ConnectorError::ParsingFailed)?;
-
-                Ok(AirwallexPaymentMethod::PaymentMethodId(
-                    AirwallexPaymentMethodId {
-                        id: mandate_metadata.id,
-                    },
-                ))
-            }
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
@@ -591,30 +537,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))
             }
         }?;
-
-        let payment_consent = if item
-            .router_data
-            .request
-            .is_customer_initiated_mandate_payment()
-        {
-            Some(PaymentConsentData {
-                next_triggered_by: TriggeredBy::Merchant,
-                merchant_trigger_reason: MerchantTriggeredReason::Unscheduled,
-            })
-        } else {
-            None
-        };
-
-        let device_data = if item.router_data.request.is_mit_payment()
-            || item
-                .router_data
-                .request
-                .is_customer_initiated_mandate_payment()
-        {
-            None
-        } else {
-            Some(get_device_data(item.router_data)?)
-        };
+        let device_data = get_device_data(item.router_data)?;
 
         let return_url = match &request.payment_method_data {
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -633,30 +556,12 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             _ => request.complete_authorize_url.clone(),
         };
 
-        let customer_id = item.router_data.get_connector_customer_id()?;
-
-        let (payment_consent_id, triggered_by) = if item.router_data.request.is_mit_payment() {
-            let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
-                },
-            )?;
-
-            (Some(mandate_id), Some(TriggeredBy::Merchant))
-        } else {
-            (None, None)
-        };
-
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
             return_url,
             device_data,
-            payment_consent,
-            customer_id: Some(customer_id),
-            payment_consent_id,
-            triggered_by,
         })
     }
 }
@@ -1148,22 +1053,6 @@ pub struct AirwallexPaymentsResponse {
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
-    latest_payment_attempt: Option<AirwallexPaymentAttemptResponse>,
-}
-
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct AirwallexPaymentAttemptResponse {
-    payment_method: Option<AirwallexPaymentMethodResponse>,
-}
-
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct AirwallexPaymentMethodResponse {
-    id: String,
-}
-
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct AirwallexMandateMetadata {
-    id: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1344,28 +1233,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
             },
         );
 
-        let mandate_reference = Box::new(Some(MandateReference {
-            connector_mandate_id: item
-                .response
-                .payment_consent_id
-                .clone()
-                .map(|id| id.expose()),
-            payment_method_id: None,
-            mandate_metadata: item
-                .response
-                .latest_payment_attempt
-                .and_then(|attempt| attempt.payment_method)
-                .map(|pm| Secret::new(serde_json::json!(AirwallexMandateMetadata { id: pm.id }))),
-            connector_mandate_request_reference_id: None,
-        }));
-
         Ok(Self {
             status,
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
-                mandate_reference,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -1767,54 +1641,5 @@ impl From<AirwallexDisputeStage> for api_models::enums::DisputeStage {
             AirwallexDisputeStage::Dispute => Self::Dispute,
             AirwallexDisputeStage::Arbitration => Self::PreArbitration,
         }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct CustomerRequest {
-    pub request_id: String,
-    pub email: Option<Email>,
-    pub phone_number: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub merchant_customer_id: id_type::CustomerId,
-}
-
-impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
-            email: item.request.email.to_owned(),
-            phone_number: item.request.phone.to_owned(),
-            first_name: item.request.name.to_owned(),
-            last_name: item.request.name.to_owned(),
-            merchant_customer_id: item.customer_id.to_owned().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
-                },
-            )?,
-        })
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct AirwallexCustomerResponse {
-    pub id: String,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
-            )),
-            ..item.data
-        })
     }
 }
