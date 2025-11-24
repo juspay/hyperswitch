@@ -2,6 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
+#[cfg(feature = "v1")]
+use api_models::payments::PaymentMethodTokenizationDetails;
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
@@ -3798,6 +3800,11 @@ where
             Some(false) | None => None,
         };
 
+        let payment_method_tokenization_details = payment_data
+            .get_payment_method_info()
+            .map(PaymentMethodTokenizationDetails::foreign_try_from)
+            .transpose()?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3930,6 +3937,7 @@ where
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
+            payment_method_tokenization_details,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4249,7 +4257,33 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
+            payment_method_tokenization_details: None,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<&domain::PaymentMethod> for PaymentMethodTokenizationDetails {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(payment_method: &domain::PaymentMethod) -> Result<Self, Self::Error> {
+        let connector_common_mandate_details = payment_method
+            .get_common_mandate_reference()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get the common mandate reference")?;
+        let psp_tokenization = connector_common_mandate_details
+            .payments
+            .map(|payments| payments.is_active_connector_mandate_available())
+            .unwrap_or(false);
+        let network_tokenization = payment_method.network_token_locker_id.is_some();
+        let is_network_transaction_id_present = payment_method.network_transaction_id.is_some();
+        Ok(Self {
+            payment_method_id: payment_method.payment_method_id.clone(),
+            payment_method_status: payment_method.status,
+            psp_tokenization,
+            network_tokenization,
+            network_transaction_id: payment_method.network_transaction_id.clone(),
+            is_eligible_for_mit_payment: psp_tokenization || is_network_transaction_id_present,
+        })
     }
 }
 

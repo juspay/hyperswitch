@@ -240,6 +240,19 @@ pub struct PaymentsMandateReference(
 );
 
 #[cfg(feature = "v1")]
+impl PaymentsMandateReference {
+    pub fn is_active_connector_mandate_available(&self) -> bool {
+        self.clone().0.into_iter().any(|detail| {
+            detail
+                .1
+                .connector_mandate_status
+                .map(|connector_mandate_status| connector_mandate_status.is_active())
+                .unwrap_or(false)
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl std::ops::Deref for PaymentsMandateReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
