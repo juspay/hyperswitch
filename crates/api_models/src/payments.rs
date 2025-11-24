@@ -7164,6 +7164,7 @@ pub struct PaymentMethodTokenizationDetails {
     /// The unique identifier for the payment method
     pub payment_method_id: String,
     /// The status of the payment method
+    #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: enums::PaymentMethodStatus,
     /// This indicates whether a PSP token is created
     pub psp_tokenization: bool,

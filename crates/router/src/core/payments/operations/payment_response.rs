@@ -259,7 +259,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         match state
                             .store
                             .find_payment_method(
-                                &(state.into()),
                                 platform.get_processor().get_key_store(),
                                 payment_method_id,
                                 storage_scheme,
