@@ -197,6 +197,7 @@ impl RedisTokenManager {
     pub async fn unlock_connector_customer_status(
         state: &SessionState,
         connector_customer_id: &str,
+        payment_id: &id_type::GlobalPaymentId,
     ) -> CustomResult<bool, errors::StorageError> {
         let redis_conn =
             state
@@ -207,6 +208,26 @@ impl RedisTokenManager {
                 ))?;
 
         let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
+
+        // Get the id used to lock that key
+        let stored_lock_value: String = redis_conn
+            .get_key(&lock_key.clone().into())
+            .await
+            .map_err(|err| {
+                tracing::error!(?err, "Failed to get lock key");
+                errors::StorageError::RedisError(errors::RedisError::RedisConnectionError.into())
+            })?;
+
+        Some(stored_lock_value)
+            .filter(|locked_value| locked_value == payment_id.get_string_repr())
+            .ok_or_else(|| {
+                tracing::warn!(
+                    connector_customer_id = %connector_customer_id,
+                    payment_id = %payment_id.get_string_repr(),
+                    "Unlock attempt by non-lock owner",
+                );
+                errors::StorageError::RedisError(errors::RedisError::DeleteFailed.into())
+            })?;
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => {
@@ -274,6 +295,19 @@ impl RedisTokenManager {
         );
 
         Ok(payment_processor_token_info_map)
+    }
+
+    /// Find the most recent date from retry history
+    pub fn find_nearest_date_from_current(
+        retry_history: &HashMap<Date, i32>,
+    ) -> Option<(Date, i32)> {
+        let today = OffsetDateTime::now_utc().date();
+
+        retry_history
+            .iter()
+            .filter(|(date, _)| **date <= today) // Only past dates + today
+            .max_by_key(|(date, _)| *date) // Get the most recent
+            .map(|(date, retry_count)| (*date, *retry_count))
     }
 
     /// Update connector customer payment processor tokens or add if doesn't exist

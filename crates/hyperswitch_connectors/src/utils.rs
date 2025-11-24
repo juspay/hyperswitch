@@ -5,9 +5,12 @@ use std::{
     sync::LazyLock,
 };
 
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    payments,
+    payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
+};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -1853,6 +1856,112 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
     }
 }
 
+impl AdditionalCardInfo for WalletAdditionalDataForCard {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
+impl AdditionalCardInfo for ApplepayPaymentMethod {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -1944,6 +2053,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2053,6 +2163,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -6589,7 +6702,9 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
 }
 
 #[cfg(feature = "payouts")]
@@ -6972,6 +7087,11 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
         billing_descriptor: data.request.billing_descriptor.clone(),
+        tokenization: None,
+        partner_merchant_identifier_details: data
+            .request
+            .partner_merchant_identifier_details
+            .clone(),
     }
 }
 

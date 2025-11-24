@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorSpecifications};
 
 use crate::{
     consts,
@@ -19,7 +19,7 @@ use crate::{
 pub async fn get_cached_access_token_for_ucs(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method: common_enums::PaymentMethod,
     creds_identifier: Option<&str>,
 ) -> RouterResult<Option<types::AccessToken>> {
@@ -27,7 +27,7 @@ pub async fn get_cached_access_token_for_ucs(
         .connector_name
         .supports_access_token(payment_method)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let store = &*state.store;
 
         let merchant_connector_id_or_connector_name = connector
@@ -37,8 +37,13 @@ pub async fn get_cached_access_token_for_ucs(
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
+
         let cached_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -46,7 +51,7 @@ pub async fn get_cached_access_token_for_ucs(
         if let Some(access_token) = cached_access_token {
             router_env::logger::info!(
                 "Cached access token found for UCS flow - merchant_id: {:?}, connector: {} with expiry of: {} seconds",
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 connector.connector_name,
                 access_token.expires
             );
@@ -58,7 +63,7 @@ pub async fn get_cached_access_token_for_ucs(
         } else {
             router_env::logger::info!(
                 "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, connector: {}",
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 connector.connector_name
             );
             metrics::ACCESS_TOKEN_CACHE_MISS.add(
@@ -136,8 +141,17 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = connector
+            .connector
+            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to get access token key for connector: {:?}",
+                connector.connector_name
+            ))?;
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -220,8 +234,7 @@ pub async fn add_access_token<
 
                         if let Err(access_token_set_error) = store
                             .set_access_token(
-                                merchant_id,
-                                &merchant_connector_id_or_connector_name,
+                                key.clone(),
                                 modified_access_token_with_expiry.clone(),
                             )
                             .await

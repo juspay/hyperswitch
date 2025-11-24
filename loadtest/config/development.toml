@@ -117,6 +117,7 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
+envoy.base_url = "https://www.envoytx.com/MerchantAPI.asmx"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -354,10 +355,6 @@ apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD,
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
 paze = { currency = "USD,SEK" }
-
-[pm_filters.dlocal]
-credit = { country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW" }
-debit = { country = "AR,BD,BO,BR,CM,CL,CN,CO,CR,DO,EC,SV,EG,GH,GT,HN,IN,ID,CI,JP,KE,MY,MX,MA,NI,NG,PK,PA,PY,PE,PH,RW,SA,SN,ZA,TZ,TH,TR,UG,UY,VN,ZM", currency = "ARS,BDT,BOB,BRL,XAF,CLP,CNY,COP,CRC,DOP,USD,EGP,GHS,GTQ,HNL,INR,IDR,XOF,JPY,KES,MYR,MXN,MAD,NIO,NGN,PKR,PYG,PEN,PHP,RWF,SAR,XOF,ZAR,TZS,THB,TRY,UGX,UYU,VND,ZMW" }
 
 [pm_filters.mollie]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -750,8 +747,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,airwallex"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,airwallex"
 pay_later.klarna.connector_list = "adyen,aci"
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet"
 wallet.samsung_pay.connector_list = "cybersource"

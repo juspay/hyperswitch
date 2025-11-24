@@ -458,14 +458,13 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             | responses::PayloadWebhooksTrigger::BankAccountReject => Self::PaymentIntentFailure,
             responses::PayloadWebhooksTrigger::Void
             | responses::PayloadWebhooksTrigger::Reversal => Self::PaymentIntentCancelled,
-            // Refund Events
-            responses::PayloadWebhooksTrigger::Refund => Self::RefundSuccess,
             // Dispute Events
             responses::PayloadWebhooksTrigger::Chargeback => Self::DisputeOpened,
             responses::PayloadWebhooksTrigger::ChargebackReversal => Self::DisputeWon,
             // Other payment-related events
             // Events not supported by our standard flows
             responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Refund
             | responses::PayloadWebhooksTrigger::Credit
             | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
@@ -475,5 +474,69 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
                 Self::EventNotSupported
             }
         }
+    }
+}
+
+impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentStatus {
+    type Error = Error;
+    fn try_from(trigger: responses::PayloadWebhooksTrigger) -> Result<Self, Self::Error> {
+        match trigger {
+            // Payment Success Events
+            responses::PayloadWebhooksTrigger::Processed => Ok(Self::Processed),
+            responses::PayloadWebhooksTrigger::Authorized => Ok(Self::Authorized),
+            // Payment Processing Events
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Reversal => Ok(Self::Processing),
+            // Payment Failure Events
+            responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::BankAccountReject => Ok(Self::Declined),
+            responses::PayloadWebhooksTrigger::Void => Ok(Self::Voided),
+            responses::PayloadWebhooksTrigger::Refund => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Refund Webhook".to_string(),
+                    connector: "Payload",
+                }
+                .into())
+            }
+            responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+        }
+    }
+}
+
+impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(webhook_body: responses::PayloadWebhookEvent) -> Result<Self, Self::Error> {
+        let status = responses::PayloadPaymentStatus::try_from(webhook_body.trigger.clone())?;
+        Ok(Self::PayloadCardsResponse(
+            responses::PayloadCardsResponseData {
+                amount: None,
+                avs: None,
+                customer_id: None,
+                transaction_id: webhook_body
+                    .triggered_on
+                    .transaction_id
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                connector_payment_method_id: None,
+                processing_id: None,
+                processing_method_id: None,
+                ref_number: None,
+                status,
+                status_code: None,
+                status_message: None,
+                response_type: None,
+            },
+        ))
     }
 }

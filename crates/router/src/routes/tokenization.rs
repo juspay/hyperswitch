@@ -88,10 +88,8 @@ pub async fn delete_tokenized_data_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            tokenization::delete_tokenized_data_core(state, merchant_context, &token_id, req)
+            let platform = auth.into();
+            tokenization::delete_tokenized_data_core(state, platform, &token_id, req)
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
