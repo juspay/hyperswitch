@@ -3272,6 +3272,8 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
 
 #[cfg(feature = "v1")]
 fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
+    use common_enums::BankType;
+
     HashMap::from([
         (
             enums::PaymentMethodType::Ach,
@@ -3294,6 +3296,28 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             .to_tuple(),
                             RequiredField::AchBankDebitAccountNumber.to_tuple(),
                             RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
+                    Connector::Payload,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingAddressLine1.to_tuple(),
+                            RequiredField::BillingAddressCity.to_tuple(),
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressState.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                            RequiredField::AchBankDebitAccountNumber.to_tuple(),
+                            RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                            RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
+                            RequiredField::AchBankDebitBankType(vec![
+                                enums::BankType::Checking,
+                                enums::BankType::Savings,
+                            ])
+                            .to_tuple(),
                         ]),
                     },
                 ),
