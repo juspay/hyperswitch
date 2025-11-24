@@ -17,6 +17,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::ValueExt,
+    fp_utils::when,
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
@@ -409,13 +410,13 @@ impl AmountDetails {
     ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
         // Validate that amount_captured doesn't exceed order_amount
         let captured_amount = self.amount_captured.unwrap_or(MinorUnit::zero());
-        if captured_amount > self.order_amount {
-            return Err(error_stack::report!(
+        when(captured_amount > self.order_amount, || {
+            Err(
                 errors::api_error_response::ApiErrorResponse::InvalidRequestData {
-                    message: "Amount captured cannot exceed the order amount".to_string()
-                }
-            ));
-        };
+                    message: "Amount captured cannot exceed the order amount".into(),
+                },
+            )
+        })?;
         Ok(self.order_amount - captured_amount)
     }
 
@@ -848,7 +849,7 @@ impl PaymentIntent {
     pub fn get_recovery_order_amount(
         &self,
     ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
-        Ok(self.amount_details.get_order_amount_for_recovery_data()?)
+        self.amount_details.get_order_amount_for_recovery_data()
     }
 
     pub fn create_revenue_recovery_attempt_data(
@@ -1179,10 +1180,6 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
-        let active_attempt_id = match self.revenue_recovery_data.triggered_by {
-            common_enums::TriggeredBy::Internal => Some(self.payment_attempt.id.clone()),
-            common_enums::TriggeredBy::External => None,
-        };
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()

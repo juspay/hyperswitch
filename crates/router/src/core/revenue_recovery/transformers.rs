@@ -44,6 +44,18 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
     }
 }
 
+impl From<RevenueRecoveryPaymentsAttemptStatus> for common_enums::EventType {
+    fn from(status: RevenueRecoveryPaymentsAttemptStatus) -> Self {
+        match status {
+            RevenueRecoveryPaymentsAttemptStatus::Succeeded => Self::PaymentSucceeded,
+            RevenueRecoveryPaymentsAttemptStatus::PartialCharged => Self::PaymentCaptured,
+            RevenueRecoveryPaymentsAttemptStatus::Processing => Self::PaymentProcessing,
+            RevenueRecoveryPaymentsAttemptStatus::Failed => Self::PaymentFailed,
+            RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(_) => Self::ActionRequired,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
     for hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData
 {
