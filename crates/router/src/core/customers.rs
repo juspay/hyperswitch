@@ -1539,22 +1539,36 @@ pub async fn migrate_customers(
     state: SessionState,
     customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     merchant_context: domain::MerchantContext,
-) -> errors::CustomerResponse<()> {
+) -> errors::CustomerResponse<Vec<payment_methods_domain::CustomerMigrationResult>> {
+    let mut results = Vec::new();
     for customer_migration in customers_migration {
-        match create_customer(
+        let customer_id = customer_migration
+            .customer
+            .customer_id
+            .clone()
+            .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
+        let connector_customer_details = customer_migration.connector_customer_details.clone();
+        let status = match create_customer(
             state.clone(),
             merchant_context.clone(),
             customer_migration.customer,
-            customer_migration.connector_customer_details,
+            connector_customer_details,
         )
         .await
         {
-            Ok(_) => (),
+            Ok(_) => payment_methods_domain::CustomerMigrationStatus::Created,
             Err(e) => match e.current_context() {
-                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
+                errors::CustomersErrorResponse::CustomerAlreadyExists => {
+                    payment_methods_domain::CustomerMigrationStatus::AlreadyExists
+                }
                 _ => return Err(e),
             },
-        }
+        };
+        results.push(payment_methods_domain::CustomerMigrationResult {
+            customer_id,
+            status,
+            connector_customer_details: customer_migration.connector_customer_details,
+        });
     }
-    Ok(services::ApplicationResponse::Json(()))
+    Ok(services::ApplicationResponse::Json(results))
 }

@@ -1010,6 +1010,19 @@ pub struct PaymentMethodCustomerMigrate {
     pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub enum CustomerMigrationStatus {
+    Created,
+    AlreadyExists,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct CustomerMigrationResult {
+    pub customer_id: id_type::CustomerId,
+    pub status: CustomerMigrationStatus,
+    pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
+}
+
 #[cfg(feature = "v1")]
 impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
     for PaymentMethodCustomerMigrate
