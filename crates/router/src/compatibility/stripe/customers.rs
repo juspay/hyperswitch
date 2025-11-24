@@ -5,7 +5,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::id_type;
 #[cfg(feature = "v1")]
 use error_stack::report;
-use hyperswitch_domain_models::platform::Platform;
+use hyperswitch_domain_models as domain;
 #[cfg(feature = "v1")]
 use router_env::{instrument, tracing, Flow};
 
@@ -52,7 +52,7 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform: Platform = auth.into();
+            let platform: domain::platform::Platform = auth.into();
             customers::create_customer(state, platform.get_provider().clone(), req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -90,7 +90,7 @@ pub async fn customer_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform: Platform = auth.into();
+            let platform: domain::platform::Platform = auth.into();
             customers::retrieve_customer(state, platform.get_provider().clone(), None, customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -142,7 +142,7 @@ pub async fn customer_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let platform: Platform = auth.into();
+            let platform: domain::platform::Platform = auth.into();
             customers::update_customer(state, platform.get_provider().clone(), request_internal)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
