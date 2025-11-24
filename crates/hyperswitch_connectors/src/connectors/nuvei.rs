@@ -1567,7 +1567,7 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nuvei",
         description: "Nuvei is the Canadian fintech company accelerating the business of clients around the world.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Beta,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
