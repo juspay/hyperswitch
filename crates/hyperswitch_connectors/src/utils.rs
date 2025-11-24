@@ -2086,6 +2086,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2195,6 +2196,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -6731,7 +6735,9 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
 }
 
 #[cfg(feature = "payouts")]
@@ -7115,6 +7121,10 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         mit_category: None,
         billing_descriptor: data.request.billing_descriptor.clone(),
         tokenization: None,
+        partner_merchant_identifier_details: data
+            .request
+            .partner_merchant_identifier_details
+            .clone(),
     }
 }
 
