@@ -40,11 +40,11 @@ message DeciderRequest {
   optional google.protobuf.Timestamp wait_time = 29;
   optional string payment_id= 30;
   map<string, int32> hourly_retry_history = 31;
-  optional double tau= 32;
+  optional double previous_threshold= 32;
 }
 
 message DeciderResponse {
   bool retry_flag = 1;
   google.protobuf.Timestamp retry_time = 2;
-  optional double new_tau= 3;
+  optional double decision_threshold= 3;
 }

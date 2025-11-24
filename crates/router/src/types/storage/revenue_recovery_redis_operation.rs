@@ -51,8 +51,8 @@ pub struct PaymentProcessorTokenStatus {
     pub is_active: Option<bool>,
     /// Update history of the token
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
-    /// Tau value for decider adaptive algorithm
-    pub tau: Option<f64>,
+    /// Previous Decision threshold for selecting the best slot
+    pub decision_threshold: Option<f64>,
 }
 
 impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCardInfo {
@@ -92,19 +92,15 @@ where
     let date_only_format = time::macros::format_description!("[year]-[month]-[day]");
 
     for (k, v) in raw {
-        if let Ok(dt) = PrimitiveDateTime::parse(&k, &full_dt_format) {
-            parsed.insert(dt, v);
-            continue;
-        }
+        let dt = PrimitiveDateTime::parse(&k, &full_dt_format)
+            .or_else(|_| {
+                Date::parse(&k, &date_only_format)
+                    .map(|date| PrimitiveDateTime::new(date, Time::MIDNIGHT))
+            })
+            .map_err(|_| serde::de::Error::custom(format!("Invalid date key: {}", k)))?;
 
-        if let Ok(date) = Date::parse(&k, &date_only_format) {
-            let dt =
-                PrimitiveDateTime::new(date, Time::from_hms(0, 0, 0).unwrap_or(Time::MIDNIGHT));
-            parsed.insert(dt, v);
-            continue;
-        }
+        parsed.insert(dt, v);
 
-        return Err(serde::de::Error::custom(format!("Invalid date key: {}", k)));
     }
 
     Ok(parsed)
@@ -705,7 +701,7 @@ impl RedisTokenManager {
                         )),
                         is_active: status.is_active,
                         account_update_history: status.account_update_history.clone(),
-                        tau: status.tau,
+                        decision_threshold: status.decision_threshold,
                     })
             }
             None => None,
@@ -786,7 +782,7 @@ impl RedisTokenManager {
                 )),
                 is_active: status.is_active,
                 account_update_history: status.account_update_history.clone(),
-                tau: status.tau,
+                decision_threshold: status.decision_threshold,
             };
             updated_tokens_map.insert(token_id, updated_status);
         }
@@ -837,7 +833,7 @@ impl RedisTokenManager {
                     )),
                     is_active: status.is_active,
                     account_update_history: status.account_update_history.clone(),
-                    tau: status.tau,
+                    decision_threshold: status.decision_threshold,
                 });
 
         match updated_token {
@@ -1379,7 +1375,7 @@ impl AccountUpdaterAction {
                             updated_mandate_details,
                         )),
                     }]),
-                    tau: None,
+                    decision_threshold: None,
                 };
 
                 RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)

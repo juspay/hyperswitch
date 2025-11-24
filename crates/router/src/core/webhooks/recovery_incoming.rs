@@ -966,7 +966,7 @@ impl RevenueRecoveryAttempt {
             },
             is_active: Some(true), // Tokens created from recovery attempts are active by default
             account_update_history: None, // No prior account update history exists for freshly ingested tokens
-            tau: None,
+            decision_threshold: None,
         };
 
         // Make the Redis call to store tokens

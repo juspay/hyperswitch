@@ -402,7 +402,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
                 .daily_retry_history
                 .clone(),
         ),
-        tau: token_with_retry_info.token_status.tau,
+        previous_threshold: token_with_retry_info.token_status.decision_threshold,
     };
 
     if let Some(mut client) = state.grpc_client.recovery_decider_client.clone() {
@@ -524,7 +524,7 @@ struct InternalDeciderRequest {
     wait_time: Option<prost_types::Timestamp>,
     payment_id: Option<String>,
     hourly_retry_history: Option<HashMap<time::PrimitiveDateTime, i32>>,
-    tau: Option<f64>,
+    previous_threshold: Option<f64>,
 }
 
 #[cfg(feature = "v2")]
@@ -564,7 +564,7 @@ impl From<InternalDeciderRequest> for external_grpc_client::DeciderRequest {
             hourly_retry_history: convert_hourly_retry_history(
                 internal_request.hourly_retry_history,
             ),
-            tau: internal_request.tau,
+            previous_threshold: internal_request.previous_threshold,
         }
     }
 }
