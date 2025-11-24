@@ -6,7 +6,7 @@ use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
@@ -38,7 +38,7 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-fn build_payload_cards_request_data(
+fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
     connector_auth_type: &ConnectorAuthType,
     currency: enums::Currency,
@@ -46,57 +46,89 @@ fn build_payload_cards_request_data(
     billing_address: &AddressDetails,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
-) -> Result<requests::PayloadCardsRequestData, Error> {
-    if let PaymentMethodData::Card(req_card) = payment_method_data {
-        let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
-
-        let card = requests::PayloadCard {
-            number: req_card.clone().card_number,
-            expiry: req_card
-                .clone()
-                .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
-            cvc: req_card.card_cvc.clone(),
-        };
-
-        let city = billing_address.get_city()?.to_owned();
-        let country = billing_address.get_country()?.to_owned();
-        let postal_code = billing_address.get_zip()?.to_owned();
-        let state_province = billing_address.get_state()?.to_owned();
-        let street_address = billing_address.get_line1()?.to_owned();
-
-        let billing_address = requests::BillingAddress {
-            city,
-            country,
-            postal_code,
-            state_province,
-            street_address,
-        };
-
-        // For manual capture, set status to "authorized"
-        let status = if is_manual_capture(capture_method) {
-            Some(responses::PayloadPaymentStatus::Authorized)
-        } else {
-            None
-        };
-
-        Ok(requests::PayloadCardsRequestData {
-            amount,
-            card,
-            transaction_types: requests::TransactionTypes::Payment,
-            payment_method_type: "card".to_string(),
-            status,
-            billing_address,
-            processing_id: payload_auth.processing_account_id,
-            keep_active: is_mandate,
-        })
-    } else {
-        Err(
-            errors::ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
-                "Payload",
-            ))
-            .into(),
+) -> Result<requests::PayloadPaymentRequestData, Error> {
+    let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
+        PaymentMethodData::Card(req_card) => {
+            let card = requests::PayloadCard {
+                number: req_card.clone().card_number,
+                expiry: req_card
+                    .clone()
+                    .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                cvc: req_card.card_cvc.clone(),
+            };
+            Ok(requests::PayloadPaymentMethods::Card(card))
+        }
+        PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_type,
+            bank_holder_type,
+            bank_account_holder_name,
+            ..
+        }) => {
+            let account_class = bank_holder_type.map(|holder_type| match holder_type {
+                enums::BankHolderType::Business => requests::PayloadAccClass::Business,
+                enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
+            });
+            let account_type = bank_type
+                .map(|b_type| match b_type {
+                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
+                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
+                })
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_type",
+                })?;
+            let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_account_holder_name",
+                }
+            })?;
+            let bank = requests::PayloadBank {
+                account_class,
+                account_currency: currency.to_string(),
+                account_number: account_number.clone(),
+                account_type,
+                routing_number: routing_number.clone(),
+                account_holder,
+            };
+            Ok(requests::PayloadPaymentMethods::BankAccount(bank))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            get_unimplemented_payment_method_error_message("Payload"),
         )
-    }
+        .into()),
+    };
+
+    let city = billing_address.get_city()?.to_owned();
+    let country = billing_address.get_country()?.to_owned();
+    let postal_code = billing_address.get_zip()?.to_owned();
+    let state_province = billing_address.get_state()?.to_owned();
+    let street_address = billing_address.get_line1()?.to_owned();
+    // For manual capture, set status to "authorized"
+    let status = if is_manual_capture(capture_method) {
+        Some(responses::PayloadPaymentStatus::Authorized)
+    } else {
+        None
+    };
+
+    let billing_address = requests::BillingAddress {
+        city,
+        country,
+        postal_code,
+        state_province,
+        street_address,
+    };
+
+    let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
+    Ok(requests::PayloadPaymentRequestData {
+        amount,
+        payment_method: payment_method?,
+        transaction_types: requests::TransactionTypes::Payment,
+        status,
+        billing_address,
+        processing_id: payload_auth.processing_account_id,
+        keep_active: is_mandate,
+    })
 }
 
 pub struct PayloadRouterData<T> {
@@ -172,7 +204,7 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for requests::PayloadCardsRequestData {
+impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.amount {
@@ -185,7 +217,7 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadCardsRequestData {
                 let billing_address = item.get_billing_address()?;
                 let is_mandate = item.request.is_customer_initiated_mandate_payment();
 
-                build_payload_cards_request_data(
+                build_payload_payment_request_data(
                     &item.request.payment_method_data,
                     &item.connector_auth_type,
                     item.request.currency,
@@ -206,19 +238,19 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Payload",
-            })?
-        }
-
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
+            | PaymentMethodData::Card(_) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Cards 3DS".to_string(),
+                        connector: "Payload",
+                    })?
+                }
                 let billing_address = item.router_data.get_billing_address()?;
                 let is_mandate = item.router_data.request.is_mandate_payment();
 
-                let cards_data = build_payload_cards_request_data(
+                let payment_request = build_payload_payment_request_data(
                     &item.router_data.request.payment_method_data,
                     &item.router_data.connector_auth_type,
                     item.router_data.request.currency,
@@ -228,8 +260,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     is_mandate,
                 )?;
 
-                Ok(Self::PayloadCardsRequest(Box::new(cards_data)))
+                Ok(Self::PaymentRequest(Box::new(payment_request)))
             }
+            // PaymentMethodData::BankDebit()
             PaymentMethodData::MandatePayment => {
                 // For manual capture, set status to "authorized"
                 let status = if is_manual_capture(item.router_data.request.capture_method) {
@@ -540,3 +573,9 @@ impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsRespo
         ))
     }
 }
+
+// impl PayloadBank {
+//     fn new(currency: Currency, bank_debit_data: &BankDebitData) -> Result<self, ConnectorError> {
+//         todo!()
+//     }
+// }
