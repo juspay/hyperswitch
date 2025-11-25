@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.25.0
+
+### Features
+
+- **connector:** Revert [Airwallex] implement card mandates ([#10418](https://github.com/juspay/hyperswitch/pull/10418)) ([`7ad9a07`](https://github.com/juspay/hyperswitch/commit/7ad9a072018679d61a5a3200e2d813353c9f49f1))
+- **payment_links:** Allow Custom T&C messages to be passed for various Payment Method Types ([#10252](https://github.com/juspay/hyperswitch/pull/10252)) ([`5d39754`](https://github.com/juspay/hyperswitch/commit/5d39754eccf8b6857ffb8683dc3b41aa55008e38))
+- **revenue_recovery:** Revenue recovery invoices list API and get intent routes for payments ([#9409](https://github.com/juspay/hyperswitch/pull/9409)) ([`fdfd3aa`](https://github.com/juspay/hyperswitch/commit/fdfd3aa32fbda85be5b6ea27f9df05575f455fb3))
+- **router:**
+  - Add create order granular flow ([#10379](https://github.com/juspay/hyperswitch/pull/10379)) ([`b1ec9a2`](https://github.com/juspay/hyperswitch/commit/b1ec9a292e24c3f950b542ab27b150ef6e4cf6ea))
+  - Add payment method tokenization granular flow ([#10377](https://github.com/juspay/hyperswitch/pull/10377)) ([`017813e`](https://github.com/juspay/hyperswitch/commit/017813e3d28f236bffd7e014e44e94823dbfa090))
+
+### Bug Fixes
+
+- **connector:** Update connector integration status [feature metric] ([#10299](https://github.com/juspay/hyperswitch/pull/10299)) ([`ec2abbf`](https://github.com/juspay/hyperswitch/commit/ec2abbf6096ff838c4961beb5157e4f2b47f35a3))
+- **cypress:** Simplify error message for declined card status ([#10415](https://github.com/juspay/hyperswitch/pull/10415)) ([`662420b`](https://github.com/juspay/hyperswitch/commit/662420b989fdc109b2c471f76a8abda7da7b8d57))
+
+### Miscellaneous Tasks
+
+- **env:** Enable platform feature flag for production ([#10393](https://github.com/juspay/hyperswitch/pull/10393)) ([`a1b0151`](https://github.com/juspay/hyperswitch/commit/a1b0151b656044717ae723d953c874b615443ceb))
+
+**Full Changelog:** [`2025.11.24.0...2025.11.25.0`](https://github.com/juspay/hyperswitch/compare/2025.11.24.0...2025.11.25.0)
+
+- - -
+
 ## 2025.11.24.0
 
 ### Features
