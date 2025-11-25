@@ -3272,7 +3272,6 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
 
 #[cfg(feature = "v1")]
 fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
-    use common_enums::BankType;
 
     HashMap::from([
         (
