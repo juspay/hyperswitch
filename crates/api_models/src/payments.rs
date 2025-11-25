@@ -7290,7 +7290,6 @@ pub struct PaymentsResponse {
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
 
@@ -7312,7 +7311,7 @@ pub struct PaymentMethodTokenizationDetails {
     /// The status of the payment method
     #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: enums::PaymentMethodStatus,
-    /// This indicates whether a PSP token is created
+    /// This indicates whether there is at least one active PSP token available
     pub psp_tokenization: bool,
     /// This indicates whether a payment method is tokenized with card network
     pub network_tokenization: bool,
