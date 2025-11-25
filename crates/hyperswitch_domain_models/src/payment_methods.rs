@@ -1061,15 +1061,14 @@ pub struct PaymentMethodCustomerMigrate {
     pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub enum CustomerMigrationStatus {
     Created,
     AlreadyExists,
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct CustomerMigrationResult {
-    pub customer_id: id_type::CustomerId,
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct CustomerMigrationData {
     pub status: CustomerMigrationStatus,
     pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
 }

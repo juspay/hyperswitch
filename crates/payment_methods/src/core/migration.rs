@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
 use csv::Reader;
@@ -26,7 +28,10 @@ pub async fn migrate_payment_methods(
     platform: &platform::Platform,
     mca_ids: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     controller: &dyn pm::PaymentMethodsController,
-    customer_migration_results: &[hyperswitch_domain_models::payment_methods::CustomerMigrationResult],
+    customer_migration_results: &HashMap<
+        common_utils::id_type::CustomerId,
+        hyperswitch_domain_models::payment_methods::CustomerMigrationData,
+    >,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
 
@@ -44,11 +49,8 @@ pub async fn migrate_payment_methods(
         let res = match req {
             Ok(mut migrate_request) => {
                 let customer_id = migrate_request.customer_id.clone();
-                let customer_migration_result = customer_id.and_then(|cid| {
-                    customer_migration_results
-                        .iter()
-                        .find(|c| c.customer_id == cid)
-                });
+                let customer_migration_result =
+                    customer_id.and_then(|cid| customer_migration_results.get(&cid));
 
                 if let Some(customer_migration_result) = customer_migration_result {
                     if let Some(connector_customer_details) =
@@ -76,7 +78,6 @@ pub async fn migrate_payment_methods(
                     merchant_id,
                     platform,
                     controller,
-                    customer_migration_result,
                 )
                 .await;
                 match res {

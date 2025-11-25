@@ -279,7 +279,6 @@ pub async fn migrate_payment_method_api(
                     state: &state,
                     platform: &platform,
                 },
-                None,
             ))
             .await
         },

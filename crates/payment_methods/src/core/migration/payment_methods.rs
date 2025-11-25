@@ -43,9 +43,6 @@ pub async fn migrate_payment_method(
     merchant_id: &id_type::MerchantId,
     platform: &platform::Platform,
     controller: &dyn PaymentMethodsController,
-    _customer_migration_result: Option<
-        &hyperswitch_domain_models::payment_methods::CustomerMigrationResult,
-    >,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
     let mut req = req;
@@ -174,9 +171,6 @@ pub async fn migrate_payment_method(
     _merchant_id: &id_type::MerchantId,
     _platform: &platform::Platform,
     _controller: &dyn PaymentMethodsController,
-    _customer_migration_result: Option<
-        &hyperswitch_domain_models::payment_methods::CustomerMigrationResult,
-    >,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
     todo!()

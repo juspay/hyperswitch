@@ -1465,8 +1465,10 @@ pub async fn migrate_customers(
     state: SessionState,
     customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     platform: domain::Platform,
-) -> errors::CustomerResponse<Vec<payment_methods_domain::CustomerMigrationResult>> {
-    let mut results = Vec::new();
+) -> errors::CustomerResponse<
+    std::collections::HashMap<id_type::CustomerId, payment_methods_domain::CustomerMigrationData>,
+> {
+    let mut results = std::collections::HashMap::new();
     for customer_migration in customers_migration {
         let customer_id = customer_migration
             .customer
@@ -1490,11 +1492,13 @@ pub async fn migrate_customers(
                 _ => return Err(e),
             },
         };
-        results.push(payment_methods_domain::CustomerMigrationResult {
+        results.insert(
             customer_id,
-            status,
-            connector_customer_details: customer_migration.connector_customer_details,
-        });
+            payment_methods_domain::CustomerMigrationData {
+                status,
+                connector_customer_details: customer_migration.connector_customer_details,
+            },
+        );
     }
     Ok(services::ApplicationResponse::Json(results))
 }
