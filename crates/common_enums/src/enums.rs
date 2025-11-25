@@ -3063,10 +3063,7 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         // Use the inner String's ToSql implementation
-        // self.0.
-        let x = "swango".to_string();
-
-        x.to_sql(out)
+        self.0.to_sql(out)
     }
 }
 
