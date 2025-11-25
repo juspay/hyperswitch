@@ -1,23 +1,26 @@
 mod accounts;
 mod payments;
 mod ui;
+use std::{
+    collections::HashSet,
+    fmt,
+    num::{ParseFloatError, TryFromIntError},
+    str::FromStr,
+};
+
 pub use accounts::{
     MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
 };
-use diesel::backend::Backend;
-use diesel::deserialize::FromSql;
-use diesel::expression::AsExpression;
-use diesel::serialize::{Output, ToSql};
-use diesel::sql_types::Text;
+use diesel::{
+    backend::Backend,
+    deserialize::FromSql,
+    expression::AsExpression,
+    serialize::{Output, ToSql},
+    sql_types::Text,
+};
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
-use std::fmt;
-use std::str::FromStr;
-use std::{
-    collections::HashSet,
-    num::{ParseFloatError, TryFromIntError},
-};
 pub use ui::*;
 use utoipa::ToSchema;
 
