@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix3
+
+### Revert
+
+- "feat(connector): [NOVALNET] Pass Payment Metadata fields to Connector" ([#10437](https://github.com/juspay/hyperswitch/pull/10437)) ([`5b89b4e`](https://github.com/juspay/hyperswitch/commit/5b89b4e747e7d8703940748dd68bd33a1387f32f))
+
+**Full Changelog:** [`2025.11.19.0-hotfix2...2025.11.19.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix2...2025.11.19.0-hotfix3)
+
+- - -
+
 ## 2025.11.19.0-hotfix2
 
 ### Refactors
