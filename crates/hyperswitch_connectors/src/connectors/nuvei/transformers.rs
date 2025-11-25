@@ -1,4 +1,3 @@
-use crate::utils::PaymentsCompleteAuthorizeRequestData;
 use common_enums::{enums, CaptureMethod, FutureUsage, GooglePayCardFundingSource, PaymentChannel};
 use common_types::{
     payments::{
@@ -62,8 +61,8 @@ use crate::{
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsPreProcessingRequestData,
-        PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsCancelRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
