@@ -1469,25 +1469,31 @@ pub async fn migrate_customers(
     std::collections::HashMap<id_type::CustomerId, common_enums::CustomerMigrationStatus>,
 > {
     let mut results = std::collections::HashMap::new();
+
     for customer_migration in customers_migration {
-        let customer_id = customer_migration
-            .customer
-            .customer_id
-            .clone()
-            .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
-        let connector_customer_details = customer_migration.connector_customer_details.clone();
-        let status = match create_customer(
+        let customer_id_from_request = customer_migration.customer.customer_id.clone();
+
+        let (customer_id, status) = match create_customer(
             state.clone(),
             platform.clone(),
             customer_migration.customer,
-            connector_customer_details,
+            customer_migration.connector_customer_details,
         )
         .await
         {
-            Ok(_) => common_enums::CustomerMigrationStatus::Created,
+            Ok(services::ApplicationResponse::Json(res)) => (
+                res.customer_id.clone(),
+                common_enums::CustomerMigrationStatus::Created,
+            ),
+            Ok(_) => return Err(report!(errors::CustomersErrorResponse::InternalServerError)),
             Err(e) => match e.current_context() {
                 errors::CustomersErrorResponse::CustomerAlreadyExists => {
-                    common_enums::CustomerMigrationStatus::AlreadyExists
+                    let customer_id = customer_id_from_request
+                        .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
+                    (
+                        customer_id,
+                        common_enums::CustomerMigrationStatus::AlreadyExists,
+                    )
                 }
                 _ => return Err(e),
             },
