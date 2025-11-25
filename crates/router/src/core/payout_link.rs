@@ -138,7 +138,6 @@ pub async fn initiate_payout_link(
             // Fetch customer
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
                     platform.get_processor().get_key_store(),
@@ -157,7 +156,6 @@ pub async fn initiate_payout_link(
                 .as_ref()
                 .async_map(|address_id| async {
                     db.find_address_by_address_id(
-                        &(&state).into(),
                         address_id,
                         platform.get_processor().get_key_store(),
                     )
@@ -336,11 +334,9 @@ pub async fn filter_payout_methods(
     use masking::ExposeInterface;
 
     let db = &*state.store;
-    let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
             platform.get_processor().get_account().get_id(),
             false,
             platform.get_processor().get_key_store(),

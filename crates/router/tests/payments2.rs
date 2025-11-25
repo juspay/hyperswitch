@@ -56,11 +56,9 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -69,7 +67,7 @@ async fn payments_create_core() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
@@ -235,6 +233,7 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        partner_merchant_identifier_details: None,
     };
 
     let expected_response =
@@ -360,11 +359,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -373,7 +370,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
@@ -537,6 +534,7 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            partner_merchant_identifier_details: None,
         },
         vec![],
     ));

@@ -70,10 +70,9 @@ impl<'a> SubscriptionHandler<'a> {
 
         subscription.generate_and_set_client_secret();
 
-        let key_manager_state = &(self.state).into();
         let merchant_key_store = self.platform.get_processor().get_key_store();
         let new_subscription = db
-            .insert_subscription_entry(key_manager_state, merchant_key_store, subscription)
+            .insert_subscription_entry(merchant_key_store, subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("subscriptions: unable to insert subscription entry to database")?;
@@ -91,14 +90,12 @@ impl<'a> SubscriptionHandler<'a> {
         platform: &Platform,
         customer_id: &common_utils::id_type::CustomerId,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = platform.get_processor().get_key_store();
         let merchant_id = platform.get_processor().get_account().get_id();
 
         state
             .store
             .find_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer_id,
                 merchant_id,
                 merchant_key_store,
@@ -144,14 +141,12 @@ impl<'a> SubscriptionHandler<'a> {
         customer: customer::Customer,
         customer_update: customer::CustomerUpdate,
     ) -> errors::SubscriptionResult<customer::Customer> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = platform.get_processor().get_key_store();
         let merchant_id = platform.get_processor().get_account().get_id();
         let db = state.store.as_ref();
 
         let updated_customer = db
             .update_customer_by_customer_id_merchant_id(
-                key_manager_state,
                 customer.customer_id.clone(),
                 merchant_id.clone(),
                 customer,
@@ -172,12 +167,11 @@ impl<'a> SubscriptionHandler<'a> {
         platform: &Platform,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::business_profile::Profile> {
-        let key_manager_state = &(state).into();
         let merchant_key_store = platform.get_processor().get_key_store();
 
         state
             .store
-            .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+            .find_business_profile_by_profile_id(merchant_key_store, profile_id)
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_string(),
@@ -189,15 +183,12 @@ impl<'a> SubscriptionHandler<'a> {
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
     ) -> errors::SubscriptionResult<()> {
         let subscription_id = client_secret.get_subscription_id()?;
-
-        let key_manager_state = &(self.state).into();
         let key_store = self.platform.get_processor().get_key_store();
 
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
-                key_manager_state,
                 key_store,
                 self.platform.get_processor().get_account().get_id(),
                 subscription_id.to_string(),
@@ -251,7 +242,6 @@ impl<'a> SubscriptionHandler<'a> {
             .state
             .store
             .find_by_merchant_id_subscription_id(
-                &(self.state).into(),
                 self.platform.get_processor().get_key_store(),
                 self.platform.get_processor().get_account().get_id(),
                 subscription_id.get_string_repr().to_string().clone(),
@@ -333,7 +323,6 @@ impl SubscriptionWithHandler<'_> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
-                &(self.handler.state).into(),
                 self.handler.platform.get_processor().get_key_store(),
                 self.handler.platform.get_processor().get_account().get_id(),
                 self.subscription.id.get_string_repr().to_string(),
@@ -372,14 +361,12 @@ impl SubscriptionWithHandler<'_> {
     ) -> CustomResult<merchant_connector_account::MerchantConnectorAccount, errors::ApiErrorResponse>
     {
         let db = self.handler.state.store.as_ref();
-        let key_manager_state = &(self.handler.state).into();
 
         match &self.subscription.merchant_connector_id {
             Some(merchant_connector_id) => {
                 #[cfg(feature = "v1")]
                 {
                     db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        key_manager_state,
                         self.handler.platform.get_processor().get_account().get_id(),
                         merchant_connector_id,
                         self.handler.platform.get_processor().get_key_store(),
@@ -397,7 +384,6 @@ impl SubscriptionWithHandler<'_> {
                 #[cfg(feature = "v1")]
                 {
                     db.find_merchant_connector_account_by_profile_id_connector_name(
-                        key_manager_state,
                         &self.subscription.profile_id,
                         connector_name,
                         self.handler.platform.get_processor().get_key_store(),

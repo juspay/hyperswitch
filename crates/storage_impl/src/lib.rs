@@ -56,6 +56,18 @@ pub struct RouterStore<T: DatabaseStore> {
     cache_store: Arc<RedisStore>,
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
+    key_manager_state: Option<KeyManagerState>,
+}
+
+impl<T: DatabaseStore> RouterStore<T> {
+    pub fn set_key_manager_state(&mut self, state: KeyManagerState) {
+        self.key_manager_state = Some(state);
+    }
+    fn get_keymanager_state(&self) -> Result<&KeyManagerState, StorageError> {
+        self.key_manager_state
+            .as_ref()
+            .ok_or_else(|| StorageError::DecryptionError)
+    }
 }
 
 #[async_trait::async_trait]
@@ -74,13 +86,20 @@ where
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
+        key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
-            Self::test_store(db_conf, tenant_config, &cache_conf, encryption_key)
-                .await
-                .attach_printable("failed to create test router store")
+            Self::test_store(
+                db_conf,
+                tenant_config,
+                &cache_conf,
+                encryption_key,
+                key_manager_state,
+            )
+            .await
+            .attach_printable("failed to create test router store")
         } else {
             Self::from_config(
                 db_conf,
@@ -88,6 +107,7 @@ where
                 encryption_key,
                 Self::cache_store(&cache_conf, cache_error_signal).await?,
                 inmemory_cache_stream,
+                key_manager_state,
             )
             .await
             .attach_printable("failed to create store")
@@ -122,8 +142,9 @@ impl<T: DatabaseStore> RouterStore<T> {
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
+        key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
-        let db_store = T::new(db_conf, tenant_config, false).await?;
+        let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
         let redis_conn = cache_store.redis_conn.clone();
         let cache_store = Arc::new(RedisStore {
             redis_conn: Arc::new(RedisConnectionPool::clone(
@@ -143,6 +164,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             cache_store,
             master_encryption_key: encryption_key,
             request_id: None,
+            key_manager_state,
         })
     }
 
@@ -164,7 +186,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn call_database<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query: R,
     ) -> error_stack::Result<D, StorageError>
@@ -181,7 +202,8 @@ impl<T: DatabaseStore> RouterStore<T> {
                 error.change_context(new_err)
             })?
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -191,7 +213,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn find_optional_resource<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query_fut: R,
     ) -> error_stack::Result<Option<D>, StorageError>
@@ -209,7 +230,8 @@ impl<T: DatabaseStore> RouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -222,7 +244,6 @@ impl<T: DatabaseStore> RouterStore<T> {
 
     pub async fn find_resources<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         execute_query: R,
     ) -> error_stack::Result<Vec<D>, StorageError>
@@ -243,7 +264,8 @@ impl<T: DatabaseStore> RouterStore<T> {
             .map(|resource| async {
                 resource
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -265,9 +287,10 @@ impl<T: DatabaseStore> RouterStore<T> {
         tenant_config: &dyn TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
+        key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, tenant_config, true).await?;
+        let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -277,6 +300,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             cache_store: Arc::new(cache_store),
             master_encryption_key: encryption_key,
             request_id: None,
+            key_manager_state,
         })
     }
 }

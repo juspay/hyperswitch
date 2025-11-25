@@ -81,7 +81,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
         let ephemeral_key = Self::get_ephemeral_key(request, state, platform).await;
         let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -102,7 +101,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // If profile id is not passed, get it from the business_country and business_label
         #[cfg(feature = "v1")]
         let profile_id = core_utils::get_profile_id_from_business_details(
-            key_manager_state,
             request.business_country,
             request.business_label.as_ref(),
             platform,
@@ -125,7 +123,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(
                 db,
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 Some(&profile_id),
                 merchant_id,
@@ -135,7 +132,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile
         } else {
             db.find_business_profile_by_profile_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 &profile_id,
             )
@@ -339,7 +335,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent = db
             .insert_payment_intent(
-                key_manager_state,
                 payment_intent_new,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -367,12 +362,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v2")]
         let payment_attempt = db
-            .insert_payment_attempt(
-                key_manager_state,
-                merchant_key_store,
-                payment_attempt_new,
-                storage_scheme,
-            )
+            .insert_payment_attempt(merchant_key_store, payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
@@ -690,8 +680,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         if is_tax_connector_enabled && !skip_external_tax_calculation {
             let db = state.store.as_ref();
 
-            let key_manager_state: &KeyManagerState = &state.into();
-
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
@@ -700,7 +688,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             #[cfg(feature = "v1")]
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     &business_profile.merchant_id,
                     merchant_connector_id,
                     platform.get_processor().get_key_store(),
@@ -714,11 +701,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             #[cfg(feature = "v2")]
             let mca = db
-                .find_merchant_connector_account_by_id(
-                    key_manager_state,
-                    merchant_connector_id,
-                    key_store,
-                )
+                .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -941,7 +924,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::PaymentCreateUpdate {
                     return_url: None,
@@ -1678,6 +1660,9 @@ impl PaymentCreate {
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
             tokenization: request.tokenization,
+            partner_merchant_identifier_details: request
+                .partner_merchant_identifier_details
+                .clone(),
         })
     }
 
