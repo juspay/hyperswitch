@@ -333,22 +333,22 @@ pub enum AuthOrEmbeddedClaims {
 impl AuthOrEmbeddedClaims {
     fn get_tenant_id(&self) -> Option<&id_type::TenantId> {
         match self {
-            AuthOrEmbeddedClaims::AuthToken(payload) => payload.tenant_id.as_ref(),
-            AuthOrEmbeddedClaims::EmbeddedToken(payload) => Some(&payload.tenant_id),
+            Self::AuthToken(payload) => payload.tenant_id.as_ref(),
+            Self::EmbeddedToken(payload) => Some(&payload.tenant_id),
         }
     }
 
     fn get_merchant_id(&self) -> &id_type::MerchantId {
         match self {
-            AuthOrEmbeddedClaims::AuthToken(payload) => &payload.merchant_id,
-            AuthOrEmbeddedClaims::EmbeddedToken(payload) => &payload.merchant_id,
+            Self::AuthToken(payload) => &payload.merchant_id,
+            Self::EmbeddedToken(payload) => &payload.merchant_id,
         }
     }
 
     fn get_profile_id(&self) -> &id_type::ProfileId {
         match self {
-            AuthOrEmbeddedClaims::AuthToken(payload) => &payload.profile_id,
-            AuthOrEmbeddedClaims::EmbeddedToken(payload) => &payload.profile_id,
+            Self::AuthToken(payload) => &payload.profile_id,
+            Self::EmbeddedToken(payload) => &payload.profile_id,
         }
     }
 }

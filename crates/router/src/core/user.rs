@@ -3810,7 +3810,7 @@ pub async fn issue_embedded_token(
                 e.change_context(UserErrors::InternalServerError)
             }
         })?;
-    auth::embedded::EmbeddedToken::new(
+    auth::embedded::EmbeddedToken::new_token(
         state.tenant.tenant_id,
         authentication_data.merchant_account.get_org_id().clone(),
         authentication_data.merchant_account.get_id().clone(),

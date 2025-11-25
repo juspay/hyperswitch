@@ -15,7 +15,7 @@ pub struct EmbeddedToken {
 }
 
 impl EmbeddedToken {
-    pub async fn new(
+    pub async fn new_token(
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
