@@ -23,7 +23,7 @@ pub async fn create_profile_acquirer(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
+        |state: super::SessionState, auth_data, req, _| {
             let platform = auth_data.into();
             crate::core::profile_acquirer::create_profile_acquirer(state, req, platform)
         },
@@ -62,7 +62,7 @@ pub async fn profile_acquirer_update(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
+        |state: super::SessionState, auth_data, req, _| {
             let platform = auth_data.into();
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,

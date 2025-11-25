@@ -595,17 +595,11 @@ where
     let (payment_intent, payment_attempt) = match payment_id {
         api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
             let payment_intent = db
-                .find_payment_intent_by_id(
-                    key_manager_state,
-                    id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
+                .find_payment_intent_by_id(id, merchant_key_store, storage_scheme)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_attempt = db
                 .find_payment_attempt_by_id(
-                    key_manager_state,
                     merchant_key_store,
                     &payment_intent
                         .active_attempt_id
@@ -621,7 +615,6 @@ where
         api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
             let payment_attempt = db
                 .find_payment_attempt_by_profile_id_connector_transaction_id(
-                    key_manager_state,
                     merchant_key_store,
                     profile_id,
                     id,
@@ -631,7 +624,6 @@ where
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_intent = db
                 .find_payment_intent_by_id(
-                    key_manager_state,
                     &payment_attempt.payment_id,
                     merchant_key_store,
                     storage_scheme,
@@ -647,17 +639,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while getting GlobalAttemptId")?;
             let payment_attempt = db
-                .find_payment_attempt_by_id(
-                    key_manager_state,
-                    merchant_key_store,
-                    &global_attempt_id,
-                    storage_scheme,
-                )
+                .find_payment_attempt_by_id(merchant_key_store, &global_attempt_id, storage_scheme)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_intent = db
                 .find_payment_intent_by_id(
-                    key_manager_state,
                     &payment_attempt.payment_id,
                     merchant_key_store,
                     storage_scheme,
@@ -817,7 +803,7 @@ async fn fetch_mca_and_connector(
 {
     let db = &state.store;
     let mca = db
-        .find_merchant_connector_account_by_id(&state.into(), connector_id, key_store)
+        .find_merchant_connector_account_by_id(connector_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_owned(),

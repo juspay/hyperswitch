@@ -160,13 +160,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -184,7 +182,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
 
         let mut payment_attempt = db
             .find_payment_attempt_by_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 active_attempt_id,
                 storage_scheme,
@@ -224,7 +221,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                 .as_ref()
                 .async_map(|active_attempt| async {
                     db.find_payment_attempts_by_payment_intent_id(
-                        key_manager_state,
                         payment_id,
                         platform.get_processor().get_key_store(),
                         storage_scheme,
@@ -272,12 +268,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &state.into(),
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
 
                 Ok((Box::new(self), Some(customer)))

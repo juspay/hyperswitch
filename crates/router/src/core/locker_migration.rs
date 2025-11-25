@@ -33,11 +33,9 @@ pub async fn rust_locker_migration(
     use crate::db::customers::CustomerListConstraints;
 
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -45,7 +43,7 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -59,7 +57,7 @@ pub async fn rust_locker_migration(
     };
 
     let domain_customers = db
-        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store, constraints)
+        .list_customers_by_merchant_id(merchant_id, &key_store, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -75,7 +73,6 @@ pub async fn rust_locker_migration(
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
-                key_manager_state,
                 &key_store,
                 &customer.customer_id,
                 merchant_id,
