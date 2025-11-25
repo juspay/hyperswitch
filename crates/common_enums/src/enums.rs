@@ -3012,7 +3012,7 @@ impl MerchantCategoryCode {
         }
         let formatted = format!("{code:04}");
 
-        Ok(MerchantCategoryCode(formatted))
+        Ok(Self(formatted))
     }
 
     pub fn get_category_name(&self) -> &str {
@@ -3020,7 +3020,7 @@ impl MerchantCategoryCode {
             // specific mapping needs to be depricated
             5411 => "Grocery Stores, Supermarkets (5411)",
             7011 => "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)",
-            0763 => "Agricultural Cooperatives (0763)",
+            763 => "Agricultural Cooperatives (0763)",
             8111 => "Attorneys, Legal Services (8111)",
             5021 => "Office and Commercial Furniture (5021)",
             4816 => "Computer Network/Information Services (4816)",
@@ -3069,7 +3069,7 @@ where
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         let code = <String as FromSql<Text, DB>>::from_sql(bytes)?;
 
-        MerchantCategoryCode::from_str(&code).map_err(Into::into)
+        Self::from_str(&code).map_err(Into::into)
     }
 }
 
@@ -3127,7 +3127,7 @@ impl FromStr for MerchantCategoryCode {
         }
 
         // 3. Store the validated string
-        Ok(MerchantCategoryCode(s.to_string()))
+        Ok(Self(s.to_string()))
     }
 }
 
@@ -3136,11 +3136,9 @@ impl<'de> Deserialize<'de> for MerchantCategoryCode {
     where
         D: Deserializer<'de>,
     {
-        // Deserialize the value as a String
-        let s = String::deserialize(deserializer)?;
+        let code = String::deserialize(deserializer)?;
 
-        // Use the custom `FromStr` implementation to parse the string into MCC
-        MerchantCategoryCode::from_str(&s).map_err(de::Error::custom)
+        Self::from_str(&code).map_err(de::Error::custom)
     }
 }
 
