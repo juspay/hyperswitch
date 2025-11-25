@@ -4402,7 +4402,7 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -5150,21 +5150,6 @@ dependencies = [
  "erased-serde 0.4.6",
  "prost",
  "scylla",
- "serde",
- "serde_json",
- "subtle",
- "time",
- "url",
- "zeroize",
-]
-
-[[package]]
-name = "masking"
-version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0#85da1b2bc80d4befd392cf7a9d2060d1e2f5cbe9"
-dependencies = [
- "diesel",
- "erased-serde 0.4.6",
  "serde",
  "serde_json",
  "subtle",
@@ -7327,7 +7312,7 @@ dependencies = [
  "jsonwebtoken",
  "kgraph_utils",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
  "maud",
  "mimalloc",
  "mime",
