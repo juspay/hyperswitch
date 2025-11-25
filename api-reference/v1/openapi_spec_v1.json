@@ -22756,12 +22756,12 @@
           {
             "type": "object",
             "required": [
-              "sdk_uri",
+              "qr_code_url",
               "display_from_timestamp",
               "type"
             ],
             "properties": {
-              "sdk_uri": {
+              "qr_code_url": {
                 "type": "string"
               },
               "display_from_timestamp": {
@@ -22782,7 +22782,7 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "invoke_upi_qr_sdk"
+                  "invoke_upi_qr_flow"
                 ]
               }
             }
@@ -22929,7 +22929,7 @@
           "collect_otp",
           "redirect_inside_popup",
           "invoke_upi_intent_sdk",
-          "invoke_upi_qr_sdk"
+          "invoke_upi_qr_flow"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
