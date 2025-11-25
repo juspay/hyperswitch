@@ -345,7 +345,7 @@ fn parse_daily_retry_history(
                         "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
                     );
 
-                    let mut history = HashMap::new();
+                    let mut hourly_retry_history = HashMap::new();
 
                     for (key, count) in string_retry_history {
                         // Try parsing full datetime first
@@ -353,17 +353,13 @@ fn parse_daily_retry_history(
                             .or_else(|_| {
                                 // Fallback to date only
                                 Date::parse(&key, &date_format).map(|date| {
-                                    time::PrimitiveDateTime::new(
-                                        date,
-                                        time::Time::from_hms(0, 0, 0)
-                                            .unwrap_or(time::Time::MIDNIGHT),
-                                    )
+                                    time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT)
                                 })
                             });
 
                         match parsed_dt {
                             Ok(dt) => {
-                                history.insert(dt, count);
+                                hourly_retry_history.insert(dt, count);
                             }
                             Err(_) => {
                                 logger::error!("Error: failed to parse retry history key '{}'", key)
@@ -371,7 +367,12 @@ fn parse_daily_retry_history(
                         }
                     }
 
-                    Some(history)
+                    logger::debug!(
+                        "Successfully parsed daily_retry_history with {} entries",
+                        hourly_retry_history.len()
+                    );
+
+                    Some(hourly_retry_history)
                 }
                 Err(e) => {
                     logger::warn!("Failed to parse daily_retry_history JSON '{}': {}", json, e);
@@ -379,7 +380,10 @@ fn parse_daily_retry_history(
                 }
             }
         }
-        _ => None,
+        _ => {
+            logger::debug!("Daily retry history not present or invalid, preserving existing data");
+            None
+        }
     }
 }
 

@@ -925,6 +925,7 @@ pub async fn calculate_smart_retry_time(
                     scheduled_time.date(),
                     scheduled_time.time(),
                 ),
+                // Not populating decision_threshold in forced schedule as there is no decider call
                 decision_threshold: None,
             }),
             true, // force_scheduled
@@ -1010,6 +1011,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 token_details: token_details.clone(),
                 retry_decision: RetryDecision {
                     retry_time: schedule_time,
+                    // Not populating decision_threshold for successful token as there is no decider call
                     decision_threshold: None,
                 },
                 

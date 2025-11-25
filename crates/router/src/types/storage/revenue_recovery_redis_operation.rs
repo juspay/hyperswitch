@@ -561,7 +561,7 @@ impl RedisTokenManager {
         let daily_wait_hours = if today_retries >= card_network_config.max_retries_per_day {
             let tomorrow_start = PrimitiveDateTime::new(
                 today_date + Duration::days(1),
-                Time::from_hms(0, 0, 0).unwrap_or(Time::MIDNIGHT),
+                Time::MIDNIGHT,
             );
             Self::calculate_wait_hours(tomorrow_start, now_utc)
         } else {
