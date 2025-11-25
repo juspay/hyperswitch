@@ -816,6 +816,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
+            merchant_reference_payment_id: Some(router_data.payment_id.clone()),
             amount_to_capture: router_data
                 .request
                 .minor_amount_to_capture
