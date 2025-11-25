@@ -3012,7 +3012,7 @@ impl MerchantCategoryCode {
     pub fn new(code: u16) -> Result<Self, InvalidMccError> {
         if code >= 10000 {
             return Err(InvalidMccError {
-                message: "Merchant category code should be in range 0001 to 9999".to_string(),
+                message: "MCC should be in range 0001 to 9999".to_string(),
             });
         }
         let formatted = format!("{code:04}");
@@ -3107,7 +3107,7 @@ impl std::error::Error for InvalidMccError {}
 impl From<std::num::ParseIntError> for InvalidMccError {
     fn from(err: std::num::ParseIntError) -> Self {
         Self {
-            message: format!("Code must be a number: {}", err),
+            message: format!("MCC must be a number: {}", err),
         }
     }
 }
