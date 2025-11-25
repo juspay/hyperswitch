@@ -46,19 +46,17 @@ pub async fn list_initial_delivery_attempts(
             let events =
                 match account {
                     MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
-                        .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+                        .list_initial_events_by_merchant_id_primary_object_id(
                             merchant_account.get_id(),
-                            Some(object_id.as_str()),
-                            None,
+                            object_id.as_str(),
                             &key_store,
                         )
                         .await,
                     MerchantAccountOrProfile::Profile(business_profile) => {
                         store
-                            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+                            .list_initial_events_by_profile_id_primary_object_id(
                                 business_profile.get_id(),
-                                Some(object_id.as_str()),
-                                None,
+                                object_id.as_str(),
                                 &key_store,
                             )
                             .await
@@ -76,19 +74,17 @@ pub async fn list_initial_delivery_attempts(
             let events =
                 match account {
                     MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
-                        .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+                        .list_initial_events_by_merchant_id_initial_attempt_id(
                             merchant_account.get_id(),
-                            None,
-                            Some(event_id.as_str()),
+                            event_id.as_str(),
                             &key_store,
                         )
                         .await,
                     MerchantAccountOrProfile::Profile(business_profile) => {
                         store
-                            .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
+                            .list_initial_events_by_profile_id_initial_attempt_id(
                                 business_profile.get_id(),
-                                None,
-                                Some(event_id.as_str()),
+                                event_id.as_str(),
                                 &key_store,
                             )
                             .await
