@@ -830,6 +830,7 @@ pub struct CompleteAuthorizeData {
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub router_return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
