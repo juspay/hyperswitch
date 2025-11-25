@@ -100,16 +100,30 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
-        .map(|mcc_value| MerchantCategoryCodeWithName {
-            code: mcc_value,
-            name: mcc_value.to_merchant_category_name(),
+    let merchant_category_codes_with_name = vec![5413, 7011, 0763, 8111, 5021, 4816, 5661]
+        .into_iter()
+        .filter_map(|mcc_value| {
+            let mcc = MerchantCategoryCode::new(mcc_value).ok()?;
+            Some(MerchantCategoryCodeWithName {
+                code: mcc,
+                name: mcc.get_category_name(),
+            })
         })
         .collect::<Vec<_>>();
 
     Ok(serde_wasm_bindgen::to_value(
         &merchant_category_codes_with_name,
     )?)
+}
+
+/// This function can be used by the frontend to get all the merchant category codes
+/// along with their names.
+#[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
+pub fn get_merchant_category_name(code: String) -> JsResult {
+    MerchantCategoryCode::from_str(code)
+        .map(|code| code.get_category_name())
+        .map_err(|_| "Forex has already been seeded".to_string())
+        .err_to_js()?;
 }
 
 /// This function can be used by the frontend to provide the WASM with information about

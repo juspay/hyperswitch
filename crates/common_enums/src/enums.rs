@@ -1,17 +1,23 @@
 mod accounts;
 mod payments;
 mod ui;
+pub use accounts::{
+    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+};
+use diesel::backend::Backend;
+use diesel::deserialize::FromSql;
+use diesel::expression::AsExpression;
+use diesel::serialize::{Output, ToSql};
+use diesel::sql_types::Text;
+pub use payments::ProductType;
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use smithy::SmithyModel;
+use std::fmt;
+use std::str::FromStr;
 use std::{
     collections::HashSet,
     num::{ParseFloatError, TryFromIntError},
 };
-
-pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
-};
-pub use payments::ProductType;
-use serde::{Deserialize, Serialize};
-use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
@@ -2986,96 +2992,183 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
-)]
-pub enum MerchantCategory {
-    #[serde(rename = "Grocery Stores, Supermarkets (5411)")]
-    GroceryStoresSupermarkets,
-    #[serde(rename = "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)")]
-    LodgingHotelsMotelsResorts,
-    #[serde(rename = "Agricultural Cooperatives (0763)")]
-    AgriculturalCooperatives,
-    #[serde(rename = "Attorneys, Legal Services (8111)")]
-    AttorneysLegalServices,
-    #[serde(rename = "Office and Commercial Furniture (5021)")]
-    OfficeAndCommercialFurniture,
-    #[serde(rename = "Computer Network/Information Services (4816)")]
-    ComputerNetworkInformationServices,
-    #[serde(rename = "Shoe Stores (5661)")]
-    ShoeStores,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-pub enum MerchantCategoryCode {
-    #[serde(rename = "5411")]
-    #[strum(serialize = "5411")]
-    Mcc5411,
-    #[serde(rename = "7011")]
-    #[strum(serialize = "7011")]
-    Mcc7011,
-    #[serde(rename = "0763")]
-    #[strum(serialize = "0763")]
-    Mcc0763,
-    #[serde(rename = "8111")]
-    #[strum(serialize = "8111")]
-    Mcc8111,
-    #[serde(rename = "5021")]
-    #[strum(serialize = "5021")]
-    Mcc5021,
-    #[serde(rename = "4816")]
-    #[strum(serialize = "4816")]
-    Mcc4816,
-    #[serde(rename = "5661")]
-    #[strum(serialize = "5661")]
-    Mcc5661,
-}
+#[derive(Debug, Clone, AsExpression, PartialEq)]
+#[diesel(sql_type = Text)]
+pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
-    pub fn to_merchant_category_name(&self) -> MerchantCategory {
-        match self {
-            Self::Mcc5411 => MerchantCategory::GroceryStoresSupermarkets,
-            Self::Mcc7011 => MerchantCategory::LodgingHotelsMotelsResorts,
-            Self::Mcc0763 => MerchantCategory::AgriculturalCooperatives,
-            Self::Mcc8111 => MerchantCategory::AttorneysLegalServices,
-            Self::Mcc5021 => MerchantCategory::OfficeAndCommercialFurniture,
-            Self::Mcc4816 => MerchantCategory::ComputerNetworkInformationServices,
-            Self::Mcc5661 => MerchantCategory::ShoeStores,
+    /// Returns the raw u16 code by parsing the internal string.
+    /// Returns 0 if the internal string is not a valid u16 (e.g., an error case).
+    pub fn get_code(&self) -> u16 {
+        // FIX: Parse the inner String to a u16.
+        self.0.parse::<u16>().unwrap_or(0)
+    }
+    // zero padded 4 digit
+    pub fn new(code: u16) -> Result<Self, InvalidMccError> {
+        if code >= 10000 {
+            return Err(InvalidMccError {
+                message: "MCC code should be in range 0001 to 9999".to_string(),
+            });
         }
+        let formatted = format!("{code:04}");
+
+        Ok(MerchantCategoryCode(formatted))
+    }
+    /// Returns the broad category description.
+    pub fn get_category_name(&self) -> &str {
+        // Use the fixed get_code() result for the match
+        match self.get_code() {
+            // specific mapping needs to be depricated
+            5411 => "Grocery Stores, Supermarkets (5411)",
+            7011 => "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)",
+            0763 => "Agricultural Cooperatives (0763)",
+            8111 => "Attorneys, Legal Services (8111)",
+            5021 => "Office and Commercial Furniture (5021)",
+            4816 => "Computer Network/Information Services (4816)",
+            5661 => "Shoe Stores (5661)",
+
+            // general mapping
+            1..=1499 => "Agricultural Services",
+            1500..=2999 => "Contracted Services",
+            3000..=3999 => "Travel and Entertainment",
+            4000..=4799 => "Transportation Services",
+            4800..=4999 => "Utility Services",
+            5000..=5599 => "Retail Outlet Services",
+            5600..=5699 => "Clothing Stores",
+            5700..=7299 => "Miscellaneous Stores",
+            7300..=7999 => "Business Services",
+            8000..=8999 => "Professional Services and Membership Organizations",
+            9000..=9999 => "Government Services",
+            _ => "Unknown or Out-of-Range",
+        }
+    }
+
+    /// Returns a reference to the 4-digit zero-padded code string.
+    pub fn get_string_code(&self) -> &str {
+        // FIX: The inner value is already the formatted string
+        &self.0
+    }
+}
+
+// --- Diesel Trait Implementations ---
+
+// ToSql: Implement serialization from MerchantCategoryCode to DB Text type
+impl<DB> ToSql<Text, DB> for MerchantCategoryCode
+where
+    DB: Backend,
+    String: ToSql<Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        // Use the inner String's ToSql implementation
+        // self.0.
+        let x = "swango".to_string();
+
+        x.to_sql(out)
+    }
+}
+
+// FromSql: Implement deserialization from DB Text type to MerchantCategoryCode
+impl<DB: Backend> FromSql<Text, DB> for MerchantCategoryCode
+where
+    String: FromSql<Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        // FIX: Deserializing from DB returns a String, which we wrap directly.
+        let s = <String as FromSql<Text, DB>>::from_sql(bytes)?;
+        // 2. Call from_str, which returns Result<Self, InvalidMccError>
+        MerchantCategoryCode::from_str(&s)
+            // 3. FIX: Use map_err to convert InvalidMccError into the required
+            // Box<dyn StdError + Send + Sync + 'static> (using `Into::into()`).
+            .map_err(Into::into)
+    }
+}
+
+// --- Serde Trait Implementation ---
+
+// Serialize: Implement JSON serialization
+impl Serialize for MerchantCategoryCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // FIX: Use the inner String directly, as it is already the formatted code
+        serializer.serialize_str(&self.0)
+    }
+}
+
+// --- Standard Library Trait Implementation ---
+
+// Define a custom error type for clear error messages
+#[derive(Debug, Clone)]
+pub struct InvalidMccError {
+    message: String,
+}
+
+impl fmt::Display for InvalidMccError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid MCC: {}", self.message)
+    }
+}
+
+impl std::error::Error for InvalidMccError {}
+
+// Implement From for ParseIntError to convert it to the custom error
+impl From<std::num::ParseIntError> for InvalidMccError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        InvalidMccError {
+            message: format!("Code must be a number: {}", err),
+        }
+    }
+}
+// ---
+
+impl FromStr for MerchantCategoryCode {
+    // FIX: Change error type to allow for custom validation errors
+    type Err = InvalidMccError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // 1. Validate: Ensure it can be parsed as a u16 (uses the `From` trait above)
+        let _code: u16 = s.parse()?;
+
+        // 2. FIX: Add explicit validation for 4-digit length
+        if s.len() != 4 {
+            return Err(InvalidMccError {
+                message: format!(
+                    "MCC must be exactly 4 characters long (e.g., '0001'), but got '{}'",
+                    s
+                ),
+            });
+        }
+
+        // 3. Store the validated string
+        Ok(MerchantCategoryCode(s.to_string()))
+    }
+}
+
+impl<'de> Deserialize<'de> for MerchantCategoryCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize the value as a String
+        let s = String::deserialize(deserializer)?;
+
+        // Use the custom `FromStr` implementation to parse the string into MCC
+        MerchantCategoryCode::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl fmt::Display for MerchantCategoryCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Format as a zero-padded 4-digit string, which matches the expected enum serialization.
+        write!(f, "{:04}", self.0)
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
 pub struct MerchantCategoryCodeWithName {
     pub code: MerchantCategoryCode,
-    pub name: MerchantCategory,
+    pub name: String,
 }
 
 #[derive(
