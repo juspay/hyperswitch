@@ -81,8 +81,19 @@ pub async fn profile_create(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account,
+             key_store,
+         },
+         req,
+         _| {
+            let platform = hyperswitch_domain_models::platform::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+            );
             create_profile(state, req, platform)
         },
         auth::auth_type(

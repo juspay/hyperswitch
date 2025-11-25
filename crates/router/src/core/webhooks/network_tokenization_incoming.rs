@@ -351,7 +351,6 @@ pub async fn handle_metadata_update(
             let db = &*state.store;
 
             db.update_payment_method(
-                &key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_method.clone(),
                 pm_update,
@@ -411,12 +410,10 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Platform> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let key_store = state
         .store()
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store().get_master_key().to_vec().into(),
         )
@@ -425,7 +422,7 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
@@ -447,11 +444,9 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
     payment_method_id: &str,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
             key_store,
             payment_method_id,
             merchant_account.storage_scheme,

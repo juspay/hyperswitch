@@ -12784,6 +12784,11 @@
             "type": "string",
             "description": "Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.",
             "nullable": true
+          },
+          "reference": {
+            "type": "string",
+            "description": "A reference to be shown on billing description",
+            "nullable": true
           }
         }
       },
@@ -16263,6 +16268,14 @@
             "minimum": 0
           }
         }
+      },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -21406,6 +21419,22 @@
         },
         "additionalProperties": false
       },
+      "MerchantApplicationDetails": {
+        "type": "object",
+        "description": "Information identifying merchant details",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the the merchant application",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the merchant application",
+            "nullable": true
+          }
+        }
+      },
       "MerchantCategoryCode": {
         "type": "string",
         "enum": [
@@ -23603,6 +23632,50 @@
           }
         }
       },
+      "PartnerApplicationDetails": {
+        "type": "object",
+        "description": "Information identifying partner / external platform details",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the partner/external platform",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the partner/external platform",
+            "example": "1.0.0",
+            "nullable": true
+          },
+          "integrator": {
+            "type": "string",
+            "description": "Integrator",
+            "nullable": true
+          }
+        }
+      },
+      "PartnerMerchantIdentifierDetails": {
+        "type": "object",
+        "description": "Information identifying partner and merchant application initiating the request",
+        "properties": {
+          "partner_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerApplicationDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantApplicationDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "Passthrough": {
         "type": "object",
         "required": [
@@ -24424,6 +24497,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -24594,6 +24675,14 @@
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
             "nullable": true
           },
           "payment_button_colour": {
@@ -26802,6 +26891,14 @@
               }
             ],
             "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27322,6 +27419,14 @@
               }
             ],
             "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27617,6 +27722,11 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
             "nullable": true
           },
           "payment_experience": {
@@ -27987,6 +28097,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -28858,6 +28976,14 @@
               }
             ],
             "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -29169,6 +29295,11 @@
             "type": "string",
             "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "example": "Insufficient Funds",
             "nullable": true
           },
           "unified_code": {
@@ -29549,6 +29680,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true
@@ -30202,6 +30341,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Tokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "partner_merchant_identifier_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
             "nullable": true

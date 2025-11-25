@@ -389,7 +389,6 @@ where
                             let payment_method = {
                                 let existing_pm_by_pmid = db
                                     .find_payment_method(
-                                        &(state.into()),
                                         platform.get_processor().get_key_store(),
                                         &payment_method_id,
                                         platform.get_processor().get_account().storage_scheme,
@@ -401,7 +400,6 @@ where
                                         locker_id = Some(payment_method_id.clone());
                                         let existing_pm_by_locker_id = db
                                             .find_payment_method_by_locker_id(
-                                                &(state.into()),
                                                 platform.get_processor().get_key_store(),
                                                 &payment_method_id,
                                                 platform
@@ -438,7 +436,6 @@ where
                                         connector_token,
                                     )?;
                                     payment_methods::cards::update_payment_method_metadata_and_last_used(
-                                        state,
                                         platform.get_processor().get_key_store(),
                                         db,
                                         pm.clone(),
@@ -493,7 +490,6 @@ where
                                 let payment_method = {
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
-                                            &(state.into()),
                                             platform.get_processor().get_key_store(),
                                             &payment_method_id,
                                             platform.get_processor().get_account().storage_scheme,
@@ -505,7 +501,6 @@ where
                                             locker_id = Some(payment_method_id.clone());
                                             let existing_pm_by_locker_id = db
                                                 .find_payment_method_by_locker_id(
-                                                    &(state.into()),
                                                     platform.get_processor().get_key_store(),
                                                     &payment_method_id,
                                                     platform
@@ -559,7 +554,6 @@ where
                                                     ConnectorMandateStatus::Inactive,
                                                 )?;
                                             payment_methods::cards::update_payment_method_connector_mandate_details(
-                                            state,
                                             platform.get_processor().get_key_store(),
                                             db,
                                             pm.clone(),
@@ -640,7 +634,6 @@ where
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                                        &(state.into()),
                                         platform.get_processor().get_key_store(),
                                         merchant_id,
                                         &resp.payment_method_id,
@@ -713,7 +706,6 @@ where
                                     .attach_printable("Unable to encrypt payment method data")?;
 
                                 payment_methods::cards::update_payment_method_and_last_used(
-                                    state,
                                     platform.get_processor().get_key_store(),
                                     db,
                                     existing_pm,
@@ -738,7 +730,6 @@ where
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    &(state.into()),
                                     platform.get_processor().get_key_store(),
                                     &customer_id,
                                     merchant_id,
@@ -1176,12 +1167,9 @@ pub async fn save_in_locker_external(
 
         let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
 
-        let key_manager_state = &state.into();
-
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
                 platform.get_processor().get_account().get_id(),
                 &external_vault_mca_id,
                 platform.get_processor().get_key_store(),
@@ -1550,6 +1538,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 mandate_metadata,
                 connector_mandate_status: Some(ConnectorMandateStatus::Active),
                 connector_mandate_request_reference_id,
+                connector_customer_id: None,
             },
         );
         Some(CommonMandateReference {
@@ -1590,6 +1579,7 @@ pub fn update_connector_mandate_details(
                     connector_mandate_status: Some(ConnectorMandateStatus::Active),
                     connector_mandate_request_reference_id: connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
 
                 payment_mandate_reference
@@ -1603,6 +1593,7 @@ pub fn update_connector_mandate_details(
                         mandate_metadata: mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
                         connector_mandate_request_reference_id,
+                        connector_customer_id: None,
                     });
 
                 let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
@@ -1648,6 +1639,7 @@ pub fn update_connector_mandate_details_status(
                     connector_mandate_request_reference_id: pm
                         .connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
                 *pm = update_rec
             });

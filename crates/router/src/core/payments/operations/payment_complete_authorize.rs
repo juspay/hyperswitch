@@ -47,7 +47,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -59,7 +58,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                key_manager_state,
                 &payment_id,
                 merchant_id,
                 platform.get_processor().get_key_store(),
@@ -291,7 +289,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let business_profile = db
             .find_business_profile_by_profile_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 profile_id,
             )
@@ -505,7 +502,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let updated_payment_intent = db
             .update_payment_intent(
-                &state.into(),
                 payment_intent,
                 payment_intent_update,
                 key_store,
