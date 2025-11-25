@@ -16,6 +16,7 @@ pub struct AuthEventMetricsAccumulator {
     pub authentication_funnel: CountAccumulator,
     pub authentication_exemption_approved_count: CountAccumulator,
     pub authentication_exemption_requested_count: CountAccumulator,
+    pub authentication_failed_count: CountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -88,6 +89,7 @@ impl AuthEventMetricsAccumulator {
             authentication_exemption_requested_count: self
                 .authentication_exemption_requested_count
                 .collect(),
+            authentication_failed_count: self.authentication_failed_count.collect(),
         }
     }
 }

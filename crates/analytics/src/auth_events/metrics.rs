@@ -27,6 +27,7 @@ mod challenge_flow_count;
 mod challenge_success_count;
 mod frictionless_flow_count;
 mod frictionless_success_count;
+mod authentication_failed_count;
 
 use authentication_attempt_count::AuthenticationAttemptCount;
 use authentication_count::AuthenticationCount;
@@ -40,6 +41,7 @@ use challenge_flow_count::ChallengeFlowCount;
 use challenge_success_count::ChallengeSuccessCount;
 use frictionless_flow_count::FrictionlessFlowCount;
 use frictionless_success_count::FrictionlessSuccessCount;
+use authentication_failed_count::AuthenticationFailedCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
@@ -173,6 +175,11 @@ where
             }
             Self::AuthenticationExemptionRequestedCount => {
                 AuthenticationExemptionRequestedCount
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::AuthenticationFailedCount => {
+                AuthenticationFailedCount
                     .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }

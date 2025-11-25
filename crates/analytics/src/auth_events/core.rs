@@ -101,6 +101,9 @@ pub async fn get_metrics(
                 AuthEventMetrics::AuthenticationExemptionRequestedCount => metrics_builder
                     .authentication_exemption_requested_count
                     .add_metrics_bucket(&value),
+                AuthEventMetrics::AuthenticationFailedCount => metrics_builder
+                    .authentication_failed_count
+                    .add_metrics_bucket(&value),
             }
         }
     }

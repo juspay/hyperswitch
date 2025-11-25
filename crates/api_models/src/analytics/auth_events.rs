@@ -146,6 +146,7 @@ pub enum AuthEventMetrics {
     AuthenticationFunnel,
     AuthenticationExemptionApprovedCount,
     AuthenticationExemptionRequestedCount,
+    AuthenticationFailedCount,
 }
 
 #[derive(
@@ -176,6 +177,7 @@ pub mod metric_behaviour {
     pub struct ChallengeSuccessCount;
     pub struct AuthenticationErrorMessage;
     pub struct AuthenticationFunnel;
+    pub struct AuthenticationFailedCount;
 }
 
 impl From<AuthEventMetrics> for NameDescription {
@@ -355,6 +357,7 @@ pub struct AuthEventMetricsBucketValue {
     pub authentication_funnel: Option<u64>,
     pub authentication_exemption_approved_count: Option<u64>,
     pub authentication_exemption_requested_count: Option<u64>,
+    pub authentication_failed_count: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]
