@@ -20,6 +20,7 @@ mod authentication_count;
 mod authentication_error_message;
 mod authentication_exemption_approved_count;
 mod authentication_exemption_requested_count;
+mod authentication_failed_count;
 mod authentication_funnel;
 mod authentication_success_count;
 mod challenge_attempt_count;
@@ -27,13 +28,13 @@ mod challenge_flow_count;
 mod challenge_success_count;
 mod frictionless_flow_count;
 mod frictionless_success_count;
-mod authentication_failed_count;
 
 use authentication_attempt_count::AuthenticationAttemptCount;
 use authentication_count::AuthenticationCount;
 use authentication_error_message::AuthenticationErrorMessage;
 use authentication_exemption_approved_count::AuthenticationExemptionApprovedCount;
 use authentication_exemption_requested_count::AuthenticationExemptionRequestedCount;
+use authentication_failed_count::AuthenticationFailedCount;
 use authentication_funnel::AuthenticationFunnel;
 use authentication_success_count::AuthenticationSuccessCount;
 use challenge_attempt_count::ChallengeAttemptCount;
@@ -41,7 +42,6 @@ use challenge_flow_count::ChallengeFlowCount;
 use challenge_success_count::ChallengeSuccessCount;
 use frictionless_flow_count::FrictionlessFlowCount;
 use frictionless_success_count::FrictionlessSuccessCount;
-use authentication_failed_count::AuthenticationFailedCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
