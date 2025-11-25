@@ -4480,7 +4480,6 @@ where
     let is_ucs_granular_flow =
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-    let is_ucs_granular_flow = true;
     if is_ucs_granular_flow && ucs_flow {
         logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
