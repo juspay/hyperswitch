@@ -2940,7 +2940,7 @@ pub async fn list_payment_methods(
         )
         .await
         {
-            Ok(ok) => ok,
+            Ok(routing_result) => routing_result,
 
             Err(err) => {
                 logger::error!(
@@ -2948,31 +2948,34 @@ pub async fn list_payment_methods(
                     "euclid_routing: list_payment_methods routing failed, falling back to default connectors"
                 );
 
-                let mut fallback: rustc_hash::FxHashMap<
+                let mut fallback_connectors: rustc_hash::FxHashMap<
                     api_enums::PaymentMethodType,
                     Vec<routing_types::SessionRoutingChoice>,
                 > = rustc_hash::FxHashMap::default();
 
-                for c in chosen.clone() {
+                for connector in chosen.clone() {
                     let connector_data = api::ConnectorData {
-                        connector: c.connector.connector,
-                        connector_name: c.connector.connector_name,
-                        get_token: c.connector.get_token,
-                        merchant_connector_id: c.connector.merchant_connector_id,
+                        connector: connector.connector.connector,
+                        connector_name: connector.connector.connector_name,
+                        get_token: connector.connector.get_token,
+                        merchant_connector_id: connector.connector.merchant_connector_id,
                     };
 
                     let choice = routing_types::SessionRoutingChoice {
                         connector: connector_data,
-                        payment_method_type: c.payment_method_sub_type,
+                        payment_method_type: connector.payment_method_sub_type,
                     };
 
-                    fallback
-                        .entry(c.payment_method_sub_type)
+                    fallback_connectors
+                        .entry(connector.payment_method_sub_type)
                         .or_default()
                         .push(choice);
                 }
 
-                (fallback, Some(api_enums::RoutingApproach::DefaultFallback))
+                (
+                    fallback_connectors,
+                    Some(api_enums::RoutingApproach::DefaultFallback),
+                )
             }
         };
 
