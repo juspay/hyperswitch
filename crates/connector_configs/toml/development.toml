@@ -7657,3 +7657,13 @@ key1 = "Merchant Account Id"
 
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
+
+[envoy]
+[envoy.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[vgs]
+[vgs.connector_auth.SignatureKey]
+  api_key="Username"
+  key1="Password"
+  api_secret="Vault Id"

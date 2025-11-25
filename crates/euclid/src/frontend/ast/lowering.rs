@@ -262,6 +262,20 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
             };
             lower_str!(CardBin, value, validation_closure)
         }
+        dir::DirKeyKind::ExtendedCardBin => {
+            let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
+                if st.len() == 8 && st.chars().all(|x| x.is_ascii_digit()) {
+                    Ok(())
+                } else {
+                    Err(AnalysisErrorType::InvalidValue {
+                        key: dir::DirKeyKind::ExtendedCardBin,
+                        value: st.clone(),
+                        message: Some("Expected 8 digits".to_string()),
+                    })
+                }
+            };
+            lower_str!(ExtendedCardBin, value, validation_closure)
+        }
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
         dir::DirKeyKind::PaymentAmount => lower_number!(PaymentAmount, value, comparison),
