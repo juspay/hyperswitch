@@ -3012,7 +3012,7 @@ impl MerchantCategoryCode {
     pub fn new(code: u16) -> Result<Self, InvalidMccError> {
         if code >= 10000 {
             return Err(InvalidMccError {
-                message: "MCC code should be in range 0001 to 9999".to_string(),
+                message: "Merchant category code should be in range 0001 to 9999".to_string(),
             });
         }
         let formatted = format!("{code:04}");
