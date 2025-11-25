@@ -605,17 +605,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             None
         };
 
-        let device_data = if item.router_data.request.is_mit_payment()
-            || item
-                .router_data
-                .request
-                .is_customer_initiated_mandate_payment()
-        {
-            None
-        } else {
-            Some(get_device_data(item.router_data)?)
-        };
-
         let return_url = match &request.payment_method_data {
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::PaypalRedirect(_paypal_details) => {
@@ -633,7 +622,19 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             _ => request.complete_authorize_url.clone(),
         };
 
-        let customer_id = item.router_data.get_connector_customer_id()?;
+        let is_mandate_payment = item.router_data.request.is_mit_payment()
+            || item
+                .router_data
+                .request
+                .is_customer_initiated_mandate_payment();
+
+        let (device_data, customer_id) = if is_mandate_payment {
+            let customer_id = item.router_data.get_connector_customer_id()?;
+            (None, Some(customer_id))
+        } else {
+            let device_data = Some(get_device_data(item.router_data)?);
+            (device_data, None)
+        };
 
         let (payment_consent_id, triggered_by) = if item.router_data.request.is_mit_payment() {
             let mandate_id = item.router_data.request.connector_mandate_id().ok_or(
@@ -654,7 +655,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             return_url,
             device_data,
             payment_consent,
-            customer_id: Some(customer_id),
+            customer_id,
             payment_consent_id,
             triggered_by,
         })

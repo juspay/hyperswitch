@@ -147,7 +147,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
           shipping_cost: 50,
           amount_received: 6050,
           amount: 6000,
@@ -228,7 +228,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
@@ -262,7 +262,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
@@ -391,7 +391,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
@@ -413,14 +413,13 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -432,14 +431,13 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -450,6 +448,7 @@ export const connectorDetails = {
         },
       },
     },
+    // this connector supports mandate payment only for threeDS cards
     MandateSingleUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -465,7 +464,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -484,7 +483,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
@@ -503,7 +502,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -522,19 +521,18 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
     MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
@@ -546,14 +544,13 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
@@ -580,7 +577,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -600,14 +597,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -644,24 +639,20 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
           connector_mandate_id: "mock_airwallex_mandate_id",
         },
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         setup_future_usage: "off_session",
       },
@@ -684,7 +675,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
           connector_mandate_id: "mock_airwallex_mandate_id",
         },
       },
@@ -705,14 +696,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -731,9 +720,7 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -751,21 +738,17 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+      
       Request: {},
       Response: {
         status: 200,
