@@ -3087,7 +3087,7 @@ impl Serialize for MerchantCategoryCode {
 // Define a custom error type for clear error messages
 #[derive(Debug, Clone)]
 pub struct InvalidMccError {
-    message: String,
+    pub message: String,
 }
 
 impl fmt::Display for InvalidMccError {
