@@ -81,7 +81,7 @@ use crate::{
     connectors::chargebee::transformers::{
         ChargebeeGetPlanPricesResponse, ChargebeeListPlansResponse,
     },
-    constants::{self, headers},
+    constants::headers,
     types::ResponseRouterData,
     utils,
 };
