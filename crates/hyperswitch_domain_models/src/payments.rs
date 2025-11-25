@@ -324,6 +324,7 @@ impl PaymentIntent {
                         name: None,
                         city: None,
                         phone: None,
+                        reference: None,
                         statement_descriptor: self.statement_descriptor_name.clone(),
                         statement_descriptor_suffix: self.statement_descriptor_suffix.clone(),
                     })
