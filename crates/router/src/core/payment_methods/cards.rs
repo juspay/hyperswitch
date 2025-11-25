@@ -2930,16 +2930,51 @@ pub async fn list_payment_methods(
             merchant_account: platform.get_processor().get_account(),
             payment_attempt,
             payment_intent,
-            chosen,
+            chosen: chosen.clone(),
         };
-        let (result, routing_approach) = routing::perform_session_flow_routing(
+
+        let (result, routing_approach) = match routing::perform_session_flow_routing(
             sfr,
             &business_profile,
             &enums::TransactionType::Payment,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing session flow routing")?;
+        {
+            Ok(ok) => ok,
+
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid_routing: list_payment_methods routing failed, falling back to default connectors"
+                );
+
+                let mut fallback: rustc_hash::FxHashMap<
+                    api_enums::PaymentMethodType,
+                    Vec<routing_types::SessionRoutingChoice>,
+                > = rustc_hash::FxHashMap::default();
+
+                for c in chosen.clone() {
+                    let connector_data = api::ConnectorData {
+                        connector: c.connector.connector,
+                        connector_name: c.connector.connector_name,
+                        get_token: c.connector.get_token,
+                        merchant_connector_id: c.connector.merchant_connector_id,
+                    };
+
+                    let choice = routing_types::SessionRoutingChoice {
+                        connector: connector_data,
+                        payment_method_type: c.payment_method_sub_type,
+                    };
+
+                    fallback
+                        .entry(c.payment_method_sub_type)
+                        .or_default()
+                        .push(choice);
+                }
+
+                (fallback, Some(api_enums::RoutingApproach::DefaultFallback))
+            }
+        };
 
         response.retain(|intermediate| {
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)

@@ -10294,14 +10294,51 @@ where
         payment_intent: payment_data.get_payment_intent(),
         chosen,
     };
-    let (result, routing_approach) = self_routing::perform_session_flow_routing(
+
+    let (result, routing_approach) = match self_routing::perform_session_flow_routing(
         sfr,
         business_profile,
         &enums::TransactionType::Payment,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error performing session flow routing")?;
+    {
+        Ok(session_result) => session_result,
+
+        Err(err) => {
+            logger::error!(
+                error=?err,
+                "euclid_routing: session token routing failed, falling back to default connectors"
+            );
+
+            let mut fallback_result: FxHashMap<
+                common_enums::PaymentMethodType,
+                Vec<api::routing::SessionRoutingChoice>,
+            > = FxHashMap::default();
+
+            for connector in connectors.clone() {
+                let connector_data = api::ConnectorData {
+                    connector: connector.connector.connector,
+                    connector_name: connector.connector.connector_name,
+                    get_token: connector.connector.get_token,
+                    merchant_connector_id: connector.connector.merchant_connector_id,
+                };
+
+                let choice = api::routing::SessionRoutingChoice {
+                    connector: connector_data,
+                    payment_method_type: connector.payment_method_sub_type,
+                };
+
+                fallback_result
+                    .entry(connector.payment_method_sub_type)
+                    .or_default()
+                    .push(choice);
+            }
+
+            let fallback_routing_approach = Some(common_enums::RoutingApproach::DefaultFallback);
+
+            (fallback_result, fallback_routing_approach)
+        }
+    };
 
     payment_data.set_routing_approach_in_attempt(routing_approach);
 
