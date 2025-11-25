@@ -1222,60 +1222,55 @@ impl PaymentAttempt {
         Option<api_models::payments::NextActionData>,
         errors::api_error_response::ApiErrorResponse,
     > {
-        let metadata_value = match self.get_connector_metadata_value() {
-            Some(value) => value,
-            None => return Ok(None),
-        };
-
         #[derive(serde::Deserialize)]
         struct SdkUpiUriInformation {
             sdk_uri: String,
         }
 
-        let sdk_uri_opt = match metadata_value.get("SdkUpiUriInformation") {
-            Some(uri_info_value) => {
-                let uri_info =
-                    serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
-                        .change_context(
-                            errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                                field_name: "connector_metadata.SdkUpiUriInformation",
-                            },
-                        )
-                        .attach_printable(
-                            "Failed to deserialize SdkUpiUriInformation from connector_metadata",
-                        )?;
-
-                let parsed_url = Url::parse(&uri_info.sdk_uri)
+        let sdk_uri_opt: Option<Result<Url, _>> = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
+            .map(|uri_info_value| {
+                serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
                     .change_context(
                         errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                            field_name: "connector_metadata.SdkUpiUriInformation",
                         },
                     )
-                    .attach_printable("Failed to parse sdk_uri as valid URL")?;
+                    .attach_printable(
+                        "Failed to deserialize SdkUpiUriInformation from connector_metadata",
+                    )
+                    .and_then(|uri_info| {
+                        Url::parse(&uri_info.sdk_uri)
+                            .change_context(
+                                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                                    field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                                },
+                            )
+                            .attach_printable("Failed to parse sdk_uri as valid URL")
+                    })
+            });
 
-                Some(parsed_url)
-            }
-            None => None,
-        };
+        let sdk_uri_opt = sdk_uri_opt.transpose()?;
 
-        let wait_screen_info = match metadata_value.get("WaitScreenInstructions") {
-            Some(wait_screen_value) => {
-                let wait_info = serde_json::from_value::<
-                    api_models::payments::WaitScreenInstructions,
-                >(wait_screen_value.clone())
-                .change_context(
-                    errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                        field_name: "connector_metadata.WaitScreenInstructions",
-                    },
-                )
-                .attach_printable(
-                    "Failed to deserialize WaitScreenInstructions from connector_metadata",
-                )?;
+        let wait_screen_info: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
+            self.get_connector_metadata_value()
+                .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+                .map(|wait_screen_value| {
+                    serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                        wait_screen_value.clone(),
+                    )
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                            field_name: "connector_metadata.WaitScreenInstructions",
+                        },
+                    )
+                    .attach_printable(
+                        "Failed to deserialize WaitScreenInstructions from connector_metadata",
+                    )
+                });
 
-                Some(wait_info)
-            }
-            None => None,
-        };
+        let wait_screen_info = wait_screen_info.transpose()?;
 
         Ok(
             match (self.payment_method_type, self.payment_method_subtype) {
@@ -1383,59 +1378,55 @@ impl PaymentAttempt {
         Option<api_models::payments::NextActionData>,
         errors::api_error_response::ApiErrorResponse,
     > {
-        let metadata_value = match self.get_connector_metadata_value() {
-            Some(value) => value,
-            None => return Ok(None),
-        };
-
         #[derive(Deserialize)]
         struct SdkUpiUriInformation {
             sdk_uri: String,
         }
-        let sdk_uri_opt = match metadata_value.get("SdkUpiUriInformation") {
-            Some(uri_info_value) => {
-                let uri_info =
-                    serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
-                        .change_context(
-                            errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                                field_name: "connector_metadata.SdkUpiUriInformation",
-                            },
-                        )
-                        .attach_printable(
-                            "Failed to deserialize SdkUpiUriInformation from connector_metadata",
-                        )?;
 
-                let parsed_url = Url::parse(&uri_info.sdk_uri)
+        let sdk_uri_opt: Option<Result<Url, _>> = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
+            .map(|uri_info_value| {
+                serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
                     .change_context(
                         errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                            field_name: "connector_metadata.SdkUpiUriInformation",
                         },
                     )
-                    .attach_printable("Failed to parse sdk_uri as valid URL")?;
+                    .attach_printable(
+                        "Failed to deserialize SdkUpiUriInformation from connector_metadata",
+                    )
+                    .and_then(|uri_info| {
+                        Url::parse(&uri_info.sdk_uri)
+                            .change_context(
+                                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                                    field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                                },
+                            )
+                            .attach_printable("Failed to parse sdk_uri as valid URL")
+                    })
+            });
 
-                Some(parsed_url)
-            }
-            None => None,
-        };
+        let sdk_uri_opt = sdk_uri_opt.transpose()?;
 
-        let wait_screen_info = match metadata_value.get("WaitScreenInstructions") {
-            Some(wait_screen_value) => {
-                let wait_info = serde_json::from_value::<
-                    api_models::payments::WaitScreenInstructions,
-                >(wait_screen_value.clone())
-                .change_context(
-                    errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                        field_name: "connector_metadata.WaitScreenInstructions",
-                    },
-                )
-                .attach_printable(
-                    "Failed to deserialize WaitScreenInstructions from connector_metadata",
-                )?;
+        let wait_screen_info: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
+            self.get_connector_metadata_value()
+                .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+                .map(|wait_screen_value| {
+                    serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                        wait_screen_value.clone(),
+                    )
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                            field_name: "connector_metadata.WaitScreenInstructions",
+                        },
+                    )
+                    .attach_printable(
+                        "Failed to deserialize WaitScreenInstructions from connector_metadata",
+                    )
+                });
 
-                Some(wait_info)
-            }
-            None => None,
-        };
+        let wait_screen_info = wait_screen_info.transpose()?;
 
         Ok(match (self.payment_method, self.payment_method_type) {
             (

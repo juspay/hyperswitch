@@ -1594,7 +1594,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                         (
                             Some(
                                 serde_json::to_value(sdk_uri_info)
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
                             ),
                             None,
                         )
@@ -1609,48 +1612,43 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             None => (None, None),
         };
 
-        connector_metadata = response
+        connector_metadata = if response
             .connector_metadata
             .get("nextActionData")
             .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
-            .and_then(|_| build_upi_wait_screen_data().ok())
-            .map(|wait_screen_metadata| {
-                let mut metadata_map = connector_metadata
-                    .as_ref()
-                    .and_then(|meta| meta.as_object())
-                    .cloned()
-                    .unwrap_or_else(serde_json::Map::new);
+            .is_some()
+        {
+            let wait_screen_metadata = build_upi_wait_screen_data()?;
 
-                metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
+            let mut metadata_map = connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.as_object())
+                .cloned()
+                .unwrap_or_else(serde_json::Map::new);
 
-                // For UPI Intent/QR, also preserve URI information from redirection data
-                response
-                    .redirection_data
-                    .as_ref()
-                    .and_then(|redirection_data| {
-                        if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
-                            &redirection_data.form_type
-                        {
-                            let sdk_uri_info = SdkUpiUriInformation {
-                                sdk_uri: uri.uri.clone(),
-                            };
-                            serde_json::to_value(sdk_uri_info)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                                .attach_printable(
-                                    "Failed to serialize SdkUpiUriInformation to JSON value",
-                                )
-                                .ok()
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|uri_data| {
-                        metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data)
-                    });
+            metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
 
-                serde_json::Value::Object(metadata_map)
-            })
-            .or(connector_metadata);
+            // For UPI Intent/QR, also preserve URI information from redirection data
+            if let Some(redirection_data) = response.redirection_data.as_ref() {
+                if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
+                    &redirection_data.form_type
+                {
+                    let sdk_uri_info = SdkUpiUriInformation {
+                        sdk_uri: uri.uri.clone(),
+                    };
+                    let uri_data = serde_json::to_value(sdk_uri_info)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable(
+                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                        )?;
+                    metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data);
+                }
+            }
+
+            Some(serde_json::Value::Object(metadata_map))
+        } else {
+            connector_metadata
+        };
 
         // Extract connector_metadata from response if present and not already set
         if connector_metadata.is_none() && !response.connector_metadata.is_empty() {
@@ -2598,7 +2596,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                         (
                             Some(
                                 serde_json::to_value(sdk_uri_info)
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
                             ),
                             None,
                         )
@@ -2790,7 +2791,10 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                         (
                             Some(
                                 serde_json::to_value(sdk_uri_info)
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
                             ),
                             None,
                         )
