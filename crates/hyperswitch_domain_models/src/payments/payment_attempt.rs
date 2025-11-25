@@ -1231,10 +1231,9 @@ impl PaymentAttempt {
                 )
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .and_then(|uri_info| {
-                    Url::parse(&uri_info.sdk_uri)
-                        .change_context(
-                            errors::api_error_response::ApiErrorResponse::InternalServerError,
-                        )
+                    Url::parse(&uri_info.sdk_uri).change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
                 })
             })
             .transpose()
@@ -1259,19 +1258,22 @@ impl PaymentAttempt {
                 (
                     storage_enums::PaymentMethod::Upi,
                     storage_enums::PaymentMethodType::UpiIntent,
-                ) => sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
-                    api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
-                }),
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
+                    }),
                 (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
-                    sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
-                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
-                    })
+                    sdk_uri_opt
+                        .zip(wait_screen_info)
+                        .map(|(sdk_uri, wait_info)| {
+                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                        })
                 }
                 (
                     storage_enums::PaymentMethod::Upi,
                     storage_enums::PaymentMethodType::UpiCollect,
-                ) => wait_screen_info
-                    .map(api_models::payments::NextActionData::from_wait_screen),
+                ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
                 _ => None,
             },
         )
@@ -1350,10 +1352,9 @@ impl PaymentAttempt {
                 )
                 .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .and_then(|uri_info| {
-                    Url::parse(&uri_info.sdk_uri)
-                        .change_context(
-                            errors::api_error_response::ApiErrorResponse::InternalServerError,
-                        )
+                    Url::parse(&uri_info.sdk_uri).change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
                 })
             })
             .transpose()
@@ -1393,8 +1394,7 @@ impl PaymentAttempt {
             (
                 Some(storage_enums::PaymentMethod::Upi),
                 Some(storage_enums::PaymentMethodType::UpiCollect),
-            ) => wait_screen_info
-                .map(api_models::payments::NextActionData::from_wait_screen),
+            ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
             _ => None,
         })
     }
