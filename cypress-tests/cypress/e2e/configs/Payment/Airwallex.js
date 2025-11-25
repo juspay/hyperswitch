@@ -413,7 +413,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSAutoCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -431,7 +430,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -526,7 +524,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSAutoCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -544,7 +541,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -602,7 +598,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
-      
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -639,7 +634,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-      
       Request: {
         setup_future_usage: "off_session",
       },
@@ -652,7 +646,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
-      
       Request: {
         setup_future_usage: "off_session",
       },
@@ -701,7 +694,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -720,7 +712,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -747,7 +738,6 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      
       Request: {},
       Response: {
         status: 200,
