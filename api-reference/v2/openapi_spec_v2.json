@@ -10322,6 +10322,14 @@
           }
         }
       },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -11859,6 +11867,14 @@
                 "$ref": "#/components/schemas/VaultSdk"
               }
             ],
+            "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenField"
+            },
+            "description": "Fields to tokenization in vault",
             "nullable": true
           }
         }
@@ -15789,11 +15805,6 @@
         "type": "object",
         "required": [
           "status",
-          "token_expiry_month",
-          "token_expiry_year",
-          "card_last_four",
-          "token_last_four",
-          "card_expiry",
           "payment_method_id",
           "customer_id"
         ],
@@ -15803,23 +15814,33 @@
           },
           "token_expiry_month": {
             "type": "string",
-            "description": "The expiry month of the network token if active"
+            "description": "The expiry month of the network token if active",
+            "nullable": true
           },
           "token_expiry_year": {
             "type": "string",
-            "description": "The expiry year of the network token if active"
+            "description": "The expiry year of the network token if active",
+            "nullable": true
           },
           "card_last_four": {
             "type": "string",
-            "description": "The last four digits of the card"
+            "description": "The last four digits of the card if active",
+            "nullable": true
           },
           "token_last_four": {
             "type": "string",
-            "description": "The last four digits of the network token"
+            "description": "The last four digits of the network token if active",
+            "nullable": true
           },
-          "card_expiry": {
+          "card_expiry_month": {
             "type": "string",
-            "description": "The expiry date of the card in MM/YY format"
+            "description": "The expiry month of the card if active",
+            "nullable": true
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the card if active",
+            "nullable": true
           },
           "payment_method_id": {
             "type": "string",
@@ -17779,6 +17800,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -17949,6 +17978,14 @@
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
             "nullable": true
           },
           "payment_button_colour": {
@@ -19791,6 +19828,11 @@
             "format": "int64",
             "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540,
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -24198,6 +24240,11 @@
             "type": "string",
             "description": "The reference id of the connector for the refund",
             "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains raw connector response",
+            "nullable": true
           }
         }
       },
@@ -24282,6 +24329,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -26795,8 +26847,10 @@
         "type": "string",
         "enum": [
           "ACTIVE",
+          "INACTIVE",
           "SUSPENDED",
-          "DEACTIVATED"
+          "EXPIRED",
+          "DELETED"
         ]
       },
       "TokenType": {
@@ -26804,6 +26858,14 @@
         "enum": [
           "tokenization_id",
           "payment_method_id"
+        ]
+      },
+      "Tokenization": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "skip_psp",
+          "tokenize_at_psp"
         ]
       },
       "TokenizationType": {
@@ -27335,6 +27397,33 @@
               }
             }
           }
+        ]
+      },
+      "VaultTokenField": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
         ]
       },
       "Venmo": {

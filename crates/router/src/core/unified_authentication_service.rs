@@ -104,6 +104,8 @@ impl UnifiedAuthenticationService for ClickToPay {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
 
         let authentication_info = Some(AuthenticationInfo {
@@ -331,6 +333,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: None,
+            psd2_sca_exemption_type: None,
         };
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
@@ -408,6 +412,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
             browser_details,
@@ -416,6 +422,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 currency,
                 device_channel: Some(device_channel),
                 message_category: Some(message_category),
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             },
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
@@ -460,6 +468,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
@@ -474,6 +484,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
+                force_3ds_challenge,
+                psd2_sca_exemption_type,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -651,18 +663,17 @@ pub async fn create_new_authentication(
 #[cfg(feature = "v1")]
 pub async fn authentication_create_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
     let db = &*state.store;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
-        &merchant_context,
+        &platform,
         req.profile_id.as_ref(),
         db,
         true,
@@ -670,11 +681,7 @@ pub async fn authentication_create_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -742,12 +749,9 @@ pub async fn authentication_create_core(
                         .transpose()?,
                 ),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -808,12 +812,9 @@ pub async fn authentication_create_core(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -1001,11 +1002,11 @@ impl
 #[cfg(feature = "v1")]
 pub async fn authentication_eligibility_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let authentication = db
@@ -1030,10 +1031,9 @@ pub async fn authentication_eligibility_core(
     let key_manager_state = (&state).into();
 
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
-        &merchant_context,
+        &platform,
         req.profile_id.as_ref(),
         db,
         true,
@@ -1041,11 +1041,7 @@ pub async fn authentication_eligibility_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1054,7 +1050,7 @@ pub async fn authentication_eligibility_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1183,12 +1179,12 @@ pub async fn authentication_eligibility_core(
             ),
         ),
         common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
+            platform
+                .get_processor().get_key_store()
                 .merchant_id
                 .clone(),
         ),
-        merchant_context.get_merchant_key_store().key.peek(),
+        platform.get_processor().get_key_store().key.peek(),
     )
     .await
     .and_then(|val| val.try_into_batchoperation())
@@ -1208,12 +1204,9 @@ pub async fn authentication_eligibility_core(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -1236,7 +1229,7 @@ pub async fn authentication_eligibility_core(
         pre_auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         encrypted_data
             .billing_address
             .map(common_utils::encryption::Encryption::from),
@@ -1273,12 +1266,12 @@ pub async fn authentication_eligibility_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_authenticate_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationAuthenticateRequest,
     auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
     let authentication_id = req.authentication_id.clone();
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let authentication = db
@@ -1304,11 +1297,7 @@ pub async fn authentication_authenticate_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1323,12 +1312,9 @@ pub async fn authentication_authenticate_core(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -1348,7 +1334,7 @@ pub async fn authentication_authenticate_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1391,6 +1377,8 @@ pub async fn authentication_authenticate_core(
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
+        authentication.force_3ds_challenge,
+        authentication.psd2_sca_exemption_type,
     )
     .await?;
 
@@ -1399,7 +1387,7 @@ pub async fn authentication_authenticate_core(
         auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         None,
         None,
         None,
@@ -1415,7 +1403,7 @@ pub async fn authentication_authenticate_core(
                     &state,
                     authentication_id.get_string_repr(),
                     false,
-                    merchant_context.get_merchant_key_store().key.get_inner(),
+                    platform.get_processor().get_key_store().key.get_inner(),
                 )
                 .await
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
@@ -1452,14 +1440,14 @@ trait EligibilityCheck {
     async fn should_run(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
     async fn execute_check(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
     ) -> CustomResult<Self::Output, ApiErrorResponse>;
 
@@ -1498,9 +1486,9 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn should_run(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<bool, ApiErrorResponse> {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let should_store_eligibility_check_data_key =
             merchant_id.get_should_store_eligibility_check_data_for_authentication();
         let should_store_eligibility_check_data = state
@@ -1530,7 +1518,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn execute_check(
         &self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         authentication_eligibility_check_request: &AuthenticationEligibilityCheckRequest,
     ) -> CustomResult<CheckResult, ApiErrorResponse> {
         let redis = &state
@@ -1541,8 +1529,9 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         let key = format!(
             "{}_{}_{}",
             consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .get_id()
                 .get_string_repr(),
             authentication_eligibility_check_request
@@ -1570,7 +1559,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
 #[cfg(feature = "v1")]
 pub struct EligibilityHandler {
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
 }
 
@@ -1578,12 +1567,12 @@ pub struct EligibilityHandler {
 impl EligibilityHandler {
     fn new(
         state: SessionState,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
     ) -> Self {
         Self {
             state,
-            merchant_context,
+            platform,
             authentication_eligibility_check_request,
         }
     }
@@ -1592,14 +1581,12 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
-        let should_run = check
-            .should_run(&self.state, &self.merchant_context)
-            .await?;
+        let should_run = check.should_run(&self.state, &self.platform).await?;
         Ok(match should_run {
             true => check
                 .execute_check(
                     &self.state,
-                    &self.merchant_context,
+                    &self.platform,
                     &self.authentication_eligibility_check_request,
                 )
                 .await
@@ -1612,12 +1599,12 @@ impl EligibilityHandler {
 #[cfg(feature = "v1")]
 pub async fn authentication_eligibility_check_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationEligibilityCheckRequest,
     _auth_flow: AuthFlow,
 ) -> RouterResponse<AuthenticationEligibilityCheckResponse> {
     let authentication_id = req.authentication_id.clone();
-    let eligibility_handler = EligibilityHandler::new(state, merchant_context, req);
+    let eligibility_handler = EligibilityHandler::new(state, platform, req);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
         .run_check(StoreEligibilityCheckData)
@@ -1634,7 +1621,7 @@ pub async fn authentication_eligibility_check_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_retrieve_eligibility_check_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationRetrieveEligibilityCheckRequest,
 ) -> RouterResponse<AuthenticationRetrieveEligibilityCheckResponse> {
     let redis = &state
@@ -1645,8 +1632,9 @@ pub async fn authentication_retrieve_eligibility_check_core(
     let key = format!(
         "{}_{}_{}",
         consts::AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY,
-        merchant_context
-            .get_merchant_account()
+        platform
+            .get_processor()
+            .get_account()
             .get_id()
             .get_string_repr(),
         req.authentication_id.get_string_repr()
@@ -1748,12 +1736,12 @@ impl
 #[cfg(feature = "v1")]
 pub async fn authentication_sync_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     auth_flow: AuthFlow,
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
     let authentication_id = req.authentication_id;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let authentication = db
@@ -1777,11 +1765,7 @@ pub async fn authentication_sync_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1790,7 +1774,7 @@ pub async fn authentication_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -1824,6 +1808,8 @@ pub async fn authentication_sync_core(
             currency: authentication.currency,
             device_channel: None,
             message_category: None,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
 
         let authentication_info = Some(AuthenticationInfo {
@@ -1918,7 +1904,7 @@ pub async fn authentication_sync_core(
             } else {
                 Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
-                    &merchant_context,
+                    &platform,
                     &business_profile,
                     &post_auth_response,
                 ))
@@ -1930,7 +1916,7 @@ pub async fn authentication_sync_core(
                 post_auth_response,
                 authentication.clone(),
                 None,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 None,
                 None,
                 None,
@@ -1974,12 +1960,9 @@ pub async fn authentication_sync_core(
             ),
         ),
         common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
-                .merchant_id
-                .clone(),
+            platform.get_processor().get_key_store().merchant_id.clone(),
         ),
-        merchant_context.get_merchant_key_store().key.peek(),
+        platform.get_processor().get_key_store().key.peek(),
     )
     .await
     .and_then(|val| val.try_into_batchoperation())
@@ -1999,12 +1982,9 @@ pub async fn authentication_sync_core(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
@@ -2117,11 +2097,11 @@ pub async fn authentication_sync_core(
 #[cfg(feature = "v1")]
 pub async fn authentication_post_sync_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationSyncPostUpdateRequest,
 ) -> RouterResponse<()> {
     let authentication_id = req.authentication_id;
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let authentication = db
@@ -2133,11 +2113,9 @@ pub async fn authentication_post_sync_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let key_manager_state = (&state).into();
     let business_profile = db
         .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
         .await
@@ -2148,7 +2126,7 @@ pub async fn authentication_post_sync_core(
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &business_profile,
             authentication.authentication_connector.clone(),
         )
@@ -2173,7 +2151,7 @@ pub async fn authentication_post_sync_core(
         post_auth_response,
         authentication.clone(),
         None,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         None,
         None,
         None,
@@ -2231,12 +2209,11 @@ fn ensure_not_terminal_status(
 #[cfg(feature = "v1")]
 pub async fn authentication_session_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: AuthenticationSessionTokenRequest,
 ) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
-    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
-    let key_manager_state = (&state).into();
 
     let authentication_id = req.authentication_id;
     let authentication = state
@@ -2252,8 +2229,7 @@ pub async fn authentication_session_core(
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(
-            &key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
         .await
@@ -2265,8 +2241,8 @@ pub async fn authentication_session_core(
         if let Some(value) = business_profile.authentication_product_ids.clone() {
             let session_token = get_session_token_for_click_to_pay(
                 &state,
-                merchant_context.get_merchant_account().get_id(),
-                &merchant_context,
+                platform.get_processor().get_account().get_id(),
+                &platform,
                 value,
                 &authentication,
             )
@@ -2289,7 +2265,7 @@ pub async fn authentication_session_core(
 pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     authentication: &Authentication,
 ) -> RouterResult<api_models::authentication::AuthenticationSessionToken> {
@@ -2303,10 +2279,9 @@ pub async fn get_session_token_for_click_to_pay(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &click_to_pay_mca_id,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2344,12 +2319,9 @@ pub async fn get_session_token_for_click_to_pay(
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
                 common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
+                    platform.get_processor().get_key_store().merchant_id.clone(),
                 ),
-                merchant_context.get_merchant_key_store().key.peek(),
+                platform.get_processor().get_key_store().key.peek(),
             )
             .await
             .and_then(|val| val.try_into_optionaloperation())
