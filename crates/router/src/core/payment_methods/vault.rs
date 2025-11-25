@@ -1528,7 +1528,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
@@ -1561,7 +1561,7 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
@@ -1708,7 +1708,7 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_using_payment_token(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     payment_token: &String,
     payment_method_type: &common_enums::PaymentMethod,
@@ -1740,26 +1740,23 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         }
     };
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_method_id,
             storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let vault_data =
-        retrieve_payment_method_from_vault(state, merchant_context, profile, &payment_method)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
+    let vault_data = retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve payment method from vault")?
+        .data;
 
     Ok((payment_method, vault_data))
 }
@@ -1888,7 +1885,7 @@ pub async fn delete_payment_token(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
@@ -1902,7 +1899,7 @@ pub async fn retrieve_payment_method_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         external_vault_source,
                     )
                     .await
@@ -1913,7 +1910,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             retrieve_payment_method_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                platform.get_processor().get_account(),
                 pm,
                 merchant_connector_account,
             )
@@ -1928,15 +1925,10 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            retrieve_payment_method_from_vault_internal(
-                state,
-                merchant_context,
-                &vault_id,
-                &pm.customer_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")
+            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &pm.customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -1944,7 +1936,7 @@ pub async fn retrieve_payment_method_from_vault(
 #[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
@@ -2069,7 +2061,7 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
 #[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
@@ -2089,7 +2081,7 @@ pub async fn delete_payment_method_data_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         external_vault_source,
                     )
                     .await
@@ -2100,7 +2092,7 @@ pub async fn delete_payment_method_data_from_vault(
 
             delete_payment_method_data_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                platform.get_processor().get_account(),
                 merchant_connector_account,
                 vault_id.clone(),
                 &pm.customer_id,
@@ -2109,7 +2101,7 @@ pub async fn delete_payment_method_data_from_vault(
         }
         false => delete_payment_method_data_from_vault_internal(
             state,
-            merchant_context,
+            platform,
             vault_id,
             &pm.customer_id,
         )

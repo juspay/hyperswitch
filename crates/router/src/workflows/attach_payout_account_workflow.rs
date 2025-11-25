@@ -34,35 +34,35 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account,
+            key_store,
+        );
         let mut payout_data = Box::pin(payouts::make_payout_data(
             state,
-            &merchant_context,
+            &platform,
             None,
             &request,
             DEFAULT_LOCALE,
         ))
         .await?;
 
-        payouts::payouts_core(state, &merchant_context, &mut payout_data, None, None).await?;
+        payouts::payouts_core(state, &platform, &mut payout_data, None, None).await?;
 
         Ok(())
     }
