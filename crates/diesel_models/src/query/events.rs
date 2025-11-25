@@ -94,6 +94,7 @@ impl Event {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_merchant_id_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

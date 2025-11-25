@@ -1446,7 +1446,6 @@ mod tests {
         let event_type = enums::EventType::PaymentSucceeded;
         let event_class = enums::EventClass::Payments;
         let primary_object_id = Arc::new("concurrent_payment_id".to_string());
-        let initial_attempt_id = Arc::new("initial_attempt_id".to_string());
         let primary_object_type = enums::EventObjectType::PaymentDetails;
         let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
             "pay_mbabizu24mvu3mela5njyhpit10",
@@ -1601,21 +1600,48 @@ mod tests {
         }
 
         // Collect all initial-attempt events for this payment
-        let events = state
+        let events_by_object_id = state
             .store
-            .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
+            .list_initial_events_by_merchant_id_primary_object_id(
                 &business_profile.merchant_id,
-                Some(primary_object_id.as_str()),
-                Some(initial_attempt_id.as_str()),
+                primary_object_id.as_str(),
                 &merchant_key_store,
             )
             .await?;
 
         assert_eq!(
-            events.len(),
+            events_by_object_id.len(),
             1,
-            "Expected exactly 1 row in events table, found {}",
-            events.len()
+            "Expected exactly 1 row in events table when querying by primary_object_id, found {}",
+            events_by_object_id.len()
+        );
+
+        let first_event = events_by_object_id
+            .first()
+            .ok_or("Expected at least one event in the result")?;
+        let event_id = first_event.event_id.clone();
+        let events_by_event_id = state
+            .store
+            .list_initial_events_by_merchant_id_initial_attempt_id(
+                &business_profile.merchant_id,
+                &event_id,
+                &merchant_key_store,
+            )
+            .await?;
+
+        assert_eq!(
+            events_by_event_id.len(),
+            1,
+            "Expected exactly 1 row in events table when querying by initial_attempt_id (event_id), found {}",
+            events_by_event_id.len()
+        );
+
+        let first_event_by_event_id = events_by_event_id
+            .first()
+            .ok_or("Expected at least one event in the result")?;
+        assert_eq!(
+            first_event.event_id, first_event_by_event_id.event_id,
+            "Event IDs should match between queries"
         );
         Ok(())
     }
