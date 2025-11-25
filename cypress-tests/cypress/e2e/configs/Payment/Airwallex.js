@@ -147,7 +147,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           shipping_cost: 50,
           amount_received: 6050,
           amount: 6000,
@@ -228,7 +228,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
@@ -262,7 +262,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
@@ -391,7 +391,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     },
@@ -646,7 +646,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           connector_mandate_id: "mock_airwallex_mandate_id",
         },
       },
@@ -675,7 +675,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
           connector_mandate_id: "mock_airwallex_mandate_id",
         },
       },
@@ -738,12 +738,11 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     },
