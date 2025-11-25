@@ -3049,12 +3049,9 @@ impl MerchantCategoryCode {
 
     /// Returns a reference to the 4-digit zero-padded code string.
     pub fn get_string_code(&self) -> &str {
-        // FIX: The inner value is already the formatted string
         &self.0
     }
 }
-
-// --- Diesel Trait Implementations ---
 
 impl<DB> ToSql<Text, DB> for MerchantCategoryCode
 where
@@ -3065,8 +3062,6 @@ where
         self.0.to_sql(out)
     }
 }
-
-// FromSql: Implement deserialization from DB Text type to MerchantCategoryCode
 impl<DB: Backend> FromSql<Text, DB> for MerchantCategoryCode
 where
     String: FromSql<Text, DB>,
@@ -3078,8 +3073,6 @@ where
     }
 }
 
-// --- Serde Trait Implementation ---
-
 impl Serialize for MerchantCategoryCode {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -3089,7 +3082,6 @@ impl Serialize for MerchantCategoryCode {
     }
 }
 
-// Define a custom error type for clear error messages
 #[derive(Debug, Clone)]
 pub struct InvalidMccError {
     pub message: String,
@@ -3103,7 +3095,6 @@ impl fmt::Display for InvalidMccError {
 
 impl std::error::Error for InvalidMccError {}
 
-// Implement From for ParseIntError to convert it to the custom error
 impl From<std::num::ParseIntError> for InvalidMccError {
     fn from(err: std::num::ParseIntError) -> Self {
         Self {
@@ -3111,17 +3102,12 @@ impl From<std::num::ParseIntError> for InvalidMccError {
         }
     }
 }
-// ---
 
 impl FromStr for MerchantCategoryCode {
-    // FIX: Change error type to allow for custom validation errors
     type Err = InvalidMccError;
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // 1. Validate: Ensure it can be parsed as a u16 (uses the `From` trait above)
         let _code: u16 = s.parse()?;
 
-        // 2. FIX: Add explicit validation for 4-digit length
         if s.len() != 4 {
             return Err(InvalidMccError {
                 message: format!(
@@ -3130,8 +3116,6 @@ impl FromStr for MerchantCategoryCode {
                 ),
             });
         }
-
-        // 3. Store the validated string
         Ok(Self(s.to_string()))
     }
 }
