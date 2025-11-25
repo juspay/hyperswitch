@@ -47,6 +47,7 @@ use serde::Serialize;
 #[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use url::Url;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
@@ -1208,6 +1209,94 @@ impl PaymentAttempt {
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         todo!()
     }
+
+    fn get_connector_metadata_value(&self) -> Option<&Value> {
+        self.connector_metadata.as_ref().map(|metadata| metadata.peek())
+    }
+
+    pub fn get_upi_next_action(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::NextActionData>,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let metadata_value = match self.get_connector_metadata_value() {
+            Some(value) => value,
+            None => return Ok(None),
+        };
+
+        #[derive(serde::Deserialize)]
+        struct SdkUpiUriInformation {
+            sdk_uri: String,
+        }
+
+        let sdk_uri_opt = match metadata_value.get("SdkUpiUriInformation") {
+            Some(uri_info_value) => {
+                let uri_info = serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
+                    .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                        field_name: "connector_metadata.SdkUpiUriInformation",
+                    })
+                    .attach_printable("Failed to deserialize SdkUpiUriInformation from connector_metadata")?;
+
+                let parsed_url = Url::parse(&uri_info.sdk_uri)
+                    .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                        field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                    })
+                    .attach_printable("Failed to parse sdk_uri as valid URL")?;
+
+                Some(parsed_url)
+            }
+            None => None,
+        };
+
+        let wait_screen_info = match metadata_value.get("WaitScreenInstructions") {
+            Some(wait_screen_value) => {
+                let wait_info = serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_metadata.WaitScreenInstructions",
+                })
+                .attach_printable("Failed to deserialize WaitScreenInstructions from connector_metadata")?;
+
+                Some(wait_info)
+            }
+            None => None,
+        };
+
+        Ok(match (self.payment_method_type, self.payment_method_subtype) {
+            (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiIntent) => {
+                sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::InvokeUpiIntentSdk {
+                        sdk_uri,
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
+                sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::InvokeUpiQrFlow {
+                        qr_code_url: sdk_uri,
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiCollect) => {
+                wait_screen_info.map(|wait_info| {
+                    api_models::payments::NextActionData::WaitScreenInformation {
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            _ => None,
+        })
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1262,6 +1351,92 @@ impl PaymentAttempt {
                     .unwrap_or(common_enums::Tokenization::SkipPsp),
             ),
         }
+    }
+
+    fn get_connector_metadata_value(&self) -> Option<&serde_json::Value> {
+        self.connector_metadata.as_ref()
+    }
+    pub fn get_upi_next_action(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::NextActionData>,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let metadata_value = match self.get_connector_metadata_value() {
+            Some(value) => value,
+            None => return Ok(None),
+        };
+
+        #[derive(Deserialize)]
+        struct SdkUpiUriInformation {
+            sdk_uri: String,
+        }
+        let sdk_uri_opt = match metadata_value.get("SdkUpiUriInformation") {
+            Some(uri_info_value) => {
+                let uri_info = serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
+                    .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                        field_name: "connector_metadata.SdkUpiUriInformation",
+                    })
+                    .attach_printable("Failed to deserialize SdkUpiUriInformation from connector_metadata")?;
+
+                let parsed_url = Url::parse(&uri_info.sdk_uri)
+                    .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                        field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
+                    })
+                    .attach_printable("Failed to parse sdk_uri as valid URL")?;
+
+                Some(parsed_url)
+            }
+            None => None,
+        };
+
+        let wait_screen_info = match metadata_value.get("WaitScreenInstructions") {
+            Some(wait_screen_value) => {
+                let wait_info = serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_metadata.WaitScreenInstructions",
+                })
+                .attach_printable("Failed to deserialize WaitScreenInstructions from connector_metadata")?;
+
+                Some(wait_info)
+            }
+            None => None,
+        };
+
+        Ok(match (self.payment_method, self.payment_method_type) {
+            (Some(storage_enums::PaymentMethod::Upi), Some(storage_enums::PaymentMethodType::UpiIntent)) => {
+                sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::InvokeUpiIntentSdk {
+                        sdk_uri,
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            (Some(storage_enums::PaymentMethod::Upi), Some(storage_enums::PaymentMethodType::UpiQr)) => {
+                sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::InvokeUpiQrFlow {
+                        qr_code_url: sdk_uri,
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            (Some(storage_enums::PaymentMethod::Upi), Some(storage_enums::PaymentMethodType::UpiCollect)) => {
+                wait_screen_info.map(|wait_info| {
+                    api_models::payments::NextActionData::WaitScreenInformation {
+                        display_from_timestamp: wait_info.display_from_timestamp,
+                        display_to_timestamp: wait_info.display_to_timestamp,
+                        poll_config: wait_info.poll_config,
+                    }
+                })
+            }
+            _ => None,
+        })
     }
 }
 

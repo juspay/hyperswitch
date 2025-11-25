@@ -45,12 +45,9 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct WaitScreenData {
-    display_from_timestamp: i128,
-    display_to_timestamp: Option<i128>,
-    poll_config: Option<api_models::payments::PollConfig>,
-}
+const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
+const UPI_POLL_DELAY_IN_SECS: u16 = 5;
+const UPI_POLL_FREQUENCY: u16 = 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SdkUpiUriInformation {
@@ -61,17 +58,22 @@ pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
     let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
 
-    let wait_screen_data = WaitScreenData {
+    let wait_screen_data = api_models::payments::WaitScreenInstructions {
         display_from_timestamp: current_time,
-        display_to_timestamp: Some(current_time + Duration::minutes(5).whole_nanoseconds()),
+        display_to_timestamp: Some(
+            current_time
+                + Duration::minutes(UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES)
+                    .whole_nanoseconds(),
+        ),
         poll_config: Some(api_models::payments::PollConfig {
-            delay_in_secs: 5,
-            frequency: 60,
+            delay_in_secs: UPI_POLL_DELAY_IN_SECS,
+            frequency: UPI_POLL_FREQUENCY,
         }),
     };
 
     serde_json::to_value(wait_screen_data)
         .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
@@ -1608,35 +1610,48 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             None => (None, None),
         };
 
-        if let Some(next_action_data) = response.connector_metadata.get("nextActionData") {
-            if next_action_data == "WaitScreenInstructions" {
-                if let Ok(wait_screen_metadata) = build_upi_wait_screen_data() {
-                    let mut metadata_map = if let Some(existing_metadata) = &connector_metadata {
-                        existing_metadata.as_object().cloned().unwrap_or_default()
-                    } else {
-                        serde_json::Map::new()
-                    };
+        connector_metadata = response
+            .connector_metadata
+            .get("nextActionData")
+            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+            .and_then(|_| build_upi_wait_screen_data().ok())
+            .map(|wait_screen_metadata| {
+                let mut metadata_map = connector_metadata
+                    .as_ref()
+                    .and_then(|meta| meta.as_object())
+                    .cloned()
+                    .unwrap_or_else(serde_json::Map::new);
 
-                    metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
+                metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
 
-                    // For UPI Intent/QR, also preserve URI information from redirection data
-                    if let Some(redirection_data) = &response.redirection_data {
+                // For UPI Intent/QR, also preserve URI information from redirection data
+                response
+                    .redirection_data
+                    .as_ref()
+                    .and_then(|redirection_data| {
                         if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
                             &redirection_data.form_type
                         {
                             let sdk_uri_info = SdkUpiUriInformation {
                                 sdk_uri: uri.uri.clone(),
                             };
-                            let uri_data = serde_json::to_value(sdk_uri_info)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-                            metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data);
+                            serde_json::to_value(sdk_uri_info)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                .attach_printable(
+                                    "Failed to serialize SdkUpiUriInformation to JSON value",
+                                )
+                                .ok()
+                        } else {
+                            None
                         }
-                    }
+                    })
+                    .map(|uri_data| {
+                        metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data)
+                    });
 
-                    connector_metadata = Some(serde_json::Value::Object(metadata_map));
-                }
-            }
-        }
+                serde_json::Value::Object(metadata_map)
+            })
+            .or(connector_metadata);
 
         // Extract connector_metadata from response if present and not already set
         if connector_metadata.is_none() && !response.connector_metadata.is_empty() {

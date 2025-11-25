@@ -6138,7 +6138,7 @@ pub enum NextActionType {
     CollectOtp,
     RedirectInsidePopup,
     InvokeUpiIntentSdk,
-    InvokeUpiQrSdk,
+    InvokeUpiQrFlow,
 }
 
 #[derive(
@@ -6209,9 +6209,9 @@ pub enum NextActionData {
         #[smithy(value_type = "Option<PollConfig>")]
         poll_config: Option<PollConfig>,
     },
-    InvokeUpiQrSdk {
+    InvokeUpiQrFlow {
         #[schema(value_type = String)]
-        sdk_uri: Url,
+        qr_code_url: Url,
         #[smithy(value_type = "i128")]
         display_from_timestamp: i128,
         #[smithy(value_type = "Option<i128>")]
@@ -6469,7 +6469,7 @@ pub struct QrCodeNextStepsInstruction {
     pub qr_code_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
