@@ -1834,13 +1834,6 @@ pub fn metadata_to_novalnet_extra(
         return Ok(None);
     }
 
-    if map.len() > 7 {
-        return Err(errors::ConnectorError::InvalidDataFormat {
-            field_name: "metadata (max 7 allowed for Novalnet",
-        }
-        .into());
-    }
-
     let mut extra = HashMap::new();
 
     for (idx, (key, val)) in map.iter().enumerate() {
