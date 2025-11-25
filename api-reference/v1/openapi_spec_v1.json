@@ -25838,7 +25838,7 @@
           },
           "psp_tokenization": {
             "type": "boolean",
-            "description": "This indicates whether a PSP token is created"
+            "description": "This indicates whether there is at least one active PSP token available"
           },
           "network_tokenization": {
             "type": "boolean",
