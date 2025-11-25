@@ -272,7 +272,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 }
 
 #[derive(Debug, Clone)]
-pub struct RetryDecision{
+pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
     pub decision_threshold: Option<f64>,
 }
@@ -423,7 +423,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
                 .and_then(|prost_ts| {
                     match date_time::convert_from_prost_timestamp(&prost_ts) {
                         Ok(pdt) => {
-                            let response = RetryDecision{
+                            let response = RetryDecision {
                                 retry_time: pdt,
                                 decision_threshold: grpc_response.decision_threshold,
                             };
@@ -1014,7 +1014,6 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                     // Not populating decision_threshold for successful token as there is no decider call
                     decision_threshold: None,
                 },
-                
             }];
 
             tracing::debug!(
