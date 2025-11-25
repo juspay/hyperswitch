@@ -3101,7 +3101,7 @@ impl std::error::Error for InvalidMccError {}
 // Implement From for ParseIntError to convert it to the custom error
 impl From<std::num::ParseIntError> for InvalidMccError {
     fn from(err: std::num::ParseIntError) -> Self {
-        InvalidMccError {
+        Self {
             message: format!("Code must be a number: {}", err),
         }
     }
