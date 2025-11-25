@@ -2823,7 +2823,6 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-
             payment_attempt
                 .redirection_data
                 .as_ref()
