@@ -269,7 +269,7 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
-    /// Subscription get plans flow,
+    /// Subscription get items flow,
     GetSubscriptionItemsForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,

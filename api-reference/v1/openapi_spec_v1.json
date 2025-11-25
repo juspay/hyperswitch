@@ -7811,14 +7811,9 @@
             "name": "item_type",
             "in": "query",
             "description": "Filter by subscription item type plan or addon",
-            "required": false,
+            "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/api_model.subscription.SubscriptionItemType"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/components/schemas/SubscriptionItemType"
             }
           }
         ],
@@ -7830,7 +7825,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/GetItemsResponse"
+                    "$ref": "#/components/schemas/GetSubscriptionItemsResponse"
                   }
                 }
               }
@@ -35897,6 +35892,13 @@
             "nullable": true
           }
         }
+      },
+      "SubscriptionItemType": {
+        "type": "string",
+        "enum": [
+          "plan",
+          "addon"
+        ]
       },
       "SubscriptionLineItem": {
         "type": "object",

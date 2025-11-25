@@ -279,10 +279,10 @@ pub async fn update_subscription() {}
         ("limit" = Option<u32>, Query, description = "Number of items to retrieve"),
         ("offset" = Option<u32>, Query, description = "Number of items to skip"),
         ("product_id" = Option<String>, Query, description = "Filter by product ID"),
-        ("item_type" = Option<api_model::subscription::SubscriptionItemType>, Query, description = "Filter by subscription item type plan or addon")
+        ("item_type" = SubscriptionItemType, Query, description = "Filter by subscription item type plan or addon")
     ),
     responses(
-        (status = 200, description = "List of available subscription items", body = Vec<GetItemsResponse>),
+        (status = 200, description = "List of available subscription items", body = Vec<GetSubscriptionItemsResponse>),
         (status = 400, description = "Invalid query parameters")
     ),
     tag = "Subscriptions",
