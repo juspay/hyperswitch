@@ -108,10 +108,6 @@ use crate::{
     utils::ConnectorResponseExt,
 };
 
-const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
-const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
-const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
-
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
     pub platform: &'a domain::Platform,
@@ -2057,7 +2053,7 @@ pub async fn decode_and_decrypt_locker_data(
 }
 
 #[instrument(skip_all)]
-pub async fn get_payment_method_from_hs_locker<'a>(
+pub async fn get_encrypted_data_from_hs_locker<'a>(
     state: &'a routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     customer_id: &id_type::CustomerId,
@@ -2080,7 +2076,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
                 jwekey,
                 locker,
                 &payload,
-                LOCKER_RETRIEVE_CARD_PATH,
+                router_consts::LOCKER_RETRIEVE_CARD_PATH,
                 state.tenant.tenant_id.clone(),
                 state.request_id.clone(),
             )
@@ -2125,7 +2121,7 @@ pub async fn add_card_to_hs_locker(
             jwekey,
             locker,
             payload,
-            LOCKER_ADD_CARD_PATH,
+            router_consts::LOCKER_ADD_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -2305,7 +2301,7 @@ pub async fn get_card_detail_from_hs_locker<'a>(
                 jwekey,
                 locker,
                 &payload,
-                LOCKER_RETRIEVE_CARD_PATH,
+                router_consts::LOCKER_RETRIEVE_CARD_PATH,
                 state.tenant.tenant_id.clone(),
                 state.request_id.clone(),
             )
@@ -2350,7 +2346,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             jwekey,
             locker,
             &payload,
-            LOCKER_DELETE_CARD_PATH,
+            router_consts::LOCKER_DELETE_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -4808,7 +4804,7 @@ pub async fn get_bank_from_hs_locker(
     token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
     let payment_method =
-        get_payment_method_from_hs_locker(state, key_store, customer_id, merchant_id, token_ref)
+        get_encrypted_data_from_hs_locker(state, key_store, customer_id, merchant_id, token_ref)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting payment method from locker")?;

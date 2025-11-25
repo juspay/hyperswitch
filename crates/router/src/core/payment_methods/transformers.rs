@@ -16,8 +16,6 @@ use josekit::jwe;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
     core::{
@@ -32,7 +30,10 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
-const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
+use crate::{
+    consts,
+    types::{payment_methods as pm_types, transformers},
+};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -660,7 +661,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         jwekey,
         locker,
         &card_req_body,
-        LOCKER_DELETE_CARD_PATH,
+        consts::LOCKER_DELETE_CARD_PATH,
         tenant_id,
         request_id,
     )
