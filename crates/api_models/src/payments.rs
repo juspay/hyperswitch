@@ -6469,7 +6469,7 @@ pub struct QrCodeNextStepsInstruction {
     pub qr_code_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
