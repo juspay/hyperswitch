@@ -62,8 +62,7 @@ pub fn build_upi_wait_screen_data(
         display_from_timestamp: current_time,
         display_to_timestamp: Some(
             current_time
-                + Duration::minutes(UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES)
-                    .whole_nanoseconds(),
+                + Duration::minutes(UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES).whole_nanoseconds(),
         ),
         poll_config: Some(api_models::payments::PollConfig {
             delay_in_secs: UPI_POLL_DELAY_IN_SECS,

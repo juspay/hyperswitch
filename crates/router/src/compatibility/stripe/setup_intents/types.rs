@@ -487,7 +487,9 @@ pub(crate) fn into_stripe_next_action(
             StripeNextAction::InvokeUpiIntentSdk { sdk_uri }
         }
         payments::NextActionData::InvokeUpiQrFlow { qr_code_url, .. } => {
-            StripeNextAction::InvokeUpiQrFlow { sdk_uri: qr_code_url }
+            StripeNextAction::InvokeUpiQrFlow {
+                sdk_uri: qr_code_url,
+            }
         }
     })
 }
