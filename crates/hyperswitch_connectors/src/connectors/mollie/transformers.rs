@@ -302,7 +302,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             .is_customer_initiated_mandate_payment()
         {
             SequenceType::First
-        } else if item.router_data.request.is_mit_payment() {
+        } else if item.router_data.request.is_mandate_payment() {
             SequenceType::Recurring
         } else {
             SequenceType::Oneoff
