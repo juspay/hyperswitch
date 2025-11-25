@@ -4549,10 +4549,18 @@ where
     A: SessionStateInfo + Sync,
 {
     match merchant_account_type {
-        MerchantAccountType::Connected => is_connected_allowed.then_some(()).ok_or_else(|| {
-            report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
-                .attach_printable("Connected Merchant is not authorized to access the resource")
-        }),
+        MerchantAccountType::Connected => {
+            // Check if platform feature is enabled
+            state.conf().platform.enabled.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                    .attach_printable("Platform feature is not enabled")
+            })?;
+
+            is_connected_allowed.then_some(()).ok_or_else(|| {
+                report!(errors::ApiErrorResponse::ConnectedAccountAuthNotSupported)
+                    .attach_printable("Connected Merchant is not authorized to access the resource")
+            })
+        }
         MerchantAccountType::Platform => {
             // Check if platform feature is enabled
             state.conf().platform.enabled.then_some(()).ok_or_else(|| {
