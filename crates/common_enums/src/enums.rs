@@ -2995,7 +2995,12 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[schema(
+    value_type = String,
+    title = "4 digit Merchant category code (MCC)",
+    example = "5411"
+)]
 #[diesel(sql_type = Text)]
 pub struct MerchantCategoryCode(String);
 
