@@ -83,8 +83,7 @@ impl Event {
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =
-            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate)
-                .await;
+            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
 
         match result {
             Ok(event) => Ok(vec![event]),
@@ -195,8 +194,7 @@ impl Event {
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =
-            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate)
-                .await;
+            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
 
         match result {
             Ok(event) => Ok(vec![event]),
