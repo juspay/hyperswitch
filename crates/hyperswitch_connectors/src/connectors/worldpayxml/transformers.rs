@@ -570,7 +570,7 @@ impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for 
             exponent,
             value: authorize_data.amount.to_owned(),
         };
-        let shopper = get_shopper_details(&authorize_data.router_data);
+        let shopper = get_shopper_details(authorize_data.router_data);
         let billing_address = authorize_data
             .router_data
             .get_optional_billing()
