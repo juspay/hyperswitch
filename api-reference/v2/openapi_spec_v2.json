@@ -26686,6 +26686,19 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "three_ds_connector": {
+            "type": "string",
+            "description": "Prefered 3ds Connector",
+            "nullable": true
           }
         }
       },
