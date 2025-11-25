@@ -1839,6 +1839,56 @@ impl IntentStatus {
     }
 }
 
+/// Represents the overall status of a recovery payment intent.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RecoveryStatus {
+    /// The payment has been successfully recovered through retry mechanisms.
+    /// This indicates that a previously failed payment has been completed.
+    Recovered,
+    /// The payment is scheduled for retry and will be processed automatically.
+    /// This status is shown when a retry is queued but not yet picked up for processing.
+    Scheduled,
+    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
+    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
+    NoPicked,
+    /// The payment is currently being processed with the payment gateway.
+    /// This status is shown during active retry attempts.
+    Processing,
+    /// The payment cannot be recovered due to terminal failure conditions.
+    /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
+    Terminated,
+    /// The payment is being monitored for potential recovery.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    #[default]
+    Monitoring,
+    /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
+    /// This status indicates the payment is in the initial queuing phase of the recovery process.
+    Queued,
+    /// The payment has been partially recovered through retry mechanisms.
+    /// This indicates that a partially captured payment has been processed.
+    PartiallyRecovered,
+    /// The payment is pending action from the customer, merchant, or requires additional information.
+    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
+    Pending,
+}
+
 /// Specifies how the payment method can be used for future payments.
 /// - `off_session`: The payment method can be used for future payments when the customer is not present.
 /// - `on_session`: The payment method is intended for use only when the customer is present during checkout.
@@ -2023,6 +2073,13 @@ pub enum SamsungPayCardBrand {
     Discover,
     Unknown,
 }
+
+/// Custom T&C Message to be shown per payment method type
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct CustomTermsByPaymentMethodTypes(
+    #[schema(value_type = HashMap<String, Option<String>>)]
+    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
+);
 
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
@@ -2339,6 +2396,28 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
+impl PaymentMethod {
+    pub fn is_gift_card(&self) -> bool {
+        match self {
+            Self::GiftCard => true,
+            Self::Card
+            | Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment => false,
+        }
+    }
+}
+
 /// Indicates the gateway system through which the payment is processed.
 #[derive(
     Clone,
@@ -2470,6 +2549,7 @@ pub enum ExecutionMode {
     #[default]
     Primary,
     Shadow,
+    NotApplicable,
 }
 
 #[derive(
@@ -3161,7 +3241,7 @@ pub enum SplitTxnsEnabled {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ActiveAttemptIDType {
-    AttemptsGroupID,
+    GroupID,
     #[default]
     AttemptID,
 }
@@ -8086,6 +8166,13 @@ impl PayoutStatus {
             Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
         )
     }
+
+    pub fn is_non_terminal_status(&self) -> bool {
+        !matches!(
+            self,
+            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+        )
+    }
 }
 
 /// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
@@ -8398,6 +8485,30 @@ impl AuthenticationConnectors {
 pub enum VaultSdk {
     VgsSdk,
     HyperswitchSdk,
+}
+
+/// The type of tokenization to use for the payment method
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Tokenization {
+    /// Skip PSP-level tokenization
+    SkipPsp,
+    /// Tokenize at PSP Level
+    TokenizeAtPsp,
 }
 
 #[derive(
@@ -9991,4 +10102,40 @@ pub enum ExemptionIndicator {
     LowRiskProgram,
     /// Recurring transaction exemption (subsequent payment in a series).
     RecurringOperation,
+}
+
+/// Fields that can be tokenized with vault
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultTokenType {
+    /// Card number
+    CardNumber,
+    /// Card cvc
+    CardCvc,
+    /// Card expiry year
+    CardExpiryYear,
+    /// Card expiry month
+    CardExpiryMonth,
+    /// Network token
+    NetworkToken,
+    /// Token expiry year
+    NetworkTokenExpiryYear,
+    /// Token expiry month
+    NetworkTokenExpiryMonth,
+    /// Token cryptogram
+    NetworkTokenCryptogram,
 }

@@ -2,6 +2,7 @@ pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodResponseItem;
 use api_models::{enums as api_enums, payment_methods::Card};
+use common_enums::CardNetwork;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -862,6 +863,7 @@ pub fn mk_crud_locker_request(
     Ok(request)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn mk_card_value1(
     card_number: cards::CardNumber,
     exp_year: String,
@@ -870,6 +872,7 @@ pub fn mk_card_value1(
     nickname: Option<String>,
     card_last_four: Option<String>,
     card_token: Option<String>,
+    card_network: Option<CardNetwork>,
 ) -> CustomResult<String, errors::VaultError> {
     let value1 = api::TokenizedCardValue1 {
         card_number: card_number.peek().clone(),
@@ -879,6 +882,7 @@ pub fn mk_card_value1(
         nickname,
         card_last_four,
         card_token,
+        card_network,
     };
     let value1_req = value1
         .encode_to_string_of_json()

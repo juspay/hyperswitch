@@ -121,19 +121,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         _request: &PaymentsSessionRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
-        let key_manager_state = &state.into();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -186,7 +184,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
             Some(prerouting_algorithm) => state
                 .store
                 .update_payment_intent(
-                    &state.into(),
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::SessionIntentUpdate {
                         prerouting_algorithm,
@@ -211,11 +208,11 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::Payme
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsSessionRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+            storage_scheme: platform.get_processor().get_account().storage_scheme,
             requeue: false,
         })
     }
@@ -243,12 +240,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &state.into(),
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
                 Ok((Box::new(self), Some(customer)))
             }
@@ -276,7 +268,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
 
     async fn perform_routing<'a>(
         &'a self,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut payments::PaymentIntentData<F>,
@@ -284,10 +276,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let db = &state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -329,7 +320,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let session_token_routing_result = payments::perform_session_token_routing(
             state.clone(),
             business_profile,
-            merchant_context.clone(),
+            platform.clone(),
             payment_data,
             session_connector_data,
         )
@@ -378,7 +369,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

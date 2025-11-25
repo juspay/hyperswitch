@@ -96,7 +96,7 @@ pub fn get_tokenize_card_form_records(
 pub async fn tokenize_cards(
     state: &SessionState,
     records: Vec<payment_methods_api::CardNetworkTokenizeRequest>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> errors::RouterResponse<Vec<payment_methods_api::CardNetworkTokenizeResponse>> {
     use futures::stream::StreamExt;
 
@@ -108,7 +108,7 @@ pub async fn tokenize_cards(
             Box::pin(tokenize_card_flow(
                 state,
                 domain::CardNetworkTokenizeRequest::foreign_from(record),
-                merchant_context,
+                platform,
             ))
             .await
             .unwrap_or_else(|e| {
@@ -193,7 +193,7 @@ pub trait TransitionTo<S: State> {}
 pub trait NetworkTokenizationProcess<'a, D> {
     fn new(
         state: &'a SessionState,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
         data: &'a D,
         customer: &'a domain_request_types::CustomerDetails,
     ) -> Self;
@@ -243,7 +243,7 @@ where
 {
     fn new(
         state: &'a SessionState,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
         data: &'a D,
         customer: &'a domain_request_types::CustomerDetails,
     ) -> Self {
@@ -251,8 +251,8 @@ where
             data,
             customer,
             state,
-            merchant_account: merchant_context.get_merchant_account(),
-            key_store: merchant_context.get_merchant_key_store(),
+            merchant_account: platform.get_processor().get_account(),
+            key_store: platform.get_processor().get_key_store(),
         }
     }
     async fn encrypt_card(

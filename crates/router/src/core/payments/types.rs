@@ -429,7 +429,7 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
                 acs_trans_id: authentication.acs_trans_id.clone(),
-                transaction_status: None,
+                transaction_status: authentication.trans_status.clone(),
                 exemption_indicator: None,
                 cb_network_params: None,
             })
