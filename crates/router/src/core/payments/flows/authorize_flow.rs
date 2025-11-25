@@ -304,7 +304,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             ));
         // If authorize session token flow is implemented for the connector, request_option will be some.
         let request_option = connector_integration
-            .build_request(&authorize_session_token_router_data, &state.conf.connectors)
+            .build_request(authorize_session_token_router_data, &state.conf.connectors)
             .to_payment_failed_response()?;
         if let Some(request) = request_option {
             let resp = gateway::execute_payment_gateway(

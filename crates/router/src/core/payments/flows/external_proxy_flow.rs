@@ -332,7 +332,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
-                gateway_context,
+                gateway_context.clone(),
             )
             .await
             .to_payment_failed_response()?;

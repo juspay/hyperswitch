@@ -5,6 +5,7 @@
 //! connector integration or Unified Connector Service (UCS).
 
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
+use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Platform};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
@@ -72,6 +73,25 @@ impl RouterGatewayContext {
             execution_mode,
             execution_path,
             creds_identifier,
+        }
+    }
+    pub fn default(
+        platform: Platform,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+    ) -> Self {
+        let lineage_ids = LineageIds::new(merchant_id, profile_id);
+        Self {
+            platform,
+            header_payload: HeaderPayload::default(),
+            lineage_ids,
+            merchant_connector_account,
+            execution_mode: ExecutionMode::NotApplicable,
+            execution_path: ExecutionPath::Direct,
+            creds_identifier: None,
         }
     }
 }
