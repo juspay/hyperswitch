@@ -3002,6 +3002,18 @@ impl ConnectorOnboarding {
     }
 }
 
+pub struct Embedded;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl Embedded {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/embedded")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::get().to(user::issue_emebedded_token)))
+            .service(web::resource("/token").route(web::get().to(user::issue_emebedded_token)))
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct WebhookEvents;
 

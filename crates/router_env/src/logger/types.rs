@@ -698,6 +698,8 @@ pub enum Flow {
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
+    // Get embedded token flow
+    GetEmbeddedToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

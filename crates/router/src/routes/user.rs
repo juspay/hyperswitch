@@ -1036,3 +1036,23 @@ pub async fn clone_connector(
     ))
     .await
 }
+
+pub async fn issue_emebedded_token(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetEmbeddedToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, auth_data, _, _| user_core::issue_embedded_token(state, auth_data),
+        &auth::ApiKeyAuth {
+            is_platform_allowed: false,
+            is_connected_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -114,6 +114,8 @@ pub enum UserErrors {
     InvalidCloneConnectorOperation(String),
     #[error("Error cloning connector: {0}")]
     ErrorCloningConnector(String),
+    #[error("Invalid Embedded Operation : {0}")]
+    InvalidEmbeddedOperation(String),
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -298,6 +300,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 self.get_error_message(),
                 None,
             )),
+            Self::InvalidEmbeddedOperation(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 60, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -373,6 +378,9 @@ impl UserErrors {
             }
             Self::ErrorCloningConnector(error_message) => {
                 format!("Error cloning connector: {error_message}")
+            }
+            Self::InvalidEmbeddedOperation(error_message) => {
+                format!("Invalid Embedded Operation: {error_message}")
             }
         }
     }

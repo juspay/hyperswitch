@@ -323,6 +323,11 @@ pub enum ApiErrorResponse {
     TokenizationRecordNotFound { id: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "Subscription operation: {operation} failed with connector")]
     SubscriptionError { operation: String },
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_48",
+        message = "Access forbidden, expired JWT token was used"
+    )]
+    ExpiredJwtToken,
 }
 
 #[derive(Clone)]
@@ -715,6 +720,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
+            Self::ExpiredJwtToken => AER::Unauthorized(ApiError::new("IR", 48, "Access forbidden, expired JWT token was used", None)),
         }
     }
 }

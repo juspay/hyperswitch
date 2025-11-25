@@ -454,7 +454,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey
-            | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
+            | errors::ApiErrorResponse::CookieNotFound
+            | errors::ApiErrorResponse::ExpiredJwtToken => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
             | errors::ApiErrorResponse::InvalidCardIin

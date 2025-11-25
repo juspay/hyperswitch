@@ -3779,3 +3779,50 @@ pub async fn clone_connector(
     })
     .attach_printable("Failed to create cloned connector")
 }
+
+pub async fn issue_embedded_token(
+    state: SessionState,
+    authentication_data: auth::AuthenticationData,
+) -> UserResponse<user_api::IssueEmbeddedTokenResponse> {
+    let key_manager_state = &(&state).into();
+    let profile_id = authentication_data
+        .profile_id
+        .ok_or(UserErrors::InvalidEmbeddedOperation(
+            "No business profile ID provided".to_string(),
+        ))
+        .attach_printable("No profile_id provided in headers for embedded token")?;
+    state
+        .store
+        .find_business_profile_by_merchant_id_profile_id(
+            key_manager_state,
+            &authentication_data.key_store,
+            authentication_data.merchant_account.get_id(),
+            &profile_id,
+        )
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidEmbeddedOperation(
+                    "Invalid business profile ID".to_string(),
+                ))
+                .attach_printable("Invalid profile id")
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?;
+    auth::embedded::EmbeddedToken::new(
+        state.tenant.tenant_id,
+        authentication_data.merchant_account.get_org_id().clone(),
+        authentication_data.merchant_account.get_id().clone(),
+        profile_id,
+        &state.conf,
+    )
+    .await
+    .map(|token| {
+        ApplicationResponse::Json(user_api::IssueEmbeddedTokenResponse {
+            token: token.into(),
+        })
+    })
+}
+
+// pub async fn embedded_token_info(state: Sess
