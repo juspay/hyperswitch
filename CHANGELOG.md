@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix4
+
+### Features
+
+- **connector:** Add client_unqiue_id in Nuvei Pyament Request ([#10435](https://github.com/juspay/hyperswitch/pull/10435)) ([`7682211`](https://github.com/juspay/hyperswitch/commit/768221163357e67ec69244fcbc30c0f5c4866f3b))
+
+**Full Changelog:** [`2025.11.19.0-hotfix3...2025.11.19.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix3...2025.11.19.0-hotfix4)
+
+- - -
+
 ## 2025.11.19.0-hotfix3
 
 ### Revert
