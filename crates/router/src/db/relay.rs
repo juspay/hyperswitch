@@ -1,4 +1,4 @@
-use common_utils::types::keymanager::KeyManagerState;
+use diesel_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 use storage_impl::MockDb;
@@ -15,14 +15,12 @@ use crate::{
 pub trait RelayInterface {
     async fn insert_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 
     async fn update_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
@@ -30,14 +28,12 @@ pub trait RelayInterface {
 
     async fn find_relay_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 
     async fn find_relay_by_profile_id_connector_reference_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
@@ -48,7 +44,6 @@ pub trait RelayInterface {
 impl RelayInterface for Store {
     async fn insert_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
@@ -60,7 +55,8 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                key_manager_state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -70,7 +66,6 @@ impl RelayInterface for Store {
 
     async fn update_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
@@ -86,7 +81,8 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                key_manager_state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -96,7 +92,6 @@ impl RelayInterface for Store {
 
     async fn find_relay_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
@@ -105,7 +100,8 @@ impl RelayInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
-                key_manager_state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 merchant_key_store.key.get_inner(),
                 merchant_key_store.merchant_id.clone().into(),
             )
@@ -115,7 +111,6 @@ impl RelayInterface for Store {
 
     async fn find_relay_by_profile_id_connector_reference_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
@@ -129,7 +124,8 @@ impl RelayInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?
         .convert(
-            key_manager_state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             merchant_key_store.key.get_inner(),
             merchant_key_store.merchant_id.clone().into(),
         )
@@ -142,7 +138,6 @@ impl RelayInterface for Store {
 impl RelayInterface for MockDb {
     async fn insert_relay(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
@@ -151,7 +146,6 @@ impl RelayInterface for MockDb {
 
     async fn update_relay(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _current_state: hyperswitch_domain_models::relay::Relay,
         _relay_update: hyperswitch_domain_models::relay::RelayUpdate,
@@ -161,7 +155,6 @@ impl RelayInterface for MockDb {
 
     async fn find_relay_by_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
@@ -170,7 +163,6 @@ impl RelayInterface for MockDb {
 
     async fn find_relay_by_profile_id_connector_reference_id(
         &self,
-        _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _profile_id: &common_utils::id_type::ProfileId,
         _connector_reference_id: &str,
@@ -183,53 +175,43 @@ impl RelayInterface for MockDb {
 impl RelayInterface for KafkaStore {
     async fn insert_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
-            .insert_relay(key_manager_state, merchant_key_store, new)
+            .insert_relay(merchant_key_store, new)
             .await
     }
 
     async fn update_relay(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
-            .update_relay(
-                key_manager_state,
-                merchant_key_store,
-                current_state,
-                relay_update,
-            )
+            .update_relay(merchant_key_store, current_state, relay_update)
             .await
     }
 
     async fn find_relay_by_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
-            .find_relay_by_id(key_manager_state, merchant_key_store, relay_id)
+            .find_relay_by_id(merchant_key_store, relay_id)
             .await
     }
 
     async fn find_relay_by_profile_id_connector_reference_id(
         &self,
-        key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
             .find_relay_by_profile_id_connector_reference_id(
-                key_manager_state,
                 merchant_key_store,
                 profile_id,
                 connector_reference_id,

@@ -9,7 +9,7 @@ use crate::core::refunds_v2::*;
 use crate::{
     core::api_locking,
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::{api::refunds, domain},
+    types::api::refunds,
 };
 
 #[cfg(feature = "v2")]
@@ -61,10 +61,8 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_create_core(state, merchant_context, auth.profile_id, req)
+            let platform = auth.clone().into();
+            refund_create_core(state, platform, auth.profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -123,15 +121,8 @@ pub async fn refunds_create(
         &req,
         internal_refund_create_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_create_core(
-                state,
-                merchant_context,
-                req.payload,
-                global_refund_id.clone(),
-            )
+            let platform = auth.into();
+            refund_create_core(state, platform, req.payload, global_refund_id.clone())
         },
         auth_type,
         api_locking::LockAction::NotApplicable,
@@ -170,12 +161,10 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             refund_response_wrapper(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id,
                 refund_request,
                 refund_retrieve_core_with_refund_id,
@@ -223,15 +212,8 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_retrieve_core_with_refund_id(
-                state,
-                merchant_context,
-                auth.profile,
-                refund_request,
-            )
+            let platform = auth.clone().into();
+            refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -291,15 +273,8 @@ pub async fn refunds_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_retrieve_core_with_refund_id(
-                state,
-                merchant_context,
-                auth.profile,
-                refund_request,
-            )
+            let platform = auth.clone().into();
+            refund_retrieve_core_with_refund_id(state, platform, auth.profile, refund_request)
         },
         auth_type,
         api_locking::LockAction::NotApplicable,
@@ -331,12 +306,10 @@ pub async fn refunds_retrieve_with_body(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             refund_response_wrapper(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id,
                 req,
                 refund_retrieve_core_with_refund_id,
@@ -372,10 +345,8 @@ pub async fn refunds_update(
         &req,
         refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_update_core(state, merchant_context, req)
+            let platform = auth.into();
+            refund_update_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -442,10 +413,8 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_list(state, merchant_context, None, req)
+            let platform = auth.into();
+            refund_list(state, platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -510,12 +479,10 @@ pub async fn refunds_list_profile(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             refund_list(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )
@@ -552,10 +519,8 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_filter_list(state, merchant_context, req)
+            let platform = auth.into();
+            refund_filter_list(state, platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -585,10 +550,8 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            get_filters_for_refunds(state, merchant_context, None)
+            let platform = auth.into();
+            get_filters_for_refunds(state, platform, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -621,12 +584,10 @@ pub async fn get_refunds_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             get_filters_for_refunds(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
@@ -660,10 +621,8 @@ pub async fn get_refunds_aggregates(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            get_aggregates_for_refunds(state, merchant_context, None, req)
+            let platform = auth.into();
+            get_aggregates_for_refunds(state, platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -718,12 +677,10 @@ pub async fn get_refunds_aggregate_profile(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.clone().into();
             get_aggregates_for_refunds(
                 state,
-                merchant_context,
+                platform,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
                 req,
             )

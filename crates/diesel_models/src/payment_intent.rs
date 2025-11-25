@@ -82,6 +82,9 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -188,6 +191,9 @@ pub struct PaymentIntent {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -221,6 +227,9 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub skip_status_screen: Option<bool>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Custom text colour for payment link's handle confirm button
@@ -395,6 +404,7 @@ pub struct PaymentIntentNew {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
+    pub tokenization: Option<common_enums::Tokenization>,
 }
 
 #[cfg(feature = "v1")]
@@ -481,6 +491,9 @@ pub struct PaymentIntentNew {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -829,6 +842,8 @@ impl PaymentIntentUpdateInternal {
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: source.billing_descriptor,
+            tokenization: None,
+            partner_merchant_identifier_details: source.partner_merchant_identifier_details,
         }
     }
 }

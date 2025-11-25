@@ -886,7 +886,7 @@ pub enum RecoveryAction {
 #[diesel(sql_type = Jsonb)]
 pub struct BillingDescriptor {
     /// name to be put in billing description
-    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "The Online Retailer")]
     pub name: Option<Secret<String>>,
     /// city to be put in billing description
     #[schema(value_type = Option<String>, example = "San Francisco")]
@@ -898,6 +898,57 @@ pub struct BillingDescriptor {
     pub statement_descriptor: Option<String>,
     /// Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_suffix: Option<String>,
+    /// A reference to be shown on billing description
+    pub reference: Option<String>,
 }
 
 impl_to_sql_from_sql_json!(BillingDescriptor);
+
+///  Information identifying partner / external platform details
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PartnerApplicationDetails {
+    /// Name of the partner/external platform
+    #[schema(value_type = Option<String>)]
+    pub name: Option<String>,
+    /// Version of the partner/external platform
+    #[schema(value_type = Option<String>, example = "1.0.0")]
+    pub version: Option<String>,
+    /// Integrator
+    #[schema(value_type = Option<String>)]
+    pub integrator: Option<String>,
+}
+impl_to_sql_from_sql_json!(PartnerApplicationDetails);
+
+///  Information identifying merchant details
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct MerchantApplicationDetails {
+    /// Name of the the merchant application
+    #[schema(value_type = Option<String>)]
+    pub name: Option<String>,
+    /// Version of the merchant application
+    #[schema(value_type = Option<String>)]
+    pub version: Option<String>,
+}
+impl_to_sql_from_sql_json!(MerchantApplicationDetails);
+
+/// Information identifying partner and merchant application initiating the request
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PartnerMerchantIdentifierDetails {
+    ///  Information identifying partner/external platform details
+    #[schema(value_type = Option<PartnerApplicationDetails>)]
+    pub partner_details: Option<PartnerApplicationDetails>,
+    ///  Information identifying merchant details
+    #[schema(value_type = Option<MerchantApplicationDetails>)]
+    pub merchant_details: Option<MerchantApplicationDetails>,
+}
+
+impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
