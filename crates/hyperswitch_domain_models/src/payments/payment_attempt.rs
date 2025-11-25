@@ -1222,93 +1222,56 @@ impl PaymentAttempt {
         Option<api_models::payments::NextActionData>,
         errors::api_error_response::ApiErrorResponse,
     > {
-        #[derive(serde::Deserialize)]
-        struct SdkUpiUriInformation {
-            sdk_uri: String,
-        }
-
-        let sdk_uri_opt: Option<Result<Url, _>> = self
+        let sdk_uri_opt = self
             .get_connector_metadata_value()
             .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
             .map(|uri_info_value| {
-                serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.SdkUpiUriInformation",
-                        },
-                    )
-                    .attach_printable(
-                        "Failed to deserialize SdkUpiUriInformation from connector_metadata",
-                    )
-                    .and_then(|uri_info| {
-                        Url::parse(&uri_info.sdk_uri)
-                            .change_context(
-                                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
-                                },
-                            )
-                            .attach_printable("Failed to parse sdk_uri as valid URL")
-                    })
-            });
+                serde_json::from_value::<api_models::payments::SdkUpiUriInformation>(
+                    uri_info_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .and_then(|uri_info| {
+                    Url::parse(&uri_info.sdk_uri)
+                        .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                })
+            })
+            .transpose()
+            .attach_printable("Failed to parse SdkUpiUriInformation from connector_metadata")?;
 
-        let sdk_uri_opt = sdk_uri_opt.transpose()?;
-
-        let wait_screen_info: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
-            self.get_connector_metadata_value()
-                .and_then(|metadata| metadata.get("WaitScreenInstructions"))
-                .map(|wait_screen_value| {
-                    serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
-                        wait_screen_value.clone(),
-                    )
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.WaitScreenInstructions",
-                        },
-                    )
-                    .attach_printable(
-                        "Failed to deserialize WaitScreenInstructions from connector_metadata",
-                    )
-                });
-
-        let wait_screen_info = wait_screen_info.transpose()?;
+        let wait_screen_info = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+            .map(|wait_screen_value| {
+                serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize WaitScreenInstructions from connector_metadata",
+            )?;
 
         Ok(
             match (self.payment_method_type, self.payment_method_subtype) {
                 (
                     storage_enums::PaymentMethod::Upi,
                     storage_enums::PaymentMethodType::UpiIntent,
-                ) => sdk_uri_opt
-                    .zip(wait_screen_info)
-                    .map(|(sdk_uri, wait_info)| {
-                        api_models::payments::NextActionData::InvokeUpiIntentSdk {
-                            sdk_uri,
-                            display_from_timestamp: wait_info.display_from_timestamp,
-                            display_to_timestamp: wait_info.display_to_timestamp,
-                            poll_config: wait_info.poll_config,
-                        }
-                    }),
+                ) => sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
+                }),
                 (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
-                    sdk_uri_opt
-                        .zip(wait_screen_info)
-                        .map(|(sdk_uri, wait_info)| {
-                            api_models::payments::NextActionData::InvokeUpiQrFlow {
-                                qr_code_url: sdk_uri,
-                                display_from_timestamp: wait_info.display_from_timestamp,
-                                display_to_timestamp: wait_info.display_to_timestamp,
-                                poll_config: wait_info.poll_config,
-                            }
-                        })
+                    sdk_uri_opt.zip(wait_screen_info).map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                    })
                 }
                 (
                     storage_enums::PaymentMethod::Upi,
                     storage_enums::PaymentMethodType::UpiCollect,
-                ) => wait_screen_info.map(|wait_info| {
-                    api_models::payments::NextActionData::WaitScreenInformation {
-                        display_from_timestamp: wait_info.display_from_timestamp,
-                        display_to_timestamp: wait_info.display_to_timestamp,
-                        poll_config: wait_info.poll_config,
-                    }
-                }),
+                ) => wait_screen_info
+                    .map(api_models::payments::NextActionData::from_wait_screen),
                 _ => None,
             },
         )
@@ -1378,55 +1341,37 @@ impl PaymentAttempt {
         Option<api_models::payments::NextActionData>,
         errors::api_error_response::ApiErrorResponse,
     > {
-        #[derive(Deserialize)]
-        struct SdkUpiUriInformation {
-            sdk_uri: String,
-        }
-
-        let sdk_uri_opt: Option<Result<Url, _>> = self
+        let sdk_uri_opt = self
             .get_connector_metadata_value()
             .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
             .map(|uri_info_value| {
-                serde_json::from_value::<SdkUpiUriInformation>(uri_info_value.clone())
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.SdkUpiUriInformation",
-                        },
-                    )
-                    .attach_printable(
-                        "Failed to deserialize SdkUpiUriInformation from connector_metadata",
-                    )
-                    .and_then(|uri_info| {
-                        Url::parse(&uri_info.sdk_uri)
-                            .change_context(
-                                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "connector_metadata.SdkUpiUriInformation.sdk_uri",
-                                },
-                            )
-                            .attach_printable("Failed to parse sdk_uri as valid URL")
-                    })
-            });
+                serde_json::from_value::<api_models::payments::SdkUpiUriInformation>(
+                    uri_info_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .and_then(|uri_info| {
+                    Url::parse(&uri_info.sdk_uri)
+                        .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                })
+            })
+            .transpose()
+            .attach_printable("Failed to parse SdkUpiUriInformation from connector_metadata")?;
 
-        let sdk_uri_opt = sdk_uri_opt.transpose()?;
-
-        let wait_screen_info: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
-            self.get_connector_metadata_value()
-                .and_then(|metadata| metadata.get("WaitScreenInstructions"))
-                .map(|wait_screen_value| {
-                    serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
-                        wait_screen_value.clone(),
-                    )
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector_metadata.WaitScreenInstructions",
-                        },
-                    )
-                    .attach_printable(
-                        "Failed to deserialize WaitScreenInstructions from connector_metadata",
-                    )
-                });
-
-        let wait_screen_info = wait_screen_info.transpose()?;
+        let wait_screen_info = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+            .map(|wait_screen_value| {
+                serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize WaitScreenInstructions from connector_metadata",
+            )?;
 
         Ok(match (self.payment_method, self.payment_method_type) {
             (
@@ -1435,12 +1380,7 @@ impl PaymentAttempt {
             ) => sdk_uri_opt
                 .zip(wait_screen_info)
                 .map(|(sdk_uri, wait_info)| {
-                    api_models::payments::NextActionData::InvokeUpiIntentSdk {
-                        sdk_uri,
-                        display_from_timestamp: wait_info.display_from_timestamp,
-                        display_to_timestamp: wait_info.display_to_timestamp,
-                        poll_config: wait_info.poll_config,
-                    }
+                    api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
                 }),
             (
                 Some(storage_enums::PaymentMethod::Upi),
@@ -1448,23 +1388,13 @@ impl PaymentAttempt {
             ) => sdk_uri_opt
                 .zip(wait_screen_info)
                 .map(|(sdk_uri, wait_info)| {
-                    api_models::payments::NextActionData::InvokeUpiQrFlow {
-                        qr_code_url: sdk_uri,
-                        display_from_timestamp: wait_info.display_from_timestamp,
-                        display_to_timestamp: wait_info.display_to_timestamp,
-                        poll_config: wait_info.poll_config,
-                    }
+                    api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
                 }),
             (
                 Some(storage_enums::PaymentMethod::Upi),
                 Some(storage_enums::PaymentMethodType::UpiCollect),
-            ) => wait_screen_info.map(|wait_info| {
-                api_models::payments::NextActionData::WaitScreenInformation {
-                    display_from_timestamp: wait_info.display_from_timestamp,
-                    display_to_timestamp: wait_info.display_to_timestamp,
-                    poll_config: wait_info.poll_config,
-                }
-            }),
+            ) => wait_screen_info
+                .map(api_models::payments::NextActionData::from_wait_screen),
             _ => None,
         })
     }

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
-use common_utils::{request::Method, types};
+use common_utils::{ext_traits::Encode, request::Method, types};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -29,7 +29,6 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
-use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -48,11 +47,6 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SdkUpiUriInformation {
-    sdk_uri: String,
-}
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
@@ -1588,12 +1582,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = SdkUpiUriInformation {
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
                             sdk_uri: uri.uri.clone(),
                         };
                         (
                             Some(
-                                serde_json::to_value(sdk_uri_info)
+                                sdk_uri_info
+                                    .encode_to_value()
                                     .change_context(UnifiedConnectorServiceError::ParsingFailed)
                                     .attach_printable(
                                         "Failed to serialize SdkUpiUriInformation to JSON value",
@@ -1633,10 +1628,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
                     &redirection_data.form_type
                 {
-                    let sdk_uri_info = SdkUpiUriInformation {
+                    let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
                         sdk_uri: uri.uri.clone(),
                     };
-                    let uri_data = serde_json::to_value(sdk_uri_info)
+                    let uri_data = sdk_uri_info
+                        .encode_to_value()
                         .change_context(UnifiedConnectorServiceError::ParsingFailed)
                         .attach_printable(
                             "Failed to serialize SdkUpiUriInformation to JSON value",
@@ -2590,12 +2586,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = SdkUpiUriInformation {
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
                             sdk_uri: uri.uri.clone(),
                         };
                         (
                             Some(
-                                serde_json::to_value(sdk_uri_info)
+                                sdk_uri_info
+                                    .encode_to_value()
                                     .change_context(UnifiedConnectorServiceError::ParsingFailed)
                                     .attach_printable(
                                         "Failed to serialize SdkUpiUriInformation to JSON value",
@@ -2785,12 +2782,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = SdkUpiUriInformation {
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
                             sdk_uri: uri.uri.clone(),
                         };
                         (
                             Some(
-                                serde_json::to_value(sdk_uri_info)
+                                sdk_uri_info
+                                    .encode_to_value()
                                     .change_context(UnifiedConnectorServiceError::ParsingFailed)
                                     .attach_printable(
                                         "Failed to serialize SdkUpiUriInformation to JSON value",

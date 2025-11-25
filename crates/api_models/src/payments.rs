@@ -6476,6 +6476,39 @@ pub struct WaitScreenInstructions {
     pub poll_config: Option<PollConfig>,
 }
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct SdkUpiUriInformation {
+    pub sdk_uri: String,
+}
+
+impl NextActionData {
+    pub fn from_upi_intent(sdk_uri: Url, wait_info: WaitScreenInstructions) -> Self {
+        Self::InvokeUpiIntentSdk {
+            sdk_uri,
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
+
+    pub fn from_upi_qr(qr_code_url: Url, wait_info: WaitScreenInstructions) -> Self {
+        Self::InvokeUpiQrFlow {
+            qr_code_url,
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
+
+    pub fn from_wait_screen(wait_info: WaitScreenInstructions) -> Self {
+        Self::WaitScreenInformation {
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
