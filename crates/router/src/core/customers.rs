@@ -1466,7 +1466,7 @@ pub async fn migrate_customers(
     customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     platform: domain::Platform,
 ) -> errors::CustomerResponse<
-    std::collections::HashMap<id_type::CustomerId, payment_methods_domain::CustomerMigrationData>,
+    std::collections::HashMap<id_type::CustomerId, common_enums::CustomerMigrationStatus>,
 > {
     let mut results = std::collections::HashMap::new();
     for customer_migration in customers_migration {
@@ -1484,21 +1484,15 @@ pub async fn migrate_customers(
         )
         .await
         {
-            Ok(_) => payment_methods_domain::CustomerMigrationStatus::Created,
+            Ok(_) => common_enums::CustomerMigrationStatus::Created,
             Err(e) => match e.current_context() {
                 errors::CustomersErrorResponse::CustomerAlreadyExists => {
-                    payment_methods_domain::CustomerMigrationStatus::AlreadyExists
+                    common_enums::CustomerMigrationStatus::AlreadyExists
                 }
                 _ => return Err(e),
             },
         };
-        results.insert(
-            customer_id,
-            payment_methods_domain::CustomerMigrationData {
-                status,
-                connector_customer_details: customer_migration.connector_customer_details,
-            },
-        );
+        results.insert(customer_id, status);
     }
     Ok(services::ApplicationResponse::Json(results))
 }

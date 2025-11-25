@@ -10082,3 +10082,9 @@ pub enum VaultTokenType {
     /// Token cryptogram
     NetworkTokenCryptogram,
 }
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub enum CustomerMigrationStatus {
+    Created,
+    AlreadyExists,
+}

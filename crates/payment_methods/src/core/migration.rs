@@ -30,7 +30,7 @@ pub async fn migrate_payment_methods(
     controller: &dyn pm::PaymentMethodsController,
     customer_migration_results: &HashMap<
         common_utils::id_type::CustomerId,
-        hyperswitch_domain_models::payment_methods::CustomerMigrationData,
+        common_enums::CustomerMigrationStatus,
     >,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
@@ -40,6 +40,7 @@ pub async fn migrate_payment_methods(
             &record,
             merchant_id.clone(),
             mca_ids.as_ref(),
+            customer_migration_results,
         ))
         .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
             message: format!("error: {err:?}"),
@@ -47,31 +48,7 @@ pub async fn migrate_payment_methods(
         .attach_printable("record deserialization failed");
 
         let res = match req {
-            Ok(mut migrate_request) => {
-                let customer_id = migrate_request.customer_id.clone();
-                let customer_migration_result =
-                    customer_id.and_then(|cid| customer_migration_results.get(&cid));
-
-                if let Some(customer_migration_result) = customer_migration_result {
-                    if let Some(connector_customer_details) =
-                        &customer_migration_result.connector_customer_details
-                    {
-                        if let Some(payments) = migrate_request.connector_mandate_details.as_mut() {
-                            if let Some(payments) = payments.payments.as_mut() {
-                                for (mca_id, pmt_ref_record) in payments.0.iter_mut() {
-                                    if let Some(ccd) = connector_customer_details
-                                        .iter()
-                                        .find(|c| &c.merchant_connector_id == mca_id)
-                                    {
-                                        pmt_ref_record.connector_customer_id =
-                                            Some(ccd.connector_customer_id.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
+            Ok(migrate_request) => {
                 let res = migrate_payment_method(
                     state,
                     migrate_request,
