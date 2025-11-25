@@ -1105,7 +1105,6 @@ fn get_card_info<F, Req>(
 where
     Req: NuveiAuthorizePreprocessingCommon,
 {
-    let return_url = item.request.get_return_url_required()?;
     let additional_params = match item.request.is_customer_initiated_mandate_payment() {
         true => Some(V2AdditionalParams {
             rebill_expiry: Some(
