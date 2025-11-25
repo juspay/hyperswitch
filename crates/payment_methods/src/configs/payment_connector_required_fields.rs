@@ -1677,8 +1677,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (
             Connector::Worldpayxml,
             fields(vec![], card_with_name(), vec![]),
-        )
-        (
+        )(
             Connector::Worldpayvantiv,
             fields(vec![], card_basic(), vec![]),
         ),
