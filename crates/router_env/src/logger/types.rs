@@ -270,7 +270,7 @@ pub enum Flow {
     /// Subscription create flow,
     CreateSubscription,
     /// Subscription get plans flow,
-    GetPlansForSubscription,
+    GetSubscriptionItemsForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
     /// Subscription create and confirm flow,
