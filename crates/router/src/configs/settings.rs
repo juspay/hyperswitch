@@ -696,7 +696,6 @@ pub struct UserSettings {
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,

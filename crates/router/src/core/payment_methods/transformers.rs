@@ -20,7 +20,10 @@ use serde::{Deserialize, Serialize};
 use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payment_methods::cards::call_locker_api,
+    },
     headers,
     pii::{prelude::*, Secret},
     routes,
@@ -28,6 +31,8 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
+#[cfg(feature = "v2")]
+const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -360,17 +365,17 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_generic_locker_request<Req, Res>(
+pub async fn mk_generic_locker_request<'a, Req, Res>(
     state: &routes::SessionState,
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
-    payload: &Req,
+    payload: &'a Req,
     endpoint_path: &str,
     tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<Res, errors::VaultError>
 where
-    Req: for<'a> Encode<'a> + Serialize,
+    Req: Encode<'a> + Serialize,
     Res: serde::de::DeserializeOwned,
 {
     let encoded_payload = payload
@@ -397,10 +402,9 @@ where
 
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
 
-    let response =
-        crate::core::payment_methods::cards::call_locker_api::<Res>(state, request, endpoint_path)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)?;
+    let response = call_locker_api::<Res>(state, request, endpoint_path)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)?;
 
     Ok(response)
 }
@@ -656,7 +660,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         jwekey,
         locker,
         &card_req_body,
-        "/cards/delete",
+        LOCKER_DELETE_CARD_PATH,
         tenant_id,
         request_id,
     )

@@ -59,7 +59,6 @@ force_cookies = false
 
 [locker]
 host = ""
-host_rs = ""
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
@@ -67,7 +66,6 @@ ttl_for_storage_in_secs = 220752000
 
 [jwekey]
 vault_encryption_key = ""
-rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [redis]

@@ -107,6 +107,11 @@ use crate::{
     core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
     utils::ConnectorResponseExt,
 };
+
+const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
+
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
     pub platform: &'a domain::Platform,
@@ -1985,7 +1990,7 @@ pub async fn get_card_from_locker(
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
-            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+            get_card_detail_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
                 .map_err(|err| match err.current_context() {
                     errors::VaultError::FetchCardFailed => {
@@ -2075,7 +2080,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
                 jwekey,
                 locker,
                 &payload,
-                "/cards/retrieve",
+                LOCKER_RETRIEVE_CARD_PATH,
                 state.tenant.tenant_id.clone(),
                 state.request_id.clone(),
             )
@@ -2120,7 +2125,7 @@ pub async fn add_card_to_hs_locker(
             jwekey,
             locker,
             payload,
-            "/cards/add",
+            LOCKER_ADD_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
@@ -2278,7 +2283,7 @@ pub async fn update_payment_method_connector_mandate_details(
     Ok(())
 }
 #[instrument(skip_all)]
-pub async fn get_card_from_hs_locker<'a>(
+pub async fn get_card_detail_from_hs_locker<'a>(
     state: &'a routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
@@ -2300,7 +2305,7 @@ pub async fn get_card_from_hs_locker<'a>(
                 jwekey,
                 locker,
                 &payload,
-                "/cards/retrieve",
+                LOCKER_RETRIEVE_CARD_PATH,
                 state.tenant.tenant_id.clone(),
                 state.request_id.clone(),
             )
@@ -2345,7 +2350,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             jwekey,
             locker,
             &payload,
-            "/cards/delete",
+            LOCKER_DELETE_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
