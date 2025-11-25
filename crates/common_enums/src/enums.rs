@@ -3000,13 +3000,10 @@ pub enum DisputeStatus {
 pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
-    /// Returns the raw u16 code by parsing the internal string.
-    /// Returns 0 if the internal string is not a valid u16 (e.g., an error case).
     pub fn get_code(&self) -> u16 {
-        // FIX: Parse the inner String to a u16.
         self.0.parse::<u16>().unwrap_or(0)
     }
-    // zero padded 4 digit
+
     pub fn new(code: u16) -> Result<Self, InvalidMccError> {
         if code >= 10000 {
             return Err(InvalidMccError {
@@ -3017,9 +3014,8 @@ impl MerchantCategoryCode {
 
         Ok(MerchantCategoryCode(formatted))
     }
-    /// Returns the broad category description.
+
     pub fn get_category_name(&self) -> &str {
-        // Use the fixed get_code() result for the match
         match self.get_code() {
             // specific mapping needs to be depricated
             5411 => "Grocery Stores, Supermarkets (5411)",
@@ -3055,14 +3051,12 @@ impl MerchantCategoryCode {
 
 // --- Diesel Trait Implementations ---
 
-// ToSql: Implement serialization from MerchantCategoryCode to DB Text type
 impl<DB> ToSql<Text, DB> for MerchantCategoryCode
 where
     DB: Backend,
     String: ToSql<Text, DB>,
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
-        // Use the inner String's ToSql implementation
         self.0.to_sql(out)
     }
 }
@@ -3073,30 +3067,22 @@ where
     String: FromSql<Text, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        // FIX: Deserializing from DB returns a String, which we wrap directly.
-        let s = <String as FromSql<Text, DB>>::from_sql(bytes)?;
-        // 2. Call from_str, which returns Result<Self, InvalidMccError>
-        MerchantCategoryCode::from_str(&s)
-            // 3. FIX: Use map_err to convert InvalidMccError into the required
-            // Box<dyn StdError + Send + Sync + 'static> (using `Into::into()`).
-            .map_err(Into::into)
+        let code = <String as FromSql<Text, DB>>::from_sql(bytes)?;
+
+        MerchantCategoryCode::from_str(&code).map_err(Into::into)
     }
 }
 
 // --- Serde Trait Implementation ---
 
-// Serialize: Implement JSON serialization
 impl Serialize for MerchantCategoryCode {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // FIX: Use the inner String directly, as it is already the formatted code
         serializer.serialize_str(&self.0)
     }
 }
-
-// --- Standard Library Trait Implementation ---
 
 // Define a custom error type for clear error messages
 #[derive(Debug, Clone)]
