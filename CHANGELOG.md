@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0
+
+### Features
+
+- **connector:**
+  - [BRAINTREE] apple pay mandate for braintree ([#10273](https://github.com/juspay/hyperswitch/pull/10273)) ([`f966e6e`](https://github.com/juspay/hyperswitch/commit/f966e6e8d261a476b6debe0c8e0e8a6a9f5610bb))
+  - Add client_unqiue_id in Nuvei Pyament Request ([#10366](https://github.com/juspay/hyperswitch/pull/10366)) ([`bc44406`](https://github.com/juspay/hyperswitch/commit/bc4440633b1afcc9e0e3430b5fa59c88c6f93ee3))
+- **connectors:** [worldpayxml] add browser, shipping, shopper and billing data to the connector's payment request ([#10357](https://github.com/juspay/hyperswitch/pull/10357)) ([`34497ca`](https://github.com/juspay/hyperswitch/commit/34497cad5b96d80b9d8aec329fd87c8c57627fa3))
+- **payment_methods:** Add custom tokenizer for external vault ([#10314](https://github.com/juspay/hyperswitch/pull/10314)) ([`f5f7d0a`](https://github.com/juspay/hyperswitch/commit/f5f7d0a68863aa126b26216929fb4a73408dd719))
+- **router:** Added preferred 3ds and cardnetwork in next action data for 3ds ([#10296](https://github.com/juspay/hyperswitch/pull/10296)) ([`4bf08ef`](https://github.com/juspay/hyperswitch/commit/4bf08ef01a89e8f8adf656a1d4289b284da96074))
+
+### Bug Fixes
+
+- **authentication:** Fixed authentication connector update failures from dashboard ([#10343](https://github.com/juspay/hyperswitch/pull/10343)) ([`ecab264`](https://github.com/juspay/hyperswitch/commit/ecab264a7e3ccb01d8161bea35ede5b1b6d79fe2))
+- **core:**
+  - [Network Token] Check Network Token Status Response Type Fix ([#10354](https://github.com/juspay/hyperswitch/pull/10354)) ([`46cd272`](https://github.com/juspay/hyperswitch/commit/46cd272c522c05fec631c99978ec511d61305ff0))
+  - Fix billing descriptor name example ([#10342](https://github.com/juspay/hyperswitch/pull/10342)) ([`f2fcc7f`](https://github.com/juspay/hyperswitch/commit/f2fcc7fdff7b873c2b1865205b490e42629a9664))
+- **router:** Add fallback to statement descriptor fields when billing descriptor is missing ([#10271](https://github.com/juspay/hyperswitch/pull/10271)) ([`1e5ce25`](https://github.com/juspay/hyperswitch/commit/1e5ce25968a9dbbc68dd1bf77d91c169895b879e))
+- **transformers:** Update error reason handling in response transformations ([#10313](https://github.com/juspay/hyperswitch/pull/10313)) ([`9172d64`](https://github.com/juspay/hyperswitch/commit/9172d64c872d3335dccf5b06aa9761f4bb0b5cd4))
+
+### Revert
+
+- "feat(connector): [NOVALNET] Pass Payment Metadata fields to Connector" ([#10436](https://github.com/juspay/hyperswitch/pull/10436)) ([`28271e1`](https://github.com/juspay/hyperswitch/commit/28271e1a7cb0afdb2d535e4334cb42ca10b289a4))
+
+**Full Changelog:** [`2025.11.25.0...2025.11.26.0`](https://github.com/juspay/hyperswitch/compare/2025.11.25.0...2025.11.26.0)
+
+- - -
+
 ## 2025.11.25.0
 
 ### Features
