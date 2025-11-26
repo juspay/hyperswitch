@@ -2743,18 +2743,13 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            let upi_next_action = payment_attempt.get_upi_next_action()?;
 
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                    api_models::payments::NextActionData::SdkUpiIntentInformation {
-                        sdk_uri: sdk_uri_data.sdk_uri,
-                    }
-                }))
+                .or(upi_next_action)
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -2903,18 +2898,10 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
-
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                    api_models::payments::NextActionData::SdkUpiIntentInformation {
-                        sdk_uri: sdk_uri_data.sdk_uri,
-                    }
-                }))
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3655,8 +3642,7 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            let upi_next_action = payment_attempt.get_upi_next_action()?;
 
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
@@ -3666,7 +3652,7 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
-                || next_action_containing_sdk_upi_intent.is_some()
+                || upi_next_action.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3700,11 +3686,7 @@ where
                                     next_action_data: paypal_next_action_data
                                 }
                             }))
-                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                                api_models::payments::NextActionData::SdkUpiIntentInformation {
-                                    sdk_uri: sdk_uri_data.sdk_uri,
-                                }
-                            }))
+                            .or(upi_next_action)
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                                 api_models::payments::NextActionData::WaitScreenInformation {
                                     display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -4132,18 +4114,6 @@ pub fn fetch_qr_code_url_next_steps_check(
 
     let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_fetch_url)
-}
-
-pub fn extract_sdk_uri_information(
-    payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
-    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
-
-    let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
-    Ok(sdk_uri_information)
 }
 
 pub fn wait_screen_next_steps_check(
