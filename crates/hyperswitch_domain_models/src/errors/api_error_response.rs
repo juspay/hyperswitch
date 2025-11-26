@@ -225,6 +225,11 @@ pub enum ApiErrorResponse {
     )]
     InvalidJwtToken,
     #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_17_1",
+        message = "Access forbidden, invalid Basic authentication credentials"
+    )]
+    InvalidBasicAuth,
+    #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_18",
         message = "{message}",
     )]
@@ -592,6 +597,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
+            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 171, "Access forbidden, invalid Basic authentication credentials", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
