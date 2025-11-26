@@ -5887,6 +5887,18 @@ pub struct PaymentMethodDataResponseWithBilling {
     pub billing: Option<Address>,
 }
 
+impl PaymentMethodDataResponseWithBilling {
+    pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self {
+                payment_method_data: Some(PaymentMethodDataResponse::Card(card)),
+                ..
+            } => card.card_network.clone(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
     /// Primary payment method token at payment processor end.
@@ -6439,6 +6451,13 @@ pub struct ThreeDsData {
     /// Directory Server ID
     #[smithy(value_type = "Option<String>")]
     pub directory_server_id: Option<String>,
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// Prefered 3ds Connector
+    #[smithy(value_type = "Option<String>")]
+    pub three_ds_connector: Option<String>,
 }
 
 #[derive(
@@ -11166,6 +11185,8 @@ pub struct PaymentLinkDetails {
     pub payment_button_text: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11191,6 +11212,8 @@ pub struct SecurePaymentLinkDetails {
     pub payment_button_text: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,

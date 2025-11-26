@@ -26,7 +26,7 @@ use crate::{
     payments,
     router_data::{self, AccessTokenAuthenticationResponse, RouterData},
     router_flow_types as flows, router_response_types as response_types,
-    vault::PaymentMethodVaultingData,
+    vault::PaymentMethodCustomVaultingData,
 };
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
@@ -830,6 +830,7 @@ pub struct CompleteAuthorizeData {
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub router_return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1481,7 +1482,7 @@ pub struct SetupMandateRequestData {
 
 #[derive(Debug, Clone)]
 pub struct VaultRequestData {
-    pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
+    pub payment_method_vaulting_data: Option<PaymentMethodCustomVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
     pub should_generate_multiple_tokens: Option<bool>,
