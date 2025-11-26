@@ -8,14 +8,16 @@ use error_stack::report;
 #[cfg(feature = "v1")]
 use router_env::{instrument, tracing, Flow};
 
-use crate::types::domain;
 #[cfg(feature = "v1")]
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::api::{customers as customer_types, payment_methods},
+    types::{
+        api::{customers as customer_types, payment_methods},
+        domain,
+    },
 };
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]

@@ -4578,6 +4578,20 @@ where
     }
 }
 
+/// Validates that a merchant account is a valid connected merchant for platform operations
+fn validate_connected_merchant_account(
+    connected_merchant_account: &domain::MerchantAccount,
+    platform_org_id: id_type::OrganizationId,
+) -> RouterResult<()> {
+    (connected_merchant_account.organization_id == platform_org_id
+        && connected_merchant_account.merchant_account_type == MerchantAccountType::Connected)
+        .then_some(())
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InvalidPlatformOperation)
+                .attach_printable("Invalid connected merchant for platform operation")
+        })
+}
+
 /// Fetches and validates the connected merchant account and key store for platform operations
 async fn get_connected_account_and_key_store<A>(
     state: &A,
@@ -4604,13 +4618,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-    (connected_merchant_account.organization_id == platform_org_id
-        && connected_merchant_account.merchant_account_type == MerchantAccountType::Connected)
-        .then_some(())
-        .ok_or_else(|| {
-            report!(errors::ApiErrorResponse::InvalidPlatformOperation)
-                .attach_printable("Invalid connected merchant for platform operation")
-        })?;
+    validate_connected_merchant_account(&connected_merchant_account, platform_org_id)?;
 
     Ok((connected_merchant_account, key_store))
 }
