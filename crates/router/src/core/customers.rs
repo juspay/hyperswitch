@@ -1470,6 +1470,7 @@ pub async fn migrate_customers(
 > {
     let mut results = std::collections::HashMap::new();
 
+    #[cfg(feature = "v1")]
     for customer_migration in customers_migration {
         let customer_id_from_request = customer_migration.customer.customer_id.clone();
 
