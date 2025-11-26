@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, PeekInterface};
 use serde_json::Value;
 use transformers as nexixpay;
 use uuid::Uuid;
@@ -55,7 +55,7 @@ use uuid::Uuid;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -68,6 +68,18 @@ impl Nexixpay {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
         }
+    }
+
+    pub fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: common_enums::AuthenticationType,
+    ) -> bool {
+        auth_type.is_three_ds()
+            && request.is_card()
+            && (request.connector_mandate_id().is_none()
+                && request.get_optional_network_transaction_id().is_none())
+            && request.authentication_data.is_none()
     }
 }
 
@@ -603,7 +615,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = get_payment_id((req.request.connector_meta.clone(), None))?;
+        // CRITICAL FIX: For UCS compatibility, first try to use connector_transaction_id directly
+        // Fallback to connector_meta logic only if connector_transaction_id is not available
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .ok()
+            .or_else(|| {
+                // Fallback to connector_meta logic for backward compatibility
+                get_payment_id((req.request.connector_meta.clone(), None)).ok()
+            })
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_transaction_id or connector_meta for payment sync",
+            })?;
         Ok(format!(
             "{}/operations/{}",
             self.base_url(connectors),
@@ -1155,5 +1180,80 @@ impl ConnectorSpecifications for Nexixpay {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*NEXIXPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match current_flow_info {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
+                None
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                let redirect_response = request_data.redirect_response.as_ref()?;
+                match redirect_response.params.as_ref() {
+                    Some(param) if !param.peek().is_empty() => {
+                        Some(api::PreProcessingFlowName::Authenticate)
+                    }
+                    Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
+                }
+            }
+        }
+    }
+
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match (current_flow, pre_processing_flow_name) {
+            (api::CurrentFlowInfo::Authorize { .. }, _) => {
+                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
+                true
+            }
+            (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::Authenticate,
+            )
+            | (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::PostAuthenticate,
+            ) => {
+                // Continue to main Authorize flow only if:
+                // 1. No further redirection is required (redirection_data is None)
+                // 2. Authentication did not fail
+                (matches!(
+                    preprocessing_flow_response.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && preprocessing_flow_response.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed)
+            }
+        }
+    }
+
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                if self.is_3ds_setup_required(request_data, *auth_type) {
+                    Some(api::AlternateFlow::PreAuthenticate)
+                } else {
+                    None
+                }
+            }
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+        }
     }
 }
