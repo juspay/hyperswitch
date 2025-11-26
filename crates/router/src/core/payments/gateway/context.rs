@@ -75,13 +75,14 @@ impl RouterGatewayContext {
             creds_identifier,
         }
     }
-    pub fn default(
+    pub fn direct(
         platform: Platform,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
+        creds_identifier: Option<String>,
     ) -> Self {
         let lineage_ids = LineageIds::new(merchant_id, profile_id);
         Self {
@@ -91,7 +92,7 @@ impl RouterGatewayContext {
             merchant_connector_account,
             execution_mode: ExecutionMode::NotApplicable,
             execution_path: ExecutionPath::Direct,
-            creds_identifier: None,
+            creds_identifier,
         }
     }
 }

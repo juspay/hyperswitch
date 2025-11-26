@@ -10,9 +10,8 @@ use common_utils::{
 };
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
-use external_services::grpc_client;
 use hyperswitch_domain_models::{
-    payments::HeaderPayload, router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use router_env::{instrument, tracing};
@@ -209,18 +208,13 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let lineage_ids =
-        grpc_client::LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: creds_identifier.clone(),
-        platform: platform.clone(),
-        header_payload: HeaderPayload::default(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: common_enums::ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
 
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -836,18 +830,13 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
-    let lineage_ids =
-        grpc_client::LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: creds_identifier.clone(),
-        platform: platform.clone(),
-        header_payload: HeaderPayload::default(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: common_enums::ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
 
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
