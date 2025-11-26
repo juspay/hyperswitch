@@ -281,7 +281,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             None,
             Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
-        println!("XML Request: {} >>> ", String::from_utf8_lossy(&connector_req));
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -776,7 +775,10 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         let cookie = worldpayxml::get_cookie_from_metadata(req.request.connector_meta.clone())?;
 
-        let mut cookie = vec![(worldpayxml::worldpayxml_constants::COOKIE.to_string(), Mask::into_masked(cookie))];
+        let mut cookie = vec![(
+            worldpayxml::worldpayxml_constants::COOKIE.to_string(),
+            Mask::into_masked(cookie),
+        )];
 
         header.append(&mut cookie);
         Ok(header)
@@ -808,7 +810,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             None,
             Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
-        println!("XML Request complete auth : {} >>> ", String::from_utf8_lossy(&connector_req));
         Ok(RequestContent::RawBytes(connector_req))
     }
 

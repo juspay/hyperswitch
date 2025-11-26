@@ -1414,7 +1414,7 @@ impl<F>
                         .find(|cookie| cookie.trim_start().starts_with("machine="))
                         .map(|cookie| cookie.to_string())
                 });
-                println!("Cookie: {:?} >>> ", cookie);
+
                 let metadata = cookie.map(|value| json!({ "cookie": value }));
 
                 let status = common_enums::AttemptStatus::AuthenticationPending;
@@ -1518,7 +1518,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for PaymentService {
                 billing_address: None,
                 additional_threeds_data: None,
                 info_threed_secure,
-                session
+                session,
             },
         });
 
