@@ -2546,21 +2546,18 @@ where
     type Error;
     async fn insert_business_profile(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: Profile,
     ) -> CustomResult<Profile, Self::Error>;
 
     async fn find_business_profile_by_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<Profile, Self::Error>;
 
     async fn find_business_profile_by_merchant_id_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -2568,7 +2565,6 @@ where
 
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -2576,7 +2572,6 @@ where
 
     async fn update_profile_by_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: Profile,
         profile_update: ProfileUpdate,
@@ -2590,7 +2585,6 @@ where
 
     async fn list_profile_by_merchant_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Profile>, Self::Error>;

@@ -5226,6 +5226,18 @@
           "type": {
             "type": "string",
             "description": "The type of the payment method"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
           }
         }
       },
@@ -8713,8 +8725,47 @@
           "debit"
         ]
       },
+      "CartesBancairesParams": {
+        "type": "object",
+        "description": "Represents network-specific parameters for the Cartes Bancaires 3DS process.",
+        "required": [
+          "cb_exemption",
+          "cb_score"
+        ],
+        "properties": {
+          "cavv_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CavvAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "cb_exemption": {
+            "type": "string",
+            "description": "Exemption indicator specific to Cartes Bancaires network (e.g., \"low_value\", \"trusted_merchant\")"
+          },
+          "cb_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Cartes Bancaires risk score assigned during 3DS authentication."
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
+      },
+      "CavvAlgorithm": {
+        "type": "string",
+        "description": "This is typically provided by the card network or Access Control Server (ACS)",
+        "enum": [
+          "00",
+          "01",
+          "02",
+          "03",
+          "04",
+          "A"
+        ]
       },
       "ChargeRefunds": {
         "type": "object",
@@ -10024,6 +10075,30 @@
           }
         ]
       },
+      "Cryptogram": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cavv"
+            ],
+            "properties": {
+              "cavv": {
+                "type": "object",
+                "description": "Cardholder Authentication Verification Value (CAVV) cryptogram.",
+                "properties": {
+                  "authentication_cryptogram": {
+                    "type": "string",
+                    "description": "The authentication cryptogram provided by the issuer or ACS.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Represents the 3DS cryptogram data returned after authentication."
+      },
       "CtpServiceDetails": {
         "type": "object",
         "properties": {
@@ -10246,6 +10321,14 @@
             "minimum": 0
           }
         }
+      },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -11557,6 +11640,22 @@
           "invoice_paid"
         ]
       },
+      "ExemptionIndicator": {
+        "type": "string",
+        "description": "Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.",
+        "enum": [
+          "low_value",
+          "secure_corporate_payment",
+          "trusted_listing",
+          "transaction_risk_assessment",
+          "three_ds_outage",
+          "sca_delegation",
+          "out_of_sca_scope",
+          "other",
+          "low_risk_program",
+          "recurring_operation"
+        ]
+      },
       "ExtendedCardInfo": {
         "type": "object",
         "required": [
@@ -11707,6 +11806,53 @@
           }
         }
       },
+      "ExternalThreeDsData": {
+        "type": "object",
+        "description": "Represents external 3DS authentication data used in the payment flow.",
+        "required": [
+          "authentication_cryptogram",
+          "ds_trans_id",
+          "version",
+          "eci",
+          "transaction_status"
+        ],
+        "properties": {
+          "authentication_cryptogram": {
+            "$ref": "#/components/schemas/Cryptogram"
+          },
+          "ds_trans_id": {
+            "type": "string",
+            "description": "Directory Server Transaction ID generated during the 3DS process."
+          },
+          "version": {
+            "type": "string",
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
+          },
+          "eci": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
+          },
+          "transaction_status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "exemption_indicator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExemptionIndicator"
+              }
+            ],
+            "nullable": true
+          },
+          "network_params": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkParams"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -11721,6 +11867,14 @@
                 "$ref": "#/components/schemas/VaultSdk"
               }
             ],
+            "nullable": true
+          },
+          "vault_token_selector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VaultTokenField"
+            },
+            "description": "Fields to tokenization in vault",
             "nullable": true
           }
         }
@@ -15429,6 +15583,20 @@
           }
         }
       },
+      "NetworkParams": {
+        "type": "object",
+        "description": "Represents additional network-level parameters for 3DS processing.",
+        "properties": {
+          "cartes_bancaires": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CartesBancairesParams"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "NetworkTokenDetailsPaymentMethod": {
         "type": "object",
         "properties": {
@@ -15637,11 +15805,6 @@
         "type": "object",
         "required": [
           "status",
-          "token_expiry_month",
-          "token_expiry_year",
-          "card_last_four",
-          "token_last_four",
-          "card_expiry",
           "payment_method_id",
           "customer_id"
         ],
@@ -15651,23 +15814,33 @@
           },
           "token_expiry_month": {
             "type": "string",
-            "description": "The expiry month of the network token if active"
+            "description": "The expiry month of the network token if active",
+            "nullable": true
           },
           "token_expiry_year": {
             "type": "string",
-            "description": "The expiry year of the network token if active"
+            "description": "The expiry year of the network token if active",
+            "nullable": true
           },
           "card_last_four": {
             "type": "string",
-            "description": "The last four digits of the card"
+            "description": "The last four digits of the card if active",
+            "nullable": true
           },
           "token_last_four": {
             "type": "string",
-            "description": "The last four digits of the network token"
+            "description": "The last four digits of the network token if active",
+            "nullable": true
           },
-          "card_expiry": {
+          "card_expiry_month": {
             "type": "string",
-            "description": "The expiry date of the card in MM/YY format"
+            "description": "The expiry month of the card if active",
+            "nullable": true
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the card if active",
+            "nullable": true
           },
           "payment_method_id": {
             "type": "string",
@@ -15960,19 +16133,68 @@
           },
           {
             "type": "object",
-            "description": "Contains the SDK UPI intent URI for payment processing",
             "required": [
               "sdk_uri",
+              "display_from_timestamp",
               "type"
             ],
             "properties": {
               "sdk_uri": {
                 "type": "string"
               },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
-                  "sdk_upi_intent_information"
+                  "invoke_upi_intent_sdk"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qr_code_url",
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "qr_code_url": {
+                "type": "string"
+              },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_upi_qr_flow"
                 ]
               }
             }
@@ -16117,7 +16339,9 @@
           "display_bank_transfer_information",
           "display_wait_screen",
           "collect_otp",
-          "redirect_inside_popup"
+          "redirect_inside_popup",
+          "invoke_upi_intent_sdk",
+          "invoke_upi_qr_flow"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -17627,6 +17851,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -17797,6 +18029,14 @@
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
             "nullable": true
           },
           "payment_button_colour": {
@@ -19639,6 +19879,11 @@
             "format": "int64",
             "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
             "example": 6540,
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         }
@@ -24046,6 +24291,11 @@
             "type": "string",
             "description": "The reference id of the connector for the refund",
             "nullable": true
+          },
+          "raw_connector_response": {
+            "type": "string",
+            "description": "Contains raw connector response",
+            "nullable": true
           }
         }
       },
@@ -24130,6 +24380,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "return_raw_connector_response": {
+            "type": "boolean",
+            "description": "If true, returns stringified connector raw response body",
             "nullable": true
           }
         },
@@ -24806,7 +25061,13 @@
           "zen",
           "zift",
           "plaid",
-          "zsl"
+          "zsl",
+          "juspaythreedsserver",
+          "ctp_mastercard",
+          "ctp_visa",
+          "netcetera",
+          "cardinal",
+          "threedsecureio"
         ]
       },
       "RoutingAlgorithmId": {
@@ -26476,6 +26737,19 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "three_ds_connector": {
+            "type": "string",
+            "description": "Prefered 3ds Connector",
+            "nullable": true
           }
         }
       },
@@ -26630,8 +26904,10 @@
         "type": "string",
         "enum": [
           "ACTIVE",
+          "INACTIVE",
           "SUSPENDED",
-          "DEACTIVATED"
+          "EXPIRED",
+          "DELETED"
         ]
       },
       "TokenType": {
@@ -26639,6 +26915,14 @@
         "enum": [
           "tokenization_id",
           "payment_method_id"
+        ]
+      },
+      "Tokenization": {
+        "type": "string",
+        "description": "The type of tokenization to use for the payment method",
+        "enum": [
+          "skip_psp",
+          "tokenize_at_psp"
         ]
       },
       "TokenizationType": {
@@ -27172,6 +27456,33 @@
           }
         ]
       },
+      "VaultTokenField": {
+        "type": "object",
+        "properties": {
+          "token_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultTokenType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "VaultTokenType": {
+        "type": "string",
+        "description": "Fields that can be tokenized with vault",
+        "enum": [
+          "card_number",
+          "card_cvc",
+          "card_expiry_year",
+          "card_expiry_month",
+          "network_token",
+          "network_token_expiry_year",
+          "network_token_expiry_month",
+          "network_token_cryptogram"
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -27431,6 +27742,18 @@
           "type": {
             "type": "string",
             "description": "The type of payment method",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "03",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
             "nullable": true
           }
         }

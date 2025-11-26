@@ -295,7 +295,6 @@ pub struct PaymentMethodRecordUpdateResponse {
     pub network_transaction_id: Option<String>,
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub updated_payment_method_data: Option<bool>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -1193,6 +1192,12 @@ pub struct PaymentMethodDataWalletInfo {
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1201,6 +1206,8 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1211,6 +1218,8 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1229,18 +1238,22 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.network,
             card_type: Some(item.pm_type),
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
 
-impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4,
             network: item.card_network,
             pm_type: item.card_type.get_required_value("card_type")?,
-        })
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
+        }))
     }
 }
 
@@ -1372,16 +1385,6 @@ pub struct NetworkTokenResponse {
 
 fn saved_in_locker_default() -> bool {
     true
-}
-
-#[cfg(feature = "v1")]
-impl PartialEq for CardDetailFromLocker {
-    fn eq(&self, other: &Self) -> bool {
-        self.last4_digits == other.last4_digits
-            && self.expiry_month == other.expiry_month
-            && self.expiry_year == other.expiry_year
-            && self.card_isin == other.card_isin
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -2687,6 +2690,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -2811,7 +2815,6 @@ pub struct PaymentMethodUpdateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_error: Option<String>,
     pub updated_payment_method_data: Option<bool>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub line_number: Option<i64>,
 }
 
@@ -2953,7 +2956,6 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: res.network_transaction_id,
                 connector_mandate_details: res.connector_mandate_details,
                 updated_payment_method_data: res.updated_payment_method_data,
-                connector_customer: res.connector_customer,
                 update_status: UpdateStatus::Success,
                 update_error: None,
                 line_number: record.line_number,
@@ -2964,7 +2966,6 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: record.network_transaction_id,
                 connector_mandate_details: None,
                 updated_payment_method_data: None,
-                connector_customer: None,
                 update_status: UpdateStatus::Failed,
                 update_error: Some(e),
                 line_number: record.line_number,
@@ -3380,21 +3381,26 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
     pub status: api_enums::TokenStatus,
 
     /// The expiry month of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_month: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_month: Option<masking::Secret<String>>,
 
     /// The expiry year of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_year: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_year: Option<masking::Secret<String>>,
 
-    /// The last four digits of the card
-    pub card_last_four: String,
+    /// The last four digits of the card if active
+    pub card_last_four: Option<String>,
 
-    /// The last four digits of the network token
-    pub token_last_four: String,
+    /// The last four digits of the network token if active
+    pub token_last_four: Option<String>,
 
-    /// The expiry date of the card in MM/YY format
-    pub card_expiry: String,
+    /// The expiry month of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_month: Option<masking::Secret<String>>,
+
+    /// The expiry year of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_year: Option<masking::Secret<String>>,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]

@@ -34,7 +34,6 @@ pub async fn list_initial_delivery_attempts(
     )?;
 
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let (account, key_store) =
         get_account_and_key_store(state.clone(), merchant_id.clone(), profile_id.clone()).await?;
 
@@ -51,7 +50,6 @@ pub async fn list_initial_delivery_attempts(
                 match account {
                     MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                         .list_initial_events_by_merchant_id_primary_object_or_initial_attempt_id(
-                            key_manager_state,
                             merchant_account.get_id(),
                             &object_id,
                             &event_id,
@@ -61,7 +59,6 @@ pub async fn list_initial_delivery_attempts(
                     MerchantAccountOrProfile::Profile(business_profile) => {
                         store
                             .list_initial_events_by_profile_id_primary_object_or_initial_attempt_id(
-                                key_manager_state,
                                 business_profile.get_id(),
                                 &object_id,
                                 &event_id,
@@ -143,7 +140,6 @@ pub async fn list_initial_delivery_attempts(
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
                     store
                         .list_initial_events_by_merchant_id_constraints(
-                            key_manager_state,
                             merchant_account.get_id(),
                             created_after,
                             created_before,
@@ -158,7 +154,6 @@ pub async fn list_initial_delivery_attempts(
                 MerchantAccountOrProfile::Profile(business_profile) => {
                     store
                         .list_initial_events_by_profile_id_constraints(
-                            key_manager_state,
                             business_profile.get_id(),
                             created_after,
                             created_before,
@@ -208,11 +203,9 @@ pub async fn list_delivery_attempts(
     initial_attempt_id: String,
 ) -> RouterResponse<Vec<api::webhook_events::EventRetrieveResponse>> {
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
@@ -221,7 +214,6 @@ pub async fn list_delivery_attempts(
 
     let events = store
         .list_events_by_merchant_id_initial_attempt_id(
-            key_manager_state,
             &merchant_id,
             &initial_attempt_id,
             &key_store,
@@ -253,11 +245,9 @@ pub async fn retry_delivery_attempt(
     event_id: String,
 ) -> RouterResponse<api::webhook_events::EventRetrieveResponse> {
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
@@ -265,12 +255,7 @@ pub async fn retry_delivery_attempt(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let event_to_retry = store
-        .find_event_by_merchant_id_event_id(
-            key_manager_state,
-            &key_store.merchant_id,
-            &event_id,
-            &key_store,
-        )
+        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &event_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
@@ -280,7 +265,7 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read business profile ID from event to retry")?;
     let business_profile = store
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &business_profile_id)
+        .find_business_profile_by_profile_id(&key_store, &business_profile_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find business profile")?;
@@ -317,7 +302,7 @@ pub async fn retry_delivery_attempt(
     };
 
     let event = store
-        .insert_event(key_manager_state, new_event, &key_store)
+        .insert_event(new_event, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert event")?;
@@ -346,12 +331,7 @@ pub async fn retry_delivery_attempt(
     .await;
 
     let updated_event = store
-        .find_event_by_merchant_id_event_id(
-            key_manager_state,
-            &key_store.merchant_id,
-            &new_event_id,
-            &key_store,
-        )
+        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &new_event_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
@@ -366,10 +346,9 @@ async fn get_account_and_key_store(
     profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> errors::RouterResult<(MerchantAccountOrProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
+
     let merchant_key_store = store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
@@ -382,7 +361,6 @@ async fn get_account_and_key_store(
         Some(profile_id) => {
             let business_profile = store
                 .find_business_profile_by_merchant_id_profile_id(
-                    key_manager_state,
                     &merchant_key_store,
                     &merchant_id,
                     &profile_id,
@@ -407,11 +385,7 @@ async fn get_account_and_key_store(
 
         None => {
             let merchant_account = store
-                .find_merchant_account_by_merchant_id(
-                    key_manager_state,
-                    &merchant_id,
-                    &merchant_key_store,
-                )
+                .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

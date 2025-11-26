@@ -55,7 +55,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
@@ -67,7 +67,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             state.clone(),
             req_state,
             req,
-            merchant_context.clone(),
+            platform.clone(),
             profile,
             connector_id,
             body.clone(),
@@ -86,7 +86,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let auth_type = auth::AuthenticationType::WebhookAuth {
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
     };
     let status_code = 200;
     let api_event = ApiEventsType::Webhooks {
@@ -101,7 +101,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
-        Some(merchant_context.get_merchant_account().get_id().clone()),
+        Some(platform.get_processor().get_account().get_id().clone()),
         flow,
         &request_id,
         request_duration,
@@ -126,7 +126,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     body: actix_web::web::Bytes,
@@ -140,7 +140,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         1,
         router_env::metric_attributes!((
             MERCHANT_ID,
-            merchant_context.get_merchant_account().get_id().clone()
+            platform.get_processor().get_account().get_id().clone()
         )),
     );
     let mut request_details = IncomingWebhookRequestDetails {
@@ -157,14 +157,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let (merchant_connector_account, connector, connector_name) = fetch_mca_and_connector(
         &state,
         connector_id,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
     )
     .await?;
 
     let decoded_body = connector
         .decode_webhook_body(
             &request_details,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             merchant_connector_account.connector_webhook_details.clone(),
             connector_name.as_str(),
         )
@@ -201,7 +201,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 router_env::metric_attributes!(
                     (
                         MERCHANT_ID,
-                        merchant_context.get_merchant_account().get_id().clone()
+                        platform.get_processor().get_account().get_id().clone()
                     ),
                     ("connector", connector_name)
                 ),
@@ -237,7 +237,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &*state.clone().store,
         connector_name.as_str(),
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         &event_type,
     )
     .await;
@@ -272,7 +272,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             verify_webhook_source_verification_call(
                 connector.clone(),
                 &state,
-                &merchant_context,
+                &platform,
                 merchant_connector_account.clone(),
                 &connector_name,
                 &request_details,
@@ -292,7 +292,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .clone()
                 .verify_webhook_source(
                     &request_details,
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     merchant_connector_account.connector_webhook_details.clone(),
                     merchant_connector_account.connector_account_details.clone(),
                     connector_name.as_str(),
@@ -316,7 +316,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 1,
                 router_env::metric_attributes!((
                     MERCHANT_ID,
-                    merchant_context.get_merchant_account().get_id().clone()
+                    platform.get_processor().get_account().get_id().clone()
                 )),
             );
         }
@@ -349,7 +349,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
                         state.clone(),
                         req_state,
-                        merchant_context,
+                        platform,
                         profile,
                         webhook_details,
                         source_verified,
@@ -379,7 +379,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     api::WebhookFlow::Recovery => {
                         Box::pin(recovery_incoming::recovery_incoming_webhook_flow(
                             state.clone(),
-                            merchant_context,
+                            platform,
                             profile,
                             source_verified,
                             &connector,
@@ -402,7 +402,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             1,
             router_env::metric_attributes!((
                 MERCHANT_ID,
-                merchant_context.get_merchant_account().get_id().clone()
+                platform.get_processor().get_account().get_id().clone()
             )),
         );
         WebhookResponseTracker::NoEffect
@@ -424,7 +424,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 async fn payments_incoming_webhook_flow(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
@@ -442,8 +442,8 @@ async fn payments_incoming_webhook_flow(
                 &id,
                 profile.get_id(),
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await?;
 
@@ -461,7 +461,7 @@ async fn payments_incoming_webhook_flow(
                 .clone()
                 .perform_locking_action(
                     &state,
-                    merchant_context.get_merchant_account().get_id().to_owned(),
+                    platform.get_processor().get_account().get_id().to_owned(),
                 )
                 .await?;
 
@@ -481,7 +481,7 @@ async fn payments_incoming_webhook_flow(
             >(
                 &state,
                 req_state,
-                merchant_context.clone(),
+                platform.clone(),
                 &profile,
                 payments::operations::PaymentGet,
                 api::PaymentsRetrieveRequest {
@@ -502,7 +502,7 @@ async fn payments_incoming_webhook_flow(
                 connector_http_status_code,
                 external_latency,
                 None,
-                &merchant_context,
+                &platform,
                 &profile,
                 Some(connector_response_data),
             );
@@ -510,7 +510,7 @@ async fn payments_incoming_webhook_flow(
             lock_action
                 .free_lock_action(
                     &state,
-                    merchant_context.get_merchant_account().get_id().to_owned(),
+                    platform.get_processor().get_account().get_id().to_owned(),
                 )
                 .await?;
 
@@ -532,7 +532,7 @@ async fn payments_incoming_webhook_flow(
                         1,
                         router_env::metric_attributes!((
                             "merchant_id",
-                            merchant_context.get_merchant_account().get_id().clone()
+                            platform.get_processor().get_account().get_id().clone()
                         )),
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
@@ -560,7 +560,7 @@ async fn payments_incoming_webhook_flow(
                 Box::pin(create_event_and_trigger_outgoing_webhook(
                     state,
                     profile,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
@@ -595,17 +595,11 @@ where
     let (payment_intent, payment_attempt) = match payment_id {
         api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
             let payment_intent = db
-                .find_payment_intent_by_id(
-                    key_manager_state,
-                    id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
+                .find_payment_intent_by_id(id, merchant_key_store, storage_scheme)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_attempt = db
                 .find_payment_attempt_by_id(
-                    key_manager_state,
                     merchant_key_store,
                     &payment_intent
                         .active_attempt_id
@@ -621,7 +615,6 @@ where
         api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
             let payment_attempt = db
                 .find_payment_attempt_by_profile_id_connector_transaction_id(
-                    key_manager_state,
                     merchant_key_store,
                     profile_id,
                     id,
@@ -631,7 +624,6 @@ where
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_intent = db
                 .find_payment_intent_by_id(
-                    key_manager_state,
                     &payment_attempt.payment_id,
                     merchant_key_store,
                     storage_scheme,
@@ -647,17 +639,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while getting GlobalAttemptId")?;
             let payment_attempt = db
-                .find_payment_attempt_by_id(
-                    key_manager_state,
-                    merchant_key_store,
-                    &global_attempt_id,
-                    storage_scheme,
-                )
+                .find_payment_attempt_by_id(merchant_key_store, &global_attempt_id, storage_scheme)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let payment_intent = db
                 .find_payment_intent_by_id(
-                    key_manager_state,
                     &payment_attempt.payment_id,
                     merchant_key_store,
                     storage_scheme,
@@ -704,7 +690,7 @@ where
 async fn verify_webhook_source_verification_call(
     connector: ConnectorEnum,
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     merchant_connector_account: domain::MerchantConnectorAccount,
     connector_name: &str,
     request_details: &IncomingWebhookRequestDetails<'_>,
@@ -724,7 +710,7 @@ async fn verify_webhook_source_verification_call(
     > = connector_data.connector.get_connector_integration();
     let connector_webhook_secrets = connector
         .get_webhook_source_verification_merchant_secret(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             connector_name,
             merchant_connector_account.connector_webhook_details.clone(),
         )
@@ -735,7 +721,7 @@ async fn verify_webhook_source_verification_call(
         state,
         connector_name,
         merchant_connector_account,
-        merchant_context,
+        platform,
         &connector_webhook_secrets,
         request_details,
     )
@@ -817,7 +803,7 @@ async fn fetch_mca_and_connector(
 {
     let db = &state.store;
     let mca = db
-        .find_merchant_connector_account_by_id(&state.into(), connector_id, key_store)
+        .find_merchant_connector_account_by_id(connector_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_owned(),
