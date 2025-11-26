@@ -2743,18 +2743,13 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            let upi_next_action = payment_attempt.get_upi_next_action()?;
 
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                    api_models::payments::NextActionData::SdkUpiIntentInformation {
-                        sdk_uri: sdk_uri_data.sdk_uri,
-                    }
-                }))
+                .or(upi_next_action)
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -2903,18 +2898,10 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
-
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                    api_models::payments::NextActionData::SdkUpiIntentInformation {
-                        sdk_uri: sdk_uri_data.sdk_uri,
-                    }
-                }))
                 .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                     api_models::payments::NextActionData::WaitScreenInformation {
                         display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3655,8 +3642,7 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_sdk_upi_intent =
-                extract_sdk_uri_information(payment_attempt.clone())?;
+            let upi_next_action = payment_attempt.get_upi_next_action()?;
 
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
@@ -3666,7 +3652,7 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
-                || next_action_containing_sdk_upi_intent.is_some()
+                || upi_next_action.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3700,11 +3686,7 @@ where
                                     next_action_data: paypal_next_action_data
                                 }
                             }))
-                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
-                                api_models::payments::NextActionData::SdkUpiIntentInformation {
-                                    sdk_uri: sdk_uri_data.sdk_uri,
-                                }
-                            }))
+                            .or(upi_next_action)
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                                 api_models::payments::NextActionData::WaitScreenInformation {
                                     display_from_timestamp: wait_screen_data.display_from_timestamp,
@@ -3776,6 +3758,8 @@ where
                                                 message_version: authentication.message_version.as_ref()
                                                 .map(|version| version.to_string()),
                                                 directory_server_id: authentication.directory_server_id.clone(),
+                                                card_network: payment_method_data_response.as_ref().and_then(|method_data|method_data.get_card_network()),
+                                                three_ds_connector: authentication.authentication_connector.clone(),
                                             },
                                         })
                                     }else{
@@ -4130,18 +4114,6 @@ pub fn fetch_qr_code_url_next_steps_check(
 
     let qr_code_fetch_url = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_fetch_url)
-}
-
-pub fn extract_sdk_uri_information(
-    payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
-    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
-
-    let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
-    Ok(sdk_uri_information)
 }
 
 pub fn wait_screen_next_steps_check(
@@ -6024,7 +5996,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let redirect_response = payment_data.redirect_response.map(|redirect| {
+        let redirect_response = payment_data.redirect_response.clone().map(|redirect| {
             types::CompleteAuthorizeRedirectResponse {
                 params: redirect.param,
                 payload: redirect.json_payload,
@@ -6060,6 +6032,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_data.payment_intent.off_session,
         );
 
+        let router_return_url = Some(helpers::create_redirect_url(
+            &additional_data.router_base_url.to_string(),
+            &payment_data.payment_attempt,
+            connector_name,
+            payment_data.clone().get_creds_identifier(),
+        ));
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -6094,6 +6072,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .map(router_request_types::UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
             tokenization: payment_data.payment_intent.tokenization,
+            router_return_url,
         })
     }
 }
@@ -6564,6 +6543,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             }),
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: config.custom_message_for_payment_method_types,
             payment_button_colour: config.payment_button_colour,
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
@@ -6640,6 +6620,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             }),
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: config.custom_message_for_payment_method_types,
             payment_button_colour: config.payment_button_colour,
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
