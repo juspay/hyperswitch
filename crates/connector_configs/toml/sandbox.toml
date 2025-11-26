@@ -6717,6 +6717,18 @@ payment_method_type = "UnionPay"
 api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="text"
 
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]

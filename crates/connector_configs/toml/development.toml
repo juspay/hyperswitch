@@ -6734,6 +6734,18 @@ type = "Text"
   payment_method_type = "CartesBancaires"
 [[worldpayxml.debit]]
   payment_method_type = "UnionPay"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="text"
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret="Merchant Code"

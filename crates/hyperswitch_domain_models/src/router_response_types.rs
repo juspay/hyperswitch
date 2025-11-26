@@ -359,6 +359,9 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlRedirectForm {
+        jwt: String,
+    }
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -474,6 +477,9 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            },
         }
     }
 }
@@ -573,6 +579,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 method,
                 form_fields,
                 collection_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
             },
         }
     }
