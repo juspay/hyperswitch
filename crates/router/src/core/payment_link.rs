@@ -1,6 +1,4 @@
 pub mod validator;
-use std::collections::HashMap;
-
 use actix_web::http::header;
 use api_models::{
     admin::PaymentLinkConfig,
@@ -132,6 +130,7 @@ pub async fn form_payment_link_data(
                 branding_visibility: None,
                 payment_button_text: None,
                 custom_message_for_card_terms: None,
+                custom_message_for_payment_method_types: None,
                 payment_button_colour: None,
                 skip_status_screen: None,
                 background_colour: None,
@@ -310,6 +309,9 @@ pub async fn form_payment_link_data(
         branding_visibility: payment_link_config.branding_visibility,
         payment_button_text: payment_link_config.payment_button_text.clone(),
         custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms.clone(),
+        custom_message_for_payment_method_types: payment_link_config
+            .custom_message_for_payment_method_types
+            .clone(),
         payment_button_colour: payment_link_config.payment_button_colour.clone(),
         skip_status_screen: payment_link_config.skip_status_screen,
         background_colour: payment_link_config.background_colour.clone(),
@@ -374,6 +376,8 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_link_details: *link_details.to_owned(),
                 payment_button_text: payment_link_config.payment_button_text,
                 custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms,
+                custom_message_for_payment_method_types: payment_link_config
+                    .custom_message_for_payment_method_types,
                 payment_button_colour: payment_link_config.payment_button_colour,
                 skip_status_screen: payment_link_config.skip_status_screen,
                 background_colour: payment_link_config.background_colour,
@@ -481,119 +485,20 @@ pub async fn initiate_payment_link_flow(
     }
 }
 
-/*
-The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
-*/
-
-fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
-    let payment_details_str = serde_json::to_string(payment_details)
+pub fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
+    payment_link::get_js_script(payment_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize PaymentLinkData")?;
-    let url_encoded_str = urlencoding::encode(&payment_details_str);
-    Ok(format!("window.__PAYMENT_DETAILS = '{url_encoded_str}';"))
 }
 
-fn camel_to_kebab(s: &str) -> String {
-    let mut result = String::new();
-    if s.is_empty() {
-        return result;
-    }
-
-    let chars: Vec<char> = s.chars().collect();
-
-    for (i, &ch) in chars.iter().enumerate() {
-        if ch.is_uppercase() {
-            let should_add_dash = i > 0
-                && (chars.get(i - 1).map(|c| c.is_lowercase()).unwrap_or(false)
-                    || (i + 1 < chars.len()
-                        && chars.get(i + 1).map(|c| c.is_lowercase()).unwrap_or(false)
-                        && chars.get(i - 1).map(|c| c.is_uppercase()).unwrap_or(false)));
-
-            if should_add_dash {
-                result.push('-');
-            }
-            result.push(ch.to_ascii_lowercase());
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}
-
-fn generate_dynamic_css(
-    rules: &HashMap<String, HashMap<String, String>>,
-) -> Result<String, errors::ApiErrorResponse> {
-    if rules.is_empty() {
-        return Ok(String::new());
-    }
-
-    let mut css_string = String::new();
-    css_string.push_str("/* Dynamically Injected UI Rules */\n");
-
-    for (selector, styles_map) in rules {
-        if selector.trim().is_empty() {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "CSS selector cannot be empty.".to_string(),
-            });
-        }
-
-        css_string.push_str(selector);
-        css_string.push_str(" {\n");
-
-        for (prop_camel_case, css_value) in styles_map {
-            let css_property = camel_to_kebab(prop_camel_case);
-
-            css_string.push_str("  ");
-            css_string.push_str(&css_property);
-            css_string.push_str(": ");
-            css_string.push_str(css_value);
-            css_string.push_str(";\n");
-        }
-        css_string.push_str("}\n");
-    }
-    Ok(css_string)
-}
-
-fn get_payment_link_css_script(
+pub fn get_payment_link_css_script(
     payment_link_config: &PaymentLinkConfig,
-) -> Result<String, errors::ApiErrorResponse> {
-    let custom_rules_css_option = payment_link_config
-        .payment_link_ui_rules
-        .as_ref()
-        .map(generate_dynamic_css)
-        .transpose()?;
-
-    let color_scheme_css = get_color_scheme_css(payment_link_config);
-
-    if let Some(custom_rules_css) = custom_rules_css_option {
-        Ok(format!("{color_scheme_css}\n{custom_rules_css}"))
-    } else {
-        Ok(color_scheme_css)
-    }
+) -> RouterResult<String> {
+    payment_link::get_css_script(payment_link_config)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
 
-fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {
-    let background_primary_color = payment_link_config
-        .background_colour
-        .clone()
-        .unwrap_or(payment_link_config.theme.clone());
-    format!(
-        ":root {{
-      --primary-color: {background_primary_color};
-    }}"
-    )
-}
-
-fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
-    format!(
-        r#"<meta property="og:title" content="Payment request from {0}"/>
-        <meta property="og:description" content="{1}"/>"#,
-        payment_details.merchant_name.clone(),
-        payment_details
-            .merchant_description
-            .clone()
-            .unwrap_or_default()
-    )
+pub fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
+    payment_link::get_meta_tags_html(payment_details)
 }
 
 fn validate_sdk_requirements(
@@ -774,6 +679,7 @@ pub fn get_payment_link_config_based_on_priority(
         background_image,
         payment_button_text,
         custom_message_for_card_terms,
+        custom_message_for_payment_method_types,
         payment_button_colour,
         skip_status_screen,
         background_colour,
@@ -793,6 +699,7 @@ pub fn get_payment_link_config_based_on_priority(
             .foreign_into()),
         (payment_button_text),
         (custom_message_for_card_terms),
+        (custom_message_for_payment_method_types),
         (payment_button_colour),
         (skip_status_screen),
         (background_colour),
@@ -826,6 +733,7 @@ pub fn get_payment_link_config_based_on_priority(
             background_image,
             payment_button_text,
             custom_message_for_card_terms,
+            custom_message_for_payment_method_types,
             payment_button_colour,
             background_colour,
             payment_button_text_colour,
@@ -939,6 +847,7 @@ pub async fn get_payment_link_status(
             branding_visibility: None,
             payment_button_text: None,
             custom_message_for_card_terms: None,
+            custom_message_for_payment_method_types: None,
             payment_button_colour: None,
             skip_status_screen: None,
             background_colour: None,
@@ -971,7 +880,7 @@ pub async fn get_payment_link_status(
 
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
-    let css_script = get_color_scheme_css(&payment_link_config);
+    let css_script = get_payment_link_css_script(&payment_link_config)?;
 
     let profile_id = payment_link
         .profile_id

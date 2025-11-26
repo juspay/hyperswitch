@@ -2444,8 +2444,8 @@ pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     merchant_connector_account: &MerchantConnectorAccount,
-    payment_method_vaulting_data: Option<
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    payment_method_custom_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodCustomVaultingData,
     >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
@@ -2465,7 +2465,7 @@ pub async fn construct_vault_router_data<F>(
         tenant_id: state.tenant.tenant_id.clone(),
         connector_auth_type,
         request: types::VaultRequestData {
-            payment_method_vaulting_data,
+            payment_method_vaulting_data: payment_method_custom_vaulting_data,
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,

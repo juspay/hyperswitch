@@ -34,7 +34,7 @@ payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
 v2 = [ "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2", "hyperswitch_connectors/v2", "hyperswitch_interfaces/v2", "common_types/v2", "revenue_recovery", "scheduler/v2", "euclid/v2", "payment_methods/v2", "tokenization_v2", "subscriptions/v2"]
-v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1", "hyperswitch_connectors/v1", "common_types/v1", "scheduler/v1", "payment_methods/v1", "subscriptions/v1"]
+v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1", "hyperswitch_connectors/v1", "common_types/v1", "scheduler/v1", "payment_link/v1", "payment_methods/v1", "subscriptions/v1"]
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
@@ -89,8 +89,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "8edf9f744597c4f8712550a060a2bc1700c174d9", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "8edf9f744597c4f8712550a060a2bc1700c174d9", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "b5a367c1c775c32503feb00cdc6cd063cc97ea3b", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "b5a367c1c775c32503feb00cdc6cd063cc97ea3b", package = "ucs_cards" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.09.24.0", package = "masking" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
@@ -142,6 +142,7 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 subscriptions = { version = "0.1.0", path = "../subscriptions", default-features = false }
 
