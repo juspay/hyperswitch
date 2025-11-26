@@ -89,8 +89,7 @@ export const connectorDetails = {
           status: "failed",
           error_code: "AMOUNT_MISMATCH",
           error_message:
-            "description - Should equal item_total + tax_total + shipping + handling + insurance - shipping_discount - discount., value - 60.50, field - value;",
-        },
+            "description - Should equal item_total + tax_total + shipping + handling + insurance + gratuity - shipping_discount - discount., value - 60.50, field - value;"        },
       },
     },
     "3DSManualCapture": {
