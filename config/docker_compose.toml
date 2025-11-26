@@ -63,6 +63,10 @@ force_cookies = false
 kid = ""
 private_key = ""
 
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
 [[oidc.clients]]
 client_id = ""
 client_secret = ""
