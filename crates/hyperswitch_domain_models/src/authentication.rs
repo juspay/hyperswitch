@@ -1,6 +1,3 @@
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
-
-use super::behaviour;
 use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_enums::MerchantCategoryCode;
@@ -13,10 +10,12 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::ResultExt;
-use masking::Secret;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
+
+use super::behaviour;
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
@@ -203,7 +202,6 @@ impl behaviour::Conversion for Authentication {
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting authentication data".to_string(),
             })?;
-
 
         let email_decrypted = other
             .email

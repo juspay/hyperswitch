@@ -23,8 +23,8 @@ use api_models::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
-    types::AmountConvertor,date_time
+    date_time, errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
+    types::AmountConvertor,
 };
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -584,7 +584,7 @@ pub async fn create_new_authentication(
 
     let current_time = date_time::now();
 
-    let new_authentication  = hyperswitch_domain_models::authentication::Authentication{
+    let new_authentication = hyperswitch_domain_models::authentication::Authentication {
         authentication_id: authentication_id.clone(),
         merchant_id,
         authentication_connector,
@@ -622,7 +622,7 @@ pub async fn create_new_authentication(
         directory_server_id: None,
         acquirer_country_code,
         organization_id,
-        sign_flag:1,
+        sign_flag: 1,
         mcc: None,
         amount,
         currency,
@@ -662,7 +662,7 @@ pub async fn create_new_authentication(
         challenge_request_key: None,
         customer_details: None,
     };
-    
+
     // let new_authorization = AuthenticationNew {
     //     authentication_id: authentication_id.to_owned(),
     //     merchant_id,

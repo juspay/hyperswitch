@@ -1,7 +1,7 @@
+use api_models::payments::DeviceChannel;
 use common_enums::MerchantCategoryCode;
 use diesel_models::{authentication::Authentication, enums as storage_enums};
 use time::OffsetDateTime;
-use api_models::payments::DeviceChannel;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaAuthentication<'a> {

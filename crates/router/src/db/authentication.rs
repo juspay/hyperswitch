@@ -1,9 +1,3 @@
-use super::{MockDb, Store};
-use crate::{
-    connection,
-    core::errors::{self, CustomResult},
-    types::storage,
-};
 use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::authentication::AuthenticationUpdateInternal;
 use error_stack::{report, ResultExt};
@@ -13,6 +7,13 @@ use hyperswitch_domain_models::{
 };
 use router_env::{instrument, tracing};
 use storage_impl::StorageError;
+
+use super::{MockDb, Store};
+use crate::{
+    connection,
+    core::errors::{self, CustomResult},
+    types::storage,
+};
 
 #[async_trait::async_trait]
 pub trait AuthenticationInterface {
@@ -187,7 +188,7 @@ impl AuthenticationInterface for MockDb {
             amount: authentication.amount,
             currency: authentication.currency,
             billing_address: None,
-            shipping_address:None,
+            shipping_address: None,
             browser_info: authentication.browser_info,
             email: None,
             profile_acquirer_id: authentication.profile_acquirer_id,
