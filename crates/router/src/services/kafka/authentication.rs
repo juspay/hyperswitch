@@ -1,5 +1,7 @@
+use common_enums::MerchantCategoryCode;
 use diesel_models::{authentication::Authentication, enums as storage_enums};
 use time::OffsetDateTime;
+use api_models::payments::DeviceChannel;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaAuthentication<'a> {
@@ -105,6 +107,27 @@ impl<'a> KafkaAuthentication<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
+            platform: authentication.platform,
+            mcc: authentication.mcc,
+            currency: authentication.currency,
+            merchant_country: authentication.merchant_country,
+            billing_country: authentication.billing_country,
+            shipping_country: authentication.shipping_country,
+            issuer_country: authentication.issuer_country,
+            earliest_supported_version: authentication.earliest_supported_version,
+            latest_supported_version: authentication.latest_supported_version,
+            whitelist_decision: authentication.whitelist_decision,
+            device_manufacturer: authentication.device_manufacturer,
+            device_type: authentication.device_type,
+            device_brand: authentication.device_brand,
+            device_os: authentication.device_os,
+            device_display: authentication.device_display,
+            browser_name: authentication.browser_name,
+            browser_version: authentication.browser_version,
+            issuer_id: authentication.issuer_id,
+            scheme_name: authentication.scheme_name,
+            exemption_requested: authentication.exemption_requested,
+            exemption_accepted: authentication.exemption_accepted,
         }
     }
 }
