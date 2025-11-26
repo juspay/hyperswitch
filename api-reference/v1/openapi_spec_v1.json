@@ -10089,6 +10089,61 @@
           }
         ]
       },
+      "AuthenticationPaymentMethodDataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "card_expiry_year": {
+                "type": "string",
+                "description": "card expiry year",
+                "nullable": true
+              },
+              "card_expiry_month": {
+                "type": "string",
+                "description": "card expiry month",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_data"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "network_token_expiry_month": {
+                "type": "string",
+                "description": "network token expiry month",
+                "nullable": true
+              },
+              "network_token_expiry_year": {
+                "type": "string",
+                "description": "network token expiry year",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_token_data"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "AuthenticationPaymentMethodType": {
         "type": "string",
         "enum": [
@@ -10477,6 +10532,14 @@
             "description": "The unique identifier for the directory server.",
             "nullable": true
           },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationPaymentMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "vault_token_data": {
             "allOf": [
               {
@@ -10592,23 +10655,23 @@
           {
             "type": "object",
             "required": [
-              "card_number",
-              "card_expiry_year",
-              "card_expiry_month",
               "type"
             ],
             "properties": {
               "card_number": {
                 "type": "string",
-                "description": "token representing card_number"
+                "description": "token representing card_number",
+                "nullable": true
               },
               "card_expiry_year": {
                 "type": "string",
-                "description": "token representing card_numcard_expiry_yearber"
+                "description": "token representing card_expiry_year",
+                "nullable": true
               },
               "card_expiry_month": {
                 "type": "string",
-                "description": "token representing card_expiry_month"
+                "description": "token representing card_expiry_month",
+                "nullable": true
               },
               "card_cvc": {
                 "type": "string",
@@ -10618,7 +10681,7 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "card_token"
+                  "card_data"
                 ]
               }
             }
@@ -10626,25 +10689,25 @@
           {
             "type": "object",
             "required": [
-              "payment_token",
-              "token_expiry_year",
-              "token_expiry_month",
               "type"
             ],
             "properties": {
-              "payment_token": {
+              "network_token": {
                 "type": "string",
-                "description": "token representing payment_token"
+                "description": "token representing payment_token",
+                "nullable": true
               },
-              "token_expiry_year": {
+              "network_token_expiry_year": {
                 "type": "string",
-                "description": "token representing token_expiry_year"
+                "description": "token representing token_expiry_year",
+                "nullable": true
               },
-              "token_expiry_month": {
+              "network_token_expiry_month": {
                 "type": "string",
-                "description": "token representing token_expiry_month"
+                "description": "token representing token_expiry_month",
+                "nullable": true
               },
-              "token_cryptogram": {
+              "network_token_cryptogram": {
                 "type": "string",
                 "description": "token representing token_cryptogram",
                 "nullable": true
@@ -10652,7 +10715,7 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "network_token"
+                  "network_token_data"
                 ]
               }
             }
@@ -12697,7 +12760,7 @@
           "name": {
             "type": "string",
             "description": "name to be put in billing description",
-            "example": "John Doe",
+            "example": "The Online Retailer",
             "nullable": true
           },
           "city": {
@@ -16205,6 +16268,14 @@
             "minimum": 0
           }
         }
+      },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -24426,6 +24497,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -24596,6 +24675,14 @@
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
+            "nullable": true
+          },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
             "nullable": true
           },
           "payment_button_colour": {
@@ -34650,7 +34737,13 @@
           "zen",
           "zift",
           "plaid",
-          "zsl"
+          "zsl",
+          "juspaythreedsserver",
+          "ctp_mastercard",
+          "ctp_visa",
+          "netcetera",
+          "cardinal",
+          "threedsecureio"
         ]
       },
       "RoutingAlgorithmKind": {
