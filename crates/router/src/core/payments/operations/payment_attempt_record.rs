@@ -78,12 +78,12 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::PartiallyCaptured => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -263,14 +263,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
             common_enums::TriggeredBy::External => None,
         };
-        let active_attempts_group_id = payment_data.payment_attempt.attempts_group_id.clone();
-        let active_attempt_id_type = Some(common_enums::ActiveAttemptIDType::GroupID);
+        let active_attempts_group_id = payment_data.payment_intent.active_attempts_group_id.clone();
         let amount_captured = payment_data.payment_intent.amount_captured;
         let status = if amount_captured > Some(MinorUnit::new(0))
-            && *payment_data
-                .payment_intent
-                .enable_partial_authorization
-                .unwrap_or(false.into())
+            && *payment_data.payment_intent.enable_partial_authorization
         {
             common_enums::IntentStatus::PartiallyCapturedAndProcessing
         } else {
@@ -284,7 +280,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
             active_attempt_id,
-            active_attempt_id_type,
             active_attempts_group_id,
         }
     ;

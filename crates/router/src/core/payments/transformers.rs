@@ -458,7 +458,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         mit_category: None,
         tokenization: None,
         payment_channel: None,
-        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(
+            payment_data.payment_intent.enable_partial_authorization,
+        ),
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
@@ -2235,7 +2237,7 @@ where
         frm_metadata: payment_intent.frm_metadata.clone(),
         request_external_three_ds_authentication: payment_intent
             .request_external_three_ds_authentication,
-        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         card_attached,
     }
 }
@@ -2636,7 +2638,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
-                enable_partial_authorization: payment_intent.enable_partial_authorization,
+                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
             },
             vec![],
         )))

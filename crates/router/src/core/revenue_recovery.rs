@@ -1178,7 +1178,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
-        | enums::IntentStatus::PartiallyCapturedAndProcessing => {
+        | IntentStatus::PartiallyCapturedAndProcessing => {
             Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Invalid Payment Status ".to_owned(),
             }))
@@ -1232,25 +1232,29 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .get_required_value("Payment Revenue Recovery Metadata")?
         .convert_back();
-    match active_payment_attempt_id {
-        Some(_) => {
+    match (active_payment_attempt_id, &payment_intent.status) {
+        // No active attempt OR status is PartiallyCaptured - return None
+        (None, _) | (Some(_), IntentStatus::PartiallyCaptured) => Ok(None),
+
+        // Has active attempt and status is not PartiallyCaptured - proceed with update
+        (Some(_), _) => {
             // update the connector payment transmission field to Unsuccessful and unset active attempt id
             revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
                 enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
             );
 
             let payment_update_req =
-        api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-            payment_intent
-                .feature_metadata
-                .clone()
-                .unwrap_or_default()
-                .convert_back()
-                .set_payment_revenue_recovery_metadata_using_api(
-                    revenue_recovery_metadata.clone(),
-                ),
-            enums::UpdateActiveAttempt::Unset,
-        );
+            api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                payment_intent
+                    .feature_metadata
+                    .clone()
+                    .unwrap_or_default()
+                    .convert_back()
+                    .set_payment_revenue_recovery_metadata_using_api(
+                        revenue_recovery_metadata.clone(),
+                    ),
+                enums::UpdateActiveAttempt::Unset,
+            );
             logger::info!(
                 "Call made to payments update intent api , with the request body {:?}",
                 payment_update_req
@@ -1266,7 +1270,6 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
 
             Ok(Some(()))
         }
-        None => Ok(None),
     }
 }
 
@@ -1426,6 +1429,9 @@ pub fn map_recovery_status(
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
         IntentStatus::Processing => RecoveryStatus::Processing,
+        IntentStatus::PartiallyCapturedAndProcessing => {
+            RecoveryStatus::PartiallyCapturedAndProcessing
+        }
         IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted

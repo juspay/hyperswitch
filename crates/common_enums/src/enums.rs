@@ -1910,6 +1910,9 @@ pub enum RecoveryStatus {
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
+    /// The payment has been partially recovered through retry mechanisms,
+    /// and the remaining amount is still being processed by the payment gateway.
+    PartiallyCapturedAndProcessing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,

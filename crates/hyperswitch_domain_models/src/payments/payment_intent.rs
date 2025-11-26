@@ -379,7 +379,6 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
         updated_by: String,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
         active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     },
     /// UpdateIntent
@@ -797,13 +796,12 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata,
                 updated_by,
                 active_attempt_id,
-                active_attempt_id_type,
                 active_attempts_group_id,
             } => Ok(Self {
                 status: Some(status),
                 amount_captured: None,
                 active_attempt_id: Some(active_attempt_id),
-                active_attempt_id_type,
+                active_attempt_id_type: None,
                 active_attempts_group_id,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -1970,7 +1968,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization,
+            enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
@@ -2126,7 +2124,9 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
-                enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_partial_authorization: storage_model
+                    .enable_partial_authorization
+                    .unwrap_or(false.into()),
             })
         }
         .await
@@ -2232,8 +2232,10 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization: self.enable_partial_authorization,
+            enable_partial_authorization: Some(self.enable_partial_authorization),
             tokenization: None,
+            active_attempt_id_type: Some(self.active_attempt_id_type),
+            active_attempts_group_id: self.active_attempts_group_id,
         })
     }
 }

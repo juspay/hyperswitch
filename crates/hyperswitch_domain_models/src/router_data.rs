@@ -1034,7 +1034,7 @@ impl
             .unwrap_or(false);
 
         // If it's a partial authorization flow, we need to adjust the intent status accordingly
-        if payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount {
+        if *payment_data.payment_intent.enable_partial_authorization && has_captured_amount {
             match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing
@@ -1077,7 +1077,7 @@ impl
 
         // Step 3: Map to intent status based on both attempt_status and amount_captured
 
-        if payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount {
+        if *payment_data.payment_intent.enable_partial_authorization && has_captured_amount {
             match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing
@@ -1476,7 +1476,7 @@ impl
             .unwrap_or(false);
 
         // If it's a partial authorization flow, we need to adjust the intent status accordingly
-        if payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount {
+        if *payment_data.payment_intent.enable_partial_authorization && has_captured_amount {
             match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing
@@ -1517,7 +1517,7 @@ impl
             .map(|amt| amt > MinorUnit::zero())
             .unwrap_or(false);
         // Step 3: Map to intent status based on both attempt_status and amount_captured
-        if payment_data.payment_intent.is_partial_authorization_flow() && has_captured_amount {
+        if *payment_data.payment_intent.enable_partial_authorization && has_captured_amount {
             match self.status {
                 common_enums::enums::AttemptStatus::Pending => {
                     common_enums::IntentStatus::PartiallyCapturedAndProcessing

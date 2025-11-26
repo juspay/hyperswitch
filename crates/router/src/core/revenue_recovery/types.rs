@@ -402,8 +402,8 @@ impl Decision {
             ) => Self::Execute,
             (
                 enums::IntentStatus::PartiallyCaptured,
-                enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                None,
+                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                Some(_),
             ) => Self::Execute,
             (
                 enums::IntentStatus::Processing,

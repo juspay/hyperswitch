@@ -318,13 +318,6 @@ impl PaymentIntent {
                 reference: descriptor.reference.clone(),
             })
     }
-
-    #[cfg(feature = "v2")]
-    pub fn is_partial_authorization_flow(&self) -> bool {
-        self.enable_partial_authorization
-            .map(|val| *val)
-            .unwrap_or(false)
-    }
 }
 
 #[cfg(feature = "v2")]
@@ -645,7 +638,7 @@ pub struct PaymentIntent {
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
-    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
 }
 
 #[cfg(feature = "v2")]
@@ -728,6 +721,7 @@ impl PaymentIntent {
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
+        cell_id: id_type::CellId,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
@@ -747,6 +741,19 @@ impl PaymentIntent {
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+        let active_attempt_id_type = request
+            .enable_partial_authorization
+            .and_then(|enable_partial_authorization| {
+                enable_partial_authorization.then_some(common_enums::ActiveAttemptIDType::GroupID)
+            })
+            .unwrap_or(common_enums::ActiveAttemptIDType::AttemptID);
+        let active_attempts_group_id =
+            request
+                .enable_partial_authorization
+                .and_then(|enable_partial_authorization| {
+                    enable_partial_authorization
+                        .then_some(id_type::GlobalAttemptGroupId::generate(&cell_id))
+                });
 
         Ok(Self {
             id: payment_id.clone(),
@@ -765,8 +772,8 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
-            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
-            active_attempts_group_id: None,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata: request.connector_metadata,
@@ -834,7 +841,9 @@ impl PaymentIntent {
             created_by: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
-            enable_partial_authorization: request.enable_partial_authorization,
+            enable_partial_authorization: request
+                .enable_partial_authorization
+                .unwrap_or(false.into()),
         })
     }
 

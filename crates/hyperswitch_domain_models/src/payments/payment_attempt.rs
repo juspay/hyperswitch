@@ -861,10 +861,7 @@ impl PaymentAttempt {
             }),
         };
 
-        let group_id = payment_intent
-            .active_attempts_group_id
-            .clone()
-            .or_else(|| Some(id_type::GlobalAttemptGroupId::generate(&cell_id)));
+        let group_id = payment_intent.active_attempts_group_id.clone();
 
         let payment_method_data = request
             .payment_method_data
