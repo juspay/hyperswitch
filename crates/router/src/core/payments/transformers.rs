@@ -2,6 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
+#[cfg(feature = "v2")]
+use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
@@ -460,6 +462,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
+        partner_merchant_identifier_details: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1539,6 +1542,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         split_payments: None,
+        partner_merchant_identifier_details: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2163,6 +2167,77 @@ where
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
     ) -> RouterResponse<Self>;
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub fn generate_revenue_recovery_get_intent_response<F, D>(
+    payment_data: D,
+    recovery_status: common_enums::RecoveryStatus,
+    card_attached: u32,
+) -> RevenueRecoveryGetIntentResponse
+where
+    F: Clone,
+    D: OperationSessionGetters<F>,
+{
+    let payment_intent = payment_data.get_payment_intent();
+    let client_secret = payment_data.get_client_secret();
+
+    RevenueRecoveryGetIntentResponse {
+        id: payment_intent.id.clone(),
+        profile_id: payment_intent.profile_id.clone(),
+        status: recovery_status, // Note: field is named 'status' not 'recovery_status'
+        amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
+            payment_intent.amount_details.clone(),
+        ),
+        client_secret: client_secret.clone(),
+        merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+        routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
+        capture_method: payment_intent.capture_method,
+        authentication_type: payment_intent.authentication_type,
+        billing: payment_intent
+            .billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from),
+        shipping: payment_intent
+            .shipping_address
+            .clone()
+            .map(|shipping| shipping.into_inner())
+            .map(From::from),
+        customer_id: payment_intent.customer_id.clone(),
+        customer_present: payment_intent.customer_present,
+        description: payment_intent.description.clone(),
+        return_url: payment_intent.return_url.clone(),
+        setup_future_usage: payment_intent.setup_future_usage,
+        apply_mit_exemption: payment_intent.apply_mit_exemption,
+        statement_descriptor: payment_intent.statement_descriptor.clone(),
+        order_details: payment_intent.order_details.clone().map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| order_detail.expose().convert_back())
+                .collect()
+        }),
+        allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
+        metadata: payment_intent.metadata.clone(),
+        connector_metadata: payment_intent.connector_metadata.clone(),
+        feature_metadata: payment_intent
+            .feature_metadata
+            .clone()
+            .map(|feature_metadata| feature_metadata.convert_back()),
+        payment_link_enabled: payment_intent.enable_payment_link,
+        payment_link_config: payment_intent
+            .payment_link_config
+            .clone()
+            .map(ForeignFrom::foreign_from),
+        request_incremental_authorization: payment_intent.request_incremental_authorization,
+        split_txns_enabled: payment_intent.split_txns_enabled,
+        expires_on: payment_intent.session_expiry,
+        frm_metadata: payment_intent.frm_metadata.clone(),
+        request_external_three_ds_authentication: payment_intent
+            .request_external_three_ds_authentication,
+        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        card_attached,
+    }
 }
 
 /// Generate a response from the given Data. This should be implemented on a payment data object
@@ -3701,6 +3776,8 @@ where
                                                 message_version: authentication.message_version.as_ref()
                                                 .map(|version| version.to_string()),
                                                 directory_server_id: authentication.directory_server_id.clone(),
+                                                card_network: payment_method_data_response.as_ref().and_then(|method_data|method_data.get_card_network()),
+                                                three_ds_connector: authentication.authentication_connector.clone(),
                                             },
                                         })
                                     }else{
@@ -3940,6 +4017,7 @@ where
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
+            partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4259,6 +4337,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
+            partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
         }
     }
 }
@@ -4595,6 +4674,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_overcapture: None,
             is_stored_credential: None,
             billing_descriptor: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -4838,6 +4918,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             is_stored_credential: payment_data.payment_attempt.is_stored_credential,
             billing_descriptor,
+            partner_merchant_identifier_details: payment_data
+                .payment_intent
+                .partner_merchant_identifier_details,
         })
     }
 }
@@ -5859,6 +5942,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             billing_descriptor,
             split_payments: payment_data.payment_intent.split_payments.clone(),
             tokenization: payment_data.payment_intent.tokenization,
+            partner_merchant_identifier_details: payment_data
+                .payment_intent
+                .partner_merchant_identifier_details,
         })
     }
 }
@@ -5940,7 +6026,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let redirect_response = payment_data.redirect_response.map(|redirect| {
+        let redirect_response = payment_data.redirect_response.clone().map(|redirect| {
             types::CompleteAuthorizeRedirectResponse {
                 params: redirect.param,
                 payload: redirect.json_payload,
@@ -5976,6 +6062,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_data.payment_intent.off_session,
         );
 
+        let router_return_url = Some(helpers::create_redirect_url(
+            &additional_data.router_base_url.to_string(),
+            &payment_data.payment_attempt,
+            connector_name,
+            payment_data.clone().get_creds_identifier(),
+        ));
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -6010,6 +6102,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .map(router_request_types::UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
             tokenization: payment_data.payment_intent.tokenization,
+            router_return_url,
         })
     }
 }
@@ -6480,6 +6573,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             }),
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: config.custom_message_for_payment_method_types,
             payment_button_colour: config.payment_button_colour,
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,
@@ -6556,6 +6650,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             }),
             payment_button_text: config.payment_button_text,
             custom_message_for_card_terms: config.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: config.custom_message_for_payment_method_types,
             payment_button_colour: config.payment_button_colour,
             skip_status_screen: config.skip_status_screen,
             background_colour: config.background_colour,

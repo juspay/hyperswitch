@@ -6746,6 +6746,12 @@ label="Issuer Identifier"
 placeholder="Enter your issuer identifier for three ds payments"
 required=false
 type="text"
+[worldpayxml.metadata.jwt_mac_key]
+name="jwt_mac_key"
+label="JWT MAC KEY"
+placeholder="Enter your JWT MAC Key"
+required=false
+type="text"
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret="Merchant Code"
