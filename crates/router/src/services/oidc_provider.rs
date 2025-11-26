@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use api_models::{
     oidc::{
         AuthCodeData, Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError,
-        OidcAuthorizeRequest, OidcDiscoveryResponse, OidcTokenError, OidcTokenRequest,
+        OidcAuthorizeQuery, OidcDiscoveryResponse, OidcTokenError, OidcTokenRequest,
         OidcTokenResponse, Scope, SigningAlgorithm,
     },
     payments::RedirectionResponse,
@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    consts::oidc::{AUTH_CODE_LENGTH, AUTH_CODE_TTL, ID_TOKEN_TTL, REDIS_AUTH_CODE_PREFIX},
+    consts::oidc::{
+        AUTH_CODE_LENGTH, AUTH_CODE_TTL_IN_SECS, ID_TOKEN_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX,
+    },
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::{api::ApplicationResponse, authentication::UserFromToken},
@@ -27,11 +29,11 @@ use crate::{
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
-    let frontend_base_url = get_base_url(&state);
+    let control_center_url = get_base_url(&state);
 
     Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
         backend_base_url,
-        frontend_base_url.into(),
+        control_center_url.into(),
     )))
 }
 
@@ -65,7 +67,7 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
 }
 
 pub fn validate_authorize_params(
-    payload: &OidcAuthorizeRequest,
+    payload: &OidcAuthorizeQuery,
     state: &SessionState,
 ) -> error_stack::Result<(), ApiErrorResponse> {
     if !payload.scope.contains(&Scope::Openid) {
@@ -98,7 +100,7 @@ pub fn validate_authorize_params(
 async fn generate_and_store_authorization_code(
     state: &SessionState,
     user_id: &str,
-    payload: &OidcAuthorizeRequest,
+    payload: &OidcAuthorizeQuery,
 ) -> error_stack::Result<String, ApiErrorResponse> {
     let user_from_db = state
         .global_store
@@ -129,7 +131,11 @@ async fn generate_and_store_authorization_code(
 
     let redis_key = format!("{}{}", REDIS_AUTH_CODE_PREFIX, auth_code);
     redis_conn
-        .serialize_and_set_key_with_expiry(&redis_key.into(), &auth_code_data, AUTH_CODE_TTL)
+        .serialize_and_set_key_with_expiry(
+            &redis_key.into(),
+            &auth_code_data,
+            AUTH_CODE_TTL_IN_SECS,
+        )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to store authorization code in Redis")?;
@@ -159,7 +165,7 @@ pub fn build_oidc_redirect_url(
 #[cfg(feature = "v1")]
 pub async fn process_authorize_request(
     state: SessionState,
-    payload: OidcAuthorizeRequest,
+    payload: OidcAuthorizeQuery,
     user: Option<UserFromToken>,
 ) -> RouterResponse<()> {
     // Validate all parameters
@@ -313,7 +319,7 @@ async fn generate_id_token(
         .attach_printable("Failed to get current time")?
         .as_secs();
 
-    let exp = now.checked_add(ID_TOKEN_TTL).ok_or_else(|| {
+    let exp = now.checked_add(ID_TOKEN_TTL_IN_SECS).ok_or_else(|| {
         report!(ApiErrorResponse::InternalServerError)
             .attach_printable("Token expiration time overflow")
     })?;
@@ -376,6 +382,6 @@ pub async fn process_token_request(
     Ok(ApplicationResponse::Json(OidcTokenResponse {
         id_token,
         token_type: "Bearer".into(),
-        expires_in: ID_TOKEN_TTL,
+        expires_in: ID_TOKEN_TTL_IN_SECS,
     }))
 }

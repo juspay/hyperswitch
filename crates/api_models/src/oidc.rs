@@ -23,154 +23,56 @@ const CLAIMS_SUPPORTED: &[Claim] = &[
 ];
 
 /// OIDC Response Type
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum ResponseType {
     Code,
 }
 
 /// OIDC Response Mode
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum ResponseMode {
     Query,
 }
 
 /// OIDC Subject Type
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum SubjectType {
     Public,
 }
 
 /// OIDC Signing Algorithm
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SigningAlgorithm {
     #[serde(rename = "RS256")]
-    #[strum(serialize = "RS256")]
     Rs256,
 }
 
 /// JWK Key Type
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum KeyType {
     #[serde(rename = "RSA")]
-    #[strum(serialize = "RSA")]
     Rsa,
 }
 
 /// JWK Key Use
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum KeyUse {
     Sig,
 }
 
 /// OIDC Grant Type
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum GrantType {
     AuthorizationCode,
 }
 
 /// OIDC Scope
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Scope {
@@ -179,39 +81,15 @@ pub enum Scope {
 }
 
 /// OIDC Token Endpoint Authentication Method
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum TokenAuthMethod {
     ClientSecretBasic,
 }
 
 /// OIDC Claim
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum Claim {
     Aud,
     Email,
@@ -223,18 +101,7 @@ pub enum Claim {
 }
 
 /// OIDC Authorization Error as per RFC 6749
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OidcAuthorizationError {
@@ -248,18 +115,7 @@ pub enum OidcAuthorizationError {
 }
 
 /// OIDC Token Error as per RFC 6749
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    ToSchema,
-)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OidcTokenError {
@@ -331,8 +187,8 @@ pub struct OidcDiscoveryResponse {
 }
 
 impl OidcDiscoveryResponse {
-    pub fn new(issuer: String, frontend_base_url: String) -> Self {
-        let authorization_endpoint = format!("{}/oauth2/authorize", frontend_base_url);
+    pub fn new(issuer: String, control_center_url: String) -> Self {
+        let authorization_endpoint = format!("{}/oauth2/authorize", control_center_url);
         let token_endpoint = format!("{}/oauth2/token", issuer);
         let jwks_uri = format!("{}/oauth2/jwks", issuer);
 
@@ -405,7 +261,7 @@ where
 
 /// OIDC Authorization Request
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct OidcAuthorizeRequest {
+pub struct OidcAuthorizeQuery {
     /// OAuth 2.0 Response Type value
     pub response_type: ResponseType,
 
@@ -477,7 +333,7 @@ pub struct OidcTokenResponse {
 
 impl ApiEventMetric for OidcDiscoveryResponse {}
 impl ApiEventMetric for JwksResponse {}
-impl ApiEventMetric for OidcAuthorizeRequest {}
+impl ApiEventMetric for OidcAuthorizeQuery {}
 impl ApiEventMetric for AuthCodeData {}
 impl ApiEventMetric for OidcTokenRequest {}
 impl ApiEventMetric for OidcTokenResponse {}

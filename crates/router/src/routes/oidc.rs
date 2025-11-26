@@ -43,18 +43,18 @@ pub async fn jwks_endpoint(state: web::Data<AppState>, req: HttpRequest) -> Http
 pub async fn oidc_authorize(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<api_models::oidc::OidcAuthorizeRequest>,
+    query_params: web::Query<api_models::oidc::OidcAuthorizeQuery>,
 ) -> HttpResponse {
     let flow = Flow::OidcAuthorize;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        query_params.into_inner(),
         |state,
          user: Option<auth::UserFromToken>,
-         req_body: api_models::oidc::OidcAuthorizeRequest,
-         _| { oidc_provider::process_authorize_request(state, req_body, user) },
+         req_payload: api_models::oidc::OidcAuthorizeQuery,
+         _| { oidc_provider::process_authorize_request(state, req_payload, user) },
         auth::auth_type(
             &auth::NoAuth,
             &auth::DashboardNoPermissionAuth,
