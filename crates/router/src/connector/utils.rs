@@ -323,9 +323,7 @@ where
 
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
-pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("{SELECTED_PAYMENT_METHOD} through {connector}")
-}
+
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing(&self) -> Result<&hyperswitch_domain_models::address::Address, Error> {
@@ -2021,12 +2019,7 @@ impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     }
 }
 
-pub fn get_header_key_value<'a>(
-    key: &str,
-    headers: &'a actix_web::http::header::HeaderMap,
-) -> CustomResult<&'a str, errors::ConnectorError> {
-    get_header_field(headers.get(key))
-}
+
 
 fn get_header_field(
     field: Option<&http::HeaderValue>,
@@ -2050,17 +2043,7 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-pub fn to_connector_meta_from_secret<T>(
-    connector_meta: Option<Secret<serde_json::Value>>,
-) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let connector_meta_secret =
-        connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    let json = connector_meta_secret.expose();
-    json.parse_value(std::any::type_name::<T>()).switch()
-}
+
 
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -2326,49 +2309,9 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
     }
 }
 
-pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
-    match status {
-        common_enums::AttemptStatus::AuthenticationFailed
-        | common_enums::AttemptStatus::AuthorizationFailed
-        | common_enums::AttemptStatus::CaptureFailed
-        | common_enums::AttemptStatus::VoidFailed
-        | common_enums::AttemptStatus::Failure
-        | common_enums::AttemptStatus::Expired => true,
-        common_enums::AttemptStatus::Started
-        | common_enums::AttemptStatus::RouterDeclined
-        | common_enums::AttemptStatus::AuthenticationPending
-        | common_enums::AttemptStatus::AuthenticationSuccessful
-        | common_enums::AttemptStatus::Authorized
-        | common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::Authorizing
-        | common_enums::AttemptStatus::CodInitiated
-        | common_enums::AttemptStatus::Voided
-        | common_enums::AttemptStatus::VoidedPostCharge
-        | common_enums::AttemptStatus::VoidInitiated
-        | common_enums::AttemptStatus::CaptureInitiated
-        | common_enums::AttemptStatus::AutoRefunded
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable
-        | common_enums::AttemptStatus::Unresolved
-        | common_enums::AttemptStatus::Pending
-        | common_enums::AttemptStatus::PaymentMethodAwaited
-        | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::IntegrityFailure
-        | common_enums::AttemptStatus::PartiallyAuthorized => false,
-    }
-}
 
-pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
-    match status {
-        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
-            true
-        }
-        common_enums::RefundStatus::ManualReview
-        | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
-    }
-}
+
+
 
 impl
     ForeignFrom<(
@@ -2407,18 +2350,7 @@ impl
     }
 }
 
-pub fn get_card_details(
-    payment_method_data: domain::PaymentMethodData,
-    connector_name: &'static str,
-) -> Result<domain::payments::Card, errors::ConnectorError> {
-    match payment_method_data {
-        domain::PaymentMethodData::Card(details) => Ok(details),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
-        })?,
-    }
-}
+
 
 #[cfg(test)]
 mod error_code_error_message_tests {
@@ -2499,29 +2431,7 @@ mod error_code_error_message_tests {
     }
 }
 
-pub fn is_mandate_supported(
-    selected_pmd: domain::payments::PaymentMethodData,
-    payment_method_type: Option<types::storage::enums::PaymentMethodType>,
-    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
-    connector: &'static str,
-) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
-        Ok(())
-    } else {
-        match payment_method_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-}
+
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
 pub enum PaymentMethodDataType {
@@ -2961,13 +2871,4 @@ impl NetworkTokenData for domain::NetworkTokenData {
     }
 }
 
-pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
-{
-    use serde::de::Error;
-    let output = <&str>::deserialize(v)?;
-    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
-}
+
