@@ -3422,14 +3422,17 @@ pub struct NetworkTokenData {
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
+    /// The type of the card such as Credit, Debit
     #[schema(example = "CREDIT")]
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The country in which the card was issued
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
+    /// The bank code of the bank that issued the card
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
@@ -3460,23 +3463,42 @@ pub struct NetworkTokenData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTokenResponse {
+    /// The last four digit of the network token
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub last4: Option<String>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
+
+    /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The name of the issuer of card
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
+
+    /// The expiry month of the network token
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub token_exp_month: Option<Secret<String>>,
+
+    /// The expiry year of the network token
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub token_exp_year: Option<Secret<String>>,
+
+    /// The card holder's name
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,

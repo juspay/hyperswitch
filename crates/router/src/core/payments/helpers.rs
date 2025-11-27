@@ -580,7 +580,6 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
-                            // NetworkToken is not yet fully implemented for recurring details
                             (
                                 None,
                                 request.payment_method,
@@ -5591,20 +5590,10 @@ pub async fn get_additional_payment_data(
             )),
         )),
         domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
-            network_token_data,
+            network_token_with_ntid,
         ) => Ok(Some(
             api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
-                api_models::payments::AdditionalNetworkTokenInfo {
-                    card_issuer: network_token_data.card_issuer.to_owned(),
-                    card_network: network_token_data.card_network.to_owned(),
-                    card_type: network_token_data.card_type.to_owned(),
-                    card_issuing_country: network_token_data.card_issuing_country.to_owned(),
-                    bank_code: network_token_data.bank_code.to_owned(),
-                    token_exp_month: Some(network_token_data.token_exp_month.clone()),
-                    token_exp_year: Some(network_token_data.token_exp_year.clone()),
-                    card_holder_name: network_token_data.card_holder_name.clone(),
-                    last4: Some(network_token_data.network_token.get_last4().clone()),
-                },
+                network_token_with_ntid.to_owned().into(),
             )),
         )),
     }

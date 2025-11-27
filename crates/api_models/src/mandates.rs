@@ -278,14 +278,17 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
+    /// The type of the card such as Credit, Debit
     #[schema(example = "CREDIT")]
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The country in which the card was issued
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
+    /// The bank code of the bank that issued the card
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
@@ -311,7 +314,7 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub eci: Option<String>,
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
-    /// where `off_session` is true.
+    /// where `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,

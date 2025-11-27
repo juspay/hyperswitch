@@ -262,14 +262,14 @@ pub struct GetCardToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: NetworkToken, //network token
+    pub token: NetworkToken,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Deserialize)]
 pub struct AuthenticationDetails {
     pub cryptogram: Secret<String>,
-    pub token: NetworkToken, //network token
+    pub token: NetworkToken,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

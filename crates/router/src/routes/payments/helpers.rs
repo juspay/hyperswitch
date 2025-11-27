@@ -96,3 +96,21 @@ pub fn populate_browser_info(
     payload.browser_info = Some(encoded);
     Ok(())
 }
+
+#[cfg(feature = "v1")]
+pub fn should_call_proxy_for_payments_core(
+    payment_request: api::PaymentsRequest,
+) -> bool {
+    payment_request
+    .recurring_details
+    .clone()
+    .map(|recurring_details| {
+        recurring_details
+            .clone()
+            .is_network_transaction_id_and_card_details_flow()
+            || recurring_details
+                .clone()
+                .is_network_transaction_id_and_network_token_details_flow()
+    })
+    .unwrap_or(false)
+}

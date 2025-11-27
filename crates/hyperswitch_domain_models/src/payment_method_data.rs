@@ -2948,6 +2948,24 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
     }
 }
 
+impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkTokenInfo {
+    fn from(network_token_with_ntid: NetworkTokenDetailsForNetworkTransactionId) -> Self {
+        Self {
+            card_issuer: network_token_with_ntid.card_issuer.to_owned(),
+            card_network: network_token_with_ntid.card_network.to_owned(),
+            card_type: network_token_with_ntid.card_type.to_owned(),
+            card_issuing_country: network_token_with_ntid.card_issuing_country.to_owned(),
+            bank_code: network_token_with_ntid.bank_code.to_owned(),
+            token_exp_month: Some(network_token_with_ntid.token_exp_month.clone()),
+            token_exp_year: Some(network_token_with_ntid.token_exp_year.clone()),
+            card_holder_name: network_token_with_ntid.card_holder_name.clone(),
+            last4: Some(network_token_with_ntid.network_token.get_last4().clone()),
+        }
+    }
+}
+
+
+
 #[cfg(feature = "v1")]
 impl
     From<(
