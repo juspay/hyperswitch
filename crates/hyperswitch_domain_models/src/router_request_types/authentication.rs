@@ -7,6 +7,7 @@ use crate::{
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::{Card, PaymentMethodData},
     router_request_types::BrowserInformation,
+    authentication
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -182,5 +183,5 @@ pub struct ExternalThreeDSConnectorMetadata {
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
     pub cavv: Option<masking::Secret<String>>,
-    pub authentication: diesel_models::authentication::Authentication,
+    pub authentication: authentication::Authentication,
 }

@@ -146,7 +146,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, UasAuthenticationResponseData>,
-    authentication: diesel_models::authentication::Authentication,
+    authentication: hyperswitch_domain_models::authentication::Authentication,
     acquirer_details: Option<
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
@@ -155,7 +155,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     shipping_address: Option<common_utils::encryption::Encryption>,
     email: Option<common_utils::encryption::Encryption>,
     browser_info: Option<serde_json::Value>,
-) -> RouterResult<diesel_models::authentication::Authentication> {
+) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
+    let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             UasAuthenticationResponseData::PreAuthentication {
@@ -318,6 +319,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         .update_authentication_by_merchant_id_authentication_id(
             authentication,
             authentication_update,
+            merchant_key_store,
+            key_state,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
@@ -341,7 +344,7 @@ pub fn get_checkout_event_status_and_reason(
 
 pub fn authenticate_authentication_client_secret_and_check_expiry(
     req_client_secret: &String,
-    authentication: &diesel_models::authentication::Authentication,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
 ) -> RouterResult<()> {
     let stored_client_secret = authentication
         .authentication_client_secret

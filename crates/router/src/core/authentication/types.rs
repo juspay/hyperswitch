@@ -9,10 +9,10 @@ use crate::{
     utils::OptionExt,
 };
 
-impl ForeignTryFrom<&storage::Authentication> for PreAuthenticationData {
+impl ForeignTryFrom<&hyperswitch_domain_models::authentication::Authentication> for PreAuthenticationData {
     type Error = Report<errors::ApiErrorResponse>;
 
-    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+    fn foreign_try_from(authentication: &hyperswitch_domain_models::authentication::Authentication) -> Result<Self, Self::Error> {
         let error_message = errors::ApiErrorResponse::UnprocessableEntity { message: "Pre Authentication must be completed successfully before Authentication can be performed".to_string() };
         let threeds_server_transaction_id = authentication
             .threeds_server_transaction_id

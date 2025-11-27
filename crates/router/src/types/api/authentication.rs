@@ -12,7 +12,6 @@ pub use hyperswitch_domain_models::{
 
 use crate::{
     connector, core::errors, services::connector_integration_interface::ConnectorEnum,
-    types::storage,
 };
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -34,9 +33,9 @@ pub struct AuthenticationResponse {
     pub acs_signed_content: Option<String>,
 }
 
-impl TryFrom<storage::Authentication> for AuthenticationResponse {
+impl TryFrom<hyperswitch_domain_models::authentication::Authentication> for AuthenticationResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(authentication: storage::Authentication) -> Result<Self, Self::Error> {
+    fn try_from(authentication: hyperswitch_domain_models::authentication::Authentication) -> Result<Self, Self::Error> {
         let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("trans_status must be populated in authentication table authentication call is successful")?;
         let acs_url = authentication
             .acs_url

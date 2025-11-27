@@ -10247,10 +10247,13 @@ pub enum ThreeDsCompletionIndicator {
 }
 
 /// Device Channel indicating whether request is coming from App or Browser
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq, Display, strum::EnumString)]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum DeviceChannel {
+    #[strum(serialize = "APP")]
     #[serde(rename = "APP")]
     App,
+    #[strum(serialize = "BRW")]
     #[serde(rename = "BRW")]
     Browser,
 }

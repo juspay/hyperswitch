@@ -2,20 +2,16 @@ use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_enums::MerchantCategoryCode;
 use common_utils::{
-    crypto::Encryptable,
-    date_time,
-    encryption::Encryption,
-    errors::{CustomResult, ValidationError},
-    pii,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    crypto::Encryptable, encryption::Encryption, errors::{CustomResult, ValidationError}, ext_traits::ValueExt, pii, types::keymanager::{Identifier, KeyManagerState, ToEncryptable}
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
+use std::str::FromStr;
 
 use super::behaviour;
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{type_encryption::{AsyncLift, CryptoOperation, crypto_operation}};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
@@ -61,14 +57,11 @@ pub struct Authentication {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub mcc: Option<MerchantCategoryCode>,
     pub currency: Option<common_enums::Currency>,
-    pub merchant_country: Option<String>,
-    pub billing_country: Option<String>,
-    pub shipping_country: Option<String>,
+    pub billing_country: Option<common_enums::CountryAlpha2>,
+    pub shipping_country: Option<common_enums::CountryAlpha2>,
     pub issuer_country: Option<String>,
     pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
     pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
-    pub whitelist_decision: Option<bool>, // 3d server docs
-    // pub device_manufacturer: Option<String>,
     pub platform: Option<api_models::payments::DeviceChannel>,
     pub device_type: Option<String>,
     pub device_brand: Option<String>,
@@ -98,6 +91,32 @@ pub struct Authentication {
     pub message_extension: Option<pii::SecretSerdeValue>,
     pub challenge_request_key: Option<String>,
     pub customer_details: Option<Encryption>,
+    pub amount: Option<common_utils::types::MinorUnit>,
+    pub merchant_country_code: Option<String>,
+}
+
+impl Authentication {
+    pub fn is_separate_authn_required(&self) -> bool {
+        self.maximum_supported_version
+            .as_ref()
+            .is_some_and(|version| version.get_major() == 2)
+    }
+
+    // get authentication_connector from authentication record and check if it is jwt flow
+    pub fn is_jwt_flow(&self) -> CustomResult<bool, ValidationError> {
+        Ok(self
+            .authentication_connector
+            .clone()
+            .map(|connector| {
+                common_enums::AuthenticationConnectors::from_str(&connector)
+                    .change_context(ValidationError::InvalidValue {
+                        message: "failed to parse authentication_connector".to_string(),
+                    })
+                    .map(|connector_enum| connector_enum.is_jwt_flow())
+            })
+            .transpose()?
+            .unwrap_or(false))
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -171,6 +190,22 @@ impl behaviour::Conversion for Authentication {
             message_extension: self.message_extension,
             challenge_request_key: self.challenge_request_key,
             customer_details: self.customer_details,
+            earliest_supported_version: self.earliest_supported_version,
+            latest_supported_version: self.latest_supported_version,
+            mcc: self.mcc,
+            platform: self.platform.map(|platform|platform.to_string()),
+            device_type: self.device_type,
+            device_brand: self.device_brand,
+            device_os: self.device_os,
+            device_display: self.device_display,
+            browser_name: self.browser_name,
+            browser_version: self.browser_version,
+            scheme_name: self.scheme_name,
+            exemption_requested: self.exemption_requested,
+            exemption_accepted: self.exemption_accepted,
+            issuer_id: self.issuer_id,
+            issuer_country: self.issuer_country,
+            merchant_country_code: self.merchant_country_code,
         })
     }
 
@@ -222,6 +257,36 @@ impl behaviour::Conversion for Authentication {
                 message: "Failed while decrypting authentication email".to_string(),
             })?;
 
+        let billing = decrypted_data
+            .billing_address
+            .as_ref()
+            .map(|billing| {
+                billing
+                    .to_owned()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<api_models::payments::Address>("Address")
+            })
+            .transpose()
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to parse billing address".to_string(),
+            })?;
+    
+        let shipping = decrypted_data
+            .shipping_address
+            .as_ref()
+            .map(|shipping| {
+                shipping
+                .to_owned()
+                    .into_inner()
+                    .expose()
+                    .parse_value::<api_models::payments::Address>("Address")
+            })
+            .transpose()
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to parse shipping address".to_string(),
+            })?;
+
         Ok(Self {
             authentication_id: other.authentication_id,
             merchant_id: other.merchant_id,
@@ -260,28 +325,29 @@ impl behaviour::Conversion for Authentication {
             directory_server_id: other.directory_server_id,
             acquirer_country_code: other.acquirer_country_code,
             organization_id: other.organization_id,
-            mcc: None,
+            mcc: other.mcc,
             amount: other.amount,
             currency: other.currency,
-            merchant_country: None,
-            billing_country: None,
-            shipping_country: None,
-            issuer_country: None,
-            earliest_supported_version: None,
-            latest_supported_version: None,
-            whitelist_decision: None,
-            device_manufacturer: None,
-            platform: None,
-            device_type: None,
-            device_brand: None,
-            device_os: None,
-            device_display: None,
-            browser_name: None,
-            browser_version: None,
-            issuer_id: None,
-            scheme_name: None,
-            exemption_requested: None,
-            exemption_accepted: None,
+            issuer_country: other.issuer_country,
+            earliest_supported_version: other.earliest_supported_version,
+            latest_supported_version: other.latest_supported_version,
+            platform: other
+                .platform
+                .as_deref()
+                .map(|s| api_models::payments::DeviceChannel::from_str(s).change_context(ValidationError::InvalidValue {
+                    message: "Invalid device channel".into(),
+                }))
+                .transpose()?,
+            device_type: other.device_type,
+            device_brand: other.device_brand,
+            device_os: other.device_os,
+            device_display: other.device_display,
+            browser_name: other.browser_name,
+            browser_version: other.browser_version,
+            issuer_id: other.issuer_id,
+            scheme_name: other.scheme_name,
+            exemption_requested: other.exemption_requested,
+            exemption_accepted: other.exemption_accepted,
             service_details: other.service_details,
             authentication_client_secret: other.authentication_client_secret,
             force_3ds_challenge: other.force_3ds_challenge,
@@ -298,6 +364,9 @@ impl behaviour::Conversion for Authentication {
             message_extension: other.message_extension,
             challenge_request_key: other.challenge_request_key,
             customer_details: other.customer_details,
+            billing_country: billing.and_then(|address| address.address.and_then(|address| address.country)),
+            shipping_country: shipping.and_then(|address| address.address.and_then(|address| address.country)),
+            merchant_country_code: other.merchant_country_code,
         })
     }
 

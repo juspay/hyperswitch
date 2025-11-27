@@ -76,7 +76,7 @@ pub struct Authentication {
     pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
     pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
     pub mcc: Option<common_enums::MerchantCategoryCode>,
-    pub platform: Option<api_models::payments::DeviceChannel>,
+    pub platform: Option<String>,
     pub device_type: Option<String>,
     pub device_brand: Option<String>,
     pub device_os: Option<String>,
@@ -88,34 +88,32 @@ pub struct Authentication {
     pub exemption_accepted: Option<bool>,
     pub issuer_id: Option<String>,
     pub issuer_country: Option<String>,
-    pub merchant_country: Option<String>,
-    pub billing_country: Option<String>,
-    pub shipping_country: Option<String>,
+    pub merchant_country_code: Option<String>,
 }
 
-impl Authentication {
-    pub fn is_separate_authn_required(&self) -> bool {
-        self.maximum_supported_version
-            .as_ref()
-            .is_some_and(|version| version.get_major() == 2)
-    }
+// impl Authentication {
+//     pub fn is_separate_authn_required(&self) -> bool {
+//         self.maximum_supported_version
+//             .as_ref()
+//             .is_some_and(|version| version.get_major() == 2)
+//     }
 
-    // get authentication_connector from authentication record and check if it is jwt flow
-    pub fn is_jwt_flow(&self) -> CustomResult<bool, ValidationError> {
-        Ok(self
-            .authentication_connector
-            .clone()
-            .map(|connector| {
-                common_enums::AuthenticationConnectors::from_str(&connector)
-                    .change_context(ValidationError::InvalidValue {
-                        message: "failed to parse authentication_connector".to_string(),
-                    })
-                    .map(|connector_enum| connector_enum.is_jwt_flow())
-            })
-            .transpose()?
-            .unwrap_or(false))
-    }
-}
+//     // get authentication_connector from authentication record and check if it is jwt flow
+//     pub fn is_jwt_flow(&self) -> CustomResult<bool, ValidationError> {
+//         Ok(self
+//             .authentication_connector
+//             .clone()
+//             .map(|connector| {
+//                 common_enums::AuthenticationConnectors::from_str(&connector)
+//                     .change_context(ValidationError::InvalidValue {
+//                         message: "failed to parse authentication_connector".to_string(),
+//                     })
+//                     .map(|connector_enum| connector_enum.is_jwt_flow())
+//             })
+//             .transpose()?
+//             .unwrap_or(false))
+//     }
+// }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = authentication)]

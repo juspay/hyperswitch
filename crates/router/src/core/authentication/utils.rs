@@ -55,10 +55,11 @@ pub fn get_connector_data_if_separate_authn_supported(
 pub async fn update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
-    authentication: storage::Authentication,
+    authentication: hyperswitch_domain_models::authentication::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-) -> RouterResult<storage::Authentication> {
+) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
+    let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             AuthenticationResponseData::PreAuthNResponse {
@@ -213,6 +214,8 @@ pub async fn update_trackers<F: Clone, Req>(
         .update_authentication_by_merchant_id_authentication_id(
             authentication,
             authentication_update,
+            merchant_key_store,
+            key_state,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -242,7 +245,8 @@ pub async fn create_new_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-) -> RouterResult<storage::Authentication> {
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
     );
@@ -250,15 +254,23 @@ pub async fn create_new_authentication(
         "{}_secret",
         authentication_id.get_string_repr()
     )));
-    let new_authorization = storage::AuthenticationNew {
+
+    let key_manager_state = (state).into();
+
+    let current_time = common_utils::date_time::now();
+
+    let new_authentication = hyperswitch_domain_models::authentication::Authentication {
         authentication_id: authentication_id.clone(),
         merchant_id,
         authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
+        authentication_data: None,
         payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+        created_at: current_time,
+        modified_at: current_time,
         error_message: None,
         error_code: None,
         connector_metadata: None,
@@ -275,7 +287,6 @@ pub async fn create_new_authentication(
         three_ds_method_url: None,
         acs_url: None,
         challenge_request: None,
-        challenge_request_key: None,
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
@@ -285,14 +296,31 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
-        service_details: None,
         organization_id,
+        mcc: None,
+        amount: None,
+        currency: None,
+        billing_country: None,
+        shipping_country: None,
+        issuer_country: None,
+        earliest_supported_version: None,
+        latest_supported_version: None,
+        platform: None,
+        device_type: None,
+        device_brand: None,
+        device_os: None,
+        device_display: None,
+        browser_name: None,
+        browser_version: None,
+        issuer_id: None,
+        scheme_name: None,
+        exemption_requested: None,
+        exemption_accepted: None,
+        service_details: None,
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
         return_url: None,
-        amount: None,
-        currency: None,
         billing_address: None,
         shipping_address: None,
         browser_info: None,
@@ -302,11 +330,14 @@ pub async fn create_new_authentication(
         challenge_cancel: None,
         challenge_code_reason: None,
         message_extension: None,
+        challenge_request_key: None,
         customer_details: None,
+        merchant_country_code: None
     };
+
     state
         .store
-        .insert_authentication(new_authorization)
+        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(

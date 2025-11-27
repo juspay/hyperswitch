@@ -68,7 +68,7 @@ pub struct KafkaAuthentication<'a> {
 }
 
 impl<'a> KafkaAuthentication<'a> {
-    pub fn from_storage(authentication: &'a Authentication) -> Self {
+    pub fn from_storage(authentication: &'a hyperswitch_domain_models::authentication::Authentication) -> Self {
         Self {
             created_at: authentication.created_at.assume_utc(),
             modified_at: authentication.modified_at.assume_utc(),

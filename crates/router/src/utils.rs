@@ -325,6 +325,8 @@ pub async fn find_mca_from_authentication_id_type(
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_context.get_merchant_account().get_id(),
                 &authentication_id,
+                merchant_context.get_merchant_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -332,6 +334,8 @@ pub async fn find_mca_from_authentication_id_type(
             db.find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_context.get_merchant_account().get_id().clone(),
                 connector_authentication_id,
+                merchant_context.get_merchant_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?

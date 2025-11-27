@@ -14,8 +14,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "v1")]
 use crate::payments::{Address, BrowserInformation, PaymentMethodData};
 use crate::payments::{
-    ClickToPaySessionResponse, CustomerDetails, DeviceChannel, SdkInformation,
-    ThreeDsCompletionIndicator,
+    ClickToPaySessionResponse, CustomerDetails, SdkInformation,
+    ThreeDsCompletionIndicator,DeviceChannel,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

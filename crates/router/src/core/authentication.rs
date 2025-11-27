@@ -16,7 +16,6 @@ use crate::{
     types::{
         self as core_types, api,
         domain::{self},
-        storage,
     },
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
@@ -36,7 +35,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    authentication_data: storage::Authentication,
+    authentication_data: hyperswitch_domain_models::authentication::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -109,6 +108,7 @@ pub async fn perform_post_authentication(
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
 > {
+    let key_state = (&state).into();
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
@@ -122,6 +122,8 @@ pub async fn perform_post_authentication(
         .find_authentication_by_merchant_id_authentication_id(
             &business_profile.merchant_id,
             &authentication_id,
+            key_store,
+            key_state,
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -207,6 +209,7 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
+        Some(key_store),
     )
     .await?;
 

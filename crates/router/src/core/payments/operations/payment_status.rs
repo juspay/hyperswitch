@@ -464,7 +464,7 @@ async fn get_tracker_for_sync<
         payment_attempt.authentication_id
     {
         let authentication = db
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, authentication_id)
+            .find_authentication_by_merchant_id_authentication_id(&merchant_id, authentication_id, merchant_context.get_merchant_key_store(), key_manager_state)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {

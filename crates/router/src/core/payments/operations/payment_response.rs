@@ -2139,7 +2139,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
 
     payment_data.payment_attempt = payment_attempt;
-
+    let key_manager_state: KeyManagerState = state.into();
     payment_data.authentication = match payment_data.authentication {
         Some(mut authentication_store) => {
             let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
@@ -2150,6 +2150,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .update_authentication_by_merchant_id_authentication_id(
                     authentication_store.authentication,
                     authentication_update,
+                    key_store,
+                    &key_manager_state,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2202,7 +2204,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_key_store = key_store.clone();
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
-    let key_manager_state: KeyManagerState = state.into();
     let payment_intent_fut = tokio::spawn(
         async move {
             m_db.update_payment_intent(

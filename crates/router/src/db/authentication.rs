@@ -28,19 +28,25 @@ pub trait AuthenticationInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, StorageError>;
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError>;
 
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, StorageError>;
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError>;
 
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: storage::Authentication,
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
         authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, StorageError>;
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -75,7 +81,9 @@ impl AuthenticationInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Authentication::find_by_merchant_id_authentication_id(
             &conn,
@@ -84,13 +92,23 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
+        .convert(
+            state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
     }
 
+    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Authentication::find_authentication_by_merchant_id_connector_authentication_id(
             &conn,
@@ -99,14 +117,23 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
+        .convert(
+            state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: storage::Authentication,
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
         authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        merchant_key_store: &MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Authentication::update_by_merchant_id_authentication_id(
             &conn,
@@ -116,6 +143,13 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
+        .convert(
+            state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
     }
 }
 
@@ -197,6 +231,22 @@ impl AuthenticationInterface for MockDb {
             challenge_code_reason: authentication.challenge_code_reason,
             message_extension: authentication.message_extension,
             customer_details: authentication.customer_details,
+            earliest_supported_version: authentication.earliest_supported_version,
+            latest_supported_version: authentication.latest_supported_version,
+            mcc: authentication.mcc,
+            platform: authentication.platform,
+            device_type: authentication.device_type,
+            device_brand: authentication.device_brand,
+            device_os: authentication.device_os,
+            device_display: authentication.device_display,
+            browser_name: authentication.browser_name,
+            browser_version: authentication.browser_version,
+            scheme_name: authentication.scheme_name,
+            exemption_requested: authentication.exemption_requested,
+            exemption_accepted: authentication.exemption_accepted,
+            issuer_id: authentication.issuer_id,
+            issuer_country: authentication.issuer_country,
+            merchant_country_code: authentication.merchant_country_code,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
@@ -206,7 +256,9 @@ impl AuthenticationInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let authentications = self.authentications.lock().await;
         authentications
             .iter()
@@ -222,15 +274,19 @@ impl AuthenticationInterface for MockDb {
         &self,
         _merchant_id: common_utils::id_type::MerchantId,
         _connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        _state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         Err(StorageError::MockDbError)?
     }
 
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: storage::Authentication,
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
         authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, StorageError> {
+        state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let mut authentications = self.authentications.lock().await;
         let authentication_id = previous_state.authentication_id.clone();
         let merchant_id = previous_state.merchant_id.clone();

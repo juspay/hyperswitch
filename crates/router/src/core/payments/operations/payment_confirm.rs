@@ -1251,6 +1251,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 mandate_type,
             )
             .await?;
+        let key_manager_state = &(state).into();
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -1267,7 +1268,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "authentication_product_ids",
                     })?;
-                    let key_manager_state = &(state).into();
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
                         .store
@@ -1382,7 +1382,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            None
+                            None,
+                            key_store
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1433,7 +1434,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
-                    None
+                    None,
+                    key_store
                 )
                 .await?;
             let acquirer_configs = authentication
@@ -1565,6 +1567,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .find_authentication_by_merchant_id_authentication_id(
                         &business_profile.merchant_id,
                         &authentication_id,
+                        key_store,
+                        key_manager_state,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1780,7 +1784,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let status_handler_for_authentication_results =
-            |authentication: &storage::Authentication| {
+            |authentication: &hyperswitch_domain_models::authentication::Authentication| {
                 if authentication.authentication_status.is_failed() {
                     (
                         storage_enums::IntentStatus::Failed,
