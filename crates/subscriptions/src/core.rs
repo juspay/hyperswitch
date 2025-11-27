@@ -13,8 +13,9 @@ use api_models::enums::SubscriptionStatus;
 
 use crate::{
     core::{
-        billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
-        subscription_handler::SubscriptionHandler,
+        billing_processor_handler::BillingHandler,
+        invoice_handler::InvoiceHandler,
+        subscription_handler::{SubscriptionHandler, SubscriptionWithHandler},
     },
     state::SubscriptionState as SessionState,
 };
@@ -25,8 +26,7 @@ pub mod invoice_handler;
 pub mod payments_api_client;
 pub mod subscription_handler;
 
-pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
-pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
+pub const SUBSCRIPTIONS_MAX_LIST_COUNT: i64 = 10;
 
 pub async fn create_subscription(
     state: SessionState,
@@ -112,7 +112,11 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    let response = subscription.to_subscription_response(Some(payment), Some(&invoice))?;
+    let response = SubscriptionWithHandler::to_subscription_response(
+        &subscription.subscription,
+        Some(payment),
+        Some(&invoice),
+    )?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -455,7 +459,8 @@ pub async fn get_subscription(
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
-    let response = subscription.to_subscription_response(None, None)?;
+    let response =
+        SubscriptionWithHandler::to_subscription_response(&subscription.subscription, None, None)?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -711,4 +716,35 @@ pub async fn update_subscription(
         subscription.id,
     ))
     .await
+}
+
+pub async fn list_subscriptions(
+    state: SessionState,
+    platform: Platform,
+    profile_id: common_utils::id_type::ProfileId,
+    query: subscription_types::ListSubscriptionQuery,
+) -> RouterResponse<Vec<SubscriptionResponse>> {
+    SubscriptionHandler::find_business_profile(&state, &platform, &profile_id)
+        .await
+        .attach_printable("subscriptions: failed to find business profile in list_subscriptions")?;
+
+    let handler = SubscriptionHandler::new(&state, &platform);
+
+    let subscriptions = handler
+        .list_subscriptions_by_profile_id(
+            &profile_id,
+            Some(query.limit.unwrap_or(SUBSCRIPTIONS_MAX_LIST_COUNT)),
+            Some(query.offset.unwrap_or_default()),
+        )
+        .await
+        .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
+
+    let mut subscriptions_resonse = Vec::new();
+    for subscription in subscriptions {
+        let response = SubscriptionWithHandler::to_subscription_response(&subscription, None, None)
+            .attach_printable("subscriptions: failed to convert subscription entry to response")?;
+        subscriptions_resonse.push(response);
+    }
+
+    Ok(ApplicationResponse::Json(subscriptions_resonse))
 }

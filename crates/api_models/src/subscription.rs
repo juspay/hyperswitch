@@ -557,6 +557,17 @@ pub struct EstimateSubscriptionQuery {
 
 impl ApiEventMetric for EstimateSubscriptionQuery {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ListSubscriptionQuery {
+    /// Number of records to return.
+    pub limit: Option<i64>,
+
+    /// Offset for pagination.
+    pub offset: Option<i64>,
+}
+
+impl ApiEventMetric for ListSubscriptionQuery {}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct EstimateSubscriptionResponse {
     /// Estimated amount to be charged for the invoice.
