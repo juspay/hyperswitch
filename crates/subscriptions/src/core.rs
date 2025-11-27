@@ -720,15 +720,15 @@ pub async fn update_subscription(
 
 pub async fn list_subscriptions(
     state: SessionState,
-    merchant_context: MerchantContext,
+    platform: Platform,
     profile_id: common_utils::id_type::ProfileId,
     query: subscription_types::ListSubscriptionQuery,
 ) -> RouterResponse<Vec<SubscriptionResponse>> {
-    SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+    SubscriptionHandler::find_business_profile(&state, &platform, &profile_id)
         .await
         .attach_printable("subscriptions: failed to find business profile in list_subscriptions")?;
 
-    let handler = SubscriptionHandler::new(&state, &merchant_context);
+    let handler = SubscriptionHandler::new(&state, &platform);
 
     let subscriptions = handler
         .list_subscriptions_by_profile_id(

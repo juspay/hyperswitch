@@ -466,12 +466,10 @@ pub async fn list_subscriptions(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             subscriptions::list_subscriptions(
                 state.into(),
-                merchant_context,
+                platform,
                 profile_id.clone(),
                 query.clone(),
             )

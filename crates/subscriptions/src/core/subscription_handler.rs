@@ -271,9 +271,8 @@ impl<'a> SubscriptionHandler<'a> {
             .state
             .store
             .list_by_merchant_id_profile_id(
-                &(self.state).into(),
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().get_id(),
+                self.platform.get_processor().get_key_store(),
+                self.platform.get_processor().get_account().get_id(),
                 profile_id,
                 limit,
                 offset,

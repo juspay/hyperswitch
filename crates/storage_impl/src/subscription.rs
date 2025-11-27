@@ -71,7 +71,6 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -80,7 +79,6 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
     ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         self.find_resources(
-            state,
             key_store,
             Subscription::list_by_merchant_id_profile_id(
                 &conn,
@@ -136,7 +134,6 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -144,14 +141,7 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
         offset: Option<i64>,
     ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
         self.router_store
-            .list_by_merchant_id_profile_id(
-                state,
-                key_store,
-                merchant_id,
-                profile_id,
-                limit,
-                offset,
-            )
+            .list_by_merchant_id_profile_id(key_store, merchant_id, profile_id, limit, offset)
             .await
     }
 }
@@ -191,7 +181,6 @@ impl SubscriptionInterface for MockDb {
     #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _merchant_id: &common_utils::id_type::MerchantId,
         _profile_id: &common_utils::id_type::ProfileId,

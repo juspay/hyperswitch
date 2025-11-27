@@ -217,7 +217,6 @@ pub trait SubscriptionInterface {
 
     async fn list_by_merchant_id_profile_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,

@@ -4297,7 +4297,6 @@ impl SubscriptionInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
-        state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -4305,14 +4304,7 @@ impl SubscriptionInterface for KafkaStore {
         offset: Option<i64>,
     ) -> CustomResult<Vec<DomainSubscription>, errors::StorageError> {
         self.diesel_store
-            .list_by_merchant_id_profile_id(
-                state,
-                key_store,
-                merchant_id,
-                profile_id,
-                limit,
-                offset,
-            )
+            .list_by_merchant_id_profile_id(key_store, merchant_id, profile_id, limit, offset)
             .await
     }
 }
