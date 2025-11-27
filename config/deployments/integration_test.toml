@@ -202,6 +202,21 @@ base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = true
 
+[oidc]
+
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
+[[oidc.clients]]
+client_id = ""
+client_secret = ""
+redirect_uri = ""
+
 [frm]
 enabled = true
 
