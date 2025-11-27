@@ -246,11 +246,21 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         } else if is_connector_mandate {
             // The mandate is created on connector's end.
-            let tokenization::SavePaymentMethodDataResponse {
-                payment_method_id,
-                connector_mandate_reference_id,
-                ..
-            } = save_payment_call_future.await?;
+            let (payment_method_id, connector_mandate_reference_id) = match save_payment_call_future
+                .await
+            {
+                Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    connector_mandate_reference_id,
+                    ..
+                }) => (payment_method_id, connector_mandate_reference_id),
+                Err(err) => {
+                    // Suppress errors from save_payment_call_future and return Ok()
+                    logger::error!("Failed to save payment method during connector mandate flow, returning early {:?}", err);
+                    return Ok(());
+                }
+            };
+
             payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
                 match state
                     .store
@@ -1266,11 +1276,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let vault_operation = payment_data.vault_operation.clone();
         let payment_method_info = payment_data.payment_method_info.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
-        let tokenization::SavePaymentMethodDataResponse {
-            payment_method_id,
-            connector_mandate_reference_id,
-            ..
-        } = Box::pin(tokenization::save_payment_method(
+        let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name,
             save_payment_data,
@@ -1284,8 +1290,24 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             merchant_connector_id.clone(),
             vault_operation,
             payment_method_info,
-        ))
-        .await?;
+        ));
+
+        let (payment_method_id, connector_mandate_reference_id) =
+            match save_payment_call_future.await {
+                Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    connector_mandate_reference_id,
+                    ..
+                }) => (payment_method_id, connector_mandate_reference_id),
+                Err(err) => {
+                    // Suppress errors from save_payment_call_future and return Ok()
+                    logger::error!(
+                    "Failed to save payment method during setup mandate flow, returning early {:?}",
+                    err
+                );
+                    return Ok(());
+                }
+            };
 
         payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
             match state
