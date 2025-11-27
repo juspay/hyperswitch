@@ -610,7 +610,6 @@ where
                 // This function is to retrieve customer details. If the customer is deleted, it returns
                 // customer details that contains the fields as Redacted
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -696,7 +695,6 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -800,7 +798,6 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,

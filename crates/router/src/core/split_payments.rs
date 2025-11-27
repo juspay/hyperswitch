@@ -213,11 +213,9 @@ pub(crate) async fn split_payments_execute_core(
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
@@ -250,7 +248,6 @@ pub(crate) async fn split_payments_execute_core(
 
     let payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_intent,
             payment_intent_update,
             platform.get_processor().get_key_store(),
@@ -333,7 +330,6 @@ pub(crate) async fn split_payments_execute_core(
 
             let updated_payment_intent = db
                 .update_payment_intent(
-                    key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
                     platform.get_processor().get_key_store(),
@@ -426,7 +422,6 @@ pub(crate) async fn split_payments_execute_core(
 
             let _updated_payment_intent = db
                 .update_payment_intent(
-                    key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
                     platform.get_processor().get_key_store(),
@@ -461,7 +456,6 @@ pub(crate) async fn split_payments_execute_core(
 
     let _updated_payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_intent,
             payment_intent_update,
             platform.get_processor().get_key_store(),
