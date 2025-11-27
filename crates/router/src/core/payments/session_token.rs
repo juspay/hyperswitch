@@ -65,7 +65,9 @@ where
             types::PaymentsResponseData::SessionTokenResponse { session_token } => {
                 Ok(session_token)
             }
-            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
+            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable(
+                "Found Unexpected Response for Authorize Session Token Response from Connector",
+            ),
         }?;
         Ok(Some(session_token))
     } else {

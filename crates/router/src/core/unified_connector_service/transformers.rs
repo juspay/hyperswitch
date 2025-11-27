@@ -224,6 +224,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            order_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -289,7 +290,6 @@ impl
                 .as_ref()
                 .and_then(|pmt| pmt.get_payment_method_token())
                 .map(ExposeInterface::expose),
-            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -806,6 +806,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .transpose()?;
 
         Ok(Self {
+            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -1353,6 +1354,14 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
+                match payment_method_token {
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
+                }
+            }),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
