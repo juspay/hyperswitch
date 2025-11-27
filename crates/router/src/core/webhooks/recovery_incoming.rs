@@ -929,6 +929,12 @@ impl RevenueRecoveryAttempt {
             .map(|category| category == common_enums::ErrorCategory::HardDecline)
             .unwrap_or(false);
 
+        let reference_time = time::PrimitiveDateTime::new(
+            recovery_attempt.created_at.date(),
+            time::Time::from_hms(recovery_attempt.created_at.hour(), 0, 0)
+                .unwrap_or(time::Time::MIDNIGHT),
+        );
+
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
@@ -936,7 +942,7 @@ impl RevenueRecoveryAttempt {
         let token_unit = PaymentProcessorTokenStatus {
             error_code,
             inserted_by_attempt_id: attempt_id.clone(),
-            daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
+            daily_retry_history: HashMap::from([(reference_time, 1)]),
             scheduled_at: None,
             is_hard_decline: Some(is_hard_decline),
             modified_at: Some(recovery_attempt.created_at),
@@ -960,6 +966,7 @@ impl RevenueRecoveryAttempt {
             },
             is_active: Some(true), // Tokens created from recovery attempts are active by default
             account_update_history: None, // No prior account update history exists for freshly ingested tokens
+            decision_threshold: None,
         };
 
         // Make the Redis call to store tokens
