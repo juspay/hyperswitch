@@ -24,7 +24,9 @@ use hyperswitch_interfaces::{
     api_client, configs::MerchantConnectorAccountType, connector_integration_interface,
 };
 
-use crate::{errors::SubscriptionResult, state::SubscriptionState as SessionState};
+use crate::{
+    errors::SubscriptionResult, helpers::AddonsExt, state::SubscriptionState as SessionState,
+};
 
 pub struct BillingHandler {
     pub auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
@@ -183,22 +185,13 @@ impl BillingHandler {
             })?,
             quantity: Some(1),
         };
-        let subscription_item = if let Some(addon_list) = addons {
-            let mut items = vec![subscription_item];
-            for addon in addon_list {
-                items.push(subscription_request_types::SubscriptionItem {
-                    item_price_id: addon.item_price_id,
-                    quantity: addon.quantity,
-                });
-            }
-            items
-        } else {
-            vec![subscription_item]
-        };
+
+        let subscription_items = addons.add_to_subscription_items(vec![subscription_item]);
+
         let subscription_req = subscription_request_types::SubscriptionCreateRequest {
             subscription_id: subscription.id.to_owned(),
             customer_id: subscription.customer_id.to_owned(),
-            subscription_items: subscription_item,
+            subscription_items,
             billing_address: billing_address.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "billing",
@@ -285,18 +278,11 @@ impl BillingHandler {
             item_price_id: estimate_request.item_price_id,
             quantity: Some(1),
         };
-        let subscription_items = if let Some(addon_list) = estimate_request.addons {
-            let mut items = vec![subscription_item];
-            for addon in addon_list {
-                items.push(subscription_request_types::SubscriptionItem {
-                    item_price_id: addon.item_price_id,
-                    quantity: addon.quantity,
-                });
-            }
-            items
-        } else {
-            vec![subscription_item]
-        };
+
+        let addons = estimate_request.addons;
+
+        let subscription_items = addons.add_to_subscription_items(vec![subscription_item]);
+
         let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
             subscription_items,
             coupon_codes: estimate_request.coupon_codes.clone(),

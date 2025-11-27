@@ -42,7 +42,10 @@ use time::PrimitiveDateTime;
 use crate::{
     convert_connector_response_to_domain_response,
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{
+        self, serialize_indexed_collection, serialize_optional_indexed_collection,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
+    },
 };
 
 // SubscriptionCreate structures
@@ -76,47 +79,6 @@ pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(flatten)]
     pub coupon_codes: Option<Vec<String>>,
     pub auto_collection: ChargebeeAutoCollection,
-}
-// Generic helper function for indexed collection serialization
-fn serialize_indexed_collection<S, T>(
-    items: &[T],
-    key_pattern: &str,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-    T: Serialize,
-{
-    use serde::ser::SerializeMap;
-
-    if !items.is_empty() {
-        let mut map = serializer.serialize_map(Some(items.len()))?;
-        for (index, item) in items.iter().enumerate() {
-            let key = key_pattern.replace("{}", &index.to_string());
-            map.serialize_entry(&key, item)?;
-        }
-        map.end()
-    } else {
-        serializer.serialize_none()
-    }
-}
-
-// Generic helper function for optional indexed collection serialization
-fn serialize_optional_indexed_collection<S, T>(
-    items: &Option<Vec<T>>,
-    key_pattern: &str,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-    T: Serialize,
-{
-    match items {
-        Some(item_list) if !item_list.is_empty() => {
-            serialize_indexed_collection(item_list, key_pattern, serializer)
-        }
-        _ => serializer.serialize_none(),
-    }
 }
 
 fn serialize_item_price_id<S>(item_price_ids: &[String], serializer: S) -> Result<S::Ok, S::Error>

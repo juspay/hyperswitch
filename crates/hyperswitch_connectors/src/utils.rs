@@ -80,7 +80,7 @@ use quick_xml::{
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -7416,4 +7416,46 @@ macro_rules! convert_connector_response_to_domain_response {
             }
         }
     };
+}
+
+// Generic helper function for indexed collection serialization
+pub fn serialize_indexed_collection<S, T>(
+    items: &[T],
+    key_pattern: &str,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Serialize,
+{
+    use serde::ser::SerializeMap;
+
+    if !items.is_empty() {
+        let mut map = serializer.serialize_map(Some(items.len()))?;
+        for (index, item) in items.iter().enumerate() {
+            let key = key_pattern.replace("{}", &index.to_string());
+            map.serialize_entry(&key, item)?;
+        }
+        map.end()
+    } else {
+        serializer.serialize_none()
+    }
+}
+
+// Generic helper function for optional indexed collection serialization
+pub fn serialize_optional_indexed_collection<S, T>(
+    items: &Option<Vec<T>>,
+    key_pattern: &str,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Serialize,
+{
+    match items {
+        Some(item_list) if !item_list.is_empty() => {
+            serialize_indexed_collection(item_list, key_pattern, serializer)
+        }
+        _ => serializer.serialize_none(),
+    }
 }
