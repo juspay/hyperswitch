@@ -196,17 +196,14 @@ jobs:
             [[ -z "$file" ]] && continue
             CONTENT=$(cat "$file")
 
-            # V2 migrations: DROP TABLE, DELETE FROM, and TRUNCATE are breaking changes
-            if echo "$CONTENT" | grep -iE "(DROP TABLE|DELETE FROM|TRUNCATE)" >/dev/null; then
+            if echo "$CONTENT" | grep -iE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" >/dev/null; then
               echo "BREAKING: $file"
-              echo "$CONTENT" | grep -inE "(DROP TABLE|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
+              echo "$CONTENT" | grep -inE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
               BREAKING=$((BREAKING + 1))
             fi
-
-            # DROP COLUMN is treated as a warning for V2 migrations instead of breaking change
-            if echo "$CONTENT" | grep -iE "(DROP COLUMN|ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
+            if echo "$CONTENT" | grep -iE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
               echo "WARNING: $file"
-              echo "$CONTENT" | grep -inE "(DROP COLUMN|ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
+              echo "$CONTENT" | grep -inE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
               WARNINGS=$((WARNINGS + 1))
             fi
           done <<< "$NEW_MIGRATIONS"
