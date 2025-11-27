@@ -130,37 +130,18 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     }
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
         gateway_context: &gateway_context::RouterGatewayContext,
-    ) -> RouterResult<Self>
+    ) -> RouterResult<()>
     where
         Self: Sized,
     {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &self,
-            types::AuthorizeSessionTokenData::foreign_from(&self),
-        ));
-        let resp = gateway::execute_payment_gateway(
-            state,
-            connector_integration,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-            gateway_context.clone(),
-        )
-        .await
-        .to_payment_failed_response()?;
-        let mut router_data = self;
-        router_data.session_token = resp.session_token;
-        Ok(router_data)
+        self.session_token =
+            session_token::add_session_token_if_needed(&self, state, connector, gateway_context)
+                .await?;
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(

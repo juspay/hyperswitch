@@ -24,8 +24,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, helpers, tokenization,
-            transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, helpers, session_token,
+            tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -284,46 +284,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     }
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
         gateway_context: &gateway_context::RouterGatewayContext,
-    ) -> RouterResult<Self>
+    ) -> RouterResult<()>
     where
         Self: Sized,
     {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-        let authorize_session_token_router_data =
-            &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-                &self,
-                types::AuthorizeSessionTokenData::foreign_from(&self),
-            ));
-        // If authorize session token flow is implemented for the connector, request_option will be some.
-        let request_option = connector_integration
-            .build_request(authorize_session_token_router_data, &state.conf.connectors)
-            .to_payment_failed_response()?;
-        if let Some(request) = request_option {
-            let resp = gateway::execute_payment_gateway(
-                state,
-                connector_integration,
-                authorize_session_token_router_data,
-                payments::CallConnectorAction::Trigger,
-                Some(request),
-                None,
-                gateway_context.clone(),
-            )
-            .await
-            .to_payment_failed_response()?;
-            let mut router_data = self;
-            router_data.session_token = resp.session_token;
-            Ok(router_data)
-        } else {
-            Ok(self)
-        }
+        self.session_token =
+            session_token::add_session_token_if_needed(&self, state, connector, gateway_context)
+                .await?;
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(

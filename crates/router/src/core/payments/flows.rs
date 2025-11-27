@@ -113,17 +113,17 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _gateway_context: &gateway_context::RouterGatewayContext,
-    ) -> RouterResult<Self>
+    ) -> RouterResult<()>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(

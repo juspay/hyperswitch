@@ -5,6 +5,7 @@ pub mod flows;
 pub mod gateway;
 pub mod helpers;
 pub mod operations;
+pub mod session_token;
 
 #[cfg(feature = "retry")]
 pub mod retry;
@@ -4099,7 +4100,7 @@ where
         )
         .await?;
 
-    router_data = router_data
+    router_data
         .add_session_token(state, &connector, &context)
         .await?;
 
@@ -5520,7 +5521,7 @@ where
         )
         .await?;
 
-    router_data = router_data
+    router_data
         .add_session_token(state, &connector, &gateway_context)
         .await?;
 
