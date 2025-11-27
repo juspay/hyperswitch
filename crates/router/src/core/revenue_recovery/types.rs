@@ -482,6 +482,7 @@ pub enum Action {
     RetryPayment(PrimitiveDateTime),
     TerminalFailure(PaymentAttempt),
     SuccessfulPayment(PaymentAttempt),
+    PartialCharged,
     ReviewPayment,
     ManualReviewAction,
 }
@@ -668,9 +669,7 @@ impl Action {
                     )
                     .await?;
 
-                        Ok(Self::SuccessfulPayment(
-                            payment_data.payment_attempt.clone(),
-                        ))
+                        Ok(Self::PartialCharged)
                     }
                     RevenueRecoveryPaymentsAttemptStatus::Failed => {
                         let recovery_payment_attempt =
@@ -875,6 +874,17 @@ impl Action {
                 .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
+            Self::PartialCharged => {
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
             Self::ReviewPayment => {
                 // requeue the process tracker in case of error response
                 let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
@@ -924,8 +934,7 @@ impl Action {
 
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
-                RevenueRecoveryPaymentsAttemptStatus::Succeeded
-                | RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
@@ -943,16 +952,32 @@ impl Action {
 
                     // unlocking the token
                     let intent_status = payment_intent.status;
-                    if intent_status == common_enums::IntentStatus::Succeeded {
-                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-        state,
-        &connector_customer_id,
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    state,
+                    &connector_customer_id,
                     &payment_intent.id
-    )
-    .await;
-                    }
+                    )
+                    .await;
 
                     Ok(Self::SuccessfulPayment(payment_attempt))
+                }
+                RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                    let connector_customer_id = payment_intent
+                        .extract_connector_customer_id_from_payment_intent()
+                        .change_context(errors::RecoveryError::ValueNotFound)
+                        .attach_printable("Failed to extract customer ID from payment intent")?;
+
+                    // update the status of token in redis
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                    state,
+                    &connector_customer_id,
+                    &None,
+                    &None,
+                    used_token.as_deref(),
+                )
+                .await;
+
+                    Ok(Self::PartialCharged)
                 }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
                     let connector_customer_id = payment_intent
@@ -977,14 +1002,12 @@ impl Action {
                         .await;
                     let intent_status = payment_intent.status;
                     // unlocking the token
-                    if intent_status == common_enums::IntentStatus::Failed {
-                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
         state,
         &connector_customer_id,
                         &payment_intent.id
     )
     .await;
-                    }
 
                     // Reopen calculate workflow on payment failure
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -1125,6 +1148,19 @@ impl Action {
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
                 .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
+            Self::PartialCharged => {
+                // finish the current psync task
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        psync_task_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+
                 Ok(())
             }
             Self::ReviewPayment => {
