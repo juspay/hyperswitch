@@ -19,11 +19,11 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
     business_profile, merchant_connector_account,
-    merchant_context::{Context, MerchantContext},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
         PaymentIntent, PaymentIntentData, PaymentStatusData,
     },
+    platform::Platform,
     router_data_v2::{self, flow_common_types},
     router_flow_types,
     router_request_types::revenue_recovery as revenue_recovery_request,
@@ -109,7 +109,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         payment_intent: &PaymentIntent,
         process_tracker: storage::ProcessTracker,
         profile: &domain::Profile,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
@@ -191,7 +191,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let payments_response = psync_response
                     .clone()
-                    .generate_response(state, None, None, None, &merchant_context, profile, None)
+                    .generate_response(state, None, None, None, &platform, profile, None)
                     .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                     .attach_printable("Failed while generating response for payment")?;
 
@@ -200,7 +200,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     common_enums::EventClass::Payments,
                     event_status,
                     payment_intent,
-                    &merchant_context,
+                    &platform,
                     profile,
                     recovery_payment_attempt
                         .attempt_id
@@ -271,7 +271,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &process_tracker,
                     profile,
-                    merchant_context,
+                    platform,
                     payment_intent,
                     revenue_recovery_payment_data,
                     psync_response.payment_attempt.get_id(),
@@ -286,7 +286,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     payment_intent,
                     &process_tracker,
                     profile,
-                    merchant_context,
+                    platform,
                     payment_attempt,
                 ))
                 .await?;
@@ -404,7 +404,7 @@ impl Action {
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
         profile: &domain::Profile,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
         latest_attempt_id: &id_type::GlobalAttemptId,
@@ -518,15 +518,7 @@ impl Action {
 
                         let payments_response = payment_data
                             .clone()
-                            .generate_response(
-                                state,
-                                None,
-                                None,
-                                None,
-                                &merchant_context,
-                                profile,
-                                None,
-                            )
+                            .generate_response(state, None, None, None, &platform, profile, None)
                             .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
                             .attach_printable("Failed while generating response for payment")?;
 
@@ -535,7 +527,7 @@ impl Action {
                         common_enums::EventClass::Payments,
                         event_status,
                         payment_intent,
-                        &merchant_context,
+                        &platform,
                         profile,
                         payment_data.payment_attempt.id.get_string_repr().to_string(),
                         payments_response
@@ -609,7 +601,7 @@ impl Action {
                             state,
                             process,
                             profile,
-                            merchant_context,
+                            platform,
                             payment_intent,
                             revenue_recovery_payment_data,
                             latest_attempt_id,
@@ -705,12 +697,12 @@ impl Action {
                     "Call made to payments update intent api , with the request body {:?}",
                     payment_update_req
                 );
-                revenue_recovery_core::api::update_payment_intent_api(
+                Box::pin(revenue_recovery_core::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
                     revenue_recovery_payment_data,
                     payment_update_req,
-                )
+                ))
                 .await
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
                 Ok(())
@@ -781,7 +773,7 @@ impl Action {
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
         profile: &domain::Profile,
-        merchant_context: domain::MerchantContext,
+        platform: domain::Platform,
         payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
         logger::info!("Entering payment_sync_call");
@@ -859,7 +851,7 @@ impl Action {
                         state,
                         process,
                         profile,
-                        merchant_context,
+                        platform,
                         payment_intent,
                         revenue_recovery_payment_data,
                         payment_attempt.get_id(),
@@ -1085,7 +1077,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     state: &SessionState,
     process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     latest_attempt_id: &id_type::GlobalAttemptId,
@@ -1405,7 +1397,7 @@ impl RevenueRecoveryOutgoingWebhook {
         event_class: common_enums::EventClass,
         event_status: common_enums::EventType,
         payment_intent: &PaymentIntent,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         profile: &domain::Profile,
         payment_attempt_id: String,
         payments_response: ApplicationResponse<api_models::payments::PaymentsResponse>,
@@ -1419,7 +1411,7 @@ impl RevenueRecoveryOutgoingWebhook {
                 create_event_and_trigger_outgoing_webhook(
                     state.clone(),
                     profile.clone(),
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                     event_status,
                     event_class,
                     payment_attempt_id,
