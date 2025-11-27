@@ -1,3 +1,5 @@
+use api_models::payments::DeviceChannel;
+use common_enums::MerchantCategoryCode;
 use diesel_models::{authentication::Authentication, enums as storage_enums};
 use time::OffsetDateTime;
 
@@ -42,6 +44,27 @@ pub struct KafkaAuthentication<'a> {
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
     pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub platform: Option<&'a DeviceChannel>,
+    pub mcc: Option<&'a MerchantCategoryCode>,
+    pub currency: Option<&'a common_enums::Currency>,
+    pub merchant_country: Option<&'a String>,
+    pub billing_country: Option<&'a String>,
+    pub shipping_country: Option<&'a String>,
+    pub issuer_country: Option<&'a String>,
+    pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub whitelist_decision: Option<bool>,
+    pub device_manufacturer: Option<&'a String>,
+    pub device_type: Option<&'a String>,
+    pub device_brand: Option<&'a String>,
+    pub device_os: Option<&'a String>,
+    pub device_display: Option<&'a String>,
+    pub browser_name: Option<&'a String>,
+    pub browser_version: Option<&'a String>,
+    pub issuer_id: Option<&'a String>,
+    pub scheme_name: Option<&'a String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
 }
 
 impl<'a> KafkaAuthentication<'a> {
@@ -84,6 +107,27 @@ impl<'a> KafkaAuthentication<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
+            platform: authentication.platform,
+            mcc: authentication.mcc,
+            currency: authentication.currency,
+            merchant_country: authentication.merchant_country,
+            billing_country: authentication.billing_country,
+            shipping_country: authentication.shipping_country,
+            issuer_country: authentication.issuer_country,
+            earliest_supported_version: authentication.earliest_supported_version,
+            latest_supported_version: authentication.latest_supported_version,
+            whitelist_decision: authentication.whitelist_decision,
+            device_manufacturer: authentication.device_manufacturer,
+            device_type: authentication.device_type,
+            device_brand: authentication.device_brand,
+            device_os: authentication.device_os,
+            device_display: authentication.device_display,
+            browser_name: authentication.browser_name,
+            browser_version: authentication.browser_version,
+            issuer_id: authentication.issuer_id,
+            scheme_name: authentication.scheme_name,
+            exemption_requested: authentication.exemption_requested,
+            exemption_accepted: authentication.exemption_accepted,
         }
     }
 }

@@ -438,8 +438,8 @@ impl KafkaProducer {
 
     pub async fn log_authentication(
         &self,
-        authentication: &Authentication,
-        old_authentication: Option<Authentication>,
+        authentication: &hyperswitch_domain_models::authentication::Authentication,
+        old_authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
         tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_authentication {
