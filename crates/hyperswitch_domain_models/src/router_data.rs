@@ -832,14 +832,13 @@ impl
                     if let Some(ref mut payment_revenue_recovery_metadata) =
                         feature_metadata.payment_revenue_recovery_metadata
                     {
-                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
-                            .response
-                            .is_ok()
-                        {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                        } else {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
-                        };
+                        payment_revenue_recovery_metadata.payment_connector_transmission = match &self.response {
+                            Ok(_) => common_enums::enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                            Err(error_response) =>  match &error_response.status_code {
+                                        500..=511 => common_enums::enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+                                        _ => common_enums::enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                                }
+                        }
                     }
                     Box::new(feature_metadata)
                 });
