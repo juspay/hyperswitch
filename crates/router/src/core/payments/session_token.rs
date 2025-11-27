@@ -36,7 +36,7 @@ where
         let authorize_session_token_router_data =
             &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
                 router_data,
-                types::AuthorizeSessionTokenData::foreign_from(&router_data),
+                types::AuthorizeSessionTokenData::foreign_from(router_data),
             ));
         let resp = gateway::execute_payment_gateway(
             state,

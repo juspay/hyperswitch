@@ -22,7 +22,7 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, gateway::context as gateway_context, helpers,
-            tokenization, transformers, PaymentData,
+            session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },
@@ -139,7 +139,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         Self: Sized,
     {
         self.session_token =
-            session_token::add_session_token_if_needed(&self, state, connector, gateway_context)
+            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
                 .await?;
         Ok(())
     }

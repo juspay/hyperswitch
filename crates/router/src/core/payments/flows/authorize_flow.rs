@@ -290,7 +290,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         Self: Sized,
     {
         self.session_token =
-            session_token::add_session_token_if_needed(&self, state, connector, gateway_context)
+            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
                 .await?;
         Ok(())
     }

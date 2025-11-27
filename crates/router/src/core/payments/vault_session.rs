@@ -151,11 +151,12 @@ where
     let db_merchant_connector_account =
         merchant_connector_account_type.get_inner_db_merchant_connector_account();
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account_type.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
     );
     match db_merchant_connector_account {
         Some(merchant_connector_account) => {

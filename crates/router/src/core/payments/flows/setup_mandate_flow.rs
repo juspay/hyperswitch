@@ -181,7 +181,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         Self: Sized,
     {
         self.session_token =
-            session_token::add_session_token_if_needed(&self, state, connector, gateway_context)
+            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
                 .await?;
         Ok(())
     }

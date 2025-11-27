@@ -4679,7 +4679,7 @@ where
         )
         .await?;
 
-    router_data = router_data
+    router_data
         .add_session_token(state, &connector, &gateway_context)
         .await?;
 
@@ -5068,11 +5068,12 @@ where
     .await?;
 
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account_type_details.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
     );
 
     let (connector_request, should_continue_further) =
@@ -5658,11 +5659,12 @@ where
             .await?,
         ));
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
     );
     operation
         .to_domain()?
@@ -5691,7 +5693,7 @@ where
         )
         .await?;
 
-    router_data = router_data
+    router_data
         .add_session_token(state, &connector, &default_gateway_context)
         .await?;
 
@@ -5843,7 +5845,6 @@ where
             header_payload.clone(),
         )
         .await?;
-    let lineage_ids = grpc_client::LineageIds::new();
 
     let gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
@@ -6909,11 +6910,12 @@ where
     let connector_name = payment_data.get_payment_attempt().connector.clone();
 
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
     );
     match connector_name {
         Some(connector_name) => {

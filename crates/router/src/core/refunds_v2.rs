@@ -164,11 +164,12 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
     let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
+        None,
     );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -285,11 +286,12 @@ pub async fn internal_trigger_refund_to_gateway(
     .await?;
 
     let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
+        None,
     );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -842,11 +844,12 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
     let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
+        None,
     );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -937,11 +940,12 @@ pub async fn internal_sync_refund_with_gateway(
     )
     .await?;
     let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::default(
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.clone(),
         merchant_connector_account,
         payment_intent.merchant_id.clone(),
         profile_id,
+        None,
     );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
