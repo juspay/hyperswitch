@@ -88,6 +88,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(BankTransferType = Multibanco))
             }
             global_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+            global_enums::PaymentMethodType::PayToBank => Ok(dirval!(BankTransferType = PayToBank)),
             global_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             global_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             global_enums::PaymentMethodType::OnlineBankingCzechRepublic => {

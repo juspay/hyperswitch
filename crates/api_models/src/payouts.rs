@@ -283,6 +283,7 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    PayToBank(PayToBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -376,6 +377,25 @@ pub struct PixBankTransfer {
     /// Individual taxpayer identification number
     #[schema(value_type = Option<String>, example = "000123456")]
     pub tax_id: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PayToBankTransfer {
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: Secret<String>,
+
+    /// Bank name
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
+
+    /// Bank Code - used for identifying a bank and it's branches.
+    #[schema(value_type = String, example = "98-76-54")]
+    pub bank_code: Secret<String>,
+
+    /// Branch Code - used for identifying a bank and it's branches.
+    #[schema(value_type = String, example = "98-76-54")]
+    pub branch_code: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1037,6 +1057,19 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_account_number: bank_account_number.into(),
                     pix_key: pix_key.into(),
                     tax_id: tax_id.map(From::from),
+                },
+            )),
+            Bank::PayToBank(PayToBankTransfer {
+                bank_account_number,
+                bank_name,
+                bank_code,
+                branch_code,
+            }) => Self::PayToBank(Box::new(
+                payout_method_utils::PayToBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    bank_name,
+                    bank_code: bank_code.into(),
+                    branch_code: branch_code.into(),
                 },
             )),
         }

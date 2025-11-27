@@ -89,6 +89,8 @@ pub enum BankAdditionalData {
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for pay to bank transfer payout method
+    PayToBank(Box<PayToBankTransferAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
@@ -197,6 +199,26 @@ pub struct PixBankTransferAdditionalData {
     /// Bank branch
     #[schema(value_type = Option<String>, example = "3707")]
     pub bank_branch: Option<String>,
+}
+
+/// Masked payout method details for pat to bank transfer payout method
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PayToBankTransferAdditionalData {
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: MaskedBankAccount,
+
+    /// Bank name
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
+
+    /// Bank Code - used for identifying a bank and it's branches.
+    #[schema(value_type = String, example = "98-76-54")]
+    pub bank_code: MaskedBankAccount,
+
+    /// Branch Code - used for identifying a bank and it's branches.
+    #[schema(value_type = String, example = "98-76-54")]
+    pub branch_code: Secret<String>,
 }
 
 /// Masked payout method details for wallet payout method
