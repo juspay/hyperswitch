@@ -2199,8 +2199,52 @@ impl IncomingWebhook for Adyen {
                 });
         Ok(optional_network_txn_id)
     }
-}
 
+    #[cfg(feature = "v1")]
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let expiry = notif
+            .additional_data
+            .expiry_date
+            .map(|date| transformers::CardExpiry::parse(&date.expose()))
+            .transpose()?
+            .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        let month_str = expiry.month();
+        let year_str = expiry.year();
+
+        Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str),
+                card_exp_year: Some(year_str),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .map(|last4| last4.expose().to_string()),
+                card_network: adyen::from_payment_method_variant(
+                    notif
+                        .additional_data
+                        .payment_method_variant
+                        .map(|network| network.expose()),
+                ),
+            }),
+            wallet: None,
+            client_secret: None,
+        }))
+    }
+}
 impl Dispute for Adyen {}
 impl DefendDispute for Adyen {}
 impl AcceptDispute for Adyen {}
@@ -3295,5 +3339,20 @@ impl ConnectorSpecifications for Adyen {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id.as_ref().map(|cid| {
+            format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                cid.get_string_repr()
+            )
+        })
     }
 }

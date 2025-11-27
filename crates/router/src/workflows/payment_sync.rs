@@ -52,10 +52,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -66,7 +64,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -75,10 +72,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account.clone(),
+            key_store.clone(),
+        );
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<
@@ -90,7 +89,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             >(
                 state,
                 state.get_req_state(),
-                &merchant_context,
+                &platform,
                 None,
                 operations::PaymentStatus,
                 tracking_data.clone(),
@@ -177,7 +176,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                     payment_data.payment_intent = db
                         .update_payment_intent(
-                            &state.into(),
                             payment_data.payment_intent,
                             payment_intent_update,
                             &key_store,
@@ -195,11 +193,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(
-                            key_manager_state,
-                            &key_store,
-                            profile_id,
-                        )
+                        .find_business_profile_by_profile_id(&key_store, profile_id)
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                             id: profile_id.get_string_repr().to_owned(),
@@ -208,7 +202,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        merchant_context,
+                        platform,
                         business_profile,
                         payment_data,
                         customer,
@@ -356,7 +350,6 @@ pub async fn recovery_retry_sync_task(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
     #[test]

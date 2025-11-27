@@ -219,14 +219,12 @@ pub trait SubscriptionInterface {
     type Error;
     async fn insert_subscription_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_new: Subscription,
     ) -> CustomResult<Subscription, Self::Error>;
 
     async fn find_by_merchant_id_subscription_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,
@@ -234,7 +232,6 @@ pub trait SubscriptionInterface {
 
     async fn update_subscription_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,

@@ -46,7 +46,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -61,7 +61,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -86,7 +86,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -97,7 +97,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                merchant_context,
+                platform,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -119,6 +119,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,
@@ -157,7 +158,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -286,7 +287,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -307,12 +308,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         let merchant_connector_id = merchant_connector_account.get_mca_id();
 
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata =
+            build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
@@ -356,7 +355,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 // Extract and store access token if present
                 if let Some(access_token) = get_access_token_from_ucs_response(
                     state,
-                    merchant_context,
+                    platform,
                     &router_data.connector,
                     merchant_connector_id.as_ref(),
                     creds_identifier.clone(),
@@ -366,7 +365,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 {
                     if let Err(error) = set_access_token_for_ucs(
                         state,
-                        merchant_context,
+                        platform,
                         &connector_name,
                         access_token,
                         merchant_connector_id.as_ref(),

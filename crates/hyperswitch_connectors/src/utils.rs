@@ -5,9 +5,12 @@ use std::{
     sync::LazyLock,
 };
 
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    payments,
+    payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
+};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -451,8 +454,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
         | AttemptStatus::Authorized
-        | AttemptStatus::Charged
         | AttemptStatus::Authorizing
+        | AttemptStatus::Charged
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
         | AttemptStatus::VoidedPostCharge
@@ -461,8 +464,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AutoRefunded
         | AttemptStatus::PartialCharged
         | AttemptStatus::PartialChargedAndChargeable
-        | AttemptStatus::Unresolved
         | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
@@ -1795,6 +1798,8 @@ impl AddressDetailsData for AddressDetails {
 pub trait AdditionalCardInfo {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl AdditionalCardInfo for payments::AdditionalCardInfo {
@@ -1829,8 +1834,134 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
             Err(errors::ConnectorError::RequestEncodingFailed)
         }
     }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card_holder_name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            })
+    }
 }
 
+impl AdditionalCardInfo for WalletAdditionalDataForCard {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
+impl AdditionalCardInfo for ApplepayPaymentMethod {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding =
+            self.card_exp_year
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                })?;
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding =
+            self.card_exp_month
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "card_holder_name",
+        })
+    }
+}
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -2489,6 +2620,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2500,6 +2632,11 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -6906,7 +7043,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         currency: data.request.currency,
         payment_method_data: data.request.payment_method_data.clone(),
         confirm: data.request.confirm,
-        statement_descriptor_suffix: data.request.statement_descriptor_suffix.clone(),
         mandate_id: data.request.mandate_id.clone(),
         setup_future_usage: data.request.setup_future_usage,
         off_session: data.request.off_session,
@@ -6917,7 +7053,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         amount: 0,
         order_tax_amount: Some(MinorUnit::zero()),
         minor_amount: MinorUnit::new(0),
-        statement_descriptor: None,
         capture_method: data.request.capture_method,
         webhook_url: None,
         complete_authorize_url: None,
@@ -6951,6 +7086,12 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
+        billing_descriptor: data.request.billing_descriptor.clone(),
+        tokenization: None,
+        partner_merchant_identifier_details: data
+            .request
+            .partner_merchant_identifier_details
+            .clone(),
     }
 }
 
@@ -7014,7 +7155,6 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
-        is_migrated_card: data.is_migrated_card,
     }
 }
 
@@ -7315,7 +7455,7 @@ pub trait SplitPaymentData {
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
@@ -7333,13 +7473,13 @@ impl SplitPaymentData for PaymentsSyncData {
 
 impl SplitPaymentData for PaymentsCancelData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
+        self.split_payments.clone()
     }
 }
 impl SplitPaymentData for ExternalVaultProxyPaymentsData {

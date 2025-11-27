@@ -50,7 +50,6 @@ impl BillingHandler {
         let billing_processor_mca = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &(state).into(),
                 merchant_account.get_id(),
                 &merchant_connector_id,
                 key_store,

@@ -72,6 +72,7 @@ pub enum SearchIndex {
     PaymentIntents,
     Refunds,
     Disputes,
+    Payouts,
     SessionizerPaymentAttempts,
     SessionizerPaymentIntents,
     SessionizerRefunds,

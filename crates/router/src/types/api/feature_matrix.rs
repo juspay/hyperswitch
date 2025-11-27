@@ -399,6 +399,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
                 }
+                enums::Connector::Zift => Ok(ConnectorEnum::Old(Box::new(connector::Zift::new()))),
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }
