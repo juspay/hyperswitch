@@ -395,6 +395,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
                 platform,
+                self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
