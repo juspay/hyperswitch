@@ -846,7 +846,7 @@ lazy_static! {
         display_name: "Loonio",
         description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
     static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
         enums::EventClass::Payments,

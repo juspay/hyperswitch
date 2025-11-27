@@ -805,10 +805,10 @@ pub async fn check_token_status_with_tokenization_service(
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
-    match check_token_status_response.token_status {
+    match check_token_status_response.payload.token_status {
         pm_types::TokenStatus::Active => Ok((
-            Some(check_token_status_response.token_expiry_month),
-            Some(check_token_status_response.token_expiry_year),
+            check_token_status_response.payload.token_expiry_month,
+            check_token_status_response.payload.token_expiry_year,
         )),
         _ => Ok((None, None)),
     }
@@ -940,21 +940,18 @@ pub async fn delete_network_token_from_locker_and_token_service(
     payment_method_id: String,
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
-    let resp = payment_methods::cards::PmCards {
-        state,
-        merchant_context,
-    }
-    .delete_card_from_locker(
-        customer_id,
-        merchant_id,
-        network_token_locker_id
-            .as_ref()
-            .unwrap_or(&payment_method_id),
-    )
-    .await?;
+    let resp = payment_methods::cards::PmCards { state, platform }
+        .delete_card_from_locker(
+            customer_id,
+            merchant_id,
+            network_token_locker_id
+                .as_ref()
+                .unwrap_or(&payment_method_id),
+        )
+        .await?;
     if let Some(tokenization_service) = &state.conf.network_tokenization_service {
         let delete_token_resp = record_operation_time(
             async {
