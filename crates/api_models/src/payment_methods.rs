@@ -2980,7 +2980,6 @@ impl
         &PaymentMethodRecord,
         id_type::MerchantId,
         Option<&Vec<id_type::MerchantConnectorAccountId>>,
-        &HashMap<id_type::CustomerId, common_enums::enums::CustomerMigrationStatus>,
     )> for PaymentMethodMigrate
 {
     type Error = error_stack::Report<errors::ValidationError>;
@@ -2990,19 +2989,9 @@ impl
             &PaymentMethodRecord,
             id_type::MerchantId,
             Option<&Vec<id_type::MerchantConnectorAccountId>>,
-            &HashMap<id_type::CustomerId, common_enums::enums::CustomerMigrationStatus>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id, mca_ids, customer_migration_result) = item;
-        let customer_migration_status = customer_migration_result.get(&record.customer_id);
-
-        let connector_customer_id = match customer_migration_status {
-            Some(common_enums::enums::CustomerMigrationStatus::AlreadyExists) => {
-                record.connector_customer_id.clone()
-            }
-            Some(common_enums::enums::CustomerMigrationStatus::Created) | None => None,
-        };
-
+        let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
         let connector_mandate_details = if let Some(payment_instrument_id) =
             &record.payment_instrument_id
@@ -3019,7 +3008,7 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
-                            connector_customer_id: connector_customer_id.clone(),
+                            connector_customer_id: record.connector_customer_id.clone(),
                         },
                     )
                 })

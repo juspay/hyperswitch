@@ -7,7 +7,7 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
 use diesel_models::enums::IntentStatus;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
@@ -376,22 +376,9 @@ pub async fn migrate_payment_methods(
                     }
                 }
 
-                let customer_migration_results = match customers::migrate_customers(
-                    state.clone(),
-                    customers,
-                    platform.clone(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                {
-                    services::ApplicationResponse::Json(val) => val,
-                    _ => {
-                        return Err(report!(
-                            errors::ApiErrorResponse::InternalServerError
-                        ))
-                        .attach_printable("Unexpected response from migrate_customers")
-                    }
-                };
+                customers::migrate_customers(state.clone(), customers, platform.clone())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let controller = cards::PmCards {
                     state: &state,
                     platform: &platform,
@@ -403,7 +390,6 @@ pub async fn migrate_payment_methods(
                     &platform,
                     merchant_connector_ids,
                     &controller,
-                    &customer_migration_results,
                 ))
                 .await
             }

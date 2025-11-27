@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
 use csv::Reader;
@@ -28,10 +26,6 @@ pub async fn migrate_payment_methods(
     platform: &platform::Platform,
     mca_ids: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     controller: &dyn pm::PaymentMethodsController,
-    customer_migration_results: &HashMap<
-        common_utils::id_type::CustomerId,
-        common_enums::CustomerMigrationStatus,
-    >,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
 
@@ -40,7 +34,6 @@ pub async fn migrate_payment_methods(
             &record,
             merchant_id.clone(),
             mca_ids.as_ref(),
-            customer_migration_results,
         ))
         .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
             message: format!("error: {err:?}"),

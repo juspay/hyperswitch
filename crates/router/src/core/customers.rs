@@ -1465,16 +1465,9 @@ pub async fn migrate_customers(
     state: SessionState,
     customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     platform: domain::Platform,
-) -> errors::CustomerResponse<
-    std::collections::HashMap<id_type::CustomerId, common_enums::CustomerMigrationStatus>,
-> {
-    let mut results = std::collections::HashMap::new();
-
-    #[cfg(feature = "v1")]
+) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {
-        let customer_id_from_request = customer_migration.customer.customer_id.clone();
-
-        let (customer_id, status) = match create_customer(
+        match create_customer(
             state.clone(),
             platform.clone(),
             customer_migration.customer,
@@ -1482,24 +1475,12 @@ pub async fn migrate_customers(
         )
         .await
         {
-            Ok(services::ApplicationResponse::Json(res)) => (
-                res.customer_id.clone(),
-                common_enums::CustomerMigrationStatus::Created,
-            ),
-            Ok(_) => return Err(report!(errors::CustomersErrorResponse::InternalServerError)),
+            Ok(_) => (),
             Err(e) => match e.current_context() {
-                errors::CustomersErrorResponse::CustomerAlreadyExists => {
-                    let customer_id = customer_id_from_request
-                        .ok_or(errors::CustomersErrorResponse::CustomerNotFound)?;
-                    (
-                        customer_id,
-                        common_enums::CustomerMigrationStatus::AlreadyExists,
-                    )
-                }
+                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
                 _ => return Err(e),
             },
-        };
-        results.insert(customer_id, status);
+        }
     }
-    Ok(services::ApplicationResponse::Json(results))
+    Ok(services::ApplicationResponse::Json(()))
 }

@@ -10145,9 +10145,3 @@ pub enum VaultTokenType {
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
 }
-
-#[derive(Debug, serde::Serialize, Clone)]
-pub enum CustomerMigrationStatus {
-    Created,
-    AlreadyExists,
-}
