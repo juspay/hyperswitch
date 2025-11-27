@@ -3827,7 +3827,7 @@ async fn create_single_use_tokenization_flow(
     let mut router_data =
         types::RouterData::<api::PaymentMethodToken, _, types::PaymentsResponseData> {
             flow: std::marker::PhantomData,
-            merchant_id: platform.provider().get_account().get_id().clone(),
+            merchant_id: platform.get_provider().get_account().get_id().clone(),
             customer_id: None,
             connector_customer: None,
             connector: merchant_connector_account_details
