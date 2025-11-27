@@ -1508,3 +1508,70 @@ convert_connector_response_to_domain_response!(
         })
     }
 );
+
+// Entitlement
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Entitlement {
+    pub feature_id: Option<String>,
+    pub feature_name: Option<String>,
+    pub id: String,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub name: Option<String>,
+    pub object: Option<String>,
+    pub value: Option<bool>,
+}
+
+impl From<Entitlement> for subscriptions::Entitlement {
+    fn from(value: Entitlement) -> Self {
+        Self {
+            feature_id: value.feature_id,
+            feature_name: value.feature_name,
+            id: value.id,
+            entity_id: value.entity_id,
+            entity_type: value.entity_type,
+            name: value.name,
+            object: value.object,
+            value: value.value,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GetSubscriptionEntitlementResponse {
+    pub entitlement: Vec<Entitlement>,
+}
+
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            GetSubscriptionEntitlementResponse,
+            T,
+            subscriptions::GetSubscriptionEntitlementResponse,
+        >,
+    > for RouterData<F, T, subscriptions::GetSubscriptionEntitlementResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            GetSubscriptionEntitlementResponse,
+            T,
+            subscriptions::GetSubscriptionEntitlementResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(subscriptions::GetSubscriptionEntitlementResponse {
+                entitlement: item
+                    .response
+                    .entitlement
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+            }),
+            ..item.data
+        })
+    }
+}
