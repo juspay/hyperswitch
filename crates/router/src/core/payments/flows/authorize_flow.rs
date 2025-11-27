@@ -38,10 +38,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services::{self, api::ConnectorValidation},
-    types::{
-        self, api, domain,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
 

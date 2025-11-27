@@ -1421,6 +1421,7 @@ impl
             request_extended_authorization: None,
             customer_acceptance,
             browser_info,
+            order_id: None,
             payment_experience: None,
             merchant_account_metadata: router_data
                 .connector_meta_data

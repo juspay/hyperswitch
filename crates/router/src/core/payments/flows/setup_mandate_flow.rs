@@ -28,10 +28,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{
-        self, api, domain,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
