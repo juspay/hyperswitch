@@ -5251,20 +5251,12 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match (
-                    apple_pay_wallet_data
-                        .payment_data
-                        .get_decrypted_apple_pay_payment_data_optional(),
-                    payment_method_token,
-                ) {
-                    (Some(token), _) => (
+                let (card_exp_month, card_exp_year) = match payment_method_token {
+                    Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
                         Some(token.application_expiration_month.clone()),
                         Some(token.application_expiration_year.clone()),
                     ),
-                    (None, Some(PaymentMethodToken::ApplePayDecrypt(token))) => (
-                        Some(token.application_expiration_month.clone()),
-                        Some(token.application_expiration_year.clone()),
-                    ),
+
                     _ => (None, None),
                 };
 
@@ -5281,17 +5273,8 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match (
-                    google_pay_pm_data
-                        .tokenization_data
-                        .get_decrypted_google_pay_payment_data_optional(),
-                    payment_method_token,
-                ) {
-                    (Some(token), _) => (
-                        Some(token.card_exp_month.clone()),
-                        Some(token.card_exp_year.clone()),
-                    ),
-                    (None, Some(PaymentMethodToken::GooglePayDecrypt(token))) => (
+                let (card_exp_month, card_exp_year) = match payment_method_token {
+                    Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
                         Some(token.card_exp_month.clone()),
                         Some(token.card_exp_year.clone()),
                     ),
