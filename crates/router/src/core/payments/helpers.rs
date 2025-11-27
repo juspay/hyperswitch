@@ -5278,7 +5278,6 @@ pub async fn get_additional_payment_data(
                         Some(token.card_exp_month.clone()),
                         Some(token.card_exp_year.clone()),
                     ),
-
                     _ => (None, None),
                 };
 
