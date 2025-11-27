@@ -327,9 +327,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
 
         // Fetch customer details if present
         let db = &*self.state.store;
-        let key_manager_state: &KeyManagerState = &self.state.into();
         db.find_customer_optional_by_customer_id_merchant_id(
-            key_manager_state,
             customer_id,
             self.merchant_account.get_id(),
             self.key_store,
@@ -431,11 +429,13 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None, // Same as created_by on creation
         };
 
         db.insert_customer(
             domain_customer,
-            key_manager_state,
             self.key_store,
             self.merchant_account.storage_scheme,
         )
@@ -575,10 +575,12 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         };
         PmCards {
             state: self.state,
-            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            platform: &domain::Platform::new(
                 self.merchant_account.clone(),
                 self.key_store.clone(),
-            ))),
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ),
         }
         .create_payment_method(
             &payment_method_create,

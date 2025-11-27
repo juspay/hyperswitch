@@ -49,7 +49,7 @@ pub async fn toggle_blocklist_guard_for_merchant(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = merchant_id.get_blocklist_guard_key();
-    let maybe_guard = state.store.find_config_by_key(&key).await;
+    let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
@@ -292,11 +292,11 @@ async fn delete_card_bin_blocklist_entry(
 
 pub async fn should_payment_be_blocked(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_data: &Option<domain::PaymentMethodData>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
@@ -317,7 +317,7 @@ pub async fn should_payment_be_blocked(
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint)
+            .map(|payload| payload.fingerprint_id)
         } else {
             None
         };
@@ -384,7 +384,7 @@ pub async fn should_payment_be_blocked(
 
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_data: &mut PaymentData<F>,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
@@ -392,23 +392,22 @@ where
 {
     let db = &state.store;
     let should_payment_be_blocked =
-        should_payment_be_blocked(state, merchant_context, &payment_data.payment_method_data)
-            .await?;
+        should_payment_be_blocked(state, platform, &payment_data.payment_method_data).await?;
     if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
-            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::RejectUpdate {
                 status: common_enums::IntentStatus::Failed,
                 merchant_decision: Some(MerchantDecision::Rejected.to_string()),
-                updated_by: merchant_context
-                    .get_merchant_account()
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             },
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -421,15 +420,16 @@ where
             status: common_enums::AttemptStatus::Failure,
             error_code: Some(Some("HE-03".to_string())),
             error_message: Some(Some("This payment method is blocked".to_string())),
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
         };
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             attempt_update,
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -479,7 +479,7 @@ pub async fn generate_payment_fingerprint(
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint)
+            .map(|payload| payload.fingerprint_id)
         } else {
             logger::error!("failed to retrieve card fingerprint");
             None

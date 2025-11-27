@@ -203,7 +203,6 @@ pub struct ApiPayload {
     pub service: String,
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
-    pub key_id: String,
     pub should_send_token: bool,
 }
 
@@ -321,7 +320,7 @@ pub struct NetworkTokenErrorInfo {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct NetworkTokenErrorResponse {
-    pub error_message: String,
+    pub error_message: Option<String>,
     pub error_info: NetworkTokenErrorInfo,
 }
 
@@ -339,6 +338,7 @@ pub struct CheckTokenStatus {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckTokenStatus {
     pub card_reference: String,
     pub customer_id: id_type::GlobalCustomerId,
@@ -348,21 +348,28 @@ pub struct CheckTokenStatus {
 #[serde(rename_all = "UPPERCASE")]
 pub enum TokenStatus {
     Active,
+    Inactive,
     Suspended,
-    Deactivated,
+    Expired,
+    Deleted,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CheckTokenStatusResponse {
+pub struct CheckTokenStatusResponsePayload {
     pub token_status: TokenStatus,
-    pub token_expiry_month: Secret<String>,
-    pub token_expiry_year: Secret<String>,
-    pub card_last_4: String,
-    pub card_expiry: String,
-    pub token_last_4: String,
+    pub token_expiry_month: Option<Secret<String>>,
+    pub token_expiry_year: Option<Secret<String>>,
+    pub card_last_four: Option<String>,
+    pub card_expiry_month: Option<Secret<String>>,
+    pub card_expiry_year: Option<Secret<String>>,
+    pub token_last_four: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CheckTokenStatusResponse {
+    pub payload: CheckTokenStatusResponsePayload,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetworkTokenRequestorData {
     pub card_reference: String,
