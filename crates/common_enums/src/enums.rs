@@ -9433,6 +9433,12 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+impl ConnectorMandateStatus {
+    pub fn is_active(&self) -> bool {
+        self == &Self::Active
+    }
+}
+
 /// Connector Mandate Status
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
