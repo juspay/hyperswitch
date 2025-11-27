@@ -8587,11 +8587,16 @@ pub struct PaymentsAggregateResponse {
     pub status_with_count: HashMap<enums::IntentStatus, i64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmountFilter {
     /// The start amount to filter list of transactions which are greater than or equal to the start amount
+    #[smithy(value_type = "Option<i64>")]
     pub start_amount: Option<i64>,
     /// The end amount to filter list of transactions which are less than or equal to the end amount
+    #[smithy(value_type = "Option<i64>")]
     pub end_amount: Option<i64>,
 }
 
