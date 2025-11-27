@@ -5887,6 +5887,18 @@ pub struct PaymentMethodDataResponseWithBilling {
     pub billing: Option<Address>,
 }
 
+impl PaymentMethodDataResponseWithBilling {
+    pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self {
+                payment_method_data: Some(PaymentMethodDataResponse::Card(card)),
+                ..
+            } => card.card_network.clone(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
     /// Primary payment method token at payment processor end.
@@ -6288,6 +6300,8 @@ pub enum NextActionType {
     DisplayWaitScreen,
     CollectOtp,
     RedirectInsidePopup,
+    InvokeUpiIntentSdk,
+    InvokeUpiQrFlow,
 }
 
 #[derive(
@@ -6348,10 +6362,25 @@ pub enum NextActionData {
         #[smithy(value_type = "String")]
         qr_code_fetch_url: Url,
     },
-    /// Contains the SDK UPI intent URI for payment processing
-    SdkUpiIntentInformation {
+    InvokeUpiIntentSdk {
         #[schema(value_type = String)]
         sdk_uri: Url,
+        #[smithy(value_type = "i128")]
+        display_from_timestamp: i128,
+        #[smithy(value_type = "Option<i128>")]
+        display_to_timestamp: Option<i128>,
+        #[smithy(value_type = "Option<PollConfig>")]
+        poll_config: Option<PollConfig>,
+    },
+    InvokeUpiQrFlow {
+        #[schema(value_type = String)]
+        qr_code_url: Url,
+        #[smithy(value_type = "i128")]
+        display_from_timestamp: i128,
+        #[smithy(value_type = "Option<i128>")]
+        display_to_timestamp: Option<i128>,
+        #[smithy(value_type = "Option<PollConfig>")]
+        poll_config: Option<PollConfig>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -6439,6 +6468,13 @@ pub struct ThreeDsData {
     /// Directory Server ID
     #[smithy(value_type = "Option<String>")]
     pub directory_server_id: Option<String>,
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// Prefered 3ds Connector
+    #[smithy(value_type = "Option<String>")]
+    pub three_ds_connector: Option<String>,
 }
 
 #[derive(
@@ -6540,11 +6576,6 @@ pub struct FetchQrCodeInformation {
     pub qr_code_fetch_url: Url,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct SdkUpiIntentInformation {
-    pub sdk_uri: Url,
-}
-
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -6608,11 +6639,44 @@ pub struct QrCodeNextStepsInstruction {
     pub qr_code_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
     pub poll_config: Option<PollConfig>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct SdkUpiUriInformation {
+    pub sdk_uri: String,
+}
+
+impl NextActionData {
+    pub fn from_upi_intent(sdk_uri: Url, wait_info: WaitScreenInstructions) -> Self {
+        Self::InvokeUpiIntentSdk {
+            sdk_uri,
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
+
+    pub fn from_upi_qr(qr_code_url: Url, wait_info: WaitScreenInstructions) -> Self {
+        Self::InvokeUpiQrFlow {
+            qr_code_url,
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
+
+    pub fn from_wait_screen(wait_info: WaitScreenInstructions) -> Self {
+        Self::WaitScreenInformation {
+            display_from_timestamp: wait_info.display_from_timestamp,
+            display_to_timestamp: wait_info.display_to_timestamp,
+            poll_config: wait_info.poll_config,
+        }
+    }
 }
 
 #[derive(
@@ -8523,11 +8587,16 @@ pub struct PaymentsAggregateResponse {
     pub status_with_count: HashMap<enums::IntentStatus, i64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AmountFilter {
     /// The start amount to filter list of transactions which are greater than or equal to the start amount
+    #[smithy(value_type = "Option<i64>")]
     pub start_amount: Option<i64>,
     /// The end amount to filter list of transactions which are less than or equal to the end amount
+    #[smithy(value_type = "Option<i64>")]
     pub end_amount: Option<i64>,
 }
 

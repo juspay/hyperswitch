@@ -805,10 +805,10 @@ pub async fn check_token_status_with_tokenization_service(
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
-    match check_token_status_response.token_status {
+    match check_token_status_response.payload.token_status {
         pm_types::TokenStatus::Active => Ok((
-            Some(check_token_status_response.token_expiry_month),
-            Some(check_token_status_response.token_expiry_year),
+            check_token_status_response.payload.token_expiry_month,
+            check_token_status_response.payload.token_expiry_year,
         )),
         _ => Ok((None, None)),
     }
