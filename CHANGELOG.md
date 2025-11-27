@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.27.0
+
+### Features
+
+- **revenue_recovery:** Introduce hourly retry history and decision threshold in Decider Request ([#10386](https://github.com/juspay/hyperswitch/pull/10386)) ([`2668139`](https://github.com/juspay/hyperswitch/commit/2668139fba8a02b8bb8ea5c48d266b00178ac13d))
+- **ucs:** Add new next_action type and wait screen instructions for upi payments ([#10323](https://github.com/juspay/hyperswitch/pull/10323)) ([`fc26034`](https://github.com/juspay/hyperswitch/commit/fc26034ffcbd97ea59697a35d784ce60357c9b1e))
+
+### Bug Fixes
+
+- Update Stripe Postman collection tests ([#10231](https://github.com/juspay/hyperswitch/pull/10231)) ([`0c7f82b`](https://github.com/juspay/hyperswitch/commit/0c7f82b2a2d18e0309a9757ee175d59fdf97d7bb))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`6ac958a`](https://github.com/juspay/hyperswitch/commit/6ac958a46f0969b075690338dd70e10fb34a8287))
+
+**Full Changelog:** [`2025.11.26.0...2025.11.27.0`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0...2025.11.27.0)
+
+- - -
+
 ## 2025.11.26.0
 
 ### Features
