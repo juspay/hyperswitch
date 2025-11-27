@@ -1986,7 +1986,7 @@ pub async fn get_card_from_locker(
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
-            get_card_detail_from_hs_locker(state, customer_id, merchant_id, card_reference)
+            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
                 .map_err(|err| match err.current_context() {
                     errors::VaultError::FetchCardFailed => {
@@ -2279,7 +2279,7 @@ pub async fn update_payment_method_connector_mandate_details(
     Ok(())
 }
 #[instrument(skip_all)]
-pub async fn get_card_detail_from_hs_locker<'a>(
+pub async fn get_card_from_hs_locker<'a>(
     state: &'a routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
