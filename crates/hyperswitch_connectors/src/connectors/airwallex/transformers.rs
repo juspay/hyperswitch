@@ -569,7 +569,11 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
 
                 Ok(AirwallexPaymentMethod::PaymentMethodId(
                     AirwallexPaymentMethodId {
-                        id: mandate_metadata.id,
+                        id: mandate_metadata.id.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "mandate_metadata.id",
+                            },
+                        )?,
                     },
                 ))
             }
@@ -1159,12 +1163,12 @@ pub struct AirwallexPaymentAttemptResponse {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentMethodResponse {
-    id: String,
+    id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexMandateMetadata {
-    id: String,
+    id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
