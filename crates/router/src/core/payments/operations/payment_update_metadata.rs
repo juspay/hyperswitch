@@ -266,7 +266,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsUpdateMetadataRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(
         PaymentUpdateMetadataOperation<'b, F>,
         operations::ValidateResult,
@@ -277,9 +277,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

@@ -172,7 +172,7 @@ pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
         &'b self,
         request: &R,
-        platform: &domain::Platform,
+        platform: &domain::Processor,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 

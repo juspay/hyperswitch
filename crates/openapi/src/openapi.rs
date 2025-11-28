@@ -308,6 +308,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NetworkParams,
         api_models::payments::Cryptogram,
         api_models::payments::ExternalThreeDsData,
+        api_models::payments::PaymentMethodTokenizationDetails,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,

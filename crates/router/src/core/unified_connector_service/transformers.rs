@@ -37,7 +37,7 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    core::{errors, unified_connector_service},
+    core::{errors, mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -1365,12 +1365,22 @@ impl
             .setup_future_usage
             .map(payments_grpc::FutureUsage::foreign_try_from)
             .transpose()?;
-        let customer_acceptance = router_data
-            .request
-            .customer_acceptance
-            .clone()
-            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
-            .transpose()?;
+
+        // If this is the deprecated mandate_id flow, take customer_acceptance
+        // from setup_mandate_details. Otherwise, take it from request.customer_acceptance.
+        let customer_acceptance = match router_data.request.get_setup_mandate_details() {
+            Some(mandate_data) => mandate_data
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+            None => router_data
+                .request
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+        }?;
 
         let state = router_data
             .access_token
