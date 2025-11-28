@@ -20,6 +20,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
+use crate::router_data::PaymentMethodToken;
+
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -2319,56 +2321,52 @@ impl From<Card> for ExtendedCardInfo {
     }
 }
 
-impl From<ApplePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
-    fn from(item: ApplePayWalletData) -> Self {
-        let (card_exp_month, card_exp_year) = match item
-            .payment_data
-            .get_decrypted_apple_pay_payment_data_optional()
-        {
-            Some(token) => (
-                Some(token.application_expiration_month.clone()),
-                Some(token.application_expiration_year.clone()),
-            ),
-            None => (None, None),
-        };
-        Self {
-            last4: item
-                .payment_method
-                .display_name
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect(),
-            card_network: item.payment_method.network,
-            card_type: Some(item.payment_method.pm_type),
-            card_exp_month,
-            card_exp_year,
-        }
+pub fn get_applepay_wallet_info(
+    item: ApplePayWalletData,
+    payment_method_token: Option<PaymentMethodToken>,
+) -> payment_methods::PaymentMethodDataWalletInfo {
+    let (card_exp_month, card_exp_year) = match payment_method_token {
+        Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
+            Some(token.application_expiration_month.clone()),
+            Some(token.application_expiration_year.clone()),
+        ),
+        _ => (None, None),
+    };
+    payment_methods::PaymentMethodDataWalletInfo {
+        last4: item
+            .payment_method
+            .display_name
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect(),
+        card_network: item.payment_method.network,
+        card_type: Some(item.payment_method.pm_type),
+        card_exp_month,
+        card_exp_year,
     }
 }
 
-impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
-    fn from(item: GooglePayWalletData) -> Self {
-        let (card_exp_month, card_exp_year) = match item
-            .tokenization_data
-            .get_decrypted_google_pay_payment_data_optional()
-        {
-            Some(token) => (
-                Some(token.card_exp_month.clone()),
-                Some(token.card_exp_year.clone()),
-            ),
-            None => (None, None),
-        };
-        Self {
-            last4: item.info.card_details,
-            card_network: item.info.card_network,
-            card_type: Some(item.pm_type),
-            card_exp_month,
-            card_exp_year,
-        }
+pub fn get_googlepay_wallet_info(
+    item: GooglePayWalletData,
+    payment_method_token: Option<PaymentMethodToken>,
+) -> payment_methods::PaymentMethodDataWalletInfo {
+    let (card_exp_month, card_exp_year) = match payment_method_token {
+        Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
+            Some(token.card_exp_month.clone()),
+            Some(token.card_exp_year.clone()),
+        ),
+        _ => (None, None),
+    };
+    payment_methods::PaymentMethodDataWalletInfo {
+        last4: item.info.card_details,
+        card_network: item.info.card_network,
+        card_type: Some(item.pm_type),
+        card_exp_month,
+        card_exp_year,
     }
 }
 
