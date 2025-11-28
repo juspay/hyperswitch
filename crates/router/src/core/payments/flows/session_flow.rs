@@ -1089,15 +1089,20 @@ fn create_gpay_session_token(
                             billing_address_parameters: billing_address_parameters.clone(),
                             ..allowed_payment_methods.parameters
                         },
-                        tokenization_specification: payment_types::GpayTokenizationSpecification{
+                        tokenization_specification: payment_types::GpayTokenizationSpecification {
                             parameters: payment_types::GpayTokenParameters {
                                 stripe_publishable_key: construct_stripe_publishable_key(
-                                    &allowed_payment_methods.tokenization_specification.parameters,
+                                    &allowed_payment_methods
+                                        .tokenization_specification
+                                        .parameters,
                                     router_data,
-                                ).expose_option(),
-                                ..allowed_payment_methods.tokenization_specification.parameters
+                                )
+                                .expose_option(),
+                                ..allowed_payment_methods
+                                    .tokenization_specification
+                                    .parameters
                             },
-                        ..allowed_payment_methods.tokenization_specification
+                            ..allowed_payment_methods.tokenization_specification
                         },
                         ..allowed_payment_methods
                     },
@@ -1176,7 +1181,7 @@ fn get_allowed_payment_methods_from_cards(
                     .gateway_merchant_id
                     .clone()
                     .expose_option(),
-                stripe_publishable_key:  gpay_token_specific_data
+                stripe_publishable_key: gpay_token_specific_data
                     .parameters
                     .stripe_publishable_key
                     .clone()
@@ -1195,26 +1200,26 @@ fn construct_stripe_publishable_key(
     gpay_token_specific_parameters: &payment_types::GpayTokenParameters,
     router_data: &types::PaymentsSessionRouterData,
 ) -> Option<masking::Secret<String>> {
-    logger::debug!(
-        "sssss Constructing stripe publishable key for google pay with split payments: {:?}",
-        router_data.request.split_payments
-    );
-    let suffix = if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) = &router_data.request.split_payments {
-        if stripe.charge_type == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct) {
-            format!("/{}", stripe.transfer_account_id)
+    let suffix =
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) =
+            &router_data.request.split_payments
+        {
+            if stripe.charge_type
+                == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+            {
+                format!("/{}", stripe.transfer_account_id)
+            } else {
+                String::new()
+            }
         } else {
             String::new()
-        }
-    } else {
-        String::new()
-    };
+        };
 
     gpay_token_specific_parameters
         .stripe_publishable_key
         .clone()
         .map(|key| masking::Secret::new(format!("{}{}", key, suffix)))
 }
-
 
 fn is_session_response_delayed(
     state: &routes::SessionState,
