@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix1
+
+### Bug Fixes
+
+- **payments:** Revert add error_reason field to PaymentsResponse and constants ([#10469](https://github.com/juspay/hyperswitch/pull/10469)) ([`9886b10`](https://github.com/juspay/hyperswitch/commit/9886b101b61137b8bc493591eda6df1bc0d499b3))
+
+**Full Changelog:** [`2025.11.26.0...2025.11.26.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0...2025.11.26.0-hotfix1)
+
+- - -
+
 ## 2025.11.26.0
 
 ### Features
