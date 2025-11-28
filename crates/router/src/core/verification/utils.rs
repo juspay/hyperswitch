@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, id_type::PaymentId};
+use common_utils::{errors::CustomResult, id_type::{PaymentId, PayoutId}};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -154,4 +154,23 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
     utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
+}
+
+#[cfg(feature = "v1")]
+pub async fn check_if_profile_id_is_present_in_payouts(
+    payout_id: PayoutId,
+    state: &SessionState,
+    auth_data: &AuthenticationData,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let payouts = db
+        .find_payout_by_merchant_id_payout_id(
+            auth_data.merchant_account.get_id(),
+            &payout_id,
+            auth_data.merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payouts)
 }

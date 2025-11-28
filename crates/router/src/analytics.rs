@@ -1635,14 +1635,27 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                let payment_id = match req.query_param.clone() {
-                    QueryType::Payment { payment_id } => payment_id,
-                    QueryType::Refund { payment_id, .. } => payment_id,
-                    QueryType::Dispute { payment_id, .. } => payment_id,
+                let (payment_id, payout_id) = match req.query_param.clone() {
+                    QueryType::Payment { payment_id } => (Some(payment_id), None),
+                    QueryType::Refund { payment_id, .. } => (Some(payment_id), None),
+                    QueryType::Dispute { payment_id, .. } => (Some(payment_id), None),
+                    QueryType::Payout { payout_id } => (None, Some(payout_id)),
                 };
-                utils::check_if_profile_id_is_present_in_payment_intent(payment_id, &state, &auth)
-                    .await
-                    .change_context(AnalyticsError::AccessForbiddenError)?;
+
+                match (payment_id, payout_id) {
+                    (Some(payment_id), _) => {
+                        utils::check_if_profile_id_is_present_in_payment_intent(payment_id, &state, &auth)
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, Some(payout_id)) => {
+                        utils::check_if_profile_id_is_present_in_payouts(payout_id, &state, &auth)
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, None) => Err(AnalyticsError::AccessForbiddenError)?
+                }
+                
                 api_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
@@ -1669,13 +1682,28 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.clone(),
-                    &state,
-                    &auth,
-                )
-                .await
-                .change_context(AnalyticsError::AccessForbiddenError)?;
+                match (req.payment_id.clone(), req.payout_id.clone()) {
+                    (Some(payment_id), _) => {
+                        utils::check_if_profile_id_is_present_in_payment_intent(
+                            payment_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, Some(payout_id)) => {
+                        utils::check_if_profile_id_is_present_in_payouts(
+                            payout_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, None) => Err(AnalyticsError::AccessForbiddenError)?
+                };
+
                 outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
@@ -1701,13 +1729,28 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.clone(),
-                    &state,
-                    &auth,
-                )
-                .await
-                .change_context(AnalyticsError::AccessForbiddenError)?;
+                match (req.payment_id.clone(), req.payout_id.clone()) {
+                    (Some(payment_id), _) => {
+                        utils::check_if_profile_id_is_present_in_payment_intent(
+                            payment_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, Some(payout_id)) => {
+                        utils::check_if_profile_id_is_present_in_payouts(
+                           payout_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, None) => Err(AnalyticsError::AccessForbiddenError)?
+                };
+                
                 sdk_events_core(&state.pool, req, &auth.merchant_account.publishable_key)
                     .await
                     .map(ApplicationResponse::Json)
@@ -2569,13 +2612,28 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.clone(),
-                    &state,
-                    &auth,
-                )
-                .await
-                .change_context(AnalyticsError::AccessForbiddenError)?;
+                match (req.payment_id.clone(), req.payout_id.clone()) {
+                    (Some(payment_id), _) => {
+                        utils::check_if_profile_id_is_present_in_payment_intent(
+                            payment_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, Some(payout_id)) => {
+                        utils::check_if_profile_id_is_present_in_payouts(
+                            payout_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, None) => Err(AnalyticsError::AccessForbiddenError)?
+                };
+               
                 connector_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
@@ -2600,13 +2658,28 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.clone(),
-                    &state,
-                    &auth,
-                )
-                .await
-                .change_context(AnalyticsError::AccessForbiddenError)?;
+                match (req.payment_id.clone(), req.payout_id.clone()) {
+                    (Some(payment_id), _) => {
+                        utils::check_if_profile_id_is_present_in_payment_intent(
+                            payment_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, Some(payout_id)) => {
+                        utils::check_if_profile_id_is_present_in_payouts(
+                           payout_id,
+                            &state,
+                            &auth,
+                        )
+                        .await
+                        .change_context(AnalyticsError::AccessForbiddenError)?;
+                    }
+                    (None, None) => Err(AnalyticsError::AccessForbiddenError)?
+                };
+
                 routing_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
