@@ -2113,6 +2113,7 @@ pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub execution_mode: ExecutionMode,
 }
 
 impl Default for RolloutConfig {
@@ -2121,6 +2122,7 @@ impl Default for RolloutConfig {
             rollout_percent: 0.0,
             http_url: None,
             https_url: None,
+            execution_mode: ExecutionMode::NotApplicable,
         }
     }
 }
@@ -2132,6 +2134,7 @@ pub use hyperswitch_interfaces::types::ProxyOverride;
 pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
+    pub execution_mode: ExecutionMode,
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
@@ -2174,6 +2177,70 @@ fn create_proxy_override(
     }
 }
 
+// Helper function to execute rollout logic or return default
+fn execute_rollout_decision(
+    config: RolloutConfig,
+    is_valid_percent: bool,
+    is_valid_execution_mode: bool,
+) -> RolloutExecutionResult {
+    match (is_valid_percent, is_valid_execution_mode) {
+        (true, true) => {
+            // Calculate probability to determine if request should execute
+            let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+            let should_execute = sampled_value < config.rollout_percent;
+
+            logger::debug!(
+                rollout_percent = config.rollout_percent,
+                sampled_value = sampled_value,
+                should_execute = should_execute,
+                execution_mode = ?config.execution_mode,
+                "Rollout execution decision made"
+            );
+
+            match should_execute {
+                true => {
+                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
+                    logger::info!(
+                        should_execute = should_execute,
+                        execution_mode = ?config.execution_mode,
+                        "Rollout will be executed with proxy override"
+                    );
+                    RolloutExecutionResult {
+                        should_execute: true,
+                        proxy_override,
+                        execution_mode: config.execution_mode,
+                    }
+                }
+                false => {
+                    logger::info!(
+                        should_execute = should_execute,
+                        execution_mode = ?config.execution_mode,
+                        "Rollout will not be executed"
+                    );
+                    RolloutExecutionResult {
+                        should_execute: false,
+                        proxy_override: None,
+                        execution_mode: ExecutionMode::NotApplicable,
+                    }
+                }
+            }
+        }
+        // Any validation failure returns default
+        _ => {
+            logger::info!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid rollout config values detected. Defaulting to not execute."
+            );
+            RolloutExecutionResult {
+                should_execute: false,
+                proxy_override: None,
+                execution_mode: ExecutionMode::NotApplicable,
+            }
+        }
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -2182,70 +2249,58 @@ pub async fn should_execute_based_on_rollout(
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-            {
-                Ok(config) => Ok(config),
-                Err(err) => {
-                    logger::debug!(
-                        error = ?err,
-                        config = %rollout_config.config,
-                        "Config not in JSON format, trying legacy float format"
-                    );
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>()
-                        .map(|percent| RolloutConfig {
-                            rollout_percent: percent,
-                            http_url: None,
-                            https_url: None,
-                        })
-                        .map_err(|err| {
-                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
-                            err
-                        })
-                }
-            };
+            // Parse as JSON - log error if it fails but don't propagate
+            let config_result = serde_json::from_str::<RolloutConfig>(&rollout_config.config);
 
             match config_result {
                 Ok(config) => {
-                    if !(0.0..=1.0).contains(&config.rollout_percent) {
-                        logger::warn!(
-                            rollout_percent = config.rollout_percent,
-                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
-                        );
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
+                    // Validate both rollout_percent bounds and execution_mode
+                    let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
+                    let is_valid_execution_mode =
+                        !matches!(config.execution_mode, ExecutionMode::NotApplicable);
 
-                        return Ok(RolloutExecutionResult {
-                            should_execute: false,
-                            proxy_override,
-                        });
+                    if !is_valid_percent {
+                        logger::error!(
+                            rollout_percent = config.rollout_percent,
+                            "Rollout percent out of bounds. Must be between 0.0 and 1.0. Defaulting to not execute."
+                        );
                     }
 
-                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                    let should_execute = sampled_value < config.rollout_percent;
+                    if !is_valid_execution_mode {
+                        logger::error!(
+                            execution_mode = ?config.execution_mode,
+                            "Execution mode is NotApplicable in config. This is invalid. Defaulting to not execute."
+                        );
+                    }
 
-                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
-
-                    Ok(RolloutExecutionResult {
-                        should_execute,
-                        proxy_override,
-                    })
+                    Ok(execute_rollout_decision(
+                        config,
+                        is_valid_percent,
+                        is_valid_execution_mode,
+                    ))
                 }
                 Err(err) => {
-                    logger::error!(error = ?err, "Failed to parse rollout config");
+                    logger::error!(
+                        error = ?err,
+                        config = %rollout_config.config,
+                        "Failed to parse rollout config as JSON. Defaulting to not execute."
+                    );
+
                     Ok(RolloutExecutionResult {
                         should_execute: false,
                         proxy_override: None,
+                        execution_mode: ExecutionMode::NotApplicable,
                     })
                 }
             }
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute.");
+
             Ok(RolloutExecutionResult {
                 should_execute: false,
                 proxy_override: None,
+                execution_mode: ExecutionMode::NotApplicable,
             })
         }
     }
