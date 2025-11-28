@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -334,8 +334,8 @@ pub struct VoltPaymentInitiationFlowDetails {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltRedirect {
-    url: url::Url,
-    direct_url: url::Url,
+    url: Secret<url::Url>,
+    direct_url: Secret<url::Url>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsResponseData>>
@@ -351,9 +351,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             .details
             .redirect
             .url
-            .to_string();
+            .clone()
+            .expose();
         let redirection_data = Some(RedirectForm::Form {
-            endpoint: url,
+            endpoint: url.to_string(),
             method: Method::Get,
             form_fields: Default::default(),
         });
