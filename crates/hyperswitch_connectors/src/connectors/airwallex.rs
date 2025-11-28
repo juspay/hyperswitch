@@ -48,7 +48,6 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
-    consts::NO_ERROR_CODE,
     disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -136,44 +135,34 @@ impl ConnectorCommon for Airwallex {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(payu_error_response=?res);
-        let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&res.response);
-        let response = cow.as_ref().to_string();
-        if connector_utils::is_html_response(&response) {
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
-            Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: NO_ERROR_CODE.to_owned(),
-                message: response.clone(),
-                reason: Some(response),
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
-        } else {
-            let response: airwallex::AirwallexErrorResponse = res
-                .response
-                .parse_struct("Airwallex ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-            event_builder.map(|i| i.set_error_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
+        let status_code = res.status_code;
+        let response: Result<airwallex::AirwallexErrorResponse, _> =
+            res.response.parse_struct("Airwallex ErrorResponse");
 
-            Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: response.code,
-                message: response.message,
-                reason: response.source,
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code,
+                    code: response.code,
+                    message: response.message,
+                    reason: response.source,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": status_code})));
+                router_env::logger::error!(deserialization_error =? error_msg);
+                connector_utils::handle_json_response_deserialization_failure(res, "tesouro")
+            }
         }
     }
 }
