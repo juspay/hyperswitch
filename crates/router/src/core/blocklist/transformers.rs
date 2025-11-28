@@ -48,7 +48,7 @@ async fn call_to_locker_for_fingerprint(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
-        payment_methods::mk_generic_locker_request(
+        payment_methods::mk_locker_api_request_and_call(
             state,
             jwekey,
             locker,

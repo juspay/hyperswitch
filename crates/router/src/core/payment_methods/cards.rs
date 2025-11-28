@@ -2071,7 +2071,7 @@ pub async fn get_encrypted_data_from_hs_locker<'a>(
         };
 
         let get_card_resp: payment_methods::RetrieveCardResp =
-            payment_methods::mk_generic_locker_request(
+            payment_methods::mk_locker_api_request_and_call(
                 state,
                 jwekey,
                 locker,
@@ -2116,7 +2116,7 @@ pub async fn add_card_to_hs_locker(
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        payment_methods::mk_generic_locker_request(
+        payment_methods::mk_locker_api_request_and_call(
             state,
             jwekey,
             locker,
@@ -2296,7 +2296,7 @@ pub async fn get_card_from_hs_locker<'a>(
         };
 
         let get_card_resp: payment_methods::RetrieveCardResp =
-            payment_methods::mk_generic_locker_request(
+            payment_methods::mk_locker_api_request_and_call(
                 state,
                 jwekey,
                 locker,
@@ -2341,7 +2341,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             card_reference: card_reference.to_string(),
         };
 
-        payment_methods::mk_generic_locker_request(
+        payment_methods::mk_locker_api_request_and_call(
             state,
             jwekey,
             locker,

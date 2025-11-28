@@ -366,7 +366,7 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_generic_locker_request<'a, Req, Res>(
+pub async fn mk_locker_api_request_and_call<'a, Req, Res>(
     state: &routes::SessionState,
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -656,7 +656,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         card_reference: card_reference.to_owned(),
     };
 
-    mk_generic_locker_request(
+    mk_locker_api_request_and_call(
         state,
         jwekey,
         locker,
