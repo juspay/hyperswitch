@@ -180,8 +180,10 @@ impl ConnectorValidation for Payload {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::Card,
+            utils::PaymentMethodDataType::AchBankDebit,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -216,7 +218,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::PayloadCardsRequestData::try_from(req)?;
+        let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -920,6 +922,16 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
                     }
                 }),
             ),
+        },
+    );
+    payload_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        enums::PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
         },
     );
     payload_supported_payment_methods
