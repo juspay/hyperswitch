@@ -281,7 +281,7 @@ export const connectorDetails = {
         },
       },
     },
-    PartialRefund: {
+    PartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
       },
@@ -291,7 +291,13 @@ export const connectorDetails = {
           status: "pending",
         },
       },
-    },
+      ResponseCustom: {
+        status: 200,
+        body: {
+            status: "failed",
+        },
+      },
+    }),
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -299,29 +305,42 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
-    manualPaymentPartialRefund: {
+    manualPaymentPartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
-    },
-    SyncRefund: {
+      ResponseCustom: {
+        status: 200,
+        body: {
+            status: "failed",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Request: {},
       Response: {
         status: 200,
         body: {
           status: "pending",
         },
       },
-    },
+      ResponseCustom: {
+        status: 200,
+        body: {
+            status: "failed",
+        },
+      },
+    }),
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
