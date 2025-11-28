@@ -72,10 +72,10 @@ pub async fn list_initial_delivery_attempts(
             (events, total_count)
         }
         api_models::webhook_events::EventListConstraintsInternal::EventIdFilter { event_id } => {
-            let events = match account {
+            let event_opt = match account {
                 MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
                     store
-                        .list_initial_events_by_merchant_id_initial_attempt_id(
+                        .find_initial_event_by_merchant_id_initial_attempt_id(
                             merchant_account.get_id(),
                             event_id.as_str(),
                             &key_store,
@@ -84,7 +84,7 @@ pub async fn list_initial_delivery_attempts(
                 }
                 MerchantAccountOrProfile::Profile(business_profile) => {
                     store
-                        .list_initial_events_by_profile_id_initial_attempt_id(
+                        .find_initial_event_by_profile_id_initial_attempt_id(
                             business_profile.get_id(),
                             event_id.as_str(),
                             &key_store,
@@ -93,11 +93,12 @@ pub async fn list_initial_delivery_attempts(
                 }
             }
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to list events with specified constraints")?;
+            .attach_printable("Failed to find event with specified event_id")?;
 
-            let total_count = i64::try_from(events.len())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while converting from usize to i64")?;
+            let (events, total_count) = match event_opt {
+                Some(event) => (vec![event], 1),
+                None => (vec![], 0),
+            };
             (events, total_count)
         }
         api_models::webhook_events::EventListConstraintsInternal::GenericFilter {

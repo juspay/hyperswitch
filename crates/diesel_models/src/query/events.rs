@@ -65,31 +65,29 @@ impl Event {
         .await
     }
 
-    pub async fn list_initial_attempts_by_merchant_id_initial_attempt_id(
+    pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
-    ) -> StorageResult<Vec<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods};
+    ) -> StorageResult<Option<Self>> {
+        use diesel::{BoolExpressionMethods, ExpressionMethods};
         use error_stack::ResultExt;
 
         use super::generics;
         use crate::errors::DatabaseError;
 
-        let predicate = dsl::event_id
-            .nullable()
-            .eq(dsl::initial_attempt_id) // Filter initial attempts only
-            .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =
             generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
 
         match result {
-            Ok(event) => Ok(vec![event]),
+            Ok(event) => Ok(Some(event)),
             Err(err) => match err.current_context() {
-                DatabaseError::NotFound => Ok(vec![]),
-                _ => Err(err).attach_printable("Error finding event by event_id"),
+                DatabaseError::NotFound => Ok(None),
+                _ => Err(err).attach_printable("Error finding event by initial_attempt_id"),
             },
         }
     }
@@ -177,31 +175,29 @@ impl Event {
         .await
     }
 
-    pub async fn list_initial_attempts_by_profile_id_initial_attempt_id(
+    pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
-    ) -> StorageResult<Vec<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods};
+    ) -> StorageResult<Option<Self>> {
+        use diesel::{BoolExpressionMethods, ExpressionMethods};
         use error_stack::ResultExt;
 
         use super::generics;
         use crate::errors::DatabaseError;
 
-        let predicate = dsl::event_id
-            .nullable()
-            .eq(dsl::initial_attempt_id) // Filter initial attempts only
-            .and(dsl::business_profile_id.eq(profile_id.to_owned()))
+        let predicate = dsl::business_profile_id
+            .eq(profile_id.to_owned())
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =
             generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
 
         match result {
-            Ok(event) => Ok(vec![event]),
+            Ok(event) => Ok(Some(event)),
             Err(err) => match err.current_context() {
-                DatabaseError::NotFound => Ok(vec![]),
-                _ => Err(err).attach_printable("Error finding event by event_id"),
+                DatabaseError::NotFound => Ok(None),
+                _ => Err(err).attach_printable("Error finding event by initial_attempt_id"),
             },
         }
     }

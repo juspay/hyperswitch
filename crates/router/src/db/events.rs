@@ -70,12 +70,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
-    async fn list_initial_events_by_merchant_id_initial_attempt_id(
+    async fn find_initial_event_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn list_initial_events_by_profile_id_constraints(
@@ -97,12 +97,12 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
-    async fn list_initial_events_by_profile_id_initial_attempt_id(
+    async fn find_initial_event_by_profile_id_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError>;
 
     async fn update_event_by_merchant_id_event_id(
         &self,
@@ -311,25 +311,24 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_merchant_id_initial_attempt_id(
+    async fn find_initial_event_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_merchant_id_initial_attempt_id(
+        storage::Event::find_initial_attempt_by_merchant_id_initial_attempt_id(
             &conn,
             merchant_id,
             initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
-                    event
+        .async_and_then(|event_opt| async {
+            match event_opt {
+                Some(event) => {
+                    let domain_event = event
                         .convert(
                             self.get_keymanager_state()
                                 .attach_printable("Missing KeyManagerState")?,
@@ -337,10 +336,11 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
+                        .change_context(errors::StorageError::DecryptionError)?;
+                    Ok(Some(domain_event))
+                }
+                None => Ok(None),
             }
-            Ok(domain_events)
         })
         .await
     }
@@ -430,25 +430,24 @@ impl EventInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_initial_events_by_profile_id_initial_attempt_id(
+    async fn find_initial_event_by_profile_id_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_initial_attempts_by_profile_id_initial_attempt_id(
+        storage::Event::find_initial_attempt_by_profile_id_initial_attempt_id(
             &conn,
             profile_id,
             initial_attempt_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
-                    event
+        .async_and_then(|event_opt| async {
+            match event_opt {
+                Some(event) => {
+                    let domain_event = event
                         .convert(
                             self.get_keymanager_state()
                                 .attach_printable("Missing KeyManagerState")?,
@@ -458,10 +457,11 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
+                        .change_context(errors::StorageError::DecryptionError)?;
+                    Ok(Some(domain_event))
+                }
+                None => Ok(None),
             }
-            Ok(domain_events)
         })
         .await
     }
@@ -738,40 +738,35 @@ impl EventInterface for MockDb {
         Ok(domain_events)
     }
 
-    async fn list_initial_events_by_merchant_id_initial_attempt_id(
+    async fn find_initial_event_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
-        let events = if let Some(event) = locked_events.iter().find(|event| {
+        let event_opt = locked_events.iter().find(|event| {
             event.merchant_id == Some(merchant_id.to_owned())
-                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
                 && event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
-        }) {
-            vec![event.clone()]
-        } else {
-            vec![]
-        };
+        });
 
-        let mut domain_events = Vec::with_capacity(events.len());
-
-        for event in events {
-            let domain_event = event
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?;
-            domain_events.push(domain_event);
+        match event_opt {
+            Some(event) => {
+                let domain_event = event
+                    .clone()
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?;
+                Ok(Some(domain_event))
+            }
+            None => Ok(None),
         }
-
-        Ok(domain_events)
     }
 
     async fn list_initial_events_by_profile_id_constraints(
@@ -877,40 +872,35 @@ impl EventInterface for MockDb {
         Ok(domain_events)
     }
 
-    async fn list_initial_events_by_profile_id_initial_attempt_id(
+    async fn find_initial_event_by_profile_id_initial_attempt_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
-        let events = if let Some(event) = locked_events.iter().find(|event| {
+        let event_opt = locked_events.iter().find(|event| {
             event.business_profile_id == Some(profile_id.to_owned())
-                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
                 && event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
-        }) {
-            vec![event.clone()]
-        } else {
-            vec![]
-        };
+        });
 
-        let mut domain_events = Vec::with_capacity(events.len());
-
-        for event in events {
-            let domain_event = event
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?;
-            domain_events.push(domain_event);
+        match event_opt {
+            Some(event) => {
+                let domain_event = event
+                    .clone()
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?;
+                Ok(Some(domain_event))
+            }
+            None => Ok(None),
         }
-
-        Ok(domain_events)
     }
 
     async fn update_event_by_merchant_id_event_id(
@@ -1620,27 +1610,23 @@ mod tests {
             .first()
             .ok_or("Expected at least one event in the result")?;
         let event_id = first_event.event_id.clone();
-        let events_by_event_id = state
+        let event_by_event_id = state
             .store
-            .list_initial_events_by_merchant_id_initial_attempt_id(
+            .find_initial_event_by_merchant_id_initial_attempt_id(
                 &business_profile.merchant_id,
                 &event_id,
                 &merchant_key_store,
             )
             .await?;
 
-        assert_eq!(
-            events_by_event_id.len(),
-            1,
-            "Expected exactly 1 row in events table when querying by initial_attempt_id (event_id), found {}",
-            events_by_event_id.len()
+        assert!(
+            event_by_event_id.is_some(),
+            "Expected to find an event when querying by initial_attempt_id (event_id)"
         );
 
-        let first_event_by_event_id = events_by_event_id
-            .first()
-            .ok_or("Expected at least one event in the result")?;
+        let found_event = event_by_event_id.unwrap();
         assert_eq!(
-            first_event.event_id, first_event_by_event_id.event_id,
+            first_event.event_id, found_event.event_id,
             "Event IDs should match between queries"
         );
         Ok(())
