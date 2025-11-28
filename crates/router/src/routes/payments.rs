@@ -857,7 +857,10 @@ pub async fn payments_post_session_tokens(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1113,7 +1116,10 @@ pub async fn payments_dynamic_tax_calculation(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1237,7 +1243,10 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
@@ -2409,7 +2418,10 @@ pub async fn payments_external_authentication(
                 hyperswitch_domain_models::router_flow_types::Authenticate,
             >(state, platform, req)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
