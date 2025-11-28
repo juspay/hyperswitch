@@ -35,9 +35,12 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
-
 // Helper function for creating individual rollout config
-function createIndividualRolloutConfig(methodFlow, globalState, configType = 'rollout') {
+function createIndividualRolloutConfig(
+  methodFlow,
+  globalState,
+  configType = "rollout"
+) {
   const merchantId = globalState.get("merchantId");
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -45,63 +48,83 @@ function createIndividualRolloutConfig(methodFlow, globalState, configType = 'ro
   const httpUrl = globalState.get("proxyHttp");
   const httpsUrl = globalState.get("proxyHttps");
 
-  const keySuffix = configType === 'shadow' ? '_shadow' : '';
-  const rolloutPercent = configType === 'shadow' ? 0.9 : 0.1;
+  const keySuffix = configType === "shadow" ? "_shadow" : "";
+  const rolloutPercent = configType === "shadow" ? 0.9 : 0.1;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
 
   const configValue = {
-    "rollout_percent": rolloutPercent,
-    "http_url": httpUrl,
-    "https_url": httpsUrl
+    rollout_percent: rolloutPercent,
+    http_url: httpUrl,
+    https_url: httpsUrl,
   };
   const value = JSON.stringify(configValue);
 
   const headers = {
     "Content-Type": "application/json",
-    "api-key": adminApiKey
+    "api-key": adminApiKey,
   };
 
   const requestBody = {
     key: key,
-    value: value
+    value: value,
   };
 
   const url = `${baseUrl}/configs/`;
 
-  return cy.request({
-    method: "POST",
-    url: url,
-    headers: headers,
-    body: requestBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status === 200) {
-      expect(response.body).to.have.property("key").to.equal(key);
-      expect(response.body).to.have.property("value").to.equal(value);
-      return cy.task("cli_log", `PASS: ${configType} config created successfully: ${merchantId}_${connector}_${methodFlow}`).then(() => {
-        return cy.wrap({ success: true, flow: methodFlow });
-      });
-    } else {
-      const errorMsg = response.body?.error?.message || 'Unknown error';
-      return cy.task("cli_log", `FAIL: ${configType} config creation failed: ${merchantId}_${connector}_${methodFlow}`).then(() => {
-        return cy.task("cli_log", `   Status: ${response.status}`).then(() => {
-          return cy.task("cli_log", `   Error: ${errorMsg}`).then(() => {
-            return cy.wrap({ success: false, flow: methodFlow, error: errorMsg });
+  return cy
+    .request({
+      method: "POST",
+      url: url,
+      headers: headers,
+      body: requestBody,
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+        return cy
+          .task(
+            "cli_log",
+            `PASS: ${configType} config created successfully: ${merchantId}_${connector}_${methodFlow}`
+          )
+          .then(() => {
+            return cy.wrap({ success: true, flow: methodFlow });
           });
-        });
-      });
-    }
-  });
+      } else {
+        const errorMsg = response.body?.error?.message || "Unknown error";
+        return cy
+          .task(
+            "cli_log",
+            `FAIL: ${configType} config creation failed: ${merchantId}_${connector}_${methodFlow}`
+          )
+          .then(() => {
+            return cy
+              .task("cli_log", `   Status: ${response.status}`)
+              .then(() => {
+                return cy.task("cli_log", `   Error: ${errorMsg}`).then(() => {
+                  return cy.wrap({
+                    success: false,
+                    flow: methodFlow,
+                    error: errorMsg,
+                  });
+                });
+              });
+          });
+      }
+    });
 }
-
 
 function parseMethodFlows(methodFlowInput) {
   if (!methodFlowInput) {
     throw new Error("methodFlow input is required");
   }
 
-  return methodFlowInput.includes(',')
-    ? methodFlowInput.split(',').map(flow => flow.trim()).filter(flow => flow.length > 0)
+  return methodFlowInput.includes(",")
+    ? methodFlowInput
+        .split(",")
+        .map((flow) => flow.trim())
+        .filter((flow) => flow.length > 0)
     : [methodFlowInput.trim()];
 }
 
@@ -109,7 +132,10 @@ function createUcsConfigs(globalState, flow, type) {
   // --- Phase 1: Environment Setup & Validation ---
   const ucsEnabled = globalState.get("ucsEnabled");
   if (!ucsEnabled) {
-    cy.task("cli_log", `UCS ${type} config creation skipped - ucsEnabled is false or not set`);
+    cy.task(
+      "cli_log",
+      `UCS ${type} config creation skipped - ucsEnabled is false or not set`
+    );
     return;
   }
 
@@ -136,40 +162,70 @@ function createUcsConfigs(globalState, flow, type) {
   const baseUrl = globalState.get("baseUrl");
 
   if (!merchantId || !adminApiKey || !baseUrl) {
-    throw new Error("Missing merchantId, adminApiKey, or baseUrl in globalState");
+    throw new Error(
+      "Missing merchantId, adminApiKey, or baseUrl in globalState"
+    );
   }
 
   const methodFlows = parseMethodFlows(methodFlowInput);
 
-  return cy.task("cli_log", `Creating ${type} rollout config for merchant: ${merchantId}`).then(() => {
-    return cy.task("cli_log", `Processing ${methodFlows.length} flows: ${methodFlows.join(", ")}`).then(() => {
-      // --- Phase 3: Sequential Config Creation ---
-      function processFlowsSequentially(flows, index, results) {
-        if (index >= flows.length) {
-          // --- Phase 4: Final Summary ---
-          const successCount = results.filter(r => r.success).length;
-          const failureCount = results.filter(r => !r.success).length;
-          const failedConfigs = results.filter(r => !r.success);
+  return cy
+    .task(
+      "cli_log",
+      `Creating ${type} rollout config for merchant: ${merchantId}`
+    )
+    .then(() => {
+      return cy
+        .task(
+          "cli_log",
+          `Processing ${methodFlows.length} flows: ${methodFlows.join(", ")}`
+        )
+        .then(() => {
+          // --- Phase 3: Sequential Config Creation ---
+          function processFlowsSequentially(flows, index, results) {
+            if (index >= flows.length) {
+              // --- Phase 4: Final Summary ---
+              const successCount = results.filter((r) => r.success).length;
+              const failureCount = results.filter((r) => !r.success).length;
+              const failedConfigs = results.filter((r) => !r.success);
 
-          return cy.task("cli_log", `${type} rollout config creation completed: ${successCount} success, ${failureCount} failures`).then(() => {
-            if (failedConfigs.length > 0) {
-              return cy.task("cli_log", `Failed configs: ${JSON.stringify(failedConfigs)}`);
+              return cy
+                .task(
+                  "cli_log",
+                  `${type} rollout config creation completed: ${successCount} success, ${failureCount} failures`
+                )
+                .then(() => {
+                  if (failedConfigs.length > 0) {
+                    return cy.task(
+                      "cli_log",
+                      `Failed configs: ${JSON.stringify(failedConfigs)}`
+                    );
+                  }
+                });
             }
-          });
-        }
 
-        const currentFlow = flows[index];
-        return cy.task("cli_log", `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`).then(() => {
-          return createIndividualRolloutConfig(currentFlow, globalState, type);
-        }).then((result) => {
-          results.push(result);
-          return processFlowsSequentially(flows, index + 1, results);
+            const currentFlow = flows[index];
+            return cy
+              .task(
+                "cli_log",
+                `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`
+              )
+              .then(() => {
+                return createIndividualRolloutConfig(
+                  currentFlow,
+                  globalState,
+                  type
+                );
+              })
+              .then((result) => {
+                results.push(result);
+                return processFlowsSequentially(flows, index + 1, results);
+              });
+          }
+
+          return processFlowsSequentially(methodFlows, 0, []);
         });
-      }
-
-      return processFlowsSequentially(methodFlows, 0, []);
     });
-  });
 }
 
 function storeRequestId(xRequestId, globalState) {
@@ -185,13 +241,22 @@ function storeRequestId(xRequestId, globalState) {
 // Helper function for validating diff check input
 function validateDiffCheckInput(globalState) {
   if (!globalState || !globalState.get("ucsEnabled")) {
-    cy.task("cli_log", "ERROR: globalState parameter is required for diffCheckResult");
-    return { isValid: false, reason: "Missing globalState or ucsEnabled is false" };
+    cy.task(
+      "cli_log",
+      "ERROR: globalState parameter is required for diffCheckResult"
+    );
+    return {
+      isValid: false,
+      reason: "Missing globalState or ucsEnabled is false",
+    };
   }
 
   const storedRequestIds = globalState.get("requestIds") || [];
   if (storedRequestIds.length === 0) {
-    cy.task("cli_log", "No stored request IDs found. Skipping diff check validation.");
+    cy.task(
+      "cli_log",
+      "No stored request IDs found. Skipping diff check validation."
+    );
     return { isValid: false, reason: "No request IDs" };
   }
 
@@ -201,8 +266,8 @@ function validateDiffCheckInput(globalState) {
 // Helper function for filtering matching validation results
 function filterMatchingResults(allResults, storedRequestIds) {
   const matchingResults = [];
-  allResults.forEach(resultId => {
-    const isMatching = storedRequestIds.some(storedId => {
+  allResults.forEach((resultId) => {
+    const isMatching = storedRequestIds.some((storedId) => {
       return resultId.includes(storedId);
     });
     if (isMatching) {
@@ -224,33 +289,58 @@ function validateComparisonResult(comparisonResult, resultId) {
   // Validate headerComparison
   if (comparisonResult.headerComparison) {
     try {
-      expect(comparisonResult.headerComparison.keyDiff, 'headerComparison.keyDiff').to.deep.equal({});
-      expect(comparisonResult.headerComparison.valueDiff, 'headerComparison.valueDiff').to.deep.equal({});
+      expect(
+        comparisonResult.headerComparison.keyDiff,
+        "headerComparison.keyDiff"
+      ).to.deep.equal({});
+      expect(
+        comparisonResult.headerComparison.valueDiff,
+        "headerComparison.valueDiff"
+      ).to.deep.equal({});
     } catch (error) {
       validationsFailed++;
-      cy.task("cli_log", `FAIL: headerComparison validation failed for ${resultId}: ${error.message}`);
+      cy.task(
+        "cli_log",
+        `FAIL: headerComparison validation failed for ${resultId}: ${error.message}`
+      );
     }
   }
 
   // Validate methodComparison
   if (comparisonResult.methodComparison) {
     try {
-      expect(comparisonResult.methodComparison.match, 'methodComparison.match').to.be.true;
+      expect(comparisonResult.methodComparison.match, "methodComparison.match")
+        .to.be.true;
     } catch (error) {
       validationsFailed++;
-      cy.task("cli_log", `FAIL: methodComparison validation failed for ${resultId}: ${error.message}`);
+      cy.task(
+        "cli_log",
+        `FAIL: methodComparison validation failed for ${resultId}: ${error.message}`
+      );
     }
   }
 
   // Validate bodyComparison
   if (comparisonResult.bodyComparison) {
     try {
-      expect(comparisonResult.bodyComparison.keyDiff, 'bodyComparison.keyDiff').to.deep.equal({});
-      expect(comparisonResult.bodyComparison.valueDiff, 'bodyComparison.valueDiff').to.deep.equal({});
-      expect(comparisonResult.bodyComparison.typeDiff, 'bodyComparison.typeDiff').to.deep.equal({});
+      expect(
+        comparisonResult.bodyComparison.keyDiff,
+        "bodyComparison.keyDiff"
+      ).to.deep.equal({});
+      expect(
+        comparisonResult.bodyComparison.valueDiff,
+        "bodyComparison.valueDiff"
+      ).to.deep.equal({});
+      expect(
+        comparisonResult.bodyComparison.typeDiff,
+        "bodyComparison.typeDiff"
+      ).to.deep.equal({});
     } catch (error) {
       validationsFailed++;
-      cy.task("cli_log", `FAIL: bodyComparison validation failed for ${resultId}: ${error.message}`);
+      cy.task(
+        "cli_log",
+        `FAIL: bodyComparison validation failed for ${resultId}: ${error.message}`
+      );
     }
   }
 
@@ -262,40 +352,59 @@ function processValidationResult(resultId, validationServiceUrl) {
   const encodedResultId = encodeResultId(resultId);
   const detailUrl = `${validationServiceUrl}/${encodedResultId}`;
 
-  return cy.request({
-    method: "GET",
-    url: detailUrl,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    timeout: 30000,
-    failOnStatusCode: false,
-  }).then((detailResponse) => {
-    if (detailResponse.status === 200) {
-      try {
-        if (detailResponse.body?.data?.data?.comparisonResult) {
-          const comparisonResult = detailResponse.body.data.data.comparisonResult;
-          const isValid = validateComparisonResult(comparisonResult, resultId);
-          return cy.wrap({ success: isValid, resultId });
-        } else {
-          cy.task("cli_log", `FAIL: comparisonResult not found in response for ${resultId}`);
+  return cy
+    .request({
+      method: "GET",
+      url: detailUrl,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+      failOnStatusCode: false,
+    })
+    .then((detailResponse) => {
+      if (detailResponse.status === 200) {
+        try {
+          if (detailResponse.body?.data?.data?.comparisonResult) {
+            const comparisonResult =
+              detailResponse.body.data.data.comparisonResult;
+            const isValid = validateComparisonResult(
+              comparisonResult,
+              resultId
+            );
+            return cy.wrap({ success: isValid, resultId });
+          } else {
+            cy.task(
+              "cli_log",
+              `FAIL: comparisonResult not found in response for ${resultId}`
+            );
+            return cy.wrap({ success: false, resultId });
+          }
+        } catch (error) {
+          cy.task(
+            "cli_log",
+            `FAIL: Validation error for ${resultId}: ${error.message}`
+          );
           return cy.wrap({ success: false, resultId });
         }
-      } catch (error) {
-        cy.task("cli_log", `FAIL: Validation error for ${resultId}: ${error.message}`);
+      } else {
+        cy.task(
+          "cli_log",
+          `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`
+        );
         return cy.wrap({ success: false, resultId });
       }
-    } else {
-      cy.task("cli_log", `FAIL: Request failed for ${resultId} (Status: ${detailResponse.status})`);
-      return cy.wrap({ success: false, resultId });
-    }
-  });
+    });
 }
 
 // Helper function for cleaning up processed request IDs
-function cleanupProcessedRequestIds(globalState, matchingResults, storedRequestIds) {
-  const remainingRequestIds = storedRequestIds.filter(storedId => {
-    return !matchingResults.some(resultId => resultId.includes(storedId));
+function cleanupProcessedRequestIds(
+  globalState,
+  matchingResults,
+  storedRequestIds
+) {
+  const remainingRequestIds = storedRequestIds.filter((storedId) => {
+    return !matchingResults.some((resultId) => resultId.includes(storedId));
   });
   globalState.set("requestIds", remainingRequestIds);
 }
@@ -307,7 +416,6 @@ function logRequestId(xRequestId) {
     cy.task("cli_log", "x-request-id is not available in the response headers");
   }
 }
-
 
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
@@ -365,7 +473,6 @@ Cypress.Commands.add(
       body: merchantCreateBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
 
       cy.wrap(response).then(() => {
         // Handle the response as needed
@@ -1453,12 +1560,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -2824,13 +2931,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -4457,9 +4564,12 @@ Cypress.Commands.add("createRolloutConfig", (globalState, flow = null) => {
   return createUcsConfigs(globalState, flow, "rollout");
 });
 
-Cypress.Commands.add("createShadowRolloutConfig", (globalState, flow = null) => {
-  return createUcsConfigs(globalState, flow, "shadow");
-});
+Cypress.Commands.add(
+  "createShadowRolloutConfig",
+  (globalState, flow = null) => {
+    return createUcsConfigs(globalState, flow, "shadow");
+  }
+);
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",
@@ -4708,7 +4818,10 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   }
 
   const storedRequestIds = validation.requestIds;
-  cy.task("cli_log", `Diff check validation started for ${storedRequestIds.length} request ID(s)`);
+  cy.task(
+    "cli_log",
+    `Diff check validation started for ${storedRequestIds.length} request ID(s)`
+  );
 
   // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
@@ -4717,18 +4830,25 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
     method: "GET",
     url: validationServiceUrl,
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
     failOnStatusCode: false,
   }).then((response) => {
     // Handle service unavailability
     if (response.status !== 200) {
-      cy.task("cli_log", `Validation service unavailable (Status: ${response.status}). Skipping diff check validation.`);
+      cy.task(
+        "cli_log",
+        `Validation service unavailable (Status: ${response.status}). Skipping diff check validation.`
+      );
       return;
     }
 
     // Validate response structure
-    if (!response.body || !response.body.data || !Array.isArray(response.body.data)) {
+    if (
+      !response.body ||
+      !response.body.data ||
+      !Array.isArray(response.body.data)
+    ) {
       cy.task("cli_log", "Invalid response structure from validation service");
       return;
     }
@@ -4744,25 +4864,45 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 
     // Phase 4: Sequential Processing with Summary
     cy.then(() => {
-      function processResultsSequentially(results, index, successCount, errorCount) {
+      function processResultsSequentially(
+        results,
+        index,
+        successCount,
+        errorCount
+      ) {
         if (index >= results.length) {
           // Final summary
-          const message = errorCount === 0
-            ? `Diff check validation completed: ${successCount} passed, ${errorCount} failed`
-            : `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`;
+          const message =
+            errorCount === 0
+              ? `Diff check validation completed: ${successCount} passed, ${errorCount} failed`
+              : `Diff check validation completed with failures: ${successCount} passed, ${errorCount} failed`;
           cy.task("cli_log", message);
 
           // Cleanup processed request IDs
-          cleanupProcessedRequestIds(globalState, matchingResults, storedRequestIds);
+          cleanupProcessedRequestIds(
+            globalState,
+            matchingResults,
+            storedRequestIds
+          );
           return;
         }
 
         const currentResult = results[index];
-        return processValidationResult(currentResult, validationServiceUrl).then((result) => {
-          const newSuccessCount = result.success ? successCount + 1 : successCount;
+        return processValidationResult(
+          currentResult,
+          validationServiceUrl
+        ).then((result) => {
+          const newSuccessCount = result.success
+            ? successCount + 1
+            : successCount;
           const newErrorCount = result.success ? errorCount : errorCount + 1;
 
-          return processResultsSequentially(results, index + 1, newSuccessCount, newErrorCount);
+          return processResultsSequentially(
+            results,
+            index + 1,
+            newSuccessCount,
+            newErrorCount
+          );
         });
       }
 
