@@ -17,14 +17,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-const successfulMandateCardDetails = {
-  card_number: "5555555555554444",
-  card_exp_month: "10",
-  card_exp_year: "28",
-  card_holder_name: "Joseph",
-  card_cvc: "122",
-}
-
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -568,15 +560,13 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: {
+        description: "Test Payment",
+      },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_04",
-            message: "Missing required param: description",
-            type: "invalid_request",
-          },
+          status: "succeeded",
         },
       },
     },
