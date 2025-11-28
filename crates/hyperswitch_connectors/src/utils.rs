@@ -37,7 +37,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::{BASE64_ENGINE, BASE64_ENGINE_URL_SAFE, BASE64_ENGINE_URL_SAFE_NO_PAD},
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
