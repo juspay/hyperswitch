@@ -785,11 +785,9 @@ pub async fn payouts_list_core(
                     &state,
                     None,
                     payout.address_id.as_deref(),
-                    merchant_id,
                     payout.customer_id.as_ref(),
-                    platform.get_processor().get_key_store(),
                     &payout_id_as_payment_id_type,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider(),
                 )
                 .await
                 .transpose()
@@ -2758,13 +2756,8 @@ pub async fn payout_create_db_entries(
     let customer_id = customer.map(|cust| cust.customer_id.clone());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile = validate_and_get_business_profile(
-        state,
-        platform.get_processor().get_key_store(),
-        profile_id,
-        merchant_id,
-    )
-    .await?;
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), profile_id).await?;
 
     let payout_link = match req.payout_link {
         Some(true) => Some(
@@ -3048,11 +3041,9 @@ pub async fn make_payout_data(
         state,
         None,
         payouts.address_id.as_deref(),
-        merchant_id,
         customer_id,
-        platform.get_processor().get_key_store(),
         &payout_id_as_payment_id_type,
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_provider(),
     )
     .await?
     .map(|addr| domain_models::address::Address::from(&addr));
@@ -3081,13 +3072,8 @@ pub async fn make_payout_data(
     let profile_id = payout_attempt.profile_id.clone();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile = validate_and_get_business_profile(
-        state,
-        platform.get_processor().get_key_store(),
-        &profile_id,
-        merchant_id,
-    )
-    .await?;
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
     let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
@@ -3243,23 +3229,17 @@ pub async fn add_external_account_addition_task(
 
 async fn validate_and_get_business_profile(
     state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     profile_id: &id_type::ProfileId,
-    merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Profile> {
     let db = &*state.store;
 
-    if let Some(business_profile) = core_utils::validate_and_get_business_profile(
-        db,
-        merchant_key_store,
-        Some(profile_id),
-        merchant_id,
-    )
-    .await?
+    if let Some(business_profile) =
+        core_utils::validate_and_get_business_profile(db, processor, Some(profile_id)).await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(merchant_key_store, profile_id)
+        db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),

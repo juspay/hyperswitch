@@ -297,22 +297,20 @@ pub async fn create_or_find_address_for_payment_by_request(
     state: &SessionState,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
-    merchant_id: &id_type::MerchantId,
     customer_id: Option<&id_type::CustomerId>,
-    merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &id_type::PaymentId,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    provider: &domain::Provider,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
-    let key = merchant_key_store.key.get_inner().peek();
+    let key = provider.get_key_store().key.get_inner().peek();
     let db = &state.store;
     Ok(match address_id {
         Some(id) => Some(
             db.find_address_by_merchant_id_payment_id_address_id(
-                merchant_id,
+                provider.get_account().get_id(),
                 payment_id,
                 id,
-                merchant_key_store,
-                storage_scheme,
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
             )
             .await
             .map(|payment_address| payment_address.address),
@@ -322,10 +320,16 @@ pub async fn create_or_find_address_for_payment_by_request(
         None => match req_address {
             Some(address) => {
                 // generate a new address here
-                let address = get_domain_address(state, address, merchant_id, key, storage_scheme)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while encrypting address while insert")?;
+                let address = get_domain_address(
+                    state,
+                    address,
+                    provider.get_account().get_id(),
+                    key,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting address while insert")?;
 
                 let payment_address = domain::PaymentAddress {
                     address,
@@ -337,8 +341,8 @@ pub async fn create_or_find_address_for_payment_by_request(
                     db.insert_address_for_payments(
                         payment_id,
                         payment_address,
-                        merchant_key_store,
-                        storage_scheme,
+                        provider.get_key_store(),
+                        provider.get_account().storage_scheme,
                     )
                     .await
                     .map(|payment_address| payment_address.address)
@@ -550,9 +554,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    platform.get_processor().get_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     payment_method_id,
-                                    platform.get_processor().get_account().storage_scheme,
+                                    platform.get_provider().get_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -564,7 +568,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                             verify_mandate_details_for_recurring_payments(
                                 &payment_method_info.merchant_id,
-                                platform.get_processor().get_account().get_id(),
+                                platform.get_provider().get_account().get_id(),
                                 &payment_method_info.customer_id,
                                 customer_id,
                             )?;
@@ -738,11 +742,12 @@ pub async fn get_token_for_recurring_mandate(
 ) -> RouterResult<MandateGenericData> {
     let db = &*state.store;
 
+    // mandate will be at processor or provider
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            platform.get_processor().get_account().get_id(),
+            platform.get_provider().get_account().get_id(),
             mandate_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -753,8 +758,8 @@ pub async fn get_token_for_recurring_mandate(
             db.find_payment_intent_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -771,7 +776,7 @@ pub async fn get_token_for_recurring_mandate(
                 &payment_intent.payment_id,
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -809,9 +814,9 @@ pub async fn get_token_for_recurring_mandate(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -829,7 +834,7 @@ pub async fn get_token_for_recurring_mandate(
                 state,
                 &token,
                 &payment_method,
-                platform.get_processor().get_key_store(),
+                platform.get_provider(),
             )
             .await?;
         }
@@ -4007,10 +4012,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
 ) -> RouterResult<()> {
-    let primary_business_details = platform
-        .get_processor()
+    let primary_business_details = processor
         .get_account()
         .primary_business_details
         .clone()
@@ -7816,16 +7820,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7881,7 +7885,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    platform.get_processor().get_account().get_id().clone()
+                    processor.get_account().get_id().clone()
                 )),
             );
         }
