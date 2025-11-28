@@ -993,25 +993,6 @@ pub fn build_unified_connector_service_auth_metadata(
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
 
-    // let connector_name = {
-    //     #[cfg(feature = "v1")]
-    //     {
-    //         merchant_connector_account
-    //             .get_connector_name()
-    //             .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-    //             .attach_printable("Missing connector name")?
-    //     }
-
-    //     #[cfg(feature = "v2")]
-    //     {
-    //         merchant_connector_account
-    //             .get_connector_name()
-    //             .map(|connector| connector.to_string())
-    //             .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-    //             .attach_printable("Missing connector name")?
-    //     }
-    // };
-
     let merchant_id = platform
         .get_processor()
         .get_account()
