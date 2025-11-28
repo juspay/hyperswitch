@@ -1451,8 +1451,17 @@ pub struct NuveiPayoutRequest {
     pub user_token_id: CustomerId,
     pub time_stamp: String,
     pub checksum: Secret<String>,
-    pub card_data: NuveiPayoutCardData,
     pub url_details: NuveiPayoutUrlDetails,
+    #[serde(flatten)]
+    pub payout_method_data: NuveiPayoutMethodData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutMethodData {
+    pub card_data: Option<NuveiPayoutCardData>,
+    pub user_payment_option: Option<PaymentOption>,
 }
 
 #[cfg(feature = "payouts")]
@@ -1500,26 +1509,43 @@ pub struct NuveiPayoutErrorResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
+impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         payout_method_data: api_models::payouts::PayoutMethodData,
     ) -> Result<Self, Self::Error> {
         match payout_method_data {
-            api_models::payouts::PayoutMethodData::Card(card_data) => Ok(Self {
-                card_number: card_data.card_number,
-                card_holder_name: card_data.card_holder_name.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "customer_id",
-                    },
-                )?,
-                expiration_month: card_data.expiry_month,
-                expiration_year: card_data.expiry_year,
-            }),
+            api_models::payouts::PayoutMethodData::Card(card_data) => {
+                let card_data = Some(NuveiPayoutCardData {
+                    card_number: card_data.card_number,
+                    card_holder_name: card_data.card_holder_name.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_holder_name",
+                        },
+                    )?,
+                    expiration_month: card_data.expiry_month,
+                    expiration_year: card_data.expiry_year,
+                });
+
+                Ok(Self {
+                    card_data,
+                    user_payment_option: None,
+                })
+            }
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough_data) => {
+                let user_payment_option = Some(PaymentOption {
+                    user_payment_option_id: Some(passthrough_data.psp_token.expose()),
+                    ..Default::default()
+                });
+
+                Ok(Self {
+                    card_data: None,
+                    user_payment_option,
+                })
+            }
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
-            | api_models::payouts::PayoutMethodData::BankRedirect(_)
-            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
+            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )
@@ -1556,7 +1582,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
 
         let payout_method_data = item.get_payout_method_data()?;
 
-        let card_data = NuveiPayoutCardData::try_from(payout_method_data)?;
+        let payout_method_data: NuveiPayoutMethodData = payout_method_data.try_into()?;
 
         let customer_details = item.request.get_customer_details()?;
 
@@ -1578,7 +1604,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
             )?,
             time_stamp,
             checksum: Secret::new(checksum),
-            card_data,
+            payout_method_data,
             url_details,
         })
     }
