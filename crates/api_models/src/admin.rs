@@ -1476,7 +1476,8 @@ pub struct MerchantConnectorResponse {
 
     /// Details about the connector’s webhook configuration
     #[schema(value_type = Option<WebhookSetupCapabilities>)]
-    pub webhook_setup_capabilities:  Option<common_types::webhook_configuration::WebhookSetupCapabilities>
+    pub webhook_setup_capabilities:
+        Option<common_types::webhook_configuration::WebhookSetupCapabilities>,
 }
 
 #[cfg(feature = "v1")]

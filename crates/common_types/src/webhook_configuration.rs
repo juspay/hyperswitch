@@ -1,14 +1,12 @@
-
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-/// Connector details for webhook configuration via hyperswitch API 
+/// Connector details for webhook configuration via hyperswitch API
 pub struct WebhookSetupCapabilities {
     /// Indicates if the connector supports webhooks configuration via API
     pub is_webhook_auto_configuration_supported: bool,

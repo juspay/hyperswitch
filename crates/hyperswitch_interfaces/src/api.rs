@@ -545,15 +545,15 @@ pub trait ConnectorSpecifications {
     }
 
     /// Get connector's API webhook configuration object
-    fn get_api_webhook_config(&self) -> common_types::webhook_configuration::WebhookSetupCapabilities {
+    fn get_api_webhook_config(
+        &self,
+    ) -> common_types::webhook_configuration::WebhookSetupCapabilities {
         common_types::webhook_configuration::WebhookSetupCapabilities {
             is_webhook_auto_configuration_supported: false,
             requires_webhook_secret: None,
             config_type: None,
-        } 
+        }
     }
-
-    
 }
 
 /// Extended trait for connector common to allow functions with generic type
