@@ -34,7 +34,7 @@ where
             .add_filter_clause("payment_id", &payment_id)
             .switch()?;
     }
-     
+
     if let Some(payout_id) = query_param.payout_id {
         query_builder
             .add_filter_clause("payout_id", &payout_id)

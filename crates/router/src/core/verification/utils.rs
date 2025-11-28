@@ -1,4 +1,7 @@
-use common_utils::{errors::CustomResult, id_type::{PaymentId, PayoutId}};
+use common_utils::{
+    errors::CustomResult,
+    id_type::{PaymentId, PayoutId},
+};
 use error_stack::{Report, ResultExt};
 
 use crate::{

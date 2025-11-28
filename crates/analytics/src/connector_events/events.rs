@@ -35,7 +35,6 @@ where
             .add_filter_clause("payment_id", &payment_id)
             .switch()?;
     }
-    
 
     if let Some(refund_id) = query_param.refund_id {
         query_builder

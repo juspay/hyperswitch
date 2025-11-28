@@ -32,7 +32,7 @@ pub enum QueryType {
     },
     Payout {
         payout_id: common_utils::id_type::PayoutId,
-    }
+    },
 }
 
 #[derive(

@@ -92,13 +92,11 @@ where
                 )
                 .switch()?;
         }
-        QueryType::Payout {
-            payout_id 
-        } => {
+        QueryType::Payout { payout_id } => {
             query_builder
                 .add_filter_clause("payout_id", &payout_id)
                 .switch()?;
-           
+
             query_builder
                 .add_filter_in_range_clause(
                     "api_flow",
