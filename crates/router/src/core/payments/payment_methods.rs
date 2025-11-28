@@ -36,8 +36,8 @@ pub async fn list_payment_methods(
     let payment_intent = db
         .find_payment_intent_by_id(
             &payment_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -56,8 +56,12 @@ pub async fn list_payment_methods(
 
     let customer_payment_methods = match &payment_intent.customer_id {
         Some(customer_id) => Some(
-            payment_methods::list_customer_payment_methods_core(&state, &platform, customer_id)
-                .await?,
+            payment_methods::list_customer_payment_methods_core(
+                &state,
+                platform.get_provider(),
+                customer_id,
+            )
+            .await?,
         ),
         None => None,
     };

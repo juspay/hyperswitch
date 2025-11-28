@@ -134,7 +134,10 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    let cards = PmCards { state, platform };
+    let cards = PmCards {
+        state,
+        provider: platform.get_provider(),
+    };
     match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -1106,17 +1109,16 @@ pub async fn save_in_locker_internal(
         .clone()
         .get_required_value("customer_id")?;
     match (payment_method_request.card.clone(), card_detail) {
-        (_, Some(card)) | (Some(card), _) => {
-            Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &card,
-                &customer_id,
-                None,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")
-        }
+        (_, Some(card)) | (Some(card), _) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
@@ -1284,12 +1286,18 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &nt_data,
-                &customer_id,
-                None,
-            ))
+            let (res, dc) = Box::pin(
+                PmCards {
+                    state,
+                    provider: platform.get_provider(),
+                }
+                .add_card_to_locker(
+                    payment_method_request,
+                    &nt_data,
+                    &customer_id,
+                    None,
+                ),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1327,12 +1335,18 @@ pub async fn save_network_token_in_locker(
                             card_type: None,
                         };
 
-                        let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                            payment_method_request,
-                            &network_token_data,
-                            &customer_id,
-                            None,
-                        ))
+                        let (res, dc) = Box::pin(
+                            PmCards {
+                                state,
+                                provider: platform.get_provider(),
+                            }
+                            .add_card_to_locker(
+                                payment_method_request,
+                                &network_token_data,
+                                &customer_id,
+                                None,
+                            ),
+                        )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;
