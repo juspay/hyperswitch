@@ -207,11 +207,12 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 400,
         body: {
-            error: {
-                code: "IR_14",
-                message: "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
-                type: "invalid_request"
-            },
+          error: {
+            code: "IR_14",
+            message:
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            type: "invalid_request",
+          },
         },
       },
     }),
@@ -244,7 +245,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-            status: "cancelled",
+          status: "cancelled",
         },
       },
     }),
@@ -286,7 +287,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-            status: "failed",
+          status: "failed",
         },
       },
     }),
@@ -314,7 +315,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-            status: "failed",
+          status: "failed",
         },
       },
     }),
@@ -329,7 +330,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-            status: "failed",
+          status: "failed",
         },
       },
     }),
@@ -338,7 +339,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-        }
+        },
       },
       Response: {
         status: 400,
@@ -607,32 +608,32 @@ export const connectorDetails = {
   SaveCardConfirmAutoCaptureOffSession: {
     Request: {},
     Response: {
-        status: 200,
-        body: {
-            status: "succeeded",
-        },
+      status: 200,
+      body: {
+        status: "succeeded",
+      },
     },
   },
   MITManualCapture: {
-      Request: {
-        currency: "EUR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+    Request: {
+      currency: "EUR",
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "succeeded",
       },
     },
-    MITWithoutBillingAddress: {
-        Request: {
-            description: "Test Payment",
-        },
-        Response: {
-            status: 200,
-            body: {
-                status: "succeeded",
-            },
-        },
+  },
+  MITWithoutBillingAddress: {
+    Request: {
+      description: "Test Payment",
     },
+    Response: {
+      status: 200,
+      body: {
+        status: "succeeded",
+      },
+    },
+  },
 };

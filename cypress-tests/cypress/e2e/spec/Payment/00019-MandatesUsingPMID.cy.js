@@ -153,7 +153,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         const newData = {
           ...data,
-          Response: data.ResponseCustom || data.Response
+          Response: data.ResponseCustom || data.Response,
         };
 
         cy.captureCallTest(fixtures.captureBody, newData, globalState);
