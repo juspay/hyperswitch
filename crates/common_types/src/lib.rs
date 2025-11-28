@@ -17,4 +17,4 @@ pub mod three_ds_decision_rule_engine;
 pub mod callback_mapper;
 
 ///types for connector webhook configuration
-pub mod webhook_configuration;
+pub mod connector_webhook_configuration;
