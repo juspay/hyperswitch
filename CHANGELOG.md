@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.28.0
+
+### Features
+
+- **core:** Added mandate_id flow support in HS<>UCS ([#10399](https://github.com/juspay/hyperswitch/pull/10399)) ([`7bd663d`](https://github.com/juspay/hyperswitch/commit/7bd663d91c4099acbe3f55e54f2f2be12563f87e))
+- **framework:** Add Smithy Annotations for Customers, Mandates ([#10191](https://github.com/juspay/hyperswitch/pull/10191)) ([`2dea0f2`](https://github.com/juspay/hyperswitch/commit/2dea0f275ea52e61fbf3eb0ce2a9edb04e3de571))
+- **payment_links:** Add Validation On Not Allowing Custom T&C When Domain is set to Hyperswitch Hosted ([#10355](https://github.com/juspay/hyperswitch/pull/10355)) ([`f19d067`](https://github.com/juspay/hyperswitch/commit/f19d0676b3c6588330d339d43a2f27c3ceeff3f2))
+- **router:** Silence vault failures for setup_future_usage `off_session` payments in the confirm flow ([#10406](https://github.com/juspay/hyperswitch/pull/10406)) ([`c232c20`](https://github.com/juspay/hyperswitch/commit/c232c208d5d0e8d0b781a320d79cd9945ce7154e))
+- Subscription list API ([#10275](https://github.com/juspay/hyperswitch/pull/10275)) ([`ea976ae`](https://github.com/juspay/hyperswitch/commit/ea976ae226041c90e48ac906f4f1ded0201db727))
+
+### Bug Fixes
+
+- **connector:** [Payouts] fetch name from customer with billing as backup ([#10447](https://github.com/juspay/hyperswitch/pull/10447)) ([`13489fd`](https://github.com/juspay/hyperswitch/commit/13489fd4b1c3d8a596b856c1fd58be7b9b6e1532))
+- **platform:** Update validate_request to accept Processor instead of Platform ([#10405](https://github.com/juspay/hyperswitch/pull/10405)) ([`85da641`](https://github.com/juspay/hyperswitch/commit/85da641109b115d4f0e0ed44a864a030c4e69e67))
+
+**Full Changelog:** [`2025.11.27.0...2025.11.28.0`](https://github.com/juspay/hyperswitch/compare/2025.11.27.0...2025.11.28.0)
+
+- - -
+
 ## 2025.11.27.0
 
 ### Features
