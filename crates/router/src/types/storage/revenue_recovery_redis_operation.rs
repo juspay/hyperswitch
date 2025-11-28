@@ -612,7 +612,6 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
-                existing_token.account_update_history = token_data.account_update_history.clone();
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
 
@@ -656,6 +655,54 @@ impl RedisTokenManager {
         );
 
         Ok(!was_existing)
+    }
+
+    pub async fn update_the_token_for_account_updater(
+        state: &SessionState,
+        connector_customer_id: &str,
+        token_data: PaymentProcessorTokenStatus,
+    ) -> CustomResult<(), errors::StorageError> {
+        let mut token_map =
+            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                .await?;
+
+        let token_id = token_data
+            .payment_processor_token_details
+            .payment_processor_token
+            .clone();
+
+        let last_external_attempt_at = token_data.modified_at;
+
+        token_map
+            .get_mut(&token_id)
+            .map(|existing_token| {
+                Self::normalize_retry_window(existing_token, reference_time);
+                existing_token.account_update_history = token_data.account_update_history.clone();
+                existing_token.payment_processor_token_details =
+                    token_data.payment_processor_token_details.clone();
+                existing_token.modified_at = Some(last_external_attempt_at);
+                existing_token.is_hard_decline = token_data.is_hard_decline;
+                token_data
+                    .is_active
+                    .map(|is_active| existing_token.is_active = Some(is_active));
+            })
+            .or_else(|| {
+                token_map.insert(token_id.clone(), token_data);
+                None
+            });
+
+        Self::update_or_add_connector_customer_payment_processor_tokens(
+            state,
+            connector_customer_id,
+            token_map,
+        )
+        .await?;
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            "Updated existing token with updated account details from account updater",
+        );
+
+        Ok(())
     }
 
     // Update payment processor token error code with billing connector response
@@ -1327,7 +1374,7 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().time(),
                 ));
 
-                RedisTokenManager::upsert_payment_processor_token(
+                RedisTokenManager::update_the_tokens_for_account_updater(
                     state,
                     customer_id,
                     updated_token,
@@ -1377,8 +1424,12 @@ impl AccountUpdaterAction {
                     decision_threshold: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
-                    .await?;
+                RedisTokenManager::update_the_token_for_account_updater(
+                    state,
+                    customer_id,
+                    new_token,
+                )
+                .await?;
                 logger::info!("Successfully updated token with new token information.")
             }
             Self::ExpiryUpdate(updated_mandate_details) => {
@@ -1398,6 +1449,7 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 ));
+                updated_token.is_active = Some(true);
                 updated_token
                     .account_update_history
                     .get_or_insert_with(Vec::new)
@@ -1422,7 +1474,7 @@ impl AccountUpdaterAction {
                         )),
                     });
 
-                RedisTokenManager::upsert_payment_processor_token(
+                RedisTokenManager::update_the_token_for_account_updater(
                     state,
                     customer_id,
                     updated_token,
