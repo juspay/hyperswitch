@@ -91,23 +91,23 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 }
 
 impl subscriptions_api::Subscriptions for Stripebilling {}
-impl subscriptions_api::GetSubscriptionPlansFlow for Stripebilling {}
+impl subscriptions_api::GetSubscriptionItemsFlow for Stripebilling {}
 impl subscriptions_api::SubscriptionRecordBackFlow for Stripebilling {}
 impl subscriptions_api::SubscriptionCreate for Stripebilling {}
 impl
     ConnectorIntegration<
-        subscription_flow_types::GetSubscriptionPlans,
-        subscription_request_types::GetSubscriptionPlansRequest,
-        subscription_response_types::GetSubscriptionPlansResponse,
+        subscription_flow_types::GetSubscriptionItems,
+        subscription_request_types::GetSubscriptionItemsRequest,
+        subscription_response_types::GetSubscriptionItemsResponse,
     > for Stripebilling
 {
 }
 impl subscriptions_api::GetSubscriptionPlanPricesFlow for Stripebilling {}
 impl
     ConnectorIntegration<
-        subscription_flow_types::GetSubscriptionPlanPrices,
-        subscription_request_types::GetSubscriptionPlanPricesRequest,
-        subscription_response_types::GetSubscriptionPlanPricesResponse,
+        subscription_flow_types::GetSubscriptionItemPrices,
+        subscription_request_types::GetSubscriptionItemPricesRequest,
+        subscription_response_types::GetSubscriptionItemPricesResponse,
     > for Stripebilling
 {
 }
