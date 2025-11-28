@@ -184,9 +184,9 @@ function storeRequestId(xRequestId, globalState) {
 
 // Helper function for validating diff check input
 function validateDiffCheckInput(globalState) {
-  if (!globalState) {
+  if (!globalState || !globalState.get("ucsEnabled")) {
     cy.task("cli_log", "ERROR: globalState parameter is required for diffCheckResult");
-    return { isValid: false, reason: "Missing globalState" };
+    return { isValid: false, reason: "Missing globalState or ucsEnabled is false" };
   }
 
   const storedRequestIds = globalState.get("requestIds") || [];
