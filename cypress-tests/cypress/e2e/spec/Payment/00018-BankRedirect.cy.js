@@ -300,4 +300,64 @@ describe("Bank Redirect tests", () => {
       );
     });
   });
+
+  context("Bancontact Create and Confirm flow test", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["PaymentIntent"]("Bancontact");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm bank redirect", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["Bancontact"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Handle bank redirect redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+  });
 });

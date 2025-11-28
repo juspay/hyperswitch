@@ -118,6 +118,7 @@ const CURRENCY_MAP = {
   Pix: "BRL",
 
   // European payment methods (EUR)
+  Bancontact: "EUR",
   Eps: "EUR",
   Giropay: "EUR",
   Ideal: "EUR",
