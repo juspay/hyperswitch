@@ -2796,6 +2796,7 @@ pub enum FrmTransactionType {
     Default,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -2804,6 +2805,7 @@ pub enum FrmTransactionType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MandateStatus {
     #[default]
     Active,
@@ -9431,6 +9433,12 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+impl ConnectorMandateStatus {
+    pub fn is_active(&self) -> bool {
+        self == &Self::Active
+    }
+}
+
 /// Connector Mandate Status
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
@@ -10121,21 +10129,27 @@ pub enum ExemptionIndicator {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum VaultTokenType {
     /// Card number
     CardNumber,
     /// Card cvc
     CardCvc,
     /// Card expiry year
+    #[strum(serialize = "card_exp_year")]
     CardExpiryYear,
     /// Card expiry month
+    #[strum(serialize = "card_exp_month")]
     CardExpiryMonth,
     /// Network token
     NetworkToken,
     /// Token expiry year
+    #[strum(serialize = "network_token_exp_year")]
     NetworkTokenExpiryYear,
     /// Token expiry month
+    #[strum(serialize = "network_token_exp_month")]
     NetworkTokenExpiryMonth,
     /// Token cryptogram
+    #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
 }
