@@ -120,6 +120,11 @@ impl MerchantId {
         format!("guard_blocklist_for_{}", self.get_string_repr())
     }
 
+    /// get_pre_routing_disabled_pm_pmt_key
+    pub fn get_pre_routing_disabled_pm_pmt_key(&self) -> String {
+        format!("pre_routing_disabled_pm_pmt_for_{}", self.get_string_repr())
+    }
+
     /// get_merchant_fingerprint_secret_key
     pub fn get_merchant_fingerprint_secret_key(&self) -> String {
         format!("fingerprint_secret_{}", self.get_string_repr())

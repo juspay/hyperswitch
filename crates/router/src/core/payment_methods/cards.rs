@@ -85,7 +85,11 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{self, SessionFlowRoutingInput},
+            routing::{
+                self,
+                utils::{to_set, MerchantPreroutingConfig},
+                SessionFlowRoutingInput,
+            },
         },
         utils as core_utils,
     },
@@ -2897,9 +2901,34 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
+        let merchant_cfg = state
+            .store
+            .find_config_by_key_from_db(
+                &platform
+                    .get_processor()
+                    .get_account()
+                    .get_id()
+                    .get_pre_routing_disabled_pm_pmt_key(),
+            )
+            .await
+            .ok()
+            .and_then(|cfg| serde_json::from_str::<MerchantPreroutingConfig>(&cfg.config).ok())
+            .unwrap_or_default();
 
-        let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+        let disabled_pms = to_set(merchant_cfg.disabled_payment_methods);
+        let disabled_pmts = to_set(merchant_cfg.disabled_payment_method_types);
+        let enabled_pmts_back = to_set(merchant_cfg.enabled_payment_method_types);
+
+        let routing_enabled_pms = router_consts::ROUTING_ENABLED_PAYMENT_METHODS
+            .difference(&disabled_pms)
+            .copied()
+            .collect::<HashSet<_>>();
+
+        let routing_enabled_pm_types = router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES
+            .difference(&disabled_pmts)
+            .copied()
+            .chain(enabled_pmts_back)
+            .collect::<HashSet<_>>();
 
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {

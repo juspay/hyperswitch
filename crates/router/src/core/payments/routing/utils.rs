@@ -2196,3 +2196,27 @@ pub enum ContractUpdationStatusEventResponse {
     ContractUpdationSucceeded,
     ContractUpdationFailed,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MerchantPreroutingConfig {
+    /// Payment Methods for which prerouting should be disabled
+    pub disabled_payment_methods: Option<Vec<common_enums::PaymentMethod>>,
+
+    /// Payment Method Types for which prerouting should be disabled
+    pub disabled_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+
+    /// Payment Method Types for which prerouting should be enabled
+    /// Useful for cases where we had motive to disable pre-routing
+    /// for say Interac so disabled a PM(bank_redirect), which
+    /// will disable every PMTs under that PM, but we want
+    /// pre-routing to work as-usual for other PMTs under bank_redirect
+    /// we will have to populate these.
+    pub enabled_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+}
+
+pub fn to_set<T>(opt: Option<Vec<T>>) -> HashSet<T>
+where
+    T: std::hash::Hash + Eq,
+{
+    opt.unwrap_or_default().into_iter().collect()
+}
