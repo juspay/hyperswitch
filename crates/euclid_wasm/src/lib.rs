@@ -100,10 +100,14 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
-        .map(|mcc_value| MerchantCategoryCodeWithName {
-            code: mcc_value,
-            name: mcc_value.to_merchant_category_name(),
+    let merchant_category_codes_with_name = vec![5413, 7011, 763, 8111, 5021, 4816, 5661]
+        .into_iter()
+        .filter_map(|mcc_value| {
+            let mcc = MerchantCategoryCode::new(mcc_value).ok()?;
+            Some(MerchantCategoryCodeWithName {
+                code: mcc.clone(),
+                name: mcc.get_category_name().to_string(),
+            })
         })
         .collect::<Vec<_>>();
 
