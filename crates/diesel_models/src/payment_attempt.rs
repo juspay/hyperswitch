@@ -110,7 +110,7 @@ pub struct PaymentAttempt {
     pub is_stored_credential: Option<bool>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub tokenization: Option<common_enums::Tokenization>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
@@ -235,7 +235,7 @@ pub struct PaymentAttempt {
     pub is_stored_credential: Option<bool>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub tokenization: Option<common_enums::Tokenization>,
 }
@@ -382,7 +382,7 @@ pub struct PaymentAttemptNew {
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub authorized_amount: Option<MinorUnit>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub tokenization: Option<common_enums::Tokenization>,
 }
@@ -471,7 +471,7 @@ pub struct PaymentAttemptNew {
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
     pub authorized_amount: Option<MinorUnit>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub tokenization: Option<common_enums::Tokenization>,
 }
