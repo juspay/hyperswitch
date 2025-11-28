@@ -1324,6 +1324,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         payment_method,
         payment_method_type,
+        split_payments: payment_data.payment_intent.split_payments,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -5605,6 +5606,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
             payment_method: Some(payment_data.payment_attempt.payment_method_type),
             payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+            split_payments: payment_data.payment_intent.split_payments,
         })
     }
 }
