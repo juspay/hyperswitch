@@ -43,8 +43,8 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    platform_wrapper,
     events::audit_events::{AuditEvent, AuditEventType},
+    platform_wrapper,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -345,25 +345,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v1")]
         let mut payment_attempt = platform_wrapper::payment_attempt::insert(
-                db,
-                platform.get_provider(),
-                payment_attempt_new,
-            )
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
+            db,
+            platform.get_provider(),
+            payment_attempt_new,
+        )
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+            payment_id: payment_id.clone(),
+        })?;
 
         #[cfg(feature = "v2")]
         let payment_attempt = platform_wrapper::payment_attempt::insert(
-                db,
-                platform.get_provider(),
-                payment_attempt_new,
-            )
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
+            db,
+            platform.get_provider(),
+            payment_attempt_new,
+        )
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+            payment_id: payment_id.clone(),
+        })?;
 
         let mandate_details_present = payment_attempt.mandate_details.is_some();
 

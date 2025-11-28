@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::{payments::PaymentIntent, platform::Provider};
 
-use crate::{db::StorageInterface, core::errors};
+use crate::{core::errors, db::StorageInterface};
 
 // Insert a new payment intent using Provider context
 pub async fn insert(

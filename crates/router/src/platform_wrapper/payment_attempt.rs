@@ -3,7 +3,7 @@ use hyperswitch_domain_models::{
     platform::Provider,
 };
 
-use crate::{db::StorageInterface, core::errors};
+use crate::{core::errors, db::StorageInterface};
 
 // Insert a new payment attempt using Provider context
 #[cfg(feature = "v1")]
@@ -23,6 +23,10 @@ pub async fn insert(
     provider: &Provider,
     payment_attempt: PaymentAttemptNew,
 ) -> errors::CustomResult<PaymentAttempt, errors::StorageError> {
-    db.insert_payment_attempt(orovider.get_key_store(), payment_attempt, provider.get_account().storage_scheme)
-        .await
+    db.insert_payment_attempt(
+        orovider.get_key_store(),
+        payment_attempt,
+        provider.get_account().storage_scheme,
+    )
+    .await
 }
