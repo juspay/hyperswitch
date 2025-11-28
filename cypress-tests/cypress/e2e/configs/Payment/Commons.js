@@ -653,7 +653,7 @@ export const connectorDetails = {
     }),
   },
   real_time_payment_pm: {
-    PaymentIntent: () => ({
+    PaymentIntent: () => getCustomExchange({
       Request: {
         currency: "MYR",
         customer_acceptance: null,
@@ -672,8 +672,14 @@ export const connectorDetails = {
           },
         },
       },
+       Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
     }),
-    DuitNow: {
+    DuitNow: getCustomExchange({
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -696,7 +702,7 @@ export const connectorDetails = {
           },
         },
       },
-    },
+    }),
   },
   card_pm: {
     PaymentIntent: getCustomExchange({
