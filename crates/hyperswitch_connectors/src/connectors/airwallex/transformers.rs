@@ -278,7 +278,7 @@ pub enum AirwallexPaymentMethod {
 
 #[derive(Debug, Serialize)]
 pub struct AirwallexPaymentMethodId {
-    id: String,
+    id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1163,12 +1163,12 @@ pub struct AirwallexPaymentAttemptResponse {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentMethodResponse {
-    id: Option<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexMandateMetadata {
-    id: Option<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
