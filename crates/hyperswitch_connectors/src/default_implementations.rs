@@ -1716,7 +1716,6 @@ default_imp_for_create_customer!(
     connectors::Klarna,
     connectors::Loonio,
     connectors::Mifinity,
-    connectors::Mollie,
     connectors::Moneris,
     connectors::Mpgs,
     connectors::Multisafepay,

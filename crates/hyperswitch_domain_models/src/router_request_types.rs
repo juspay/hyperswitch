@@ -434,7 +434,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
-            browser_info: None,
+            browser_info: data.browser_info,
             currency: data.currency,
             amount: data.amount,
             split_payments: None,

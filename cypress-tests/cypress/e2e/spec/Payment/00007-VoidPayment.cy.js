@@ -109,7 +109,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Void"];
 
-        cy.voidCallTest(fixtures.voidBody, data, globalState);
+        const newData = {
+          ...data,
+          Response: data.ResponseCustom || data.Response,
+        };
+
+        cy.voidCallTest(fixtures.voidBody, newData, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
