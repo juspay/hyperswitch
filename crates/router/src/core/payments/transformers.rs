@@ -2,6 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
+#[cfg(feature = "v1")]
+use api_models::payments::PaymentMethodTokenizationDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
@@ -3396,7 +3398,7 @@ where
 {
     use std::ops::Not;
 
-    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE, NO_ERROR_REASON};
+    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
@@ -3867,6 +3869,11 @@ where
             Some(false) | None => None,
         };
 
+        let payment_method_tokenization_details = payment_data
+            .get_payment_method_info()
+            .map(PaymentMethodTokenizationDetails::foreign_try_from)
+            .transpose()?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3925,11 +3932,9 @@ where
                 .error_code
                 .filter(|code| code != NO_ERROR_CODE),
             error_message: payment_attempt
-                .error_message
-                .filter(|message| message != NO_ERROR_MESSAGE),
-            error_reason: payment_attempt
                 .error_reason
-                .filter(|reason| reason != NO_ERROR_REASON),
+                .or(payment_attempt.error_message)
+                .filter(|message| message != NO_ERROR_MESSAGE),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             payment_experience: payment_attempt.payment_experience,
@@ -4000,6 +4005,7 @@ where
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
+            payment_method_tokenization_details,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4255,7 +4261,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             cancellation_reason: None,
             error_code: None,
             error_message: None,
-            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,
@@ -4308,7 +4313,33 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
+            payment_method_tokenization_details: None,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<&domain::PaymentMethod> for PaymentMethodTokenizationDetails {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(payment_method: &domain::PaymentMethod) -> Result<Self, Self::Error> {
+        let connector_common_mandate_details = payment_method
+            .get_common_mandate_reference()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get the common mandate reference")?;
+        let psp_tokenization = connector_common_mandate_details
+            .payments
+            .map(|payments| payments.is_active_connector_mandate_available())
+            .unwrap_or(false);
+        let network_tokenization = payment_method.network_token_locker_id.is_some();
+        let is_network_transaction_id_present = payment_method.network_transaction_id.is_some();
+        Ok(Self {
+            payment_method_id: payment_method.payment_method_id.clone(),
+            payment_method_status: payment_method.status,
+            psp_tokenization,
+            network_tokenization,
+            network_transaction_id: payment_method.network_transaction_id.clone(),
+            is_eligible_for_mit_payment: psp_tokenization || is_network_transaction_id_present,
+        })
     }
 }
 
@@ -6633,6 +6664,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }

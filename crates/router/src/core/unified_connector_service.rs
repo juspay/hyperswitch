@@ -1247,11 +1247,14 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
 
     Ok(UcsSetupMandateResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
+        connector_response,
     })
 }
 
