@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
+use api_models::payment_methods as api;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{enums as api_enums, payment_methods as api};
 #[cfg(feature = "v1")]
 use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]
@@ -120,7 +120,6 @@ pub trait PaymentMethodsController {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
         card_reference: Option<&str>,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 

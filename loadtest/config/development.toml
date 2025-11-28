@@ -40,7 +40,6 @@ force_cookies = true
 
 [locker]
 host = ""
-host_rs = ""
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
@@ -62,7 +61,6 @@ max_age = 365
 
 [jwekey]
 vault_encryption_key = ""
-rust_locker_encryption_key = ""
 vault_private_key = ""
 
 [webhooks]

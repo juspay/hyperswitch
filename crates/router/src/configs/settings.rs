@@ -696,13 +696,20 @@ pub struct UserSettings {
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -731,7 +738,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
