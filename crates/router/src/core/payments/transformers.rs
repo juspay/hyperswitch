@@ -5710,6 +5710,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata,
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            split_payments: payment_data.payment_intent.split_payments,
         })
     }
 }
