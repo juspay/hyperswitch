@@ -247,6 +247,48 @@ impl PaymentMethod {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_payment_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        let common_mandate_reference = self.get_common_mandate_reference()?;
+        Ok(common_mandate_reference
+            .payments
+            .as_ref()
+            .and_then(|payments| payments.get(&merchant_connector_account_id))
+            .and_then(|record| record.connector_customer_id.clone()))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payout_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        let common_mandate_reference = self.get_common_mandate_reference()?;
+        Ok(common_mandate_reference
+            .payouts
+            .as_ref()
+            .and_then(|payouts| payouts.get(&merchant_connector_account_id))
+            .and_then(|record| record.connector_customer_id.clone()))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payout_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        todo!()
+    }
+
     #[cfg(feature = "v2")]
     pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
         self.payment_method_type = Some(payment_method_type);

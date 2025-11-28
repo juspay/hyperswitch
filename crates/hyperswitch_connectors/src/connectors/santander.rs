@@ -35,8 +35,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::NO_ERROR_MESSAGE,
@@ -1096,5 +1096,31 @@ impl ConnectorSpecifications for Santander {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SANTANDER_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+impl ConnectorAccessTokenSuffix for Santander {
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let key_suffix = router_data
+            .payment_method_type
+            .as_ref()
+            .map(|pmt| pmt.to_string());
+
+        match key_suffix {
+            Some(key) => Ok(format!(
+                "access_token_{}_{}_{}",
+                router_data.merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+                key
+            )),
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                &router_data.merchant_id,
+                merchant_connector_id_or_connector_name,
+            )),
+        }
     }
 }

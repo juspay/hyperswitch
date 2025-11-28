@@ -171,7 +171,6 @@ async fn payments_create_core() {
         cancellation_reason: None,
         error_code: None,
         error_message: None,
-        error_reason: None,
         unified_code: None,
         unified_message: None,
         payment_experience: None,
@@ -233,6 +232,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        partner_merchant_identifier_details: None,
+        payment_method_tokenization_details: None,
     };
 
     let expected_response =
@@ -471,7 +472,6 @@ async fn payments_create_core_adyen_no_redirect() {
             cancellation_reason: None,
             error_code: None,
             error_message: None,
-            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,
@@ -533,6 +533,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            partner_merchant_identifier_details: None,
+            payment_method_tokenization_details: None,
         },
         vec![],
     ));

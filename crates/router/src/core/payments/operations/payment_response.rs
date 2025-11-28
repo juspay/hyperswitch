@@ -246,48 +246,62 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         } else if is_connector_mandate {
             // The mandate is created on connector's end.
-            let tokenization::SavePaymentMethodDataResponse {
-                payment_method_id,
-                connector_mandate_reference_id,
-                ..
-            } = save_payment_call_future.await?;
-            payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
-                match state
-                    .store
-                    .find_payment_method(
-                        platform.get_processor().get_key_store(),
-                        payment_method_id,
-                        storage_scheme,
-                    )
-                    .await
-                {
-                    Ok(payment_method) => Some(payment_method),
-                    Err(error) => {
-                        if error.current_context().is_db_not_found() {
-                            logger::info!("Payment Method not found in db {:?}", error);
-                            None
-                        } else {
-                            Err(error)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Error retrieving payment method from db")
-                                .map_err(|err| logger::error!(payment_method_retrieve=?err))
-                                .ok()
+            let save_payment_call_response = save_payment_call_future.await;
+            match save_payment_call_response {
+                Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    connector_mandate_reference_id,
+                    ..
+                }) => {
+                    payment_data.payment_method_info = if let Some(payment_method_id) =
+                        &payment_method_id
+                    {
+                        match state
+                            .store
+                            .find_payment_method(
+                                platform.get_processor().get_key_store(),
+                                payment_method_id,
+                                storage_scheme,
+                            )
+                            .await
+                        {
+                            Ok(payment_method) => Some(payment_method),
+                            Err(error) => {
+                                if error.current_context().is_db_not_found() {
+                                    logger::info!("Payment Method not found in db {:?}", error);
+                                    None
+                                } else {
+                                    Err(error)
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable("Error retrieving payment method from db")
+                                        .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                                        .ok()
+                                }
+                            }
                         }
-                    }
+                    } else {
+                        None
+                    };
+                    payment_data.payment_attempt.payment_method_id = payment_method_id;
+                    payment_data.payment_attempt.connector_mandate_detail =
+                        connector_mandate_reference_id
+                            .clone()
+                            .map(ForeignFrom::foreign_from);
+                    payment_data.set_mandate_id(api_models::payments::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: connector_mandate_reference_id.map(
+                            |connector_mandate_id| {
+                                MandateReferenceId::ConnectorMandateId(connector_mandate_id)
+                            },
+                        ),
+                    })
                 }
-            } else {
-                None
-            };
-            payment_data.payment_attempt.payment_method_id = payment_method_id;
-            payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
-                .clone()
-                .map(ForeignFrom::foreign_from);
-            payment_data.set_mandate_id(api_models::payments::MandateIds {
-                mandate_id: None,
-                mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
-                    MandateReferenceId::ConnectorMandateId(connector_mandate_id)
-                }),
-            });
+                Err(err) => {
+                    logger::error!("Error while storing the payment method in locker {:?}", err);
+                }
+            }
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
@@ -3145,13 +3159,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         ),
                     };
 
-                payment_methods::update_payment_method_core(
+                Box::pin(payment_methods::update_payment_method_core(
                     state,
                     platform,
                     business_profile,
                     payment_method_update_request,
                     &payment_method_id,
-                )
+                ))
                 .await
                 .attach_printable("Failed to update payment method")?;
             }

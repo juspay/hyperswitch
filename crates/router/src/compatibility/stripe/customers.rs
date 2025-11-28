@@ -14,9 +14,11 @@ use crate::{
     core::{api_locking, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::api::{customers as customer_types, payment_methods},
+    types::{
+        api::{customers as customer_types, payment_methods},
+        domain,
+    },
 };
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customer_create(
@@ -51,8 +53,8 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            customers::create_customer(state, platform, req, None)
+            let platform: domain::Platform = auth.into();
+            customers::create_customer(state, platform.get_provider().clone(), req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -89,8 +91,8 @@ pub async fn customer_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform = auth.into();
-            customers::retrieve_customer(state, platform, None, customer_id)
+            let platform: domain::Platform = auth.into();
+            customers::retrieve_customer(state, platform.get_provider().clone(), None, customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -141,8 +143,8 @@ pub async fn customer_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let platform = auth.into();
-            customers::update_customer(state, platform, request_internal)
+            let platform: domain::Platform = auth.into();
+            customers::update_customer(state, platform.get_provider().clone(), request_internal)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

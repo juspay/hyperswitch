@@ -31,6 +31,8 @@ use std::future;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
+#[cfg(feature = "v2")]
+use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
@@ -53,8 +55,6 @@ use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCancelData, PaymentCaptureData, PaymentConfirmData,
     PaymentIntentData, PaymentStatusData,
 };
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
@@ -113,6 +113,10 @@ use crate::core::payments::helpers::{
     process_through_direct, process_through_direct_with_shadow_unified_connector_service,
     process_through_ucs,
 };
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::get_workflow_entries;
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -547,7 +551,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -576,7 +580,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -1284,7 +1288,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -2141,7 +2145,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
@@ -2635,6 +2639,101 @@ where
         header_payload.x_hs_latency,
         &platform,
     )
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn revenue_recovery_get_intent_core(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile: domain::Profile,
+    request: api_models::payments::PaymentsGetIntentRequest,
+    global_payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+) -> RouterResponse<RevenueRecoveryGetIntentResponse> {
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    use crate::{
+        core::revenue_recovery::{get_workflow_entries, map_recovery_status},
+        types::storage::revenue_recovery_redis_operation::RedisTokenManager,
+    };
+
+    // Get payment intent using the existing operation
+    let (payment_data, _req, customer) = Box::pin(payments_intent_operation_core::<
+        api::PaymentGetIntent,
+        _,
+        _,
+        PaymentIntentData<api::PaymentGetIntent>,
+    >(
+        &state,
+        req_state,
+        platform.clone(),
+        profile.clone(),
+        operations::PaymentGetIntent,
+        request.clone(),
+        global_payment_id.clone(),
+        header_payload.clone(),
+    ))
+    .await?;
+
+    let payment_intent = payment_data.get_payment_intent();
+
+    // Get workflow entries to determine recovery status
+    let (calculate_workflow, execute_workflow) = get_workflow_entries(&state, &payment_intent.id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch workflow entries")?;
+
+    // Get billing connector account to get retry threshold
+    let billing_mca_id = payment_intent.get_billing_merchant_connector_account_id();
+    let max_retry_threshold = if let Some(billing_mca_id) = billing_mca_id {
+        state
+            .store
+            .find_merchant_connector_account_by_id(
+                &billing_mca_id,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .ok()
+            .and_then(|mca| mca.get_retry_threshold())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    // Map recovery status
+    let recovery_status = map_recovery_status(
+        payment_intent.status,
+        calculate_workflow.as_ref(),
+        execute_workflow.as_ref(),
+        payment_intent.attempt_count,
+        max_retry_threshold.try_into().unwrap_or(0),
+    );
+
+    // Get card_attached count from Redis
+    let card_attached = if let Some(connector_customer_id) =
+        payment_intent.get_connector_customer_id_from_feature_metadata()
+    {
+        RedisTokenManager::get_connector_customer_payment_processor_tokens(
+            &state,
+            &connector_customer_id,
+        )
+        .await
+        .ok()
+        .and_then(|tokens| tokens.len().try_into().ok())
+        .unwrap_or(0)
+    } else {
+        0
+    };
+
+    let response = transformers::generate_revenue_recovery_get_intent_response(
+        payment_data,
+        recovery_status,
+        card_attached,
+    );
+
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
@@ -3266,7 +3365,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
-                        api_models::payments::NextActionData::SdkUpiIntentInformation{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -4036,7 +4136,16 @@ where
     .await?;
 
     #[cfg(feature = "v1")]
-    if let Some(connector_customer_id) = payment_data.get_connector_customer_id() {
+    if let Some(connector_customer_id) = {
+        core_utils::get_connector_customer_id(
+            &state.conf,
+            &connector.connector_name.to_string(),
+            payment_data.get_connector_customer_id(),
+            &payment_data.get_payment_intent().customer_id,
+            &payment_data.get_payment_method_info().cloned(),
+            payment_data.get_payment_attempt(),
+        )?
+    } {
         router_data.connector_customer = Some(connector_customer_id);
     }
 
@@ -4320,7 +4429,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static,
+    F: Send + Clone + Sync + Debug + 'static,
     RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
 
     // To create connector flow specific interface data
@@ -4342,7 +4451,7 @@ where
     )
     .await?;
 
-    if matches!(
+    let ucs_flow = if matches!(
         execution_path,
         ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
     ) {
@@ -4359,13 +4468,16 @@ where
         if let Some(access_token) = cached_access_token {
             router_data.access_token = Some(access_token);
         }
-    }
+        true
+    } else {
+        false
+    };
 
     let is_ucs_granular_flow =
         gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
 
-    if is_ucs_granular_flow {
-        logger::info!("Current flow is UCS Composite flow");
+    if is_ucs_granular_flow && ucs_flow {
+        logger::info!("Current flow is UCS Granular flow");
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -4393,7 +4505,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
         call_connector_service(
-            state,
+            &updated_state,
             req_state,
             platform,
             connector,
@@ -8271,6 +8383,147 @@ pub async fn list_payments(
 
             Ok(services::ApplicationResponse::Json(
                 api_models::payments::PaymentListResponse {
+                    count: data.len(),
+                    total_count,
+                    data,
+                },
+            ))
+        },
+        &metrics::PAYMENT_LIST_LATENCY,
+        router_env::metric_attributes!((
+            "merchant_id",
+            platform.get_processor().get_account().get_id().clone()
+        )),
+    )
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn revenue_recovery_list_payments(
+    state: SessionState,
+    platform: domain::Platform,
+    constraints: api::PaymentListConstraints,
+) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
+    common_utils::metrics::utils::record_operation_time(
+        async {
+            let limit = &constraints.limit;
+            helpers::validate_payment_list_request_for_joins(*limit)?;
+            let db: &dyn StorageInterface = state.store.as_ref();
+            let fetch_constraints = constraints.clone().into();
+            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+                .get_filtered_payment_intents_attempt(
+                    platform.get_processor().get_account().get_id(),
+                    &fetch_constraints,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            // Get all billing connector account IDs
+            let billing_connector_ids: Vec<_> = list
+                .iter()
+                .map(|(payment_intent, _)| {
+                    payment_intent.get_billing_merchant_connector_account_id()
+                })
+                .collect();
+
+            // Create futures for workflow lookups
+            let workflow_futures: Vec<_> = list
+                .iter()
+                .map(|(payment_intent, _)| get_workflow_entries(&state, &payment_intent.id))
+                .collect();
+
+            let billing_connector_futures: Vec<_> = billing_connector_ids
+                .into_iter()
+                .map(|billing_mca_id| {
+                    let platform_clone = platform.clone(); // Clone for each future
+                    async move {
+                        if let Some(billing_mca_id) = billing_mca_id {
+                            db.find_merchant_connector_account_by_id(
+                                &billing_mca_id,
+                                platform_clone.get_processor().get_key_store(),
+                            )
+                            .await
+                            .ok()
+                        } else {
+                            None
+                        }
+                    }
+                })
+                .collect();
+
+            let workflow_results = join_all(workflow_futures).await;
+            let billing_connector_results = join_all(billing_connector_futures).await;
+
+            let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> = list
+                .into_iter()
+                .zip(workflow_results.into_iter())
+                .zip(billing_connector_results.into_iter())
+                .map(
+                    |(
+                        ((payment_intent, payment_attempt), workflow_result),
+                        billing_connector_account,
+                    )| {
+                        let (calculate_workflow, execute_workflow) =
+                            workflow_result.unwrap_or((None, None));
+
+                        // Get retry threshold from billing connector account
+                        let max_retry_threshold = billing_connector_account
+                            .as_ref()
+                            .and_then(|mca| mca.get_retry_threshold())
+                            .unwrap_or(0); // Default fallback
+
+                        // Use custom mapping function
+                        map_to_recovery_payment_item(
+                            payment_intent,
+                            payment_attempt,
+                            calculate_workflow,
+                            execute_workflow,
+                            max_retry_threshold.try_into().unwrap_or(0),
+                        )
+                    },
+                )
+                .collect();
+
+            let active_attempt_ids = db
+                .get_filtered_active_attempt_ids_for_total_count(
+                    platform.get_processor().get_account().get_id(),
+                    &fetch_constraints,
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
+
+            let total_count = if constraints.has_no_attempt_filters() {
+                i64::try_from(active_attempt_ids.len())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while converting from usize to i64")
+            } else {
+                let active_attempt_ids = active_attempt_ids
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>();
+
+                db.get_total_count_of_filtered_payment_attempts(
+                    platform.get_processor().get_account().get_id(),
+                    &active_attempt_ids,
+                    constraints.connector,
+                    constraints.payment_method_type,
+                    constraints.payment_method_subtype,
+                    constraints.authentication_type,
+                    constraints.merchant_connector_id,
+                    constraints.card_network,
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while retrieving total count of payment attempts")
+            }?;
+
+            Ok(services::ApplicationResponse::Json(
+                api_models::payments::RecoveryPaymentListResponse {
                     count: data.len(),
                     total_count,
                     data,

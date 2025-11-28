@@ -1120,23 +1120,17 @@ impl MerchantAccountInterface for KafkaStore {
 impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        key: String,
     ) -> CustomResult<Option<AccessToken>, errors::StorageError> {
-        self.diesel_store
-            .get_access_token(merchant_id, merchant_connector_id)
-            .await
+        self.diesel_store.get_access_token(key).await
     }
 
     async fn set_access_token(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        key: String,
         access_token: AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
-        self.diesel_store
-            .set_access_token(merchant_id, merchant_connector_id, access_token)
-            .await
+        self.diesel_store.set_access_token(key, access_token).await
     }
 }
 
@@ -4297,6 +4291,20 @@ impl SubscriptionInterface for KafkaStore {
     ) -> CustomResult<DomainSubscription, errors::StorageError> {
         self.diesel_store
             .update_subscription_entry(key_store, merchant_id, subscription_id, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> CustomResult<Vec<DomainSubscription>, errors::StorageError> {
+        self.diesel_store
+            .list_by_merchant_id_profile_id(key_store, merchant_id, profile_id, limit, offset)
             .await
     }
 }
