@@ -55,6 +55,66 @@ export const connectorDetails = {
       },
     },
   },
+  real_time_payment_pm: {
+    PaymentIntent: () => ({
+      Request: {
+        currency: "MYR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "MY",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DuitNow: {
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "MY",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "BAD_REQUEST",
+          error_message: "Payment country has to be enabled on merchant",
+        },
+      },
+    },
+  },
   card_pm: {
     ZeroAuthMandate: {
       Response: {
