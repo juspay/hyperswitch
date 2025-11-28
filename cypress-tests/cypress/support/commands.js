@@ -3370,15 +3370,15 @@ Cypress.Commands.add(
           ) {
             switch (response.body.payment_method_type) {
               case "duit_now":
-                if(response.body.status === "requires_customer_action")
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .and.have.nested.property("image_data_url").and.not.be.null;
-                   for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
-              }
+                if (response.body.status === "requires_customer_action")
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 break;
 
               default:
@@ -3390,7 +3390,7 @@ Cypress.Commands.add(
                   response.body.next_action.redirect_to_url
                 );
                 globalState.set("nextActionType", "image_data_url");
-                break; 
+                break;
             }
           } else {
             throw new Error(
