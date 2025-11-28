@@ -2731,8 +2731,11 @@ where
         api_auth
     }
 }
-#[derive(Debug)]
-pub struct PublishableKeyAuth;
+#[derive(Debug, Default)]
+pub struct PublishableKeyAuth {
+    pub is_connected_allowed: bool,
+    pub is_platform_allowed: bool,
+}
 
 #[cfg(feature = "partial-auth")]
 impl GetAuthType for PublishableKeyAuth {
@@ -2744,10 +2747,10 @@ impl GetAuthType for PublishableKeyAuth {
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for PublishableKeyAuth {
     fn get_is_connected_allowed(&self) -> bool {
-        false // Publishable key doesn't support connected merchant operations currently
+        self.is_connected_allowed
     }
     fn get_is_platform_allowed(&self) -> bool {
-        false // Publishable key doesn't support platform merchant operations currently
+        self.is_platform_allowed
     }
 }
 
@@ -2762,29 +2765,45 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        if state.conf().platform.enabled {
-            throw_error_if_platform_merchant_authentication_required(request_headers)?;
-        }
-
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        state
+
+        // Find initiator merchant and key store
+        let (initiator_merchant, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
-            .map(|(merchant_account, key_store)| {
-                let merchant_id = merchant_account.get_id().clone();
-                (
-                    AuthenticationData {
-                        merchant_account,
-                        platform_account_with_key_store: None,
-                        key_store,
-                        profile_id: None,
-                    },
-                    AuthenticationType::PublishableKey { merchant_id },
-                )
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check access permissions using existing function
+        check_merchant_access(
+            state,
+            initiator_merchant.merchant_account_type,
+            self.is_connected_allowed,
+            self.is_platform_allowed,
+        )?;
+
+        // Resolve merchant relationships using existing function
+        let (merchant, key_store, platform_account_with_key_store) =
+            resolve_merchant_accounts_and_key_stores(
+                state,
+                request_headers,
+                initiator_merchant.clone(),
+                key_store,
+            )
+            .await?;
+
+        Ok((
+            AuthenticationData {
+                merchant_account: merchant,
+                platform_account_with_key_store,
+                key_store,
+                profile_id: None,
+            },
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2805,25 +2824,51 @@ where
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-        let (merchant_account, key_store) = state
+        // Find initiator merchant and key store
+        let (initiator_merchant, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant_id = merchant_account.get_id().clone();
+
+        // Check access permissions using existing function
+        check_merchant_access(
+            state,
+            initiator_merchant.merchant_account_type,
+            self.is_connected_allowed,
+            self.is_platform_allowed,
+        )?;
+
+        // Resolve merchant relationships using existing function
+        let (merchant, key_store, platform_account_with_key_store) =
+            resolve_merchant_accounts_and_key_stores(
+                state,
+                request_headers,
+                initiator_merchant.clone(),
+                key_store,
+            )
+            .await?;
+
+        // Find and validate profile after merchant resolution
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+            .find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                merchant.get_id(),
+                &profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         Ok((
             AuthenticationData {
-                merchant_account,
+                merchant_account: merchant,
+                platform_account_with_key_store,
                 key_store,
                 profile,
-                platform_account_with_key_store: None,
             },
-            AuthenticationType::PublishableKey { merchant_id },
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
         ))
     }
 }
@@ -4228,7 +4273,7 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
 
     if api_key.starts_with("pk_") {
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
+            Box::new(HeaderAuth(PublishableKeyAuth::default())),
             api::AuthFlow::Client,
         ));
     }
@@ -4257,7 +4302,10 @@ where
                 field_name: "client_secret",
             })?;
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
+            Box::new(HeaderAuth(PublishableKeyAuth {
+                is_connected_allowed: api_auth.is_connected_allowed,
+                is_platform_allowed: api_auth.is_platform_allowed,
+            })),
             api::AuthFlow::Client,
         ));
     }
