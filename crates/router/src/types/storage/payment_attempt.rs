@@ -124,7 +124,6 @@ impl AttemptStatusExt for enums::AttemptStatus {
     feature = "dummy_connector"
 ))]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
@@ -220,6 +219,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),
@@ -231,6 +231,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: None,
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
 
         let store = state
@@ -316,6 +317,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),
@@ -327,6 +329,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores
@@ -425,6 +428,7 @@ mod tests {
             connector_mandate_detail: Default::default(),
             request_extended_authorization: Default::default(),
             extended_authorization_applied: Default::default(),
+            extended_authorization_last_applied_at: Default::default(),
             capture_before: Default::default(),
             card_discovery: Default::default(),
             processor_merchant_id: Default::default(),
@@ -436,6 +440,7 @@ mod tests {
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
+            tokenization: Default::default(),
         };
         let store = state
             .stores

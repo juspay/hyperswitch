@@ -14,7 +14,7 @@ use crate::redis::cache;
 use crate::{
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore, StorageError,
+    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
 #[async_trait::async_trait]
@@ -24,14 +24,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
             .find_merchant_connector_account_by_merchant_id_connector_label(
-                state,
                 merchant_id,
                 connector_label,
                 key_store,
@@ -43,14 +41,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
             .find_merchant_connector_account_by_profile_id_connector_name(
-                state,
                 profile_id,
                 connector_name,
                 key_store,
@@ -62,14 +58,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
         self.router_store
             .find_merchant_connector_account_by_merchant_id_connector_name(
-                state,
                 merchant_id,
                 connector_name,
                 key_store,
@@ -81,14 +75,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                state,
                 merchant_id,
                 merchant_connector_id,
                 key_store,
@@ -100,55 +92,45 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
-        state: &KeyManagerState,
         id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .find_merchant_connector_account_by_id(state, id, key_store)
+            .find_merchant_connector_account_by_id(id, key_store)
             .await
     }
 
     #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .insert_merchant_connector_account(state, t, key_store)
+            .insert_merchant_connector_account(t, key_store)
             .await
     }
 
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
         self.router_store
-            .list_enabled_connector_accounts_by_profile_id(
-                state,
-                profile_id,
-                key_store,
-                connector_type,
-            )
+            .list_enabled_connector_accounts_by_profile_id(profile_id, key_store, connector_type)
             .await
     }
 
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccounts, Self::Error> {
         self.router_store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                state,
                 merchant_id,
                 get_disabled,
                 key_store,
@@ -160,12 +142,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
         self.router_store
-            .list_connector_account_by_profile_id(state, profile_id, key_store)
+            .list_connector_account_by_profile_id(profile_id, key_store)
             .await
     }
 
@@ -186,13 +167,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .update_merchant_connector_account(state, this, merchant_connector_account, key_store)
+            .update_merchant_connector_account(this, merchant_connector_account, key_store)
             .await
     }
 
@@ -200,12 +180,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        self.update_merchant_connector_account(state, this, merchant_connector_account, key_store)
+        self.router_store
+            .update_merchant_connector_account(this, merchant_connector_account, key_store)
             .await
     }
 
@@ -243,7 +223,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
         key_store: &MerchantKeyStore,
@@ -263,7 +242,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         {
             find_call()
                 .await?
-                .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
+                .convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    merchant_id.clone().into(),
+                )
                 .await
                 .change_context(Self::Error::DeserializationFailed)
         }
@@ -279,7 +263,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .await
             .async_and_then(|item| async {
                 item.convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -294,7 +279,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -315,7 +299,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -334,7 +319,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .await
             .async_and_then(|item| async {
                 item.convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -349,7 +335,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -367,7 +352,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             for item in items.into_iter() {
                 output.push(
                     item.convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -384,7 +370,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
@@ -405,7 +390,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -427,7 +413,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             )
             .await?
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -440,7 +427,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
-        state: &KeyManagerState,
         id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
@@ -456,7 +442,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             find_call()
                 .await?
                 .convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone(),
                 )
@@ -474,7 +461,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             )
             .await?
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 common_utils::types::keymanager::Identifier::Merchant(
                     key_store.merchant_id.clone(),
@@ -488,7 +476,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
@@ -501,7 +488,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .map_err(|error| report!(Self::Error::from(error)))
             .async_and_then(|item| async {
                 item.convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -513,7 +501,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
@@ -532,7 +519,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             for item in items.into_iter() {
                 output.push(
                     item.convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -548,7 +536,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
@@ -567,7 +554,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 for item in items.into_iter() {
                     output.push(
                         item.convert(
-                            state,
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -587,7 +575,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
@@ -600,7 +587,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 for item in items.into_iter() {
                     output.push(
                         item.convert(
-                            state,
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -727,7 +715,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
@@ -748,7 +735,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
                     item.convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -807,7 +795,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
@@ -828,7 +815,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
                     item.convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),
@@ -1039,7 +1027,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector: &str,
         key_store: &MerchantKeyStore,
@@ -1057,7 +1044,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1078,7 +1066,6 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        _state: &KeyManagerState,
         _profile_id: &common_utils::id_type::ProfileId,
         _key_store: &MerchantKeyStore,
         _connector_type: common_enums::ConnectorType,
@@ -1089,7 +1076,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1109,7 +1095,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1123,7 +1110,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1143,7 +1129,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             Some(mca) => mca
                 .to_owned()
                 .convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )
@@ -1159,7 +1146,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
@@ -1177,7 +1163,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1199,7 +1186,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
-        state: &KeyManagerState,
         id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
@@ -1213,7 +1199,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),
@@ -1237,7 +1224,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
@@ -1273,7 +1259,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         accounts.push(account.clone());
         account
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -1284,7 +1271,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
@@ -1315,7 +1301,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         accounts.push(account.clone());
         account
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 common_utils::types::keymanager::Identifier::Merchant(
                     key_store.merchant_id.clone(),
@@ -1327,7 +1314,6 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
@@ -1352,7 +1338,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1366,7 +1353,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, StorageError> {
@@ -1386,7 +1372,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             output.push(
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1400,7 +1387,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
@@ -1420,7 +1406,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -1443,7 +1430,6 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: domain::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,
@@ -1463,7 +1449,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             .async_map(|account| async {
                 account
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         common_utils::types::keymanager::Identifier::Merchant(
                             key_store.merchant_id.clone(),

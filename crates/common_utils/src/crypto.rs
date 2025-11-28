@@ -4,8 +4,6 @@ use std::ops::Deref;
 use base64::Engine;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use md5;
-use pem;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac, rand as ring_rand,
@@ -769,7 +767,6 @@ impl SignMessage for RsaPssSha256 {
 
 #[cfg(test)]
 mod crypto_tests {
-    #![allow(clippy::expect_used)]
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::crypto::GenerateDigest;
 

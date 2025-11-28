@@ -12,14 +12,15 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-            InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
+            InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
+            SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
         },
         UasFlowData,
     },
     router_flow_types::{
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -30,7 +31,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -43,7 +45,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         PaymentsResponseData,
     },
@@ -225,6 +228,39 @@ impl
         GetSubscriptionEstimateData,
         GetSubscriptionEstimateRequest,
         GetSubscriptionEstimateResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionCancelV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCancel,
+        SubscriptionCancelData,
+        SubscriptionCancelRequest,
+        SubscriptionCancelResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionPauseV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionPause,
+        SubscriptionPauseData,
+        SubscriptionPauseRequest,
+        SubscriptionPauseResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::SubscriptionResumeV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionResume,
+        SubscriptionResumeData,
+        SubscriptionResumeRequest,
+        SubscriptionResumeResponse,
     > for Recurly
 {
 }

@@ -1,5 +1,4 @@
 use serde_json::json;
-use utoipa;
 
 /// Subscription - Create and Confirm
 ///
@@ -314,3 +313,100 @@ pub async fn get_subscription_plans() {}
     security(("api_key" = []))
 )]
 pub async fn get_estimate() {}
+
+/// Subscription - Pause Subscription
+///
+/// Pause the subscription
+#[utoipa::path(
+    post,
+    path = "/subscriptions/{subscription_id}/pause",
+    params(
+        ("subscription_id" = String, Path, description = "The unique identifier for the subscription"),
+        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
+    ),
+    request_body(
+        content = PauseSubscriptionRequest,
+        examples((
+            "Pause subscription" = (
+                value = json!({
+                    "pause_option": "immediately"
+                })
+            )
+        ))
+    ),
+    responses(
+        (status = 200, description = "Subscription paused successfully", body = PauseSubscriptionResponse),
+        (status = 400, description = "Invalid pause data"),
+        (status = 404, description = "Subscription not found")
+    ),
+    tag = "Subscriptions",
+    operation_id = "Pause Subscription",
+    security(("api_key" = []))
+)]
+pub async fn pause_subscription() {}
+
+/// Subscription - Resume Subscription
+///
+/// Resume the subscription
+#[utoipa::path(
+    post,
+    path = "/subscriptions/{subscription_id}/resume",
+    params(
+        ("subscription_id" = String, Path, description = "The unique identifier for the subscription"),
+        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
+    ),
+    request_body(
+        content = ResumeSubscriptionRequest,
+        examples((
+            "Resume subscription" = (
+                value = json!({
+                    "resume_option": "immediately",
+                    "unpaid_invoices_handling": "schedule_payment_collection"
+                })
+            )
+        ))
+    ),
+    responses(
+        (status = 200, description = "Subscription resumed successfully", body = ResumeSubscriptionResponse),
+        (status = 400, description = "Invalid resume data"),
+        (status = 404, description = "Subscription not found")
+    ),
+    tag = "Subscriptions",
+    operation_id = "Resume Subscription",
+    security(("api_key" = []))
+)]
+pub async fn resume_subscription() {}
+
+/// Subscription - Cancel Subscription
+///
+/// Cancel the subscription
+#[utoipa::path(
+    post,
+    path = "/subscriptions/{subscription_id}/cancel",
+    params(
+        ("subscription_id" = String, Path, description = "The unique identifier for the subscription"),
+        ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
+    ),
+    request_body(
+        content = CancelSubscriptionRequest,
+        examples((
+            "Cancel subscription" = (
+                value = json!({
+                    "cancel_option": "immediately",
+                    "unbilled_charges_option": "invoice",
+                    "credit_option_for_current_term_charges": "prorate",
+                    "refundable_credits_handling": "schedule_refund"
+                })
+            )
+        ))
+    ),
+    responses(
+        (status = 200, description = "Subscription cancelled successfully", body = CancelSubscriptionResponse),
+        (status = 400, description = "Invalid cancel data"),
+        (status = 404, description = "Subscription not found")
+    ),
+    tag = "Subscriptions",
+    operation_id = "Cancel Subscription",
+    security(("api_key" = []))
+)]
+pub async fn cancel_subscription() {}

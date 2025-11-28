@@ -397,7 +397,9 @@ impl
         };
 
         let nsu_code = match router_env::env::which() {
-            router_env::env::Env::Sandbox | router_env::env::Env::Development => {
+            router_env::env::Env::Sandbox
+            | router_env::env::Env::Development
+            | router_env::Env::Integ => {
                 format!("TST{}", value.0.router_data.connector_request_reference_id)
             }
             router_env::env::Env::Production => {
@@ -587,7 +589,13 @@ impl
                 original: value.0.amount.to_owned(),
             }),
             chave: Some(pix_mca_metadata.pix_key.clone()),
-            solicitacao_pagador: value.0.router_data.request.statement_descriptor.clone(),
+            solicitacao_pagador: value
+                .0
+                .router_data
+                .request
+                .billing_descriptor
+                .clone()
+                .and_then(|data| data.statement_descriptor),
             info_adicionais: None,
         })))
     }
@@ -607,7 +615,9 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
 impl From<router_env::env::Env> for Environment {
     fn from(item: router_env::env::Env) -> Self {
         match item {
-            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Teste,
+            router_env::env::Env::Sandbox
+            | router_env::env::Env::Development
+            | router_env::env::Env::Integ => Self::Teste,
             router_env::env::Env::Production => Self::Producao,
         }
     }
@@ -774,8 +784,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
                     expires_at: None, // have to convert a date to seconds in i64
-                    reference: boleto_data.nsu_code,
-                    entry_date: boleto_data.entry_date,
+                    reference: boleto_data.nsu_code.clone(),
+                    entry_date: boleto_data.entry_date.clone(),
                     download_url: None,
                     instructions_url: None,
                     bank_number: Some(boleto_data.bank_number.clone()),
@@ -785,10 +795,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     .transpose()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-                let resource_id = match boleto_data.tx_id {
+                let resource_id = match boleto_data.tx_id.clone() {
                     Some(tx_id) => ResponseId::ConnectorTransactionId(tx_id),
                     None => ResponseId::NoResponseId,
                 };
+
+                let bank_number = boleto_data.bank_number.clone();
+                let beneficiary_opt = boleto_data.beneficiary.clone();
 
                 let connector_response_reference_id = Some(
                     boleto_data
@@ -796,10 +809,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         .clone()
                         .map(|data| data.expose())
                         .or_else(|| {
-                            boleto_data.beneficiary.as_ref().map(|beneficiary| {
+                            beneficiary_opt.as_ref().map(|beneficiary| {
                                 format!(
-                                    "{:?}.{:?}",
-                                    boleto_data.bank_number,
+                                    "{}.{:?}",
+                                    bank_number.expose(),
                                     beneficiary.document_number.clone()
                                 )
                             })

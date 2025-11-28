@@ -37,7 +37,10 @@ use hyperswitch_domain_models::{
             IncrementalAuthorization, PostCaptureVoid, PostProcessing, PostSessionTokens,
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
-        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCancel, SubscriptionPause, SubscriptionResume,
+        },
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -49,7 +52,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -72,7 +76,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
@@ -140,7 +145,8 @@ use hyperswitch_interfaces::{
         revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCreate, SubscriptionRecordBackFlow, Subscriptions,
+            SubscriptionCancelFlow, SubscriptionCreate, SubscriptionPauseFlow,
+            SubscriptionRecordBackFlow, SubscriptionResumeFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -208,6 +214,7 @@ default_imp_for_authorize_session_token!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -297,6 +304,7 @@ default_imp_for_authorize_session_token!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -356,6 +364,7 @@ default_imp_for_calculate_tax!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -446,6 +455,7 @@ default_imp_for_calculate_tax!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -505,6 +515,7 @@ default_imp_for_session_update!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -584,6 +595,7 @@ default_imp_for_session_update!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::Powertranz,
@@ -654,6 +666,7 @@ default_imp_for_post_session_tokens!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -732,6 +745,7 @@ default_imp_for_post_session_tokens!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Threedsecureio,
@@ -768,7 +782,6 @@ default_imp_for_create_order!(
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
-    connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
@@ -801,6 +814,7 @@ default_imp_for_create_order!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -880,6 +894,7 @@ default_imp_for_create_order!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Threedsecureio,
@@ -950,6 +965,7 @@ default_imp_for_update_metadata!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1027,6 +1043,7 @@ default_imp_for_update_metadata!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Riskified,
@@ -1098,6 +1115,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1175,6 +1193,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Riskified,
@@ -1240,6 +1259,7 @@ default_imp_for_complete_authorize!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1316,6 +1336,7 @@ default_imp_for_complete_authorize!(
     connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -1375,6 +1396,7 @@ default_imp_for_incremental_authorization!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1462,6 +1484,7 @@ default_imp_for_incremental_authorization!(
     connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -1518,6 +1541,7 @@ default_imp_for_extend_authorization!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1596,6 +1620,7 @@ default_imp_for_extend_authorization!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Riskified,
@@ -1667,6 +1692,7 @@ default_imp_for_create_customer!(
     connectors::Dlocal,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
@@ -1751,6 +1777,7 @@ default_imp_for_create_customer!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -1774,6 +1801,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Zift,
     connectors::Paysafe,
     connectors::Trustpayments,
     connectors::Vgs,
@@ -1807,6 +1835,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -1940,6 +1969,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2032,6 +2062,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2090,6 +2121,7 @@ default_imp_for_authenticate_steps!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2182,6 +2214,7 @@ default_imp_for_authenticate_steps!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2240,6 +2273,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2332,6 +2366,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -2352,12 +2387,14 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Zift,
     connectors::Trustpayments,
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
+    connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
@@ -2388,6 +2425,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2525,6 +2563,7 @@ default_imp_for_post_processing_steps!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2615,6 +2654,7 @@ default_imp_for_post_processing_steps!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -2675,6 +2715,7 @@ default_imp_for_approve!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2766,6 +2807,7 @@ default_imp_for_approve!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -2826,6 +2868,7 @@ default_imp_for_reject!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -2917,6 +2960,7 @@ default_imp_for_reject!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -2977,6 +3021,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Ebanx,
     connectors::Facilitapay,
     connectors::Finix,
@@ -3067,6 +3112,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3126,6 +3172,7 @@ default_imp_for_accept_dispute!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3216,6 +3263,7 @@ default_imp_for_accept_dispute!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3274,6 +3322,7 @@ default_imp_for_submit_evidence!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3363,6 +3412,7 @@ default_imp_for_submit_evidence!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3421,6 +3471,7 @@ default_imp_for_defend_dispute!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3512,6 +3563,7 @@ default_imp_for_defend_dispute!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3572,6 +3624,7 @@ default_imp_for_fetch_disputes!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3662,6 +3715,7 @@ default_imp_for_fetch_disputes!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3722,6 +3776,7 @@ default_imp_for_dispute_sync!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3812,6 +3867,7 @@ default_imp_for_dispute_sync!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -3879,6 +3935,7 @@ default_imp_for_file_upload!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -3968,6 +4025,7 @@ default_imp_for_file_upload!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4018,6 +4076,7 @@ default_imp_for_payouts!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4094,10 +4153,10 @@ default_imp_for_payouts!(
     connectors::Volt,
     connectors::Worldline,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4159,6 +4218,7 @@ default_imp_for_payouts_create!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4244,6 +4304,7 @@ default_imp_for_payouts_create!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4307,6 +4368,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4392,6 +4454,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4452,6 +4515,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4541,6 +4605,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4600,6 +4665,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4676,11 +4742,11 @@ default_imp_for_payouts_fulfill!(
     connectors::UnifiedAuthenticationService,
     connectors::Worldline,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4741,6 +4807,7 @@ default_imp_for_payouts_cancel!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4824,11 +4891,12 @@ default_imp_for_payouts_cancel!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
+    // connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -4890,6 +4958,7 @@ default_imp_for_payouts_quote!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -4978,6 +5047,7 @@ default_imp_for_payouts_quote!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5039,6 +5109,7 @@ default_imp_for_payouts_recipient!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5127,6 +5198,7 @@ default_imp_for_payouts_recipient!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5189,6 +5261,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5278,6 +5351,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5340,6 +5414,7 @@ default_imp_for_frm_sale!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5429,6 +5504,7 @@ default_imp_for_frm_sale!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5491,6 +5567,7 @@ default_imp_for_frm_checkout!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5580,6 +5657,7 @@ default_imp_for_frm_checkout!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5642,6 +5720,7 @@ default_imp_for_frm_transaction!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5731,6 +5810,7 @@ default_imp_for_frm_transaction!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5793,6 +5873,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -5882,6 +5963,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -5944,6 +6026,7 @@ default_imp_for_frm_record_return!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6033,6 +6116,7 @@ default_imp_for_frm_record_return!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -6090,6 +6174,7 @@ default_imp_for_revoking_mandates!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6178,6 +6263,7 @@ default_imp_for_revoking_mandates!(
     connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -6239,6 +6325,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6328,6 +6415,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -6387,6 +6475,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6476,6 +6565,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -6536,6 +6626,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6625,6 +6716,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -6677,6 +6769,7 @@ default_imp_for_connector_request_id!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6766,6 +6859,7 @@ default_imp_for_connector_request_id!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -6820,6 +6914,7 @@ default_imp_for_fraud_check!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -6909,6 +7004,7 @@ default_imp_for_fraud_check!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -6993,6 +7089,7 @@ default_imp_for_connector_authentication!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7081,6 +7178,7 @@ default_imp_for_connector_authentication!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7139,6 +7237,7 @@ default_imp_for_uas_authentication!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7228,6 +7327,7 @@ default_imp_for_uas_authentication!(
     connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7280,6 +7380,7 @@ default_imp_for_revenue_recovery!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7371,6 +7472,7 @@ default_imp_for_revenue_recovery!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7411,6 +7513,30 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionEstimate,
             GetSubscriptionEstimateRequest,
             GetSubscriptionEstimateResponse
+            > for $path::$connector
+            {}
+            impl SubscriptionCancelFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCancel,
+            SubscriptionCancelRequest,
+            SubscriptionCancelResponse
+            > for $path::$connector
+            {}
+            impl SubscriptionResumeFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionResume,
+            SubscriptionResumeRequest,
+            SubscriptionResumeResponse
+            > for $path::$connector
+            {}
+            impl SubscriptionPauseFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionPause,
+            SubscriptionPauseRequest,
+            SubscriptionPauseResponse
             > for $path::$connector
             {}
         )*
@@ -7457,6 +7583,7 @@ default_imp_for_subscriptions!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7547,6 +7674,7 @@ default_imp_for_subscriptions!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7608,6 +7736,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7698,6 +7827,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7751,6 +7881,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -7841,6 +7972,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -7900,6 +8032,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Dlocal,
     connectors::Dwolla,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Ebanx,
     connectors::Facilitapay,
     connectors::Finix,
@@ -7993,6 +8126,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8045,6 +8179,7 @@ default_imp_for_external_vault!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8135,6 +8270,7 @@ default_imp_for_external_vault!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8194,6 +8330,7 @@ default_imp_for_external_vault_insert!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8284,6 +8421,7 @@ default_imp_for_external_vault_insert!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8341,6 +8479,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8433,6 +8572,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8492,6 +8632,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8582,6 +8723,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Wellsfargopayout,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8641,6 +8783,7 @@ default_imp_for_external_vault_delete!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8733,6 +8876,7 @@ default_imp_for_external_vault_delete!(
     connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8793,6 +8937,7 @@ default_imp_for_external_vault_create!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -8883,6 +9028,7 @@ default_imp_for_external_vault_create!(
     connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -8942,6 +9088,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -9032,6 +9179,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl
 );
@@ -9090,6 +9238,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::Envoy,
     connectors::Facilitapay,
     connectors::Finix,
     connectors::Fiserv,
@@ -9182,6 +9331,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
+    connectors::Zift,
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
@@ -9838,5 +9988,32 @@ impl<const T: u8>
         GetSubscriptionEstimateRequest,
         GetSubscriptionEstimateResponse,
     > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionCancelFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionPauseFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionResumeFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>
+    for connectors::DummyConnector<T>
 {
 }

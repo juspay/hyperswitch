@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -443,7 +443,7 @@ impl ConnectorCommon for Santander {
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
-                        code: NO_ERROR_CODE.to_string(),
+                        code: detail.clone(),
                         message: message.clone(),
                         reason: Some(detail),
                         attempt_status: None,
@@ -1558,6 +1558,32 @@ impl ConnectorSpecifications for Santander {
                 }
             }
             _ => payment_attempt.payment_id.get_string_repr().to_owned(),
+        }
+    }
+}
+
+impl ConnectorAccessTokenSuffix for Santander {
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let key_suffix = router_data
+            .payment_method_type
+            .as_ref()
+            .map(|pmt| pmt.to_string());
+
+        match key_suffix {
+            Some(key) => Ok(format!(
+                "access_token_{}_{}_{}",
+                router_data.merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+                key
+            )),
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                &router_data.merchant_id,
+                merchant_connector_id_or_connector_name,
+            )),
         }
     }
 }

@@ -19,11 +19,9 @@ pub async fn check_existence_and_add_domain_to_db(
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -34,7 +32,6 @@ pub async fn check_existence_and_add_domain_to_db(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -45,11 +42,7 @@ pub async fn check_existence_and_add_domain_to_db(
     #[cfg(feature = "v2")]
     let merchant_connector_account = state
         .store
-        .find_merchant_connector_account_by_id(
-            key_manager_state,
-            &merchant_connector_id,
-            &key_store,
-        )
+        .find_merchant_connector_account_by_id(&merchant_connector_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     utils::validate_profile_id_from_auth_layer(
@@ -106,7 +99,6 @@ pub async fn check_existence_and_add_domain_to_db(
     state
         .store
         .update_merchant_connector_account(
-            key_manager_state,
             merchant_connector_account,
             updated_mca.into(),
             &key_store,
@@ -153,7 +145,6 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &state.into(),
             &payment_id,
             auth_data.merchant_account.get_id(),
             &auth_data.key_store,
