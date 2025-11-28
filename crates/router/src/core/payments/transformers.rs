@@ -465,6 +465,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         partner_merchant_identifier_details: None,
+        feature_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -963,6 +964,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payment_experience: None,
         connector_reference_id: attempt.connector_response_reference_id.clone(),
         setup_future_usage: Some(payment_intent.setup_future_usage),
+        feature_metadata: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1172,6 +1174,8 @@ pub async fn construct_router_data_for_cancel<'a>(
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
+        feature_metadata: None,
+        payment_method_type: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -3213,6 +3217,8 @@ where
                     .metadata
                     .clone()
                     .map(Secret::new),
+                feature_metadata: payment_data.get_payment_intent().feature_metadata.clone(),
+                status: payment_data.get_payment_intent().status,
             },
             vec![],
         )))
@@ -4093,7 +4099,21 @@ pub fn qr_code_next_steps_check(
         .connector_metadata
         .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
-    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+    let mut qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+
+    if let Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
+        qr_code_url,
+        display_to_timestamp,
+        expiry_type,
+    }) = qr_code_instructions.clone()
+    {
+        qr_code_instructions = Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
+            qr_code_url,
+            display_to_timestamp,
+            expiry_type,
+        });
+    }
+
     Ok(qr_code_instructions)
 }
 pub fn paypal_sdk_next_steps_check(
@@ -4514,6 +4534,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
             api_models::payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
                 display_to_timestamp,
+                ..
             } => Self::QrCodeInformation {
                 qr_code_url: Some(qr_code_url),
                 image_data_url: None,
@@ -4679,6 +4700,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             is_stored_credential: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            feature_metadata: None,
         })
     }
 }
@@ -4721,6 +4743,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed parsing ConnectorMetadata")
+            })
+            .transpose()?;
+
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing FeatureMetadata")
             })
             .transpose()?;
 
@@ -4925,6 +4958,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
+            feature_metadata,
         })
     }
 }
@@ -4986,6 +5020,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .payment_attempt
             .get_payment_method_type()
             .to_owned();
+        let feature_metadata: Option<api_models::payments::FeatureMetadata> = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|b| b.parse_value("FeatureMetadata"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "feature_metadata",
+            })?;
+
         Ok(Self {
             amount,
             integrity_object: None,
@@ -5015,6 +5059,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .connector_response_reference_id
                 .clone(),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            feature_metadata,
         })
     }
 }
@@ -5267,6 +5312,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method: Some(capture_method),
             split_payments: None,
+            feature_metadata: None,
+            payment_method_type: None,
         })
     }
 }
@@ -5291,6 +5338,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
+            })?;
+        let feature_metadata: Option<api_models::payments::FeatureMetadata> = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|b| b.parse_value("FeatureMetadata"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "feature_metadata",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
 
@@ -5324,6 +5380,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method,
             split_payments: payment_data.payment_intent.split_payments.clone(),
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            feature_metadata,
         })
     }
 }
@@ -5497,6 +5555,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing FeatureMetadata")
+            })
+            .transpose()?;
         Ok(Self {
             metadata: payment_data
                 .payment_intent
@@ -5508,6 +5576,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
+            minor_amount: payment_data.payment_attempt.get_total_amount(),
+            payment_method_data: None,
+            currency: payment_data.currency,
+            feature_metadata,
         })
     }
 }
@@ -6523,6 +6597,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,
             search_tags: feature_metadata.search_tags.clone(),
+            pix_qr_expiry_time: None,
+            boleto_additional_details: None,
         }
     }
 }

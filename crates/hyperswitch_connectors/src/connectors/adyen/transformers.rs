@@ -4812,6 +4812,7 @@ pub fn get_qr_metadata(
         let qr_code_info = QrCodeInformation::QrCodeImageUrl {
             qr_code_url,
             display_to_timestamp,
+            expiry_type: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -4942,6 +4943,7 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
                 entry_date: None,
                 digitable_line: None,
+                bank_number: None,
             };
 
             Some(voucher_data.encode_to_value())
