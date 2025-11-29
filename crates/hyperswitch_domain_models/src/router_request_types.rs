@@ -1416,6 +1416,7 @@ pub struct PaymentsSessionData {
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub payment_method: Option<common_enums::PaymentMethod>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
