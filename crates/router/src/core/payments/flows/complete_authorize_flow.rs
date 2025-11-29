@@ -535,6 +535,7 @@ async fn call_unified_connector_service_authenticate(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -652,6 +653,7 @@ async fn call_unified_connector_service_post_authenticate(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -871,6 +873,7 @@ async fn call_unified_connector_service_complete_authorize(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;

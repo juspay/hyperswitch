@@ -202,10 +202,13 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Capture Request")?;
 
-        let connector_auth_metadata =
-            build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            platform,
+            self.connector.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
