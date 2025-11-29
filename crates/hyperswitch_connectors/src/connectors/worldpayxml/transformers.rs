@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData},
+    payment_method_data::{Card, GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
@@ -410,6 +410,9 @@ enum PaymentMethod {
 
     #[serde(rename = "ECMC-SSL")]
     EcmcSSL(CardSSL),
+
+    #[serde(rename = "PAYWITHGOOGLE-SSL")]
+    PayWithGoogleSSL(GooglePayData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -460,6 +463,14 @@ struct Date {
     month: Secret<String>,
     #[serde(rename = "@year")]
     year: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -527,93 +538,33 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>)> for PaymentDetails {
     }
 }
 
-impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for PaymentService {
+impl TryFrom<(&GooglePayWalletData, Option<enums::CaptureMethod>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: (&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card),
+        (gpay_data, capture_method): (&GooglePayWalletData, Option<enums::CaptureMethod>),
     ) -> Result<Self, Self::Error> {
-        let authorize_data = item.0;
-        let card_data = item.1;
-        let auth = WorldpayxmlAuthType::try_from(&authorize_data.router_data.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let token_string = gpay_data
+            .tokenization_data
+            .get_encrypted_google_pay_token()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "gpay wallet_token",
+            })?
+            .to_owned();
 
-        let order_code = if authorize_data
-            .router_data
-            .connector_request_reference_id
-            .len()
-            <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
-        {
-            Ok(authorize_data
-                .router_data
-                .connector_request_reference_id
-                .clone())
-        } else {
-            Err(errors::ConnectorError::MaxFieldLengthViolated {
-                connector: "Worldpayxml".to_string(),
-                field_name: "order_code".to_string(),
-                max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
-                received_length: authorize_data
-                    .router_data
-                    .connector_request_reference_id
-                    .len(),
-            })
-        }?;
-
-        let capture_delay = if authorize_data.router_data.request.is_auto_capture()? {
-            Some(AutoCapture::On)
-        } else {
-            Some(AutoCapture::Off)
-        };
-        let description = authorize_data.router_data.description.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "description",
-            },
-        )?;
-        let exponent = authorize_data
-            .router_data
-            .request
-            .currency
-            .number_of_digits_after_decimal_point()
-            .to_string();
-        let amount = WorldpayXmlAmount {
-            currency_code: authorize_data.router_data.request.currency.to_owned(),
-            exponent,
-            value: authorize_data.amount.to_owned(),
-        };
-        let shopper = get_shopper_details(authorize_data.router_data);
-        let billing_address = authorize_data
-            .router_data
-            .get_optional_billing()
-            .and_then(get_address_details);
-        let shipping_address = authorize_data
-            .router_data
-            .get_optional_shipping()
-            .and_then(get_address_details);
-
-        let payment_details = PaymentDetails::try_from((
-            card_data,
-            authorize_data.router_data.request.capture_method,
-        ))?;
-        let submit = Some(Submit {
-            order: Order {
-                order_code,
-                capture_delay,
-                description,
-                amount,
-                payment_details,
-                shopper,
-                billing_address,
-                shipping_address,
-            },
-        });
+        let parsed_token = serde_json::from_str::<GooglePayData>(&token_string)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
 
         Ok(Self {
-            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
-            merchant_code: auth.merchant_code.clone(),
-            submit,
-            reply: None,
-            inquiry: None,
-            modify: None,
+            action: if connector_utils::is_manual_capture(capture_method) {
+                Some(Action::Authorise)
+            } else {
+                Some(Action::Sale)
+            },
+            payment_method: PaymentMethod::PayWithGoogleSSL(GooglePayData {
+                protocol_version: parsed_token.protocol_version,
+                signature: parsed_token.signature,
+                signed_message: parsed_token.signed_message.clone(),
+            }),
         })
     }
 }
@@ -702,12 +653,93 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 connector: "Worldpayxml",
             })?
         };
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+
+        let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let order_code = if item.router_data.connector_request_reference_id.len()
+            <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+        {
+            Ok(item.router_data.connector_request_reference_id.clone())
+        } else {
+            Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Worldpayxml".to_string(),
+                field_name: "order_code".to_string(),
+                max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+                received_length: item.router_data.connector_request_reference_id.len(),
+            })
+        }?;
+
+        let capture_delay = if item.router_data.request.is_auto_capture()? {
+            Some(AutoCapture::On)
+        } else {
+            Some(AutoCapture::Off)
+        };
+        let description = item.router_data.description.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "description",
+            },
+        )?;
+        let exponent = item
+            .router_data
+            .request
+            .currency
+            .number_of_digits_after_decimal_point()
+            .to_string();
+
+        let amount = WorldpayXmlAmount {
+            currency_code: item.router_data.request.currency.to_owned(),
+            exponent,
+            value: item.amount.to_owned(),
+        };
+
+        let shopper = get_shopper_details(item.router_data);
+        let billing_address = item
+            .router_data
+            .get_optional_billing()
+            .and_then(get_address_details);
+
+        let shipping_address = item
+            .router_data
+            .get_optional_shipping()
+            .and_then(get_address_details);
+
+        let payment_details = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => {
+                PaymentDetails::try_from((&req_card, item.router_data.request.capture_method))?
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                PaymentDetails::try_from((
+                    &google_pay_data,
+                    item.router_data.request.capture_method,
+                ))?
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
             ))?,
-        }
+        };
+
+        let submit = Some(Submit {
+            order: Order {
+                order_code,
+                capture_delay,
+                description,
+                amount,
+                payment_details,
+                shopper,
+                billing_address,
+                shipping_address,
+            },
+        });
+
+        Ok(Self {
+            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+            merchant_code: auth.merchant_code.clone(),
+            submit,
+            reply: None,
+            inquiry: None,
+            modify: None,
+        })
     }
 }
 
