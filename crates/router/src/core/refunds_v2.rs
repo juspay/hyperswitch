@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
-        payments::{self, access_token, helpers},
+        payments::{self, access_token, gateway::context as gateway_context, helpers},
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -163,12 +163,21 @@ pub async fn trigger_refund_to_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -276,11 +285,21 @@ pub async fn internal_trigger_refund_to_gateway(
     )
     .await?;
 
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
+
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -824,12 +843,21 @@ pub async fn sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -911,12 +939,21 @@ pub async fn internal_sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 

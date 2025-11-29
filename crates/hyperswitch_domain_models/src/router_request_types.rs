@@ -1191,7 +1191,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationReques
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,

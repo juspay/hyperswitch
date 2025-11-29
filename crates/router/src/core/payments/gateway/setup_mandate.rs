@@ -11,16 +11,15 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
 };
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_payment_authorize,
+        unified_connector_service::handle_unified_connector_service_response_for_payment_register,
     },
     routes::SessionState,
     services::logger,
-    types::{self, transformers::ForeignTryFrom, MinorUnit},
+    types::{self, transformers::ForeignTryFrom},
 };
 
 // =============================================================================
@@ -55,7 +54,7 @@ where
             types::PaymentsResponseData,
         >,
         router_data: &RouterData<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
-        call_connector_action: CallConnectorAction,
+        _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
@@ -77,12 +76,9 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let setup_mandate_request =
-            payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
-                router_data,
-                call_connector_action,
-            ))
-            .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Get Request")?;
+            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
+                .change_context(ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -122,7 +118,7 @@ where
 
                 let setup_mandate_response = response.into_inner();
 
-                let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
+                let ucs_data = handle_unified_connector_service_response_for_payment_register(
                     setup_mandate_response.clone(),
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
@@ -133,23 +129,11 @@ where
                         response
                     });
                 router_data.response = router_data_response;
-                router_data.amount_captured = setup_mandate_response.captured_amount;
-                router_data.minor_amount_captured = setup_mandate_response
-                    .minor_captured_amount
-                    .map(MinorUnit::new);
-                router_data.raw_connector_response = setup_mandate_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                 // Populate connector_customer_id if present
                 ucs_data.connector_customer_id.map(|connector_customer_id| {
                     router_data.connector_customer = Some(connector_customer_id);
-                });
-
-                ucs_data.connector_response.map(|customer_response| {
-                    router_data.connector_response = Some(customer_response);
                 });
 
                 Ok((router_data, setup_mandate_response))

@@ -636,6 +636,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if the connector needs authorize session token call
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
+            Self::New(connector) => connector.is_authorize_session_token_call_required(),
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,

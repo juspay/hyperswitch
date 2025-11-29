@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -8460,19 +8460,14 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let lineage_ids = grpc_client::LineageIds::new(
+
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
+        payment_data.get_creds_identifier().map(str::to_owned),
     );
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: None,
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
 
     call_connector_service(
         state,
@@ -8580,19 +8575,16 @@ where
         business_profile.get_id().clone(),
     );
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+        creds_identifier,
+    );
+
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let execution_mode = ExecutionMode::NotApplicable;
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids: lineage_ids.clone(),
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode,
-    };
 
     // Call Direct connector service
     let result = call_connector_service(

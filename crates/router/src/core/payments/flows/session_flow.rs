@@ -15,7 +15,10 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, customers, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, gateway::context as gateway_context, helpers,
+            transformers, PaymentData,
+        },
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -106,7 +109,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
+        _gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -129,12 +132,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -143,12 +148,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }

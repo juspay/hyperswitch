@@ -23,6 +23,7 @@ use hyperswitch_domain_models::{
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
 };
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -41,7 +42,7 @@ use crate::{
             cards::{create_encrypted_data, PmCards},
             network_tokenization,
         },
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     logger,
     routes::{metrics, SessionState},
@@ -1400,6 +1401,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
     should_continue_payment: bool,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     if should_continue_payment {
         match tokenization_action {
@@ -1426,13 +1428,14 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let mut resp = services::execute_connector_processing_step(
+                let mut resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &pm_token_router_data,
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
+                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;
