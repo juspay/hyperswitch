@@ -614,6 +614,7 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
+    OpenBankingEu {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1483,6 +1484,7 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 Self::LocalBankRedirect {}
             }
             api_models::payments::BankRedirectData::Eft { provider } => Self::Eft { provider },
+            api_models::payments::BankRedirectData::OpenBankingEu { .. } => Self::OpenBankingEu {},
         }
     }
 }
@@ -2181,6 +2183,7 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+            Self::OpenBankingEu { .. } => api_enums::PaymentMethodType::OpenBankingEu,
         }
     }
 }

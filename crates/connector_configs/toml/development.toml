@@ -4996,6 +4996,8 @@ merchant_secret="Source verification key"
 [volt]
 [[volt.bank_redirect]]
   payment_method_type = "open_banking_uk"
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking_eu"
 [volt.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"

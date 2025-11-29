@@ -293,7 +293,8 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
-            | BankRedirectData::LocalBankRedirect {} => {
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBankingEu { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )

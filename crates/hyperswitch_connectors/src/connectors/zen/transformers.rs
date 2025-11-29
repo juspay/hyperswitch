@@ -746,7 +746,8 @@ impl TryFrom<&BankRedirectData> for ZenPaymentsRequest {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
-            | BankRedirectData::LocalBankRedirect {} => {
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBankingEu { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )

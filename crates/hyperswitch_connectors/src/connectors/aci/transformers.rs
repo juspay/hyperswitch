@@ -351,7 +351,8 @@ impl
             | BankRedirectData::OnlineBankingSlovakia { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBankingUk { .. } => Err(
+            | BankRedirectData::OpenBankingUk { .. }
+            | BankRedirectData::OpenBankingEu { .. } => Err(
                 errors::ConnectorError::NotImplemented("Payment method".to_string()),
             )?,
         };

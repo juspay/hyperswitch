@@ -403,7 +403,8 @@ fn make_bank_redirect_request(
         | BankRedirectData::Trustly { .. }
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
-        | BankRedirectData::LocalBankRedirect {} => {
+        | BankRedirectData::LocalBankRedirect {}
+        | BankRedirectData::OpenBankingEu { .. } => {
             return Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
             )

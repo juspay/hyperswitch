@@ -529,7 +529,8 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     | BankRedirectData::Sofort { .. }
                     | BankRedirectData::Trustly { .. }
                     | BankRedirectData::OnlineBankingThailand { .. }
-                    | BankRedirectData::LocalBankRedirect {} => {
+                    | BankRedirectData::LocalBankRedirect {}
+                    | BankRedirectData::OpenBankingEu { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("fiuu"),
                         )
