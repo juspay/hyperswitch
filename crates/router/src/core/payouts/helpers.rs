@@ -922,9 +922,8 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&payout_attempt.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1567,11 +1566,9 @@ pub async fn resolve_billing_address_for_payout(
                 state,
                 req_billing,
                 None,
-                platform.get_processor().get_account().get_id(),
                 customer_id,
-                platform.get_processor().get_key_store(),
                 &payout_id_as_payment_id,
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider(),
             )
             .await?;
             let address_id = billing_address.as_ref().map(|a| a.address_id.clone());
@@ -1586,11 +1583,9 @@ pub async fn resolve_billing_address_for_payout(
                 state,
                 None,
                 Some(address_id),
-                platform.get_processor().get_account().get_id(),
                 customer_id,
-                platform.get_processor().get_key_store(),
                 &payout_id_as_payment_id,
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider(),
             )
             .await?;
             let hyperswitch_address = billing_address

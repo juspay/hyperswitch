@@ -239,9 +239,8 @@ async fn build_list_routing_result(
         let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             Some(profile_id),
-            platform.get_processor().get_account().get_id(),
         )
         .await?
         .get_required_value("Profile")
@@ -275,9 +274,8 @@ pub async fn create_routing_algorithm_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&request.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -381,9 +379,8 @@ pub async fn create_routing_algorithm_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -535,9 +532,8 @@ pub async fn link_routing_config_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -600,9 +596,8 @@ pub async fn link_routing_config(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -929,9 +924,8 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     .await?;
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.0.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -967,9 +961,8 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -998,9 +991,8 @@ pub async fn unlink_routing_config_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1061,9 +1053,8 @@ pub async fn unlink_routing_config(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?;
 
@@ -1159,9 +1150,8 @@ pub async fn update_default_fallback_routing(
     let key_manager_state = &(&state).into();
     let profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1292,9 +1282,8 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     let db = state.store.as_ref();
     let profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1347,9 +1336,8 @@ pub async fn retrieve_routing_config_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1393,9 +1381,8 @@ pub async fn retrieve_linked_routing_config(
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
         core_utils::validate_and_get_business_profile(
             db,
-            merchant_key_store,
+            platform.get_processor(),
             Some(&profile_id),
-            merchant_id,
         )
         .await?
         .map(|profile| vec![profile])
@@ -1601,9 +1588,8 @@ pub async fn update_default_routing_config_for_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1837,9 +1823,8 @@ pub async fn configure_dynamic_routing_volume_split(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1881,9 +1866,8 @@ pub async fn retrieve_dynamic_routing_volume_split(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -2594,14 +2578,11 @@ pub async fn migrate_rules_for_profile(
 
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
-    let merchant_key_store = platform.get_processor().get_key_store();
-    let merchant_id = platform.get_processor().get_account().get_id();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        merchant_key_store,
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_id,
     )
     .await?
     .get_required_value("Profile")

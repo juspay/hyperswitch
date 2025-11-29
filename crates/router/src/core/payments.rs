@@ -10755,11 +10755,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         &state,
         None,
         payment_intent.shipping_address_id.as_deref(),
-        merchant_id,
         payment_intent.customer_id.as_ref(),
-        platform.get_processor().get_key_store(),
         &payment_intent.payment_id,
-        storage_scheme,
+        platform.get_provider(),
     )
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
@@ -10769,11 +10767,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .payment_method_billing_address_id
             .as_deref()
             .or(payment_intent.billing_address_id.as_deref()),
-        merchant_id,
         payment_intent.customer_id.as_ref(),
-        platform.get_processor().get_key_store(),
         &payment_intent.payment_id,
-        storage_scheme,
+        platform.get_provider(),
     )
     .await?;
     let authentication_connector = payment_attempt

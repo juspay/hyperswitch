@@ -4258,9 +4258,8 @@ pub async fn list_customer_payment_method(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         profile_id.as_ref(),
-        platform.get_processor().get_account().get_id(),
     )
     .await?;
 
@@ -4697,7 +4696,7 @@ pub async fn get_lookup_key_from_locker(
     state: &routes::SessionState,
     payment_token: &str,
     pm: &domain::PaymentMethod,
-    merchant_key_store: &domain::MerchantKeyStore,
+    provider: &domain::Provider,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card_detail = get_card_details_from_locker(state, pm).await?;
     let card = card_detail.clone();
@@ -4707,7 +4706,7 @@ pub async fn get_lookup_key_from_locker(
         payment_token,
         card,
         pm,
-        merchant_key_store,
+        provider,
     )
     .await?;
     Ok(resp)
@@ -4905,7 +4904,7 @@ impl TempLockerCardSupport {
         payment_token: &str,
         card: api::CardDetailFromLocker,
         pm: &domain::PaymentMethod,
-        merchant_key_store: &domain::MerchantKeyStore,
+        provider: &domain::Provider,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
@@ -4964,7 +4963,7 @@ impl TempLockerCardSupport {
             value1,
             Some(value2),
             payment_token.to_string(),
-            merchant_key_store.key.get_inner(),
+            provider.get_key_store().key.get_inner(),
         )
         .await?;
         vault::add_delete_tokenized_data_task(

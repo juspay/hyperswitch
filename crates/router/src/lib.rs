@@ -10,6 +10,7 @@ pub mod db;
 pub mod env;
 pub mod locale;
 pub(crate) mod macros;
+pub mod platform_wrapper;
 
 pub mod routes;
 pub mod workflows;
