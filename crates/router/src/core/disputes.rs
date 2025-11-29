@@ -85,6 +85,7 @@ pub async fn retrieve_dispute(
                     &dispute.attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -304,6 +305,7 @@ pub async fn accept_dispute(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -427,6 +429,7 @@ pub async fn submit_evidence(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

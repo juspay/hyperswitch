@@ -1101,9 +1101,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        use futures::{future::try_join_all, FutureExt};
-
-        use crate::DataModelExt;
+        use futures::future::try_join_all;
 
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
@@ -1273,35 +1271,43 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let keymanager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
+
         query
             .get_results_async::<(
                 DieselPaymentIntent,
                 diesel_models::payment_attempt::PaymentAttempt,
             )>(conn)
             .await
-            .map(|results| {
-                try_join_all(results.into_iter().map(|(pi, pa)| {
-                    PaymentIntent::convert_back(
+            .async_map(|results| {
+                try_join_all(results.into_iter().map(|(pi, pa)| async {
+                    let payment_intent = PaymentIntent::convert_back(
                         keymanager_state,
                         pi,
                         merchant_key_store.key.get_inner(),
                         merchant_id.to_owned().into(),
                     )
-                    .map(|payment_intent| {
-                        payment_intent.map(|payment_intent| {
-                            (payment_intent, PaymentAttempt::from_storage_model(pa))
-                        })
-                    })
+                    .await
+                    .change_context(StorageError::DecryptionError)?;
+
+                    let payment_attempt = PaymentAttempt::convert_back(
+                        keymanager_state,
+                        pa,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?;
+
+                    Ok((payment_intent, payment_attempt))
                 }))
-                .map(|join_result| join_result.change_context(StorageError::DecryptionError))
             })
+            .await
             .map_err(|er| {
                 StorageError::DatabaseError(
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payment records"),
                 )
             })?
-            .await
     }
 
     #[cfg(all(feature = "v2", feature = "olap"))]

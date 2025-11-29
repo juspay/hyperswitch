@@ -3322,6 +3322,13 @@ where
                 .get_payment_attempt()
                 .payment_method_data
                 .clone()
+                .or(payment_data
+                    .get_payment_attempt()
+                    .encrypted_payment_method_data
+                    .clone()
+                    .map(|encrypted_payment_method_data| {
+                        encrypted_payment_method_data.get_inner().clone().expose()
+                    }))
                 .map(|data| data.parse_value("payment_method_data"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -3489,6 +3496,8 @@ where
         payment_attempt
             .payment_method_data
             .clone()
+            .or(payment_attempt
+                .encrypted_payment_method_data.clone().map(|encrypted_payment_method_data| encrypted_payment_method_data.get_inner().clone().expose()))
             .and_then(|data| match data {
                 serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
                 _ => Some(data.parse_value("AdditionalPaymentData")),
