@@ -720,6 +720,10 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_capture_methods2 = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
@@ -769,6 +773,17 @@ lazy_static! {
                         }
                     }),
                 ),
+            },
+        );
+
+        dlocal_supported_payment_methods.add(
+            enums::PaymentMethod::Voucher,
+            enums::PaymentMethodType::Oxxo,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
             },
         );
 
