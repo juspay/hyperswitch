@@ -65,6 +65,7 @@ pub enum RevenueRecoveryPaymentsAttemptStatus {
     Failed,
     Processing,
     InvalidStatus(String),
+    PartialCharged,
     //  Cancelled,
 }
 
@@ -76,7 +77,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering update_pt_status_based_on_attempt_status_for_execute_payment");
         match &self {
-            Self::Succeeded | Self::Failed | Self::Processing => {
+            Self::Succeeded | Self::PartialCharged | Self::Failed | Self::Processing => {
                 // finish the current execute task
                 db.finish_process_with_business_status(
                     execute_task_process.clone(),
@@ -145,18 +146,17 @@ impl RevenueRecoveryPaymentsAttemptStatus {
             .as_ref()
             .ok_or(errors::RecoveryError::ValueNotFound)
             .attach_printable("Psync data not found in revenue recovery payment data")?;
-
-        match self {
+        let attempt_status: Self = psync_response.payment_attempt.status.foreign_into();
+        let event_status = common_enums::EventType::from(attempt_status.clone());
+        match attempt_status {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
                 db.as_scheduler()
                     .finish_process_with_business_status(
-                        process_tracker,
+                        process_tracker.clone(),
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
-
-                let event_status = common_enums::EventType::PaymentSucceeded;
 
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
@@ -221,6 +221,72 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
                 .attach_printable("Failed to update the process tracker")?;
+            }
+            Self::PartialCharged => {
+                // finish psync task as the payment was a PartialCharged
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        process_tracker.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await?;
+
+                // publish events to kafka
+                recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                     state,
+                &recovery_payment_tuple,
+                    Some(retry_count + 1),
+                    )
+                    .await
+                    .inspect_err(|e| {
+                        router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {:?}",
+                         e
+                        );
+                    })
+                    .ok();
+
+                // update the status of token in redis
+                let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                    state,
+                    &connector_customer_id,
+                    &None,
+                    &None,
+                    used_token.as_deref(),
+                )
+                .await;
+
+                let payments_response = psync_response
+                    .clone()
+                    .generate_response(state, None, None, None, &platform, profile, None)
+                    .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
+                    .attach_printable("Failed while generating response for payment")?;
+
+                Box::pin(reopen_calculate_workflow_on_payment_failure(
+                    state,
+                    &process_tracker.clone(),
+                    profile,
+                    platform.clone(),
+                    payment_intent,
+                    revenue_recovery_payment_data,
+                    psync_response.payment_attempt.get_id(),
+                ))
+                .await?;
+
+                RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                    state,
+                    common_enums::EventClass::Payments,
+                    event_status,
+                    payment_intent,
+                    &platform,
+                    profile,
+                    recovery_payment_attempt
+                        .attempt_id
+                        .get_string_repr()
+                        .to_string(),
+                    payments_response
+                )
+                .await?;
             }
             Self::Failed => {
                 // finish psync task
@@ -322,7 +388,7 @@ impl Decision {
         state: &SessionState,
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
-        active_attempt_id: Option<id_type::GlobalAttemptId>,
+        active_attempt_id: Option<&id_type::GlobalAttemptId>,
         revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
@@ -335,7 +401,30 @@ impl Decision {
                 None,
             ) => Self::Execute,
             (
+                enums::IntentStatus::PartiallyCaptured,
+                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                Some(_),
+            ) => Self::Execute,
+            (
                 enums::IntentStatus::Processing,
+                enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
+                Some(_),
+            ) => {
+                let psync_data = revenue_recovery_core::api::call_psync_api(
+                    state,
+                    payment_id,
+                    revenue_recovery_data,
+                    true,
+                    true,
+                )
+                .await
+                .change_context(errors::RecoveryError::PaymentCallFailed)
+                .attach_printable("Error while executing the Psync call")?;
+                let payment_attempt = psync_data.payment_attempt;
+                Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
+            }
+            (
+                enums::IntentStatus::PartiallyCapturedAndProcessing,
                 enums::PaymentConnectorTransmission::ConnectorCallSucceeded,
                 Some(_),
             ) => {
@@ -393,6 +482,7 @@ pub enum Action {
     RetryPayment(PrimitiveDateTime),
     TerminalFailure(PaymentAttempt),
     SuccessfulPayment(PaymentAttempt),
+    PartialCharged,
     ReviewPayment,
     ManualReviewAction,
 }
@@ -430,6 +520,7 @@ impl Action {
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                 payment_intent,
             );
+        let intent_status = recovery_payment_intent.status;
         // handle proxy api's response
         match response {
             Ok(payment_data) => {
@@ -469,8 +560,10 @@ impl Action {
                         logger::error!("Failed to handle account updater action: {:?}", e);
                     })
                     .ok();
-
-                match payment_data.payment_attempt.status.foreign_into() {
+                let attempt_status: RevenueRecoveryPaymentsAttemptStatus =
+                    payment_data.payment_attempt.status.foreign_into();
+                let event_status = common_enums::EventType::from(attempt_status.clone());
+                match attempt_status {
                     RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
                         let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
@@ -507,14 +600,13 @@ impl Action {
                     .await;
 
                         // unlocking the token
-                        let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                         state,
-                        &connector_customer_id,
+                  &connector_customer_id,
                         &payment_intent.id
                     )
-                    .await;
-
-                        let event_status = common_enums::EventType::PaymentSucceeded;
+                        .await;
 
                         let payments_response = payment_data
                             .clone()
@@ -537,6 +629,47 @@ impl Action {
                         Ok(Self::SuccessfulPayment(
                             payment_data.payment_attempt.clone(),
                         ))
+                    }
+                    RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                        let recovery_payment_attempt =
+                        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                        let recovery_payment_tuple =
+                            recovery_incoming_flow::RecoveryPaymentTuple::new(
+                                &recovery_payment_intent,
+                                &recovery_payment_attempt,
+                            );
+
+                        // update the status of token in redis
+                        let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                        state,
+                        &connector_customer_id,
+                        &None,
+                        &None,
+                        Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
+                    )
+                    .await;
+                        let payments_response = payment_data
+                            .clone()
+                            .generate_response(state, None, None, None, &platform, profile, None)
+                            .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)
+                            .attach_printable("Failed while generating response for payment")?;
+
+                        RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+                        state,
+                        common_enums::EventClass::Payments,
+                        event_status,
+                        payment_intent,
+                        &platform,
+                        profile,
+                        payment_data.payment_attempt.id.get_string_repr().to_string(),
+                        payments_response
+                    )
+                    .await?;
+
+                        Ok(Self::PartialCharged)
                     }
                     RevenueRecoveryPaymentsAttemptStatus::Failed => {
                         let recovery_payment_attempt =
@@ -589,12 +722,12 @@ impl Action {
                     .await;
 
                         // unlocking the token
-                        let _unlock_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                        state,
-                        &connector_customer_id,
+                        storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+        state,
+        &connector_customer_id,
                         &payment_intent.id
-                    )
-                    .await;
+    )
+    .await;
 
                         // Reopen calculate workflow on payment failure
                         Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -741,6 +874,17 @@ impl Action {
                 .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
+            Self::PartialCharged => {
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        execute_task_process.clone(),
+                        business_status::EXECUTE_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
             Self::ReviewPayment => {
                 // requeue the process tracker in case of error response
                 let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
@@ -807,14 +951,33 @@ impl Action {
                 .await;
 
                     // unlocking the token
-                    let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                    let intent_status = payment_intent.status;
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
                     state,
                     &connector_customer_id,
                     &payment_intent.id
+                    )
+                    .await;
+
+                    Ok(Self::SuccessfulPayment(payment_attempt))
+                }
+                RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                    let connector_customer_id = payment_intent
+                        .extract_connector_customer_id_from_payment_intent()
+                        .change_context(errors::RecoveryError::ValueNotFound)
+                        .attach_printable("Failed to extract customer ID from payment intent")?;
+
+                    // update the status of token in redis
+                    let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
+                    state,
+                    &connector_customer_id,
+                    &None,
+                    &None,
+                    used_token.as_deref(),
                 )
                 .await;
 
-                    Ok(Self::SuccessfulPayment(payment_attempt))
+                    Ok(Self::PartialCharged)
                 }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
                     let connector_customer_id = payment_intent
@@ -837,14 +1000,14 @@ impl Action {
                             used_token.as_deref(),
                         )
                         .await;
-
+                    let intent_status = payment_intent.status;
                     // unlocking the token
-                    let _unlock_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                        state,
-                        &connector_customer_id,
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+        state,
+        &connector_customer_id,
                         &payment_intent.id
-                    )
-                    .await;
+    )
+    .await;
 
                     // Reopen calculate workflow on payment failure
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -985,6 +1148,19 @@ impl Action {
                 .await
                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
                 .attach_printable("Failed to update the process tracker")?;
+                Ok(())
+            }
+            Self::PartialCharged => {
+                // finish the current psync task
+                db.as_scheduler()
+                    .finish_process_with_business_status(
+                        psync_task_process.clone(),
+                        business_status::PSYNC_WORKFLOW_COMPLETE,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable("Failed to update the process tracker")?;
+
                 Ok(())
             }
             Self::ReviewPayment => {

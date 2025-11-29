@@ -9,12 +9,12 @@ use crate::{
 impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
         match s {
-            AttemptStatus::Authorized
-            | AttemptStatus::Charged
-            | AttemptStatus::AutoRefunded
-            | AttemptStatus::PartiallyAuthorized
+            AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
+                Self::Succeeded
+            }
+            AttemptStatus::PartiallyAuthorized
             | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable => Self::Succeeded,
+            | AttemptStatus::PartialChargedAndChargeable => Self::PartialCharged,
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -40,6 +40,18 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::Unresolved
             | AttemptStatus::IntegrityFailure
             | AttemptStatus::Expired => Self::InvalidStatus(s.to_string()),
+        }
+    }
+}
+
+impl From<RevenueRecoveryPaymentsAttemptStatus> for common_enums::EventType {
+    fn from(status: RevenueRecoveryPaymentsAttemptStatus) -> Self {
+        match status {
+            RevenueRecoveryPaymentsAttemptStatus::Succeeded => Self::PaymentSucceeded,
+            RevenueRecoveryPaymentsAttemptStatus::PartialCharged => Self::PaymentCaptured,
+            RevenueRecoveryPaymentsAttemptStatus::Processing => Self::PaymentProcessing,
+            RevenueRecoveryPaymentsAttemptStatus::Failed => Self::PaymentFailed,
+            RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(_) => Self::ActionRequired,
         }
     }
 }

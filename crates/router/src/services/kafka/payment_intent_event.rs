@@ -331,7 +331,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
-            enable_partial_authorization: *enable_partial_authorization,
+            enable_partial_authorization: Some(*enable_partial_authorization),
         }
     }
 }

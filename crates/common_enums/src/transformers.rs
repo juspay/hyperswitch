@@ -2139,7 +2139,9 @@ impl From<IntentStatus> for Option<EventType> {
         match value {
             IntentStatus::Succeeded => Some(EventType::PaymentSucceeded),
             IntentStatus::Failed => Some(EventType::PaymentFailed),
-            IntentStatus::Processing => Some(EventType::PaymentProcessing),
+            IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+                Some(EventType::PaymentProcessing)
+            }
             IntentStatus::RequiresMerchantAction
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::Conflicted => Some(EventType::ActionRequired),
