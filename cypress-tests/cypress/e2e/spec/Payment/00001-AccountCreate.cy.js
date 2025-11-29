@@ -20,4 +20,10 @@ describe("Account Create flow test", () => {
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
+
+  it("create-shadow-config-if-shadow-mode-enabled", () => {
+    // Automatically create rollout configs and shadow config after successful merchant creation
+    cy.createRolloutConfig(globalState);
+    cy.createShadowRolloutConfig(globalState);
+  });
 });
