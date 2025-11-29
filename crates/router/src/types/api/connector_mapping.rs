@@ -323,6 +323,7 @@ impl ConnectorData {
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
+                enums::Connector::Mpgs => Ok(ConnectorEnum::Old(Box::new(connector::Mpgs::new()))),
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
