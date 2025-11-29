@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix5
+
+### Bug Fixes
+
+- **nuvei:** 3ds for base64 padding issue in prod ([#10481](https://github.com/juspay/hyperswitch/pull/10481)) ([`5e376ce`](https://github.com/juspay/hyperswitch/commit/5e376ce0c71c504585b476231c610e1da22fa8ae))
+
+**Full Changelog:** [`2025.11.19.0-hotfix4...2025.11.19.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix4...2025.11.19.0-hotfix5)
+
+- - -
+
 ## 2025.11.19.0-hotfix4
 
 ### Features
