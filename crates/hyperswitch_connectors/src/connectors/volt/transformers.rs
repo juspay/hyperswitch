@@ -47,7 +47,10 @@ pub mod webhook_headers {
 pub struct VoltPaymentsRequest {
     amount: MinorUnit,
     currency: enums::Currency,
-    open_banking_u_k: OpenBankingUk,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    open_banking_u_k: Option<OpenBankingUk>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    open_banking_e_u: Option<OpenBankingEu>,
     internal_reference: String,
     payer: PayerDetails,
     payment_system: PaymentSystem,
@@ -66,6 +69,12 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct OpenBankingUk {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OpenBankingEu {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
 }
@@ -112,72 +121,83 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         item: &VoltRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                BankRedirectData::OpenBankingUk { .. } => {
-                    let amount = item.amount;
-                    let currency = item.router_data.request.currency;
-                    let internal_reference =
-                        item.router_data.connector_request_reference_id.clone();
-                    let communication = CommunicationDetails {
-                        return_urls: ReturnUrls {
-                            success: Link {
-                                link: item.router_data.request.router_return_url.clone(),
-                            },
-                            failure: Link {
-                                link: item.router_data.request.router_return_url.clone(),
-                            },
-                            pending: Link {
-                                link: item.router_data.request.router_return_url.clone(),
-                            },
-                            cancel: Link {
-                                link: item.router_data.request.router_return_url.clone(),
-                            },
-                        },
-                    };
-                    let address = item.router_data.get_billing_address()?;
-                    let first_name = address.get_first_name()?;
-                    let payer = PayerDetails {
-                        email: item.router_data.request.email.clone(),
-                        first_name: first_name.to_owned(),
-                        last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
-                        reference: item.router_data.get_customer_id()?.to_owned(),
-                    };
-                    let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
+            PaymentMethodData::BankRedirect(ref bank_redirect) => {
+                let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
 
-                    Ok(Self {
-                        amount,
-                        currency,
-                        internal_reference,
-                        communication,
-                        payer,
-                        payment_system: PaymentSystem::OpenBankingUk,
-                        open_banking_u_k: OpenBankingUk { transaction_type },
-                    })
-                }
-                BankRedirectData::BancontactCard { .. }
-                | BankRedirectData::Bizum {}
-                | BankRedirectData::Blik { .. }
-                | BankRedirectData::Eft { .. }
-                | BankRedirectData::Eps { .. }
-                | BankRedirectData::Giropay { .. }
-                | BankRedirectData::Ideal { .. }
-                | BankRedirectData::Interac { .. }
-                | BankRedirectData::OnlineBankingCzechRepublic { .. }
-                | BankRedirectData::OnlineBankingFinland { .. }
-                | BankRedirectData::OnlineBankingPoland { .. }
-                | BankRedirectData::OnlineBankingSlovakia { .. }
-                | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
-                | BankRedirectData::OnlineBankingFpx { .. }
-                | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::LocalBankRedirect {} => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("Volt"),
-                    )
-                    .into())
-                }
-            },
+                let (payment_system, open_banking_u_k, open_banking_e_u) = match bank_redirect {
+                    BankRedirectData::OpenBankingUk { .. } => Ok((
+                        PaymentSystem::OpenBankingUk,
+                        Some(OpenBankingUk { transaction_type }),
+                        None,
+                    )),
+                    BankRedirectData::OpenBankingEu {} => Ok((
+                        PaymentSystem::OpenBankingEu,
+                        None,
+                        Some(OpenBankingEu { transaction_type }),
+                    )),
+                    BankRedirectData::BancontactCard { .. }
+                    | BankRedirectData::Bizum {}
+                    | BankRedirectData::Blik { .. }
+                    | BankRedirectData::Eft { .. }
+                    | BankRedirectData::Eps { .. }
+                    | BankRedirectData::Giropay { .. }
+                    | BankRedirectData::Ideal { .. }
+                    | BankRedirectData::Interac { .. }
+                    | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                    | BankRedirectData::OnlineBankingFinland { .. }
+                    | BankRedirectData::OnlineBankingPoland { .. }
+                    | BankRedirectData::OnlineBankingSlovakia { .. }
+                    | BankRedirectData::Przelewy24 { .. }
+                    | BankRedirectData::Sofort { .. }
+                    | BankRedirectData::Trustly { .. }
+                    | BankRedirectData::OnlineBankingFpx { .. }
+                    | BankRedirectData::OnlineBankingThailand { .. }
+                    | BankRedirectData::LocalBankRedirect {} => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("Volt"),
+                        ))
+                    }
+                }?;
+
+                let amount = item.amount;
+                let currency = item.router_data.request.currency;
+                let internal_reference = item.router_data.connector_request_reference_id.clone();
+                let communication = CommunicationDetails {
+                    return_urls: ReturnUrls {
+                        success: Link {
+                            link: item.router_data.request.router_return_url.clone(),
+                        },
+                        failure: Link {
+                            link: item.router_data.request.router_return_url.clone(),
+                        },
+                        pending: Link {
+                            link: item.router_data.request.router_return_url.clone(),
+                        },
+                        cancel: Link {
+                            link: item.router_data.request.router_return_url.clone(),
+                        },
+                    },
+                };
+                let address = item.router_data.get_billing_address()?;
+                let first_name = address.get_first_name()?;
+                let payer = PayerDetails {
+                    email: item.router_data.request.email.clone(),
+                    first_name: first_name.to_owned(),
+                    last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
+                    reference: item.router_data.get_customer_id()?.to_owned(),
+                };
+
+                Ok(Self {
+                    amount,
+                    currency,
+                    internal_reference,
+                    communication,
+                    payer,
+                    payment_system,
+                    open_banking_u_k,
+                    open_banking_e_u,
+                })
+            }
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)

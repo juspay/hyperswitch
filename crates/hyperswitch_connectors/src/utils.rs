@@ -6382,6 +6382,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    OpenBankingEu,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -6491,6 +6492,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankRedirectData::LocalBankRedirect {} => {
                     Self::LocalBankRedirect
                 }
+                payment_method_data::BankRedirectData::OpenBankingEu { .. } => Self::OpenBankingEu,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,

@@ -181,6 +181,9 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::OpenBankingEu => {
+            Ok(dirval!(BankRedirectType = OpenBankingEu))
+        }
     }
 }
 
