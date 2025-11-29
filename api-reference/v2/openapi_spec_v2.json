@@ -6678,6 +6678,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_eu"
+            ],
+            "properties": {
+              "open_banking_eu": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -19620,7 +19631,8 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking_eu"
         ]
       },
       "PaymentMethodUpdate": {
