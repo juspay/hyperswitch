@@ -418,7 +418,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -435,7 +434,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -529,7 +527,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
@@ -546,7 +543,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        customer_id: "cus_76452543",
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
