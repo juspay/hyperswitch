@@ -1476,13 +1476,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     // If the additional PM data is sensitive, encrypt it and populate encrypted_payment_method_data; otherwise populate additional_payment_method_data
     let (additional_payment_method_data, encrypted_payment_method_data) = if payment_data
-        .payment_method_data
+        .payment_attempt
+        .payment_method
         .as_ref()
-        .and_then(|payment_method_data| {
-            payment_method_data
-                .get_payment_method()
-                .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
-        })
+        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
         .unwrap_or(false)
     {
         let encrypted_payment_method_data = additional_payment_method_data_intermediate
