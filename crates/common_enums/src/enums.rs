@@ -2416,6 +2416,26 @@ impl PaymentMethod {
             | Self::MobilePayment => false,
         }
     }
+
+    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
+        match self {
+            Self::BankRedirect => true,
+            Self::Card
+            | Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::GiftCard
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment => false,
+        }
+    }
 }
 
 /// Indicates the gateway system through which the payment is processed.

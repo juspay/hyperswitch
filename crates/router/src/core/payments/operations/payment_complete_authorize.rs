@@ -101,6 +101,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 merchant_id,
                 &payment_intent.active_attempt.get_id(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

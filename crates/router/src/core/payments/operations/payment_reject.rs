@@ -79,6 +79,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -272,6 +273,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
                 payment_data.payment_attempt.clone(),
                 attempt_status_update,
                 storage_scheme,
+                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

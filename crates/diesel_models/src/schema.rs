@@ -1096,6 +1096,7 @@ diesel::table! {
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        encrypted_payment_method_data -> Nullable<Bytea>,
     }
 }
 

@@ -586,6 +586,7 @@ where
                     payment_data.get_payment_attempt().clone(),
                     payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
+                    key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
