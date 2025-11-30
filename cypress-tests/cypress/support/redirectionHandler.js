@@ -717,8 +717,8 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
     // Handle first domain: pci-api-demo.airwallex.com
     cy.url().then((currentUrl) => {
-        const urlObj = new URL(currentUrl);
-	      if (urlObj.hostname === "pci-api-demo.airwallex.com") {
+      const urlObj = new URL(currentUrl);
+      if (urlObj.hostname === "pci-api-demo.airwallex.com") {
         cy.log("On pci-api-demo.airwallex.com - waiting for auto-redirect");
 
         const currentOrigin = urlObj.origin;
