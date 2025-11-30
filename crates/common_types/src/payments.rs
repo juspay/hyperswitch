@@ -886,7 +886,7 @@ pub enum RecoveryAction {
 #[diesel(sql_type = Jsonb)]
 pub struct BillingDescriptor {
     /// name to be put in billing description
-    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "The Online Retailer")]
     pub name: Option<Secret<String>>,
     /// city to be put in billing description
     #[schema(value_type = Option<String>, example = "San Francisco")]

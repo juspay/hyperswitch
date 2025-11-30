@@ -37,7 +37,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -135,6 +135,12 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     BASE64_ENGINE
         .decode(data)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
+        .iter()
+        .find_map(|d| d.decode(&data).ok())
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -2620,6 +2626,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2631,6 +2638,11 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))

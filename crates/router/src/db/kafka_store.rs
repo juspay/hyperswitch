@@ -4324,4 +4324,18 @@ impl SubscriptionInterface for KafkaStore {
             .update_subscription_entry(key_store, merchant_id, subscription_id, data)
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> CustomResult<Vec<DomainSubscription>, errors::StorageError> {
+        self.diesel_store
+            .list_by_merchant_id_profile_id(key_store, merchant_id, profile_id, limit, offset)
+            .await
+    }
 }

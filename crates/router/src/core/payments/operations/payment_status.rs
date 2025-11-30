@@ -569,27 +569,24 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
     fn validate_request<'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: request.resource_id.clone(),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

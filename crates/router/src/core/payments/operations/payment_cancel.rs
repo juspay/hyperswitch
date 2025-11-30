@@ -312,14 +312,14 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsCancelRequest, Paym
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentCancelOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))
