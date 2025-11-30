@@ -1246,7 +1246,7 @@ impl PaymentAttempt {
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
-        self.payment_method_data
+        self.check_and_get_payment_method_data_based_on_encryption_strategy()
             .clone()
             .and_then(|data| match data {
                 Value::Null => None,
@@ -1267,6 +1267,23 @@ impl PaymentAttempt {
                     .map(|_| common_enums::Tokenization::TokenizeAtPsp)
                     .unwrap_or(common_enums::Tokenization::SkipPsp),
             ),
+        }
+    }
+
+    pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
+        if self
+            .payment_method
+            .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+            .unwrap_or(false)
+        {
+            self.encrypted_payment_method_data
+                .clone()
+                .map(|encrypted_payment_method_data| {
+                    encrypted_payment_method_data.get_inner().peek().clone()
+                })
+                .or(self.payment_method_data.clone())
+        } else {
+            self.payment_method_data.clone()
         }
     }
 }
