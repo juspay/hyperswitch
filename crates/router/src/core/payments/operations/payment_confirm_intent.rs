@@ -603,7 +603,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id,
+                    customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
                     psp_tokenization: None,

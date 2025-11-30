@@ -376,7 +376,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id,
+                    customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
                     psp_tokenization: None,
