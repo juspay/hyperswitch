@@ -633,9 +633,6 @@ impl RedisTokenManager {
                         existing_token.modified_at = Some(last_external_attempt_at);
                         existing_token.error_code = error_code;
                         existing_token.is_hard_decline = token_data.is_hard_decline;
-                        token_data
-                            .is_active
-                            .map(|is_active| existing_token.is_active = Some(is_active));
                     });
             })
             .or_else(|| {
@@ -671,7 +668,12 @@ impl RedisTokenManager {
             .payment_processor_token
             .clone();
 
-        let last_external_attempt_at = token_data.modified_at;
+        let now_utc = OffsetDateTime::now_utc();
+
+        let reference_time = PrimitiveDateTime::new(
+            now_utc.date(),
+            Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
+        );
 
         token_map
             .get_mut(&token_id)
@@ -680,7 +682,7 @@ impl RedisTokenManager {
                 existing_token.account_update_history = token_data.account_update_history.clone();
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
-                existing_token.modified_at = Some(last_external_attempt_at);
+                existing_token.modified_at = token_data.modified_at;
                 existing_token.is_hard_decline = token_data.is_hard_decline;
                 token_data
                     .is_active
@@ -1374,7 +1376,7 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().time(),
                 ));
 
-                RedisTokenManager::update_the_tokens_for_account_updater(
+                RedisTokenManager::update_the_token_for_account_updater(
                     state,
                     customer_id,
                     updated_token,
@@ -1494,5 +1496,9 @@ impl AccountUpdaterAction {
         };
 
         Ok(())
+    }
+
+    pub fn is_expiry_update(&self) -> bool {
+        matches!(self, Self::ExpiryUpdate(_))
     }
 }
