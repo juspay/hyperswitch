@@ -58,8 +58,8 @@ pub struct MolliePaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Amount {
-    currency: enums::Currency,
-    value: StringMajorUnit,
+    pub currency: enums::Currency,
+    pub value: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -564,7 +564,7 @@ impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefun
 pub struct RefundResponse {
     resource: String,
     id: String,
-    amount: Amount,
+    pub amount: Amount,
     settlement_id: Option<String>,
     settlement_amount: Option<Amount>,
     status: MollieRefundStatus,
