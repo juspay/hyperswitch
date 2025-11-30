@@ -717,10 +717,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
     // Handle first domain: pci-api-demo.airwallex.com
     cy.url().then((currentUrl) => {
-      if (currentUrl.includes("pci-api-demo.airwallex.com")) {
+        const urlObj = new URL(currentUrl);
+	      if (urlObj.hostname === "pci-api-demo.airwallex.com") {
         cy.log("On pci-api-demo.airwallex.com - waiting for auto-redirect");
 
-        const currentOrigin = new URL(currentUrl).origin;
+        const currentOrigin = urlObj.origin;
         cy.origin(
           currentOrigin,
           { args: { constants: CONSTANTS } },
@@ -737,7 +738,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
     // Handle second domain: api-demo.airwallex.com
     cy.url().then((currentUrl) => {
-      if (currentUrl.includes("api-demo.airwallex.com")) {
+      if (new URL(currentUrl).hostname === "api-demo.airwallex.com") {
         cy.log("Now on api-demo.airwallex.com for authentication");
 
         const currentOrigin = new URL(currentUrl).origin;
