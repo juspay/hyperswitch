@@ -1,4 +1,4 @@
-/// Platform wrapper module for database operations
+/// Platform wrapper for database operations
 ///
 /// Purpose: Prevent mixing Provider and Processor credentials when making DB calls.
 ///
