@@ -10,6 +10,7 @@ use api_models::{
 };
 use common_enums::{enums as api_enums, GooglePayCardFundingSource};
 use common_utils::{
+    errors::CustomResult,
     ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
@@ -21,8 +22,8 @@ use common_utils::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
 use crate::router_data::PaymentMethodToken;
+use crate::{errors::api_error_response::ApiErrorResponse, helpers};
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -54,6 +55,101 @@ pub enum PaymentMethodData {
 pub enum ExternalVaultPaymentMethodData {
     Card(Box<ExternalVaultCard>),
     VaultToken(VaultToken),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum RecurringDetails {
+    MandateId(String),
+    PaymentMethodId(String),
+    ProcessorPaymentToken(ProcessorPaymentToken),
+    /// Network transaction ID and Card Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
+
+    /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    NetworkTransactionIdAndNetworkTokenDetails(NetworkTransactionIdAndNetworkTokenDetails),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ProcessorPaymentToken {
+    pub processor_payment_token: String,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndCardDetails {
+    /// The card number
+    pub card_number: cards::CardNumber,
+
+    /// The card's expiry month
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    pub card_type: Option<String>,
+
+    pub card_issuing_country: Option<String>,
+
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    pub nick_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
+    /// where `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndNetworkTokenDetails {
+    /// The Network Token
+    pub network_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    pub token_exp_year: Secret<String>,
+
+    /// The card network for the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI value for this authentication.
+    pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// where `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Secret<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -219,16 +315,16 @@ pub struct CardDetail {
 
 impl CardDetailsForNetworkTransactionId {
     pub fn get_nti_and_card_details_for_mit_flow(
-        recurring_details: mandates::RecurringDetails,
+        recurring_details: RecurringDetails,
     ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
         let network_transaction_id_and_card_details = match recurring_details {
-            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+            RecurringDetails::NetworkTransactionIdAndCardDetails(
                 network_transaction_id_and_card_details,
             ) => Some(network_transaction_id_and_card_details),
-            mandates::RecurringDetails::MandateId(_)
-            | mandates::RecurringDetails::PaymentMethodId(_)
-            | mandates::RecurringDetails::ProcessorPaymentToken(_)
-            | mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => None,
+            RecurringDetails::MandateId(_)
+            | RecurringDetails::PaymentMethodId(_)
+            | RecurringDetails::ProcessorPaymentToken(_)
+            | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => None,
         }?;
 
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
@@ -247,16 +343,16 @@ impl CardDetailsForNetworkTransactionId {
 
 impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
-        recurring_details: mandates::RecurringDetails,
+        recurring_details: RecurringDetails,
     ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
         let network_transaction_id_and_network_token_details = match recurring_details {
-            mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
+            RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
                 network_transaction_id_and_card_details,
             ) => Some(network_transaction_id_and_card_details),
-            mandates::RecurringDetails::MandateId(_)
-            | mandates::RecurringDetails::PaymentMethodId(_)
-            | mandates::RecurringDetails::ProcessorPaymentToken(_)
-            | mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => None,
+            RecurringDetails::MandateId(_)
+            | RecurringDetails::PaymentMethodId(_)
+            | RecurringDetails::ProcessorPaymentToken(_)
+            | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => None,
         }?;
 
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
@@ -294,8 +390,8 @@ impl From<&Card> for CardDetail {
     }
 }
 
-impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
-    fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
+impl From<NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
+    fn from(card_details_for_nti: NetworkTransactionIdAndCardDetails) -> Self {
         Self {
             card_number: card_details_for_nti.card_number,
             card_exp_month: card_details_for_nti.card_exp_month,
@@ -312,12 +408,10 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetwor
     }
 }
 
-impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
+impl From<NetworkTransactionIdAndNetworkTokenDetails>
     for NetworkTokenDetailsForNetworkTransactionId
 {
-    fn from(
-        network_token_details_for_nti: mandates::NetworkTransactionIdAndNetworkTokenDetails,
-    ) -> Self {
+    fn from(network_token_details_for_nti: NetworkTransactionIdAndNetworkTokenDetails) -> Self {
         Self {
             network_token: network_token_details_for_nti.network_token,
             token_exp_month: network_token_details_for_nti.token_exp_month,
@@ -2925,6 +3019,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             token_exp_year: Some(network_token_data.token_exp_year.clone()),
             card_holder_name: None,
             last4: Some(network_token_data.token_number.get_last4().clone()),
+            token_isin: Some(network_token_data.token_number.get_card_isin().clone()),
         }
     }
 }
@@ -2944,6 +3039,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             token_exp_year: Some(network_token_data.network_token_exp_year.clone()),
             card_holder_name: network_token_data.card_holder_name.to_owned(),
             last4: Some(network_token_data.network_token.get_last4().clone()),
+            token_isin: Some(network_token_data.network_token.get_card_isin().clone()),
         }
     }
 }
@@ -2960,11 +3056,15 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
             token_exp_year: Some(network_token_with_ntid.token_exp_year.clone()),
             card_holder_name: network_token_with_ntid.card_holder_name.clone(),
             last4: Some(network_token_with_ntid.network_token.get_last4().clone()),
+            token_isin: Some(
+                network_token_with_ntid
+                    .network_token
+                    .get_card_isin()
+                    .clone(),
+            ),
         }
     }
 }
-
-
 
 #[cfg(feature = "v1")]
 impl
@@ -3092,5 +3192,117 @@ impl
             nick_name: card_details.nick_name,
             co_badged_card_data,
         })
+    }
+}
+
+impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
+    type Error = error_stack::Report<ApiErrorResponse>;
+    fn try_from(value: mandates::RecurringDetails) -> CustomResult<Self, ApiErrorResponse> {
+        match value {
+            mandates::RecurringDetails::MandateId(mandate_id) => Ok(Self::MandateId(mandate_id)),
+            mandates::RecurringDetails::PaymentMethodId(payment_method_id) => {
+                Ok(Self::PaymentMethodId(payment_method_id))
+            }
+            mandates::RecurringDetails::ProcessorPaymentToken(token) => {
+                Ok(Self::ProcessorPaymentToken(ProcessorPaymentToken {
+                    processor_payment_token: token.processor_payment_token,
+                    merchant_connector_id: token.merchant_connector_id,
+                }))
+            }
+            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details,
+            ) => {
+                helpers::validate_card_expiry(
+                    &network_transaction_id_and_card_details.card_exp_month,
+                    &network_transaction_id_and_card_details.card_exp_year,
+                )?;
+                Ok(Self::NetworkTransactionIdAndCardDetails(
+                    network_transaction_id_and_card_details.into(),
+                ))
+            }
+            mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
+                network_transaction_id_and_network_token_details,
+            ) => {
+                helpers::validate_card_expiry(
+                    &network_transaction_id_and_network_token_details.token_exp_month,
+                    &network_transaction_id_and_network_token_details.token_exp_year,
+                )?;
+                Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(
+                    network_transaction_id_and_network_token_details.into(),
+                ))
+            }
+        }
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndCardDetails> for NetworkTransactionIdAndCardDetails {
+    fn from(value: mandates::NetworkTransactionIdAndCardDetails) -> Self {
+        Self {
+            card_number: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            network_transaction_id: value.network_transaction_id,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+            nick_name: value.nick_name,
+        }
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
+    for NetworkTransactionIdAndNetworkTokenDetails
+{
+    fn from(value: mandates::NetworkTransactionIdAndNetworkTokenDetails) -> Self {
+        Self {
+            network_token: value.network_token,
+            token_exp_month: value.token_exp_month,
+            token_exp_year: value.token_exp_year,
+            network_transaction_id: value.network_transaction_id,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+            nick_name: value.nick_name,
+            eci: value.eci,
+        }
+    }
+}
+
+impl RecurringDetails {
+    pub fn get_nti_and_payment_method_data_for_mit_flow(
+        &self,
+    ) -> Option<(api_models::payments::MandateReferenceId, PaymentMethodData)> {
+        match self {
+            Self::NetworkTransactionIdAndCardDetails(_) => {
+                    CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(
+                        self.clone(),
+                    ).map(|(mandate_reference_id, card_details_for_network_transaction_id)| {
+                        (
+                            mandate_reference_id,
+                            PaymentMethodData::CardDetailsForNetworkTransactionId(
+                                card_details_for_network_transaction_id,
+                            ),
+                        )
+                    })
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+                NetworkTokenDetailsForNetworkTransactionId::get_nti_and_network_token_details_for_mit_flow(self.clone())
+                .map(|(mandate_reference_id, network_token_details_for_network_transaction_id)| {
+                    (
+                        mandate_reference_id,
+                        PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                            network_token_details_for_network_transaction_id,
+                        ),
+                    )
+                })
+            }
+            _ => None,
+        }
     }
 }

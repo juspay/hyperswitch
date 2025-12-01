@@ -3478,6 +3478,10 @@ pub struct NetworkTokenResponse {
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
+    /// The ISIN of the token
+    #[smithy(value_type = "Option<String>")]
+    pub token_isin: Option<String>,
+
     /// The name of the issuer of card
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
@@ -4048,6 +4052,9 @@ pub struct AdditionalNetworkTokenInfo {
 
     /// Last 4 digits of the card number
     pub last4: Option<String>,
+
+    /// The ISIN of the token
+    pub token_isin: Option<String>,
 
     /// The expiry month of the token
     pub token_exp_month: Option<Secret<String>>,
@@ -8959,6 +8966,7 @@ impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
     fn from(network_token: AdditionalNetworkTokenInfo) -> Self {
         Self {
             last4: network_token.last4,
+            token_isin: network_token.token_isin,
             card_type: network_token.card_type,
             card_network: network_token.card_network,
             card_issuer: network_token.card_issuer,

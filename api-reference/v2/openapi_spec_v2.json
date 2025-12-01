@@ -15745,16 +15745,19 @@
           },
           "card_type": {
             "type": "string",
+            "description": "The type of the card such as Credit, Debit",
             "example": "CREDIT",
             "nullable": true
           },
           "card_issuing_country": {
             "type": "string",
+            "description": "The country in which the card was issued",
             "example": "INDIA",
             "nullable": true
           },
           "bank_code": {
             "type": "string",
+            "description": "The bank code of the bank that issued the card",
             "example": "JP_AMEX",
             "nullable": true
           },
@@ -16170,16 +16173,19 @@
           },
           "card_type": {
             "type": "string",
+            "description": "The type of the card such as Credit, Debit",
             "example": "CREDIT",
             "nullable": true
           },
           "card_issuing_country": {
             "type": "string",
+            "description": "The country in which the card was issued",
             "example": "INDIA",
             "nullable": true
           },
           "bank_code": {
             "type": "string",
+            "description": "The bank code of the bank that issued the card",
             "example": "JP_AMEX",
             "nullable": true
           },
@@ -16207,7 +16213,7 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhere `off_session` is true."
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhere `setup_future_usage` is set to `off_session`."
           }
         }
       },

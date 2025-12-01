@@ -35,10 +35,6 @@ pub mod callback_mapper {
     pub use hyperswitch_domain_models::callback_mapper::CallbackMapper;
 }
 
-mod network_tokenization {
-    pub use hyperswitch_domain_models::network_tokenization::*;
-}
-
 #[cfg(feature = "v2")]
 mod split_payments {
     pub use hyperswitch_domain_models::payments::split_payments::*;

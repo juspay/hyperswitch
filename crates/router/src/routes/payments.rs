@@ -2215,7 +2215,8 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    let should_call_proxy_for_payments_core = helpers::should_call_proxy_for_payments_core(req.clone());
+    let should_call_proxy_for_payments_core =
+        helpers::should_call_proxy_for_payments_core(req.clone());
 
     if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call

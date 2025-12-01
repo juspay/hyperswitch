@@ -22681,16 +22681,19 @@
           },
           "card_type": {
             "type": "string",
+            "description": "The type of the card such as Credit, Debit",
             "example": "CREDIT",
             "nullable": true
           },
           "card_issuing_country": {
             "type": "string",
+            "description": "The country in which the card was issued",
             "example": "INDIA",
             "nullable": true
           },
           "bank_code": {
             "type": "string",
+            "description": "The bank code of the bank that issued the card",
             "example": "JP_AMEX",
             "nullable": true
           },
@@ -22723,10 +22726,12 @@
         "properties": {
           "last4": {
             "type": "string",
+            "description": "The last four digit of the network token",
             "nullable": true
           },
           "card_type": {
             "type": "string",
+            "description": "The type of the card such as Credit, Debit",
             "nullable": true
           },
           "card_network": {
@@ -22737,24 +22742,34 @@
             ],
             "nullable": true
           },
+          "token_isin": {
+            "type": "string",
+            "description": "The ISIN of the token",
+            "nullable": true
+          },
           "card_issuer": {
             "type": "string",
+            "description": "The name of the issuer of card",
             "nullable": true
           },
           "card_issuing_country": {
             "type": "string",
+            "description": "The country in which the card was issued",
             "nullable": true
           },
           "token_exp_month": {
             "type": "string",
+            "description": "The expiry month of the network token",
             "nullable": true
           },
           "token_exp_year": {
             "type": "string",
+            "description": "The expiry year of the network token",
             "nullable": true
           },
           "card_holder_name": {
             "type": "string",
+            "description": "The card holder's name",
             "nullable": true
           }
         }
@@ -22870,16 +22885,19 @@
           },
           "card_type": {
             "type": "string",
+            "description": "The type of the card such as Credit, Debit",
             "example": "CREDIT",
             "nullable": true
           },
           "card_issuing_country": {
             "type": "string",
+            "description": "The country in which the card was issued",
             "example": "INDIA",
             "nullable": true
           },
           "bank_code": {
             "type": "string",
+            "description": "The bank code of the bank that issued the card",
             "example": "JP_AMEX",
             "nullable": true
           },
@@ -22907,7 +22925,7 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhere `off_session` is true."
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhere `setup_future_usage` is set to `off_session`."
           }
         }
       },

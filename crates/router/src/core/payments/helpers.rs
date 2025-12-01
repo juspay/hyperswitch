@@ -579,17 +579,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 Some(payment_method_info),
                             )
                         }
-                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => {
-                            (
-                                None,
-                                request.payment_method,
-                                request.payment_method_type,
-                                None,
-                                None,
-                                None,
-                                None,
-                            )
-                        }
+                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
                     }
                 }
                 None => {
