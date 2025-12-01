@@ -88,13 +88,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Cybersource {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Cybersource {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMajorUnitForConnector,
+            amount_convertor: &StringMajorUnitForConnector,
         }
     }
 }
@@ -466,11 +466,20 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        // Build integrity object from the original request and attach to RouterData
+        let integrity = utils::get_sync_integrity_object(
+            &data.amount_convertor,
+            data.request.amount,
+            data.request.currency,
+        )?;
+
+        let mut rd = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+        rd.request.integrity_object = Some(integrity);
+        Ok(rd)
     }
 
     fn get_error_response(
@@ -672,7 +681,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourcePreProcessingRequest::try_from(&connector_router_data)?;
@@ -762,7 +771,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
                     field_name: "currency",
                 })?;
 
-        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
 
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
@@ -857,7 +866,7 @@ impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsRespon
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourceAuthEnrollmentRequest::try_from(&connector_router_data)?;
@@ -951,7 +960,7 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourceAuthValidateRequest::try_from(&connector_router_data)?;
@@ -1039,7 +1048,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
@@ -1080,11 +1089,26 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        // Build capture integrity object from the original request and attach to RouterData
+        let capture_amount = convert_amount(
+            self.amount_convertor,
+            data.request.minor_amount_to_capture,
+            data.request.currency,
+        )?;
+
+        let integrity = utils::get_capture_integrity_object(
+            &data.amount_convertor,
+            Some(capture_amount),
+            data.request.currency,
+        )?;
+
+        let mut rd = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+        rd.request.integrity_object = Some(integrity);
+        Ok(rd)
     }
     fn get_error_response(
         &self,
@@ -1244,7 +1268,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_amount,
             req.request.currency,
         )?;
@@ -1299,11 +1323,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
             event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
+
+            // Build integrity object from the original request and attach to RouterData
+            let integrity = utils::get_authorise_integrity_object(
+                &data.amount_convertor,
+                data.request.amount,
+                data.request.currency,
+            )?;
+
+            let mut rd = RouterData::try_from(ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
-            })
+            })?;
+            rd.request.integrity_object = Some(integrity);
+            Ok(rd)
         } else {
             let response: cybersource::CybersourcePaymentsResponse = res
                 .response
@@ -1311,11 +1345,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
             event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
+
+            // Build integrity object from the original request and attach to RouterData
+            let integrity = utils::get_authorise_integrity_object(
+                &data.amount_convertor,
+                data.request.amount,
+                data.request.currency,
+            )?;
+
+            let mut rd = RouterData::try_from(ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
-            })
+            })?;
+            rd.request.integrity_object = Some(integrity);
+            Ok(rd)
         }
     }
 
@@ -1397,7 +1441,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_amount,
             req.request.currency,
         )?;
@@ -1513,7 +1557,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_amount,
             req.request.destination_currency,
         )?;
@@ -1636,7 +1680,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_amount,
             req.request.currency,
         )?;
@@ -1775,7 +1819,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "Currency",
                 })?;
-        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
 
         let connector_req = cybersource::CybersourceVoidRequest::try_from(&connector_router_data)?;
@@ -1895,7 +1939,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cyberso
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let refund_amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
@@ -1932,11 +1976,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cyberso
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // response body parsed above; no response-based integrity should be built
+
+        // Build integrity object from the original request and attach to RouterData
+        let integrity = utils::get_refund_integrity_object(
+            &data.amount_convertor,
+            data.request.refund_amount,
+            data.request.currency,
+        )?;
+
+        let mut rd = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+        rd.request.integrity_object = Some(integrity);
+        Ok(rd)
     }
     fn get_error_response(
         &self,
@@ -2000,11 +2056,23 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cybersour
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // response body parsed above; no response-based integrity should be built
+
+        // Build integrity object from the original request and attach to RouterData
+        let integrity = utils::get_refund_integrity_object(
+            &data.amount_convertor,
+            data.request.refund_amount,
+            data.request.currency,
+        )?;
+
+        let mut rd = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+        rd.request.integrity_object = Some(integrity);
+        Ok(rd)
     }
     fn get_error_response(
         &self,
@@ -2058,7 +2126,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let minor_additional_amount = MinorUnit::new(req.request.additional_amount);
         let additional_amount = convert_amount(
-            self.amount_converter,
+            self.amount_convertor,
             minor_additional_amount,
             req.request.currency,
         )?;
