@@ -347,6 +347,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::RequiresCapture
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable
                     | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndProcessing
                     | common_enums::IntentStatus::Processing => None,
                 }
             },
@@ -455,7 +456,8 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::RequiresCapture
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable
                     | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-                    | common_enums::IntentStatus::Processing => None,
+                    | common_enums::IntentStatus::Processing
+                    | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
                 }
             },
             common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
@@ -520,7 +522,8 @@ impl Capturable for PaymentsCancelData {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 }
@@ -564,6 +567,7 @@ impl Capturable for PaymentsCancelPostCaptureData {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
@@ -697,6 +701,7 @@ impl Capturable for PaymentsExtendAuthorizationData {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
         }
     }
