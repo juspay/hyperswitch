@@ -4610,7 +4610,7 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::add_card_to_hs_locker(state, &payload, &cust_id)
+    let store_resp = cards::add_card_to_vault(state, &payload, &cust_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt merchant bank account data")?;

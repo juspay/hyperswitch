@@ -60,7 +60,6 @@ force_cookies = false
 [locker]
 host = ""
 mock_locker = true
-basilisk_host = ""
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 

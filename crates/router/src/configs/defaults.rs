@@ -52,7 +52,6 @@ impl Default for super::settings::Locker {
         Self {
             host: "localhost".into(),
             mock_locker: true,
-            basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,

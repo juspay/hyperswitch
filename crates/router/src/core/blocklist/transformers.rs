@@ -35,20 +35,20 @@ pub async fn generate_fingerprint(
         key: hash_key,
     };
 
-    let generate_fingerprint_resp = call_to_locker_for_fingerprint(state, &payload).await?;
+    let generate_fingerprint_resp = call_to_vault_for_fingerprint(state, &payload).await?;
 
     Ok(generate_fingerprint_resp)
 }
 
 #[instrument(skip_all)]
-async fn call_to_locker_for_fingerprint(
+async fn call_to_vault_for_fingerprint(
     state: &routes::SessionState,
     payload: &blocklist::GenerateFingerprintRequest,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
-        payment_methods::mk_locker_api_request_and_call(
+        payment_methods::call_vault_api(
             state,
             jwekey,
             locker,

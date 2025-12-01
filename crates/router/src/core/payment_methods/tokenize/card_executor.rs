@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, PmCards},
+        cards::{add_card_to_vault, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -508,7 +508,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_hs_locker(self.state, &locker_req, customer_id)
+        let stored_resp = add_card_to_vault(self.state, &locker_req, customer_id)
             .await
             .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

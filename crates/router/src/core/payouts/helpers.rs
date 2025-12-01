@@ -388,7 +388,7 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::add_card_to_hs_locker(state, &locker_req, customer_id)
+    let stored_resp = cards::add_card_to_vault(state, &locker_req, customer_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -656,7 +656,7 @@ pub async fn save_payout_data_to_locker(
             .clone()
             .unwrap_or(existing_pm.payment_method_id.clone());
         // Delete from locker
-        cards::delete_card_from_hs_locker(
+        cards::delete_card_from_vault(
             state,
             customer_id,
             platform.get_processor().get_account().get_id(),
@@ -671,7 +671,7 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::add_card_to_hs_locker(state, &locker_req, customer_id)
+        let stored_resp = cards::add_card_to_vault(state, &locker_req, customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError);
 

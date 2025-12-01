@@ -697,7 +697,6 @@ pub struct UserSettings {
 pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,

@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payment_methods::cards::call_locker_api,
+        payment_methods::cards::call_vault_service,
     },
     headers,
     pii::{prelude::*, Secret},
@@ -322,7 +322,7 @@ pub async fn create_jwe_body_for_vault(
     Ok(jwe_body)
 }
 
-pub async fn mk_basilisk_req(
+pub async fn mk_vault_req(
     jwekey: &settings::Jwekey,
     jws: &str,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -366,7 +366,7 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_locker_api_request_and_call<'a, Req, Res>(
+pub async fn call_vault_api<'a, Req, Res>(
     state: &routes::SessionState,
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -389,7 +389,7 @@ where
             .await
             .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_vault_req(jwekey, &jws).await?;
 
     let url = locker.get_host(endpoint_path);
 
@@ -403,7 +403,7 @@ where
 
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
 
-    let response = call_locker_api::<Res>(state, request, endpoint_path)
+    let response = call_vault_service::<Res>(state, request, endpoint_path)
         .await
         .change_context(errors::VaultError::VaultAPIError)?;
 
@@ -656,7 +656,7 @@ pub async fn mk_delete_card_request_hs_by_id(
         card_reference: card_reference.to_owned(),
     };
 
-    mk_locker_api_request_and_call(
+    call_vault_api(
         state,
         jwekey,
         locker,
@@ -735,30 +735,6 @@ pub fn get_card_detail(
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
-pub fn mk_crud_locker_request(
-    locker: &settings::Locker,
-    path: &str,
-    req: api::TokenizePayloadEncrypted,
-    tenant_id: id_type::TenantId,
-    request_id: Option<RequestId>,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let mut url = locker.basilisk_host.to_owned();
-    url.push_str(path);
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_default_headers();
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        tenant_id.get_string_repr().to_owned().into(),
-    );
-    if let Some(req_id) = request_id {
-        request.add_header(headers::X_REQUEST_ID, req_id.to_string().into());
-    }
-
-    request.set_body(RequestContent::Json(Box::new(req)));
-    Ok(request)
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn mk_card_value1(
     card_number: cards::CardNumber,

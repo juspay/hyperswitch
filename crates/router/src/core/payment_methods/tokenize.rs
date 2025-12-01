@@ -13,7 +13,7 @@ use router_env::logger;
 
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_encrypted_data, tokenize_card_flow},
+        cards::{add_card_to_vault, create_encrypted_data, tokenize_card_flow},
         network_tokenization, transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -408,7 +408,7 @@ where
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_hs_locker(self.state, &locker_req, customer_id)
+        let stored_resp = add_card_to_vault(self.state, &locker_req, customer_id)
             .await
             .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
