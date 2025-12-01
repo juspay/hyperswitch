@@ -744,6 +744,7 @@ pub struct UcsSetupMandateResponseData {
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1320,6 +1321,10 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             mit_category: None,
             billing_descriptor: data.request.billing_descriptor.clone(),
             tokenization: None,
+            partner_merchant_identifier_details: data
+                .request
+                .partner_merchant_identifier_details
+                .clone(),
         }
     }
 }

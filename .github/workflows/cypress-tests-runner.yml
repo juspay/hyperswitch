@@ -19,7 +19,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
-  RUST_MIN_STACK: 10485760
+  RUST_MIN_STACK: 11534336
 
 jobs:
   formatter:
@@ -192,7 +192,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "2e7d93b7-df43-446e-afb4-f822e3265fc5.json.gpg"
+          S3_SOURCE_FILE_NAME: "72ab30c2-e677-456b-9790-3857410d865e.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"

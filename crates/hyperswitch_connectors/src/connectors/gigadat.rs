@@ -1067,7 +1067,7 @@ lazy_static! {
         display_name: "Gigadat",
         description: "Gigadat is a financial services product that offers a single API for payment integration. It provides Canadian businesses with a secure payment gateway and various pay-in and pay-out solutions, including Interac e-Transfer",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
     static ref GIGADAT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = {
         #[cfg(feature = "payouts")]

@@ -3359,6 +3359,10 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = Option<CustomTermsByPaymentMethodTypes>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
@@ -3385,6 +3389,8 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Indicates whether the merchant is testing or live
+    pub payment_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3458,6 +3464,10 @@ pub struct PaymentLinkConfig {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = Option<CustomTermsByPaymentMethodTypes>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_enums::CustomTermsByPaymentMethodTypes>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion

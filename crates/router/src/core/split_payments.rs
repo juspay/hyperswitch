@@ -146,7 +146,7 @@ async fn get_payment_method_amount_split(
     let total_amount = payment_intent.amount_details.calculate_net_amount();
 
     let mut remaining_to_allocate = total_amount;
-    let pm_split_amt_tuple: Vec<(PaymentMethodData, MinorUnit)> = gift_card_data_vec
+    let pm_split_amt_tuple = gift_card_data_vec
         .iter()
         .filter_map(|gift_card_card| {
             if remaining_to_allocate == MinorUnit::zero() {
@@ -175,25 +175,39 @@ async fn get_payment_method_amount_split(
             let amount_to_use = pm_balance.balance.min(remaining_to_allocate);
             remaining_to_allocate = remaining_to_allocate - amount_to_use;
 
-            Some(Ok((
-                PaymentMethodData::GiftCard(Box::new(gift_card_card.to_owned())),
-                amount_to_use,
-            )))
+            Some(Ok(split_payments::PaymentMethodDetailsWithSplitAmount {
+                split_amount: amount_to_use,
+                payment_method_details: split_payments::PaymentMethodDetails {
+                    payment_method_data: PaymentMethodData::GiftCard(Box::new(
+                        gift_card_card.to_owned(),
+                    )),
+                    payment_method_type: common_enums::PaymentMethod::GiftCard,
+                    payment_method_subtype: gift_card_card.get_payment_method_type(),
+                },
+            }))
         })
         .collect::<RouterResult<Vec<_>>>()?;
 
     // If the gift card balances are not sufficient for payment, use the non-gift card payment method
     // for the remaining amount
     if remaining_to_allocate > MinorUnit::zero() {
-        let non_gift_card_pm_data = non_gift_card_pm_data
-            .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+        let non_gift_card_pm =
+            non_gift_card_pm_data.ok_or(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Requires additional payment method data".to_string(),
-            })?
-            .payment_method_data;
+            })?;
+
+        let non_gift_card_pm_data = split_payments::PaymentMethodDetails {
+            payment_method_data: non_gift_card_pm.payment_method_data,
+            payment_method_type: non_gift_card_pm.payment_method_type,
+            payment_method_subtype: non_gift_card_pm.payment_method_subtype,
+        };
 
         Ok(split_payments::PaymentMethodAmountSplit {
             balance_pm_split: pm_split_amt_tuple,
-            non_balance_pm_split: Some((non_gift_card_pm_data, remaining_to_allocate)),
+            non_balance_pm_split: Some(split_payments::PaymentMethodDetailsWithSplitAmount {
+                split_amount: remaining_to_allocate,
+                payment_method_details: non_gift_card_pm_data,
+            }),
         })
     } else {
         Ok(split_payments::PaymentMethodAmountSplit {
@@ -206,21 +220,19 @@ async fn get_payment_method_amount_split(
 pub(crate) async fn split_payments_execute_core(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     request: payments_api::PaymentsConfirmIntentRequest,
     header_payload: HeaderPayload,
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -239,8 +251,9 @@ pub(crate) async fn split_payments_execute_core(
     // has attempted a split payment for this intent
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::AttemptGroupUpdate {
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
             active_attempt_id_type: enums::ActiveAttemptIDType::GroupID,
@@ -249,11 +262,10 @@ pub(crate) async fn split_payments_execute_core(
 
     let payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_intent,
             payment_intent_update,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -270,7 +282,7 @@ pub(crate) async fn split_payments_execute_core(
     ) = {
         // If a non-balance Payment Method is present, we will execute that first, otherwise we will execute
         // a balance Payment Method
-        let (payment_method_data, amount) = pm_amount_split
+        let payment_method_amount_details = pm_amount_split
             .non_balance_pm_split
             .clone()
             .or_else(|| pm_amount_split.balance_pm_split.first().cloned())
@@ -288,10 +300,10 @@ pub(crate) async fn split_payments_execute_core(
                 &state,
                 &payment_id,
                 &request,
-                &merchant_context,
+                &platform,
                 &profile,
                 &header_payload,
-                (payment_method_data, amount),
+                payment_method_amount_details,
                 &attempts_group_id,
             )
             .await?;
@@ -306,7 +318,7 @@ pub(crate) async fn split_payments_execute_core(
         ) = Box::pin(payments_operation_core(
             &state,
             req_state.clone(),
-            merchant_context.clone(),
+            platform.clone(),
             &profile,
             operation,
             request.clone(),
@@ -323,19 +335,19 @@ pub(crate) async fn split_payments_execute_core(
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
-                updated_by: merchant_context
-                    .get_merchant_account()
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
 
             let updated_payment_intent = db
                 .update_payment_intent(
-                    key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -369,7 +381,7 @@ pub(crate) async fn split_payments_execute_core(
             .collect()
     };
 
-    for (payment_method_data, amount) in remaining_pm_amount_split {
+    for payment_method_amount_details in remaining_pm_amount_split {
         let operation = PaymentIntentConfirm;
 
         let get_tracker_response: operations::GetTrackerResponse<
@@ -380,10 +392,10 @@ pub(crate) async fn split_payments_execute_core(
                 &state,
                 &payment_id,
                 &request,
-                &merchant_context,
+                &platform,
                 &profile,
                 &header_payload,
-                (payment_method_data.to_owned(), amount.to_owned()),
+                payment_method_amount_details,
                 &attempts_group_id,
             )
             .await?;
@@ -398,7 +410,7 @@ pub(crate) async fn split_payments_execute_core(
         ) = Box::pin(payments_operation_core(
             &state,
             req_state.clone(),
-            merchant_context.clone(),
+            platform.clone(),
             &profile,
             operation,
             request.clone(),
@@ -415,19 +427,19 @@ pub(crate) async fn split_payments_execute_core(
             let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
                 status: common_enums::IntentStatus::RequiresPaymentMethod,
-                updated_by: merchant_context
-                    .get_merchant_account()
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
                     .storage_scheme
                     .to_string(),
             };
 
             let _updated_payment_intent = db
                 .update_payment_intent(
-                    key_manager_state,
                     payment_data.payment_intent.clone(),
                     payment_intent_update,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -449,19 +461,19 @@ pub(crate) async fn split_payments_execute_core(
     let payment_intent_update =
         hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SplitPaymentStatusUpdate {
             status: split_pm_response_data.get_intent_status(),
-            updated_by: merchant_context
-                .get_merchant_account()
+            updated_by: platform
+                .get_processor()
+                .get_account()
                 .storage_scheme
                 .to_string(),
         };
 
     let _updated_payment_intent = db
         .update_payment_intent(
-            key_manager_state,
             payment_intent,
             payment_intent_update,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -472,13 +484,14 @@ pub(crate) async fn split_payments_execute_core(
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
-        &merchant_context,
+        &platform,
         &profile,
         Some(connector_response_data),
     )
 }
 
 /// Construct the domain model from the ConfirmIntentRequest and PaymentIntent
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
 pub async fn create_domain_model_for_split_payment(
     payment_intent: &PaymentIntent,
@@ -488,6 +501,8 @@ pub async fn create_domain_model_for_split_payment(
     encrypted_data: hyperswitch_domain_models::payments::payment_attempt::DecryptedPaymentAttempt,
     split_amount: MinorUnit,
     attempts_group_id: &id_type::GlobalAttemptGroupId,
+    payment_method_type: enums::PaymentMethod,
+    payment_method_subtype: enums::PaymentMethodType,
 ) -> common_utils::errors::CustomResult<domain::PaymentAttempt, errors::ApiErrorResponse> {
     let id = id_type::GlobalAttemptId::generate(&cell_id);
     let intent_amount_details = payment_intent.amount_details.clone();
@@ -557,10 +572,10 @@ pub async fn create_domain_model_for_split_payment(
             .map(masking::Secret::new),
         profile_id: payment_intent.profile_id.clone(),
         organization_id: payment_intent.organization_id.clone(),
-        payment_method_type: request.payment_method_type,
+        payment_method_type,
         payment_method_id: request.payment_method_id.clone(),
         connector_payment_id: None,
-        payment_method_subtype: request.payment_method_subtype,
+        payment_method_subtype,
         authentication_applied: None,
         external_reference_id: None,
         payment_method_billing_address,
