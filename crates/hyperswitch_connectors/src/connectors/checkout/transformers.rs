@@ -865,12 +865,6 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let billing_descriptor =
             if let Some(descriptor) = item.router_data.request.billing_descriptor.as_ref() {
-                if descriptor.name.is_none()
-                    && descriptor.city.is_none()
-                    && descriptor.reference.is_none()
-                {
-                    return None;
-                }
                 if descriptor.name.is_none() && descriptor.city.is_none() {
                     return Err(errors::ConnectorError::MissingRequiredFields {
                         field_names: vec!["billing_descriptor.name", "billing_descriptor.city"],
