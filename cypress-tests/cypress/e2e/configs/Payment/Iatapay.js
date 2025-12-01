@@ -56,26 +56,6 @@ export const connectorDetails = {
     },
   },
   real_time_payment_pm: {
-    PaymentIntent: () => ({
-      Request: {
-        currency: "MYR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: {
-          ...billingAddress,
-          address: {
-            ...billingAddress.address,
-            country: "MY",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     DuitNow: {
       Request: {
         payment_method: "real_time_payment",
@@ -92,6 +72,7 @@ export const connectorDetails = {
             country: "MY",
           },
         },
+        currency: "MYR",
       },
       Response: {
         status: 200,
