@@ -14,7 +14,6 @@
 /// Extract the specific context (Provider/Processor) and pass that instead.
 ///
 // TODO: Remove wrappers and migrate to DB interface with typed parameters (ProviderMerchantId, ProcessorMerchantId, etc.) once the platform stabilizes
-
 pub mod business_profile;
 pub mod mandate;
 pub mod merchant_connector_account;
