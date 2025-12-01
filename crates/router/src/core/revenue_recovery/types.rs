@@ -70,12 +70,12 @@ pub enum RevenueRecoveryPaymentsAttemptStatus {
 }
 
 impl RevenueRecoveryPaymentsAttemptStatus {
-    pub(crate) async fn update_pt_status_based_on_attempt_status_for_execute_payment(
+    pub(crate) async fn update_pt_status_based_on_intent_status_for_execute_payment(
         &self,
         db: &dyn StorageInterface,
         execute_task_process: &storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        logger::info!("Entering update_pt_status_based_on_attempt_status_for_execute_payment");
+        logger::info!("Entering update_pt_status_based_on_intent_status_for_execute_payment");
         match &self {
             Self::Succeeded | Self::PartialCharged | Self::Failed | Self::Processing => {
                 // finish the current execute task
@@ -377,7 +377,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 }
 pub enum Decision {
     Execute,
-    Psync(enums::AttemptStatus, id_type::GlobalAttemptId),
+    Psync(enums::IntentStatus, id_type::GlobalAttemptId),
     InvalidDecision,
     ReviewForSuccessfulPayment,
     ReviewForFailedPayment(enums::TriggeredBy),
@@ -421,7 +421,8 @@ impl Decision {
                 .change_context(errors::RecoveryError::PaymentCallFailed)
                 .attach_printable("Error while executing the Psync call")?;
                 let payment_attempt = psync_data.payment_attempt;
-                Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
+                let payment_intent = psync_data.payment_intent;
+                Self::Psync(payment_intent.status, payment_attempt.get_id().clone())
             }
             (
                 enums::IntentStatus::PartiallyCapturedAndProcessing,
@@ -439,7 +440,8 @@ impl Decision {
                 .change_context(errors::RecoveryError::PaymentCallFailed)
                 .attach_printable("Error while executing the Psync call")?;
                 let payment_attempt = psync_data.payment_attempt;
-                Self::Psync(payment_attempt.status, payment_attempt.get_id().clone())
+                let payment_intent = psync_data.payment_intent;
+                Self::Psync(payment_intent.status, payment_attempt.get_id().clone())
             }
             (
                 enums::IntentStatus::Failed,
@@ -560,10 +562,10 @@ impl Action {
                         logger::error!("Failed to handle account updater action: {:?}", e);
                     })
                     .ok();
-                let attempt_status: RevenueRecoveryPaymentsAttemptStatus =
-                    payment_data.payment_attempt.status.foreign_into();
-                let event_status = common_enums::EventType::from(attempt_status.clone());
-                match attempt_status {
+                let intent_status: RevenueRecoveryPaymentsAttemptStatus =
+                    payment_data.payment_intent.status.foreign_into();
+                let event_status = common_enums::EventType::from(intent_status.clone());
+                match intent_status {
                     RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
                         let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(

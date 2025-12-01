@@ -338,7 +338,7 @@ pub async fn perform_execute_payment(
                 }
             };
         }
-        types::Decision::Psync(attempt_status, attempt_id) => {
+        types::Decision::Psync(intent_status, attempt_id) => {
             // find if a psync task is already present
             let task = PSYNC_WORKFLOW;
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
@@ -348,10 +348,10 @@ pub async fn perform_execute_payment(
             match psync_process {
                 Some(_) => {
                     let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
-                        attempt_status.foreign_into();
+                        intent_status.foreign_into();
 
                     pcr_status
-                        .update_pt_status_based_on_attempt_status_for_execute_payment(
+                        .update_pt_status_based_on_intent_status_for_execute_payment(
                             db,
                             execute_task_process,
                         )
@@ -702,7 +702,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                "Hard decline flag is false, rescheduling for scheduled time + 15 mins"
+                "Hard decline flag is false, rescheduling after job_schedule_buffer_time_in_seconds"
             );
 
             update_calculate_job_schedule_time(

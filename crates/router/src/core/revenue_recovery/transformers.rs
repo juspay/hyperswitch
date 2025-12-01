@@ -1,4 +1,4 @@
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, IntentStatus};
 use masking::PeekInterface;
 
 use crate::{
@@ -40,6 +40,31 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::Unresolved
             | AttemptStatus::IntegrityFailure
             | AttemptStatus::Expired => Self::InvalidStatus(s.to_string()),
+        }
+    }
+}
+
+impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentsAttemptStatus {
+    fn foreign_from(status: IntentStatus) -> Self {
+        match status {
+            IntentStatus::Succeeded => Self::Succeeded,
+            IntentStatus::PartiallyCapturedAndProcessing | IntentStatus::Processing => {
+                Self::Processing
+            }
+            IntentStatus::Failed => Self::Failed,
+            IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
+                Self::PartialCharged
+            }
+            IntentStatus::Cancelled
+            | IntentStatus::CancelledPostCapture
+            | IntentStatus::RequiresCustomerAction
+            | IntentStatus::RequiresMerchantAction
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::RequiresConfirmation
+            | IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | IntentStatus::Conflicted
+            | IntentStatus::Expired => Self::InvalidStatus(status.to_string()),
         }
     }
 }
