@@ -2995,6 +2995,14 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
+/// MerchantCategoryCode should have Privatized field "0000"-"9999"
+/// # Examples
+///
+/// ```rust
+/// let mcc:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::new(mcc_value);
+/// let mcc_from_string:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::from_str("1234");
+/// ```
+///
 #[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
 #[schema(
     value_type = String,
@@ -3006,6 +3014,7 @@ pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
     pub fn get_code(&self) -> u16 {
+        // since self.0 is private field we can safely ensure self.0 is string "0000"-"9999"
         self.0.parse::<u16>().unwrap_or(0)
     }
 
