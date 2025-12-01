@@ -2580,7 +2580,7 @@ pub async fn vault_payment_method(
             vault_payment_method_external(
                 state,
                 &payment_method_custom_data,
-                platform.get_processor().get_account(),
+                platform.get_provider().get_account(),
                 merchant_connector_account,
             )
             .await
@@ -2916,9 +2916,9 @@ pub async fn update_payment_method_core(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2978,7 +2978,7 @@ pub async fn update_payment_method_core(
     let pm_update = create_pm_additional_data_update(
         vault_request_data.as_ref(),
         state,
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
         vault_id,
         fingerprint_id,
         &payment_method,
@@ -2993,10 +2993,10 @@ pub async fn update_payment_method_core(
 
     let payment_method = db
         .update_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method,
             pm_update,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3037,9 +3037,9 @@ pub async fn delete_payment_method_core(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             &pm_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3052,8 +3052,8 @@ pub async fn delete_payment_method_core(
     let _customer = db
         .find_customer_by_global_id(
             &payment_method.customer_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -3066,10 +3066,10 @@ pub async fn delete_payment_method_core(
     };
 
     db.update_payment_method(
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
         payment_method.clone(),
         pm_update,
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_provider().get_account().storage_scheme,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3389,7 +3389,7 @@ pub async fn payment_methods_session_update_payment_method(
 
     // Validate if the session still exists
     db.get_payment_methods_session(
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
         &payment_method_session_id,
     )
     .await
@@ -3425,7 +3425,7 @@ pub async fn payment_methods_session_delete_payment_method(
 
     // Validate if the session still exists
     db.get_payment_methods_session(
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
         &payment_method_session_id,
     )
     .await
@@ -3533,7 +3533,7 @@ pub async fn payment_methods_session_confirm(
     // Validate if the session still exists
     let payment_method_session = db
         .get_payment_methods_session(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             &payment_method_session_id,
         )
         .await
@@ -3609,13 +3609,13 @@ pub async fn payment_methods_session_confirm(
         create_payment_method_request.payment_method_data.clone(),
         request.payment_method_type,
         intent_fulfillment_time,
-        platform.get_processor().get_key_store().key.get_inner(),
+        platform.get_provider().get_key_store().key.get_inner(),
     )
     .await?;
 
     let payment_method_session = db
         .update_payment_method_session(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             &payment_method_session_id,
             update_payment_method_session,
             payment_method_session,
@@ -3670,8 +3670,8 @@ pub async fn payment_methods_session_confirm(
         Some(tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
-                &platform.get_processor().get_account().clone(),
-                &platform.get_processor().get_key_store().clone(),
+                &platform.get_provider().get_account().clone(),
+                &platform.get_provider().get_key_store().clone(),
                 api_models::tokenization::GenericTokenizationRequest {
                     customer_id: customer_id.clone(),
                     token_request: tokenization_data,

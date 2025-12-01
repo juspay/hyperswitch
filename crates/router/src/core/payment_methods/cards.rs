@@ -2773,7 +2773,7 @@ pub async fn list_payment_methods(
         format!(
             "pm_filters_cgraph_{}_{}",
             platform
-                .get_provider()
+                .get_processor()
                 .get_account()
                 .get_id()
                 .get_string_repr(),
@@ -4185,7 +4185,7 @@ pub async fn list_customer_payment_method(
         state,
         router_consts::superposition::REQUIRES_CVV, // superposition key
         &platform
-            .get_provider()
+            .get_processor()
             .get_account()
             .get_id()
             .get_requires_cvv_key(), // database key
@@ -4193,7 +4193,7 @@ pub async fn list_customer_payment_method(
             external_services::superposition::ConfigContext::new().with(
                 "merchant_id",
                 platform
-                    .get_provider()
+                    .get_processor()
                     .get_account()
                     .get_id()
                     .get_string_repr(),
