@@ -1677,9 +1677,8 @@ pub async fn toggle_specific_dynamic_routing(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1750,9 +1749,8 @@ pub async fn create_specific_dynamic_routing(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -2110,9 +2108,8 @@ pub async fn contract_based_dynamic_routing_setup(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
