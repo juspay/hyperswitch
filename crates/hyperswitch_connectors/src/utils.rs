@@ -7073,6 +7073,7 @@ impl NetworkTokenData for NetworkTokenDetailsForNetworkTransactionId {
     }
 
     fn get_cryptogram(&self) -> Option<Secret<String>> {
+        // Since it is a MIT flow, cryptogram won't be present here
         None
     }
 
