@@ -960,9 +960,12 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
 
         Ok(Self {
             id: item.id,
-            customer_id: item.customer_id.get_required_value("GlobalCustomerId").change_context(errors::ValidationError::MissingRequiredField {
-                field_name: "customer_id".to_string(),
-            })?,
+            customer_id: item
+                .customer_id
+                .get_required_value("GlobalCustomerId")
+                .change_context(errors::ValidationError::MissingRequiredField {
+                    field_name: "customer_id".to_string(),
+                })?,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
@@ -1048,9 +1051,12 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 
         Ok(Self {
             id: item.id,
-            customer_id: item.customer_id.get_required_value("GlobalCustomerId").change_context(errors::ValidationError::MissingRequiredField {
-                field_name: "customer_id".to_string(),
-            })?,
+            customer_id: item
+                .customer_id
+                .get_required_value("GlobalCustomerId")
+                .change_context(errors::ValidationError::MissingRequiredField {
+                    field_name: "customer_id".to_string(),
+                })?,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,

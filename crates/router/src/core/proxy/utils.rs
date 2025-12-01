@@ -113,7 +113,10 @@ impl ProxyRecord {
 
     fn get_customer_id(&self) -> RouterResult<id_type::GlobalCustomerId> {
         match self {
-            Self::PaymentMethodRecord(payment_method) => payment_method.customer_id.clone().get_required_value("customer_id")
+            Self::PaymentMethodRecord(payment_method) => payment_method
+                .customer_id
+                .clone()
+                .get_required_value("customer_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Customer id not present in Payment Method Entry"),
             Self::TokenizationRecord(tokenization_record) => {
