@@ -33,6 +33,7 @@ use crate::{
     services::{self, encryption},
     settings,
     types::{api, domain, payment_methods as pm_types},
+    utils::ext_traits::OptionExt,
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
@@ -598,13 +599,17 @@ pub async fn get_token_from_tokenization_service(
     network_token_requestor_ref_id: String,
     pm_data: &domain::PaymentMethod,
 ) -> errors::RouterResult<domain::NetworkTokenData> {
+    let customer_id = &pm_data
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
     let token_response =
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             record_operation_time(
                 async {
                     get_network_token(
                 state,
-                &pm_data.customer_id,
+                customer_id,
                 network_token_requestor_ref_id,
                 network_tokenization_service.get_inner(),
             )
@@ -891,18 +896,22 @@ pub async fn check_token_status_with_tokenization_service(
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,
-) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::NetworkTokenizationError> {
+) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::ApiErrorResponse> {
     let network_token_requestor_reference_id = payment_method_info
         .network_token_requestor_reference_id
         .clone();
 
+    let customer_id = &payment_method_info
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
     if let Some(ref_id) = network_token_requestor_reference_id {
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             let network_token_details = record_operation_time(
                 async {
                     check_token_status_with_tokenization_service(
                         state,
-                        &payment_method_info.customer_id,
+                        customer_id,
                         ref_id,
                         network_tokenization_service.get_inner(),
                     )
@@ -910,8 +919,9 @@ pub async fn do_status_check_for_network_token(
                     .inspect_err(
                         |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
                     )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "Check network token status with tokenization service failed",
+                    "Check network token status with tokenization service failed",
                     )
                 },
                 &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
@@ -921,6 +931,7 @@ pub async fn do_status_check_for_network_token(
             Ok(network_token_details)
         } else {
             Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Network Tokenization Service not configured")
                 .inspect_err(|_| {
                     logger::error!("Network Tokenization Service not configured");
@@ -928,6 +939,7 @@ pub async fn do_status_check_for_network_token(
         }
     } else {
         Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Check network token status failed")?
     }
 }

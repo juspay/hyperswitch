@@ -2098,7 +2098,7 @@ pub async fn create_payment_method_for_intent(
         .insert_payment_method(
             key_store,
             domain::PaymentMethod {
-                customer_id: customer_id.to_owned(),
+                customer_id: Some(customer_id.to_owned()),
                 merchant_id: merchant_id.to_owned(),
                 id: payment_method_id,
                 locker_id: None,
@@ -2177,7 +2177,7 @@ pub async fn construct_payment_method_object(
         .attach_printable("Unable to parse Payment method data")?;
 
     Ok(domain::PaymentMethod {
-        customer_id: customer_id.clone().get_required_value("CustomerId")?, //need to change this
+        customer_id: customer_id.clone(),
         merchant_id: merchant_id.to_owned(),
         id: payment_method_id,
         locker_id,
@@ -2234,7 +2234,7 @@ pub async fn create_payment_method_for_confirm(
         .insert_payment_method(
             key_store,
             domain::PaymentMethod {
-                customer_id: customer_id.to_owned(),
+                customer_id: Some(customer_id.to_owned()),
                 merchant_id: merchant_id.to_owned(),
                 id: payment_method_id,
                 locker_id: None,
@@ -3263,7 +3263,7 @@ pub async fn update_payment_method_core(
                 // using current vault_id for now,
                 // will have to refactor this to generate new one on each vaulting later on
                 current_vault_id,
-                &payment_method.customer_id,
+                &payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?,
             )
             .await
             .attach_printable("Failed to add payment method in vault")?;
@@ -3349,6 +3349,7 @@ pub async fn delete_payment_method_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let customer_id = &payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?;
 
     when(
         payment_method.status == enums::PaymentMethodStatus::Inactive,
@@ -3357,7 +3358,7 @@ pub async fn delete_payment_method_core(
 
     let _customer = db
         .find_customer_by_global_id(
-            &payment_method.customer_id,
+            customer_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -4345,7 +4346,7 @@ pub async fn check_network_token_status(
                         card_expiry_year: network_token_details.payload.card_expiry_year,
                         token_last_four: network_token_details.payload.token_last_four,
                         payment_method_id,
-                        customer_id: payment_method.customer_id,
+                        customer_id: payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?,
                     },
                 )
             }

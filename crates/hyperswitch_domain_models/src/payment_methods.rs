@@ -9,7 +9,7 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable, ext_traits::OptionExt};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
@@ -29,7 +29,8 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
-use crate::address::Address;
+use crate::
+    address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
 use crate::{
@@ -101,7 +102,8 @@ pub struct PaymentMethod {
     pub id: id_type::GlobalPaymentMethodId,
 
     /// The customer id against which the payment method is saved
-    pub customer_id: id_type::GlobalCustomerId,
+    /// It is made optional to support guest checkout tokenization
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The merchant id against which the payment method is saved
     pub merchant_id: id_type::MerchantId,
@@ -538,7 +540,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -651,7 +653,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .attach_printable("Error while deserializing External Vault Token Data")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                customer_id: storage_model.customer_id,
+                customer_id: Some(storage_model.customer_id),
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 created_at: storage_model.created_at,
@@ -693,7 +695,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
