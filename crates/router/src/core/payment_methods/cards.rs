@@ -2358,7 +2358,6 @@ pub async fn delete_card_from_vault<'a>(
     }
 }
 
-
 ///Mock api for local testing
 pub async fn mock_call_to_locker_hs(
     db: &dyn db::StorageInterface,
