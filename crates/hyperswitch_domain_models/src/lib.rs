@@ -16,6 +16,7 @@ pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
+pub mod helpers;
 pub mod invoice;
 pub mod mandates;
 pub mod master_key;
