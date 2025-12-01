@@ -907,6 +907,7 @@ where
                 utils::get_unimplemented_payment_method_error_message("Nuvei"),
             ))?,
         };
+        let return_url = item.request.get_return_url_required()?;
         Ok(Self {
             payment_option: PaymentOption {
                 alternative_payment_method: Some(AlternativePaymentMethod {
@@ -916,6 +917,11 @@ where
                 ..Default::default()
             },
             billing_address: item.get_billing().ok().map(|billing| billing.into()),
+            url_details: Some(UrlDetails {
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url,
+            }),
             ..Default::default()
         })
     }
@@ -936,6 +942,7 @@ where
     address.get_first_name()?;
     address.get_country()?; //country is necessary check
     item.request.get_email_required()?;
+    let return_url = item.request.get_return_url_required()?;
     Ok(NuveiPaymentsRequest {
         payment_option: PaymentOption {
             alternative_payment_method: Some(AlternativePaymentMethod {
@@ -944,6 +951,11 @@ where
             }),
             ..Default::default()
         },
+        url_details: Some(UrlDetails {
+            success_url: return_url.clone(),
+            failure_url: return_url.clone(),
+            pending_url: return_url,
+        }),
         ..Default::default()
     })
 }
@@ -998,7 +1010,7 @@ where
         let (item, session_token) = data;
         let base = NuveiPaymentBaseRequest::try_from((item, session_token))?;
 
-        let return_url = item.request.get_return_url_required()?;
+        let _return_url = item.request.get_return_url_required()?;
         let address = {
             let mut billing_address = item.get_billing()?.clone();
             billing_address.email = Some(
@@ -1088,11 +1100,7 @@ where
             shipping_address: item.get_optional_shipping().map(|address| address.into()),
             device_details,
             external_scheme_details: request_data.external_scheme_details,
-            url_details: Some(UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
-            }),
+            url_details: request_data.url_details,
             ..request_data
         })
     }
