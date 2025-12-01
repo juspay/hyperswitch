@@ -245,7 +245,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ),
             ));
 
-        // what is this payment link, shall we pass processor instead of merchant name
         let payment_link_data = match request.payment_link {
             Some(true) => {
                 let default_domain_name = state.base_url.clone();
@@ -1495,7 +1494,6 @@ impl PaymentCreate {
             .get_inner()
             .peek();
 
-        // Use provider as an identifier to encrypt and decrypt payments information
         let identifier =
             Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone());
         let key_manager_state: KeyManagerState = state.into();
@@ -1522,7 +1520,6 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode shipping details to serde_json::Value")?;
 
-        // will this create any problem with respect to provide and processor
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),

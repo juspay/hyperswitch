@@ -975,13 +975,11 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         // This supports changing the business profile by passing in the profile_id
         let business_profile_id_update = if let Some(ref profile_id) = self.default_profile {
-            // Get the merchant account to create a processor
             let merchant_account = db
                 .find_merchant_account_by_merchant_id(merchant_id, key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-            // Create a platform to get the processor
             let platform = domain::Platform::new(
                 merchant_account.clone(),
                 key_store.clone(),
