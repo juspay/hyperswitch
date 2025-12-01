@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac, rand as ring_rand,
@@ -11,7 +11,10 @@ use ring::{
 };
 #[cfg(feature = "logs")]
 use router_env::logger;
-use rsa::{pkcs8::DecodePublicKey, signature::Verifier, traits::PublicKeyParts};
+use rsa::{
+    pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey, pkcs8::DecodePublicKey,
+    signature::Verifier, traits::PublicKeyParts,
+};
 
 use crate::{
     consts::{BASE64_ENGINE, BASE64_ENGINE_URL_SAFE_NO_PAD},
@@ -734,10 +737,6 @@ pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 pub fn extract_rsa_public_key_components(
     private_key_pem: &Secret<String>,
 ) -> CustomResult<(String, String), errors::CryptoError> {
-    use base64::Engine;
-    use masking::PeekInterface;
-    use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
-
     let pem_str = private_key_pem.peek();
     let parsed_pem = pem::parse(pem_str).change_context(errors::CryptoError::EncodingFailed)?;
 
