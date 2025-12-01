@@ -396,6 +396,7 @@ impl Capturable for PaymentsCaptureData {
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Expired => Some(0),
             common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Failed
