@@ -637,12 +637,14 @@ pub struct PaymentsPreAuthenticateData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub enrolled_for_3ds: bool,
     pub customer_name: Option<Secret<String>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -660,8 +662,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
+            webhook_url: data.webhook_url,
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -677,6 +681,7 @@ pub struct PaymentsAuthenticateData {
     pub browser_info: Option<BrowserInformation>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -693,6 +698,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             redirect_response: data.redirect_response,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -709,6 +715,7 @@ pub struct PaymentsPostAuthenticateData {
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -725,6 +732,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             browser_info: data.browser_info,
             connector_transaction_id: None,
             redirect_response: data.redirect_response,
+            capture_method: data.capture_method,
         })
     }
 }

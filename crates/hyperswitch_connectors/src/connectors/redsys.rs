@@ -47,9 +47,14 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
+use masking::PeekInterface;
 use transformers as redsys;
 
-use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self as connector_utils, PaymentsAuthorizeRequestData},
+};
 
 #[derive(Clone)]
 pub struct Redsys {
@@ -906,6 +911,111 @@ impl ConnectorSpecifications for Redsys {
         Some(&REDSYS_SUPPORTED_WEBHOOK_FLOWS)
     }
 
+    fn get_preprocessing_flow_if_needed(
+        &self,
+        current_flow_info: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::PreProcessingFlowName> {
+        match current_flow_info {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                // For UCS 3DS flow: After PreAuthenticate alternate flow completes,
+                // we need to call Authenticate to get the challenge or frictionless result
+                if self.is_3ds_setup_required(request_data, *auth_type) {
+                    Some(api::PreProcessingFlowName::Authenticate)
+                } else {
+                    None
+                }
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                // For Redsys 3DS flow, the decision is based on redirect_response.params:
+                // - If params is non-empty (contains cres from challenge): user completed ACS challenge
+                //   → Call PostAuthenticate to complete authentication with cres
+                // - If params is empty/None (3DS Method completion): user completed device data collection
+                //   → Call Authenticate to proceed with authentication
+                let redirect_response = request_data.redirect_response.as_ref()?;
+                match redirect_response.params.as_ref() {
+                    Some(param) if !param.peek().is_empty() => {
+                        // Has cres (challenge response) → PostAuthenticate
+                        Some(api::PreProcessingFlowName::PostAuthenticate)
+                    }
+                    Some(_) | None => {
+                        // No cres (3DS Method completion) → Authenticate
+                        Some(api::PreProcessingFlowName::Authenticate)
+                    }
+                }
+            }
+        }
+    }
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+        pre_processing_flow_name: api::PreProcessingFlowName,
+        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        match (current_flow, pre_processing_flow_name) {
+            (api::CurrentFlowInfo::Authorize { .. }, api::PreProcessingFlowName::Authenticate) => {
+                // After Authenticate preprocessing in Authorize flow:
+                // - If redirection_data exists → User needs to complete challenge, DON'T continue to Authorize
+                // - If redirection_data is None → Frictionless, CONTINUE to Authorize
+                // - If AuthenticationFailed → DON'T continue
+
+                let has_no_redirection = matches!(
+                    preprocessing_flow_response.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                );
+
+                has_no_redirection
+                    && preprocessing_flow_response.attempt_status
+                        != common_enums::AttemptStatus::AuthenticationFailed
+            }
+            (api::CurrentFlowInfo::Authorize { .. }, _) => {
+                // For other preprocessing flows in Authorize, continue
+                true
+            }
+            (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::Authenticate,
+            )
+            | (
+                api::CurrentFlowInfo::CompleteAuthorize { .. },
+                api::PreProcessingFlowName::PostAuthenticate,
+            ) => {
+                (matches!(
+                    preprocessing_flow_response.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && preprocessing_flow_response.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed)
+            }
+        }
+    }
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> Option<api::AlternateFlow> {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                if self.is_3ds_setup_required(request_data, *auth_type) {
+                    Some(api::AlternateFlow::PreAuthenticate)
+                } else {
+                    None
+                }
+            }
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
@@ -920,5 +1030,20 @@ impl ConnectorSpecifications for Redsys {
         } else {
             connector_utils::generate_12_digit_number().to_string()
         }
+    }
+}
+
+impl Redsys {
+    pub fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: common_enums::AuthenticationType,
+    ) -> bool {
+        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Redsys");
+        auth_type.is_three_ds()
+            && request.is_card()
+            && (request.connector_mandate_id().is_none()
+                && request.get_optional_network_transaction_id().is_none())
+            && request.authentication_data.is_none()
     }
 }
