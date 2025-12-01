@@ -27625,6 +27625,13 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -29183,6 +29190,13 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp indicating when this payment intent was created, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
