@@ -104,9 +104,10 @@ pub fn get_merchant_category_code_with_name() -> JsResult {
         .into_iter()
         .filter_map(|mcc_value| {
             let mcc = MerchantCategoryCode::new(mcc_value).ok()?;
+            let mcc_name = mcc.get_category_name().ok()?;
             Some(MerchantCategoryCodeWithName {
                 code: mcc.clone(),
-                name: mcc.get_category_name().to_string(),
+                name: mcc_name.to_string(),
             })
         })
         .collect::<Vec<_>>();

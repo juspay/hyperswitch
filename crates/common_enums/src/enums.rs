@@ -2995,14 +2995,6 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-/// MerchantCategoryCode should have Privatized field "0000"-"9999"
-/// # Examples
-///
-/// ```rust
-/// let mcc:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::new(mcc_value);
-/// let mcc_from_string:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::from_str("1234");
-/// ```
-///
 #[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
 #[schema(
     value_type = String,
@@ -3013,9 +3005,11 @@ pub enum DisputeStatus {
 pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
-    pub fn get_code(&self) -> u16 {
-        // since self.0 is private field we can safely ensure self.0 is string "0000"-"9999"
-        self.0.parse::<u16>().unwrap_or(0)
+    pub fn get_code(&self) -> Result<u16, InvalidMccError> {
+        // since self.0 is private field we can safely ensure self.0 is string "0001"-"9999"
+        self.0.parse::<u16>().map_err(|_| InvalidMccError {
+            message: format!("Invalid MCC code found"),
+        })
     }
 
     pub fn new(code: u16) -> Result<Self, InvalidMccError> {
@@ -3029,30 +3023,32 @@ impl MerchantCategoryCode {
         Ok(Self(formatted))
     }
 
-    pub fn get_category_name(&self) -> &str {
-        match self.get_code() {
+    pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
+        match self.get_code()? {
             // specific mapping needs to be depricated
-            5411 => "Grocery Stores, Supermarkets (5411)",
-            7011 => "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)",
-            763 => "Agricultural Cooperatives (0763)",
-            8111 => "Attorneys, Legal Services (8111)",
-            5021 => "Office and Commercial Furniture (5021)",
-            4816 => "Computer Network/Information Services (4816)",
-            5661 => "Shoe Stores (5661)",
+            5411 => Ok("Grocery Stores, Supermarkets (5411)"),
+            7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
+            763 => Ok("Agricultural Cooperatives (0763)"),
+            8111 => Ok("Attorneys, Legal Services (8111)"),
+            5021 => Ok("Office and Commercial Furniture (5021)"),
+            4816 => Ok("Computer Network/Information Services (4816)"),
+            5661 => Ok("Shoe Stores (5661)"),
 
             // general mapping
-            1..=1499 => "Agricultural Services",
-            1500..=2999 => "Contracted Services",
-            3000..=3999 => "Travel and Entertainment",
-            4000..=4799 => "Transportation Services",
-            4800..=4999 => "Utility Services",
-            5000..=5599 => "Retail Outlet Services",
-            5600..=5699 => "Clothing Stores",
-            5700..=7299 => "Miscellaneous Stores",
-            7300..=7999 => "Business Services",
-            8000..=8999 => "Professional Services and Membership Organizations",
-            9000..=9999 => "Government Services",
-            _ => "Unknown or Out-of-Range",
+            1..=1499 => Ok("Agricultural Services"),
+            1500..=2999 => Ok("Contracted Services"),
+            3000..=3999 => Ok("Travel and Entertainment"),
+            4000..=4799 => Ok("Transportation Services"),
+            4800..=4999 => Ok("Utility Services"),
+            5000..=5599 => Ok("Retail Outlet Services"),
+            5600..=5699 => Ok("Clothing Stores"),
+            5700..=7299 => Ok("Miscellaneous Stores"),
+            7300..=7999 => Ok("Business Services"),
+            8000..=8999 => Ok("Professional Services and Membership Organizations"),
+            9000..=9999 => Ok("Government Services"),
+            _ => Err(InvalidMccError {
+                message: format!("Invalid MCC range found . Required 0001-9999",),
+            }),
         }
     }
 

@@ -21346,7 +21346,6 @@
       "MerchantCategoryCode": {
         "type": "string",
         "title": "4 digit Merchant category code (MCC)",
-        "description": "MerchantCategoryCode should have Privatized field \"0000\"-\"9999\"\n# Examples\n\n```rust\nlet mcc:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::new(mcc_value);\nlet mcc_from_string:Result<MerchantCategoryCode,InvalidMccError>=MerchantCategoryCode::from_str(\"1234\");\n```\n",
         "example": "5411"
       },
       "MerchantConnectorAccountId": {
