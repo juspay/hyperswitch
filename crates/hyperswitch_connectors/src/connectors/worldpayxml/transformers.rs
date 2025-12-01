@@ -1869,3 +1869,44 @@ pub fn get_payout_webhook_event(status: LastEvent) -> api_models::webhooks::Inco
         }
     }
 }
+
+pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
+    match status {
+        LastEvent::Authorised | LastEvent::SentForAuthorisation => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+        }
+        LastEvent::Captured | LastEvent::Settled => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+        }
+        LastEvent::Refunded | LastEvent::RefundedByMerchant => {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess
+        }
+        LastEvent::Cancelled => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
+        LastEvent::Refused => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
+        LastEvent::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+pub fn is_refund_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::SentForRefund
+            | LastEvent::RefundedByMerchant
+            | LastEvent::RefundRequested
+            | LastEvent::Refunded
+            | LastEvent::RefundFailed
+    )
+}
+
+pub fn is_transaction_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::Authorised
+            | LastEvent::Settled
+            | LastEvent::Captured
+            | LastEvent::SentForAuthorisation
+            | LastEvent::Cancelled
+            | LastEvent::Refused
+    )
+}
