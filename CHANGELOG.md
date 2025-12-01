@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix6
+
+### Features
+
+- **core:** Map Connector Customer Id Inside Connector Mandate Details inside Batch Migrations API ([#10493](https://github.com/juspay/hyperswitch/pull/10493)) ([`7c1ecdc`](https://github.com/juspay/hyperswitch/commit/7c1ecdcd3f6e25c0ea8db05aee9bb598597e825d))
+
+**Full Changelog:** [`2025.11.19.0-hotfix5...2025.11.19.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix5...2025.11.19.0-hotfix6)
+
+- - -
+
 ## 2025.11.19.0-hotfix5
 
 ### Bug Fixes
