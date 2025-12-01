@@ -907,7 +907,10 @@ pub async fn create_payment_method_core(
 
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
-    let customer_id = req.customer_id.to_owned().get_required_value("customer_id")?;
+    let customer_id = req
+        .customer_id
+        .to_owned()
+        .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id(
@@ -1258,9 +1261,7 @@ pub async fn create_volatile_payment_method_card_core(
 
             Ok((resp, payment_method))
         }
-        Err(e) => {
-            Err(e)
-        }
+        Err(e) => Err(e),
     }?;
 
     Ok((response, payment_method))
@@ -2447,7 +2448,9 @@ pub async fn create_pm_additional_data_update(
         .await
         .transpose()?
         .map(|encoded_data| {
-            encoded_data.deserialize_inner_value(|value| value.parse_value::<payment_methods::PaymentMethodsData>("PaymentMethodsData"))
+            encoded_data.deserialize_inner_value(|value| {
+                value.parse_value::<payment_methods::PaymentMethodsData>("PaymentMethodsData")
+            })
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3984,7 +3987,10 @@ pub async fn payment_methods_session_confirm(
         None => None,
     };
 
-    let tokenization_response = match (payment_method_session.tokenization_data.clone(), payment_method_session.customer_id.clone()) {
+    let tokenization_response = match (
+        payment_method_session.tokenization_data.clone(),
+        payment_method_session.customer_id.clone(),
+    ) {
         (Some(tokenization_data), Some(customer_id)) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
