@@ -17,7 +17,9 @@ use crate::{
         PaymentsCancelResponseRouterData, RefreshTokenRouterData, RefundsResponseRouterData,
         ResponseRouterData,
     },
-    utils::{self, is_payment_failure, AddressDetailsData, RouterData as _},
+    utils::{
+        self, is_payment_failure, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _,
+    },
 };
 
 const PASSWORD: &str = "password";
@@ -181,7 +183,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 let address = item.router_data.get_billing_address()?;
                 let first_name = address.get_first_name()?;
                 let payer = PayerDetails {
-                    email: item.router_data.request.email.clone(),
+                    email: item.router_data.request.get_optional_email(),
                     first_name: first_name.to_owned(),
                     last_name: address.get_last_name().unwrap_or(first_name).to_owned(),
                     reference: item.router_data.get_customer_id()?.to_owned(),
@@ -340,8 +342,18 @@ pub struct VoltPaymentsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentInitiationFlow {
-    status: String,
+    status: VoltPaymentInitiationFlowStatus,
     details: VoltPaymentInitiationFlowDetails,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VoltPaymentInitiationFlowStatus {
+    Processing,
+    Finished,
+    Aborted,
+    Exception,
+    WaitingForInput,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
