@@ -1337,7 +1337,10 @@ Cypress.Commands.add(
 
     // Check for TRIGGER_SKIP config and skip test if set
     const configData = validateConfig(configs) || {};
-    if (typeof configData?.TRIGGER_SKIP !== "undefined" && configData.TRIGGER_SKIP) {
+    if (
+      typeof configData?.TRIGGER_SKIP !== "undefined" &&
+      configData.TRIGGER_SKIP
+    ) {
       cy.log("Skipping test due to TRIGGER_SKIP config");
       return;
     }
