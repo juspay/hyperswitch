@@ -1971,6 +1971,12 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
         }
     }
 }
@@ -1982,6 +1988,32 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::VaultTokenField>
+    for diesel_models::business_profile::VaultTokenField
+{
+    fn foreign_from(item: api_models::admin::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
+    for api_models::admin::VaultTokenField
+{
+    fn foreign_from(item: diesel_models::business_profile::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
         }
     }
 }
@@ -2131,6 +2163,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: item.custom_message_for_payment_method_types,
             payment_button_colour: item.payment_button_colour,
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
@@ -2167,6 +2200,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: item.custom_message_for_payment_method_types,
             payment_button_colour: item.payment_button_colour,
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
@@ -2178,6 +2212,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }
