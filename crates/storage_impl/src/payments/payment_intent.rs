@@ -29,6 +29,8 @@ use diesel_models::{
     enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v1", feature = "olap"))]
+use futures::future::try_join_all;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
@@ -1101,8 +1103,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        use futures::future::try_join_all;
-
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()

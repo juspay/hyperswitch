@@ -1,6 +1,9 @@
 use std::vec::IntoIter;
 
-use common_utils::{ext_traits::Encode, types::MinorUnit};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode},
+    types::MinorUnit,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::ext_traits::OptionExt;
@@ -491,8 +494,6 @@ where
         })
         .unwrap_or(false)
     {
-        use common_utils::ext_traits::AsyncExt;
-
         let encrypted_payment_method_data = additional_payment_method_data_intermediate
             .clone()
             .async_map(|additional_payment_method_data_intermediate| {
