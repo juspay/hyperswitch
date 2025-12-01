@@ -2358,17 +2358,6 @@ pub async fn delete_card_from_vault<'a>(
     }
 }
 
-// Need to fix this function while completing v2
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn delete_card_from_vault<'a>(
-    state: &routes::SessionState,
-    id: &str,
-    merchant_id: &id_type::MerchantId,
-    card_reference: &'a str,
-) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    todo!()
-}
 
 ///Mock api for local testing
 pub async fn mock_call_to_locker_hs(
