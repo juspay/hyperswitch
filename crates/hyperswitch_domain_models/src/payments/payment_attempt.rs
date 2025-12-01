@@ -259,6 +259,8 @@ pub struct AttemptAmountDetails {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     order_tax_amount: Option<MinorUnit>,
+    /// Amount captured for this payment attempt
+    amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -280,6 +282,8 @@ pub struct AttemptAmountDetailsSetter {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     pub order_tax_amount: Option<MinorUnit>,
+    /// Amount captured for this payment attempt
+    pub amount_captured: Option<MinorUnit>,
 }
 
 /// Set the fields of amount details, since the fields are not public
@@ -293,6 +297,7 @@ impl From<AttemptAmountDetailsSetter> for AttemptAmountDetails {
             amount_capturable: setter.amount_capturable,
             shipping_cost: setter.shipping_cost,
             order_tax_amount: setter.order_tax_amount,
+            amount_captured: setter.amount_captured,
         }
     }
 }
@@ -316,6 +321,10 @@ impl AttemptAmountDetails {
 
     pub fn get_amount_capturable(&self) -> MinorUnit {
         self.amount_capturable
+    }
+
+    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
+        self.amount_captured
     }
 
     pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
@@ -738,6 +747,7 @@ impl PaymentAttempt {
             amount_capturable: intent_amount_details.order_amount,
             shipping_cost: None,
             order_tax_amount: None,
+            amount_captured: None,
         };
 
         let now = common_utils::date_time::now();
@@ -2183,6 +2193,7 @@ pub struct ConfirmIntentResponseUpdate {
     pub amount_capturable: Option<MinorUnit>,
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
     pub connector_response_reference_id: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -2215,6 +2226,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: Option<MinorUnit>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     PreCaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -2650,6 +2662,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost,
             amount_capturable,
             amount_to_capture,
+            amount_captured,
         } = amount_details;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -2743,6 +2756,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: None,
             authorized_amount,
             tokenization: None,
+            amount_captured,
         })
     }
 
@@ -2796,6 +2810,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 shipping_cost: storage_model.shipping_cost,
                 amount_capturable: storage_model.amount_capturable,
                 amount_to_capture: storage_model.amount_to_capture,
+                amount_captured: storage_model.amount_captured,
             };
 
             let error = storage_model
@@ -3030,6 +3045,7 @@ impl behaviour::Conversion for PaymentAttempt {
             attempts_group_id,
             is_stored_credential: None,
             authorized_amount,
+            amount_captured: amount_details.amount_captured,
         })
     }
 }
@@ -3074,6 +3090,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id,
                 connector_response_reference_id,
                 cancellation_reason: None,
+                amount_captured: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -3116,6 +3133,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -3128,6 +3146,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     amount_capturable,
                     connector_token_details,
                     connector_response_reference_id,
+                    amount_captured,
                 } = *confirm_intent_response_update;
 
                 // Apply automatic hashing for long connector payment IDs
@@ -3164,12 +3183,14 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_request_reference_id: None,
                     connector_response_reference_id,
                     cancellation_reason: None,
+                    amount_captured: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
                 status,
                 amount_capturable,
                 updated_by,
+                amount_captured,
             } => Self {
                 status: Some(status),
                 payment_method_id: None,
@@ -3198,6 +3219,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
                 cancellation_reason: None,
+                amount_captured,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3231,6 +3253,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
                 cancellation_reason: None,
+                amount_captured: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3263,6 +3286,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
                 cancellation_reason: None,
+                amount_captured: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3300,6 +3324,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id,
                 connector_response_reference_id: None,
                 cancellation_reason: None,
+                amount_captured: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3333,6 +3358,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
                 payment_method_id: None,
+                amount_captured: None,
             },
         }
     }

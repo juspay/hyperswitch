@@ -413,6 +413,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -451,6 +452,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -487,6 +489,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
