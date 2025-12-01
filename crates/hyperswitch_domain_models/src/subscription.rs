@@ -214,6 +214,15 @@ pub trait SubscriptionInterface {
         subscription_id: String,
         data: SubscriptionUpdate,
     ) -> CustomResult<Subscription, Self::Error>;
+
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> CustomResult<Vec<Subscription>, Self::Error>;
 }
 
 pub struct SubscriptionUpdate {

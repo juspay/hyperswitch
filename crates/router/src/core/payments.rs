@@ -580,7 +580,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -1288,7 +1288,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -3365,7 +3365,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
-                        api_models::payments::NextActionData::SdkUpiIntentInformation{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 

@@ -951,7 +951,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        let connector_req =
+            nuvei::NuveiThreeDSInitPaymentRequest::try_from((req, req.get_session_token()?))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1389,7 +1390,7 @@ impl ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
                     let acs_response: nuvei::NuveiACSResponse =
-                        utils::base64_decode(redirect_response.cres.expose())?
+                        utils::safe_base64_decode(redirect_response.cres.expose())?
                             .as_slice()
                             .parse_struct("NuveiACSResponse")
                             .switch()?;

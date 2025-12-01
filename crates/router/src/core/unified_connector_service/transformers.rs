@@ -29,20 +29,45 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
+use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
 };
-use url::Url;
 
 use crate::{
-    core::{errors, unified_connector_service},
+    core::{errors, mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
     },
 };
+
+const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
+const UPI_POLL_DELAY_IN_SECS: u16 = 5;
+const UPI_POLL_FREQUENCY: u16 = 60;
+
+pub fn build_upi_wait_screen_data(
+) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
+    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+
+    let wait_screen_data = api_models::payments::WaitScreenInstructions {
+        display_from_timestamp: current_time,
+        display_to_timestamp: Some(
+            current_time
+                + Duration::minutes(UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES).whole_nanoseconds(),
+        ),
+        poll_config: Some(api_models::payments::PollConfig {
+            delay_in_secs: UPI_POLL_DELAY_IN_SECS,
+            frequency: UPI_POLL_FREQUENCY,
+        }),
+    };
+
+    serde_json::to_value(wait_screen_data)
+        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
+}
 
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
@@ -1340,12 +1365,22 @@ impl
             .setup_future_usage
             .map(payments_grpc::FutureUsage::foreign_try_from)
             .transpose()?;
-        let customer_acceptance = router_data
-            .request
-            .customer_acceptance
-            .clone()
-            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
-            .transpose()?;
+
+        // If this is the deprecated mandate_id flow, take customer_acceptance
+        // from setup_mandate_details. Otherwise, take it from request.customer_acceptance.
+        let customer_acceptance = match router_data.request.get_setup_mandate_details() {
+            Some(mandate_data) => mandate_data
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+            None => router_data
+                .request
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+        }?;
 
         let state = router_data
             .access_token
@@ -1589,7 +1624,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -1662,15 +1697,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -1684,7 +1722,46 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             None => (None, None),
         };
 
-        // Extract connector_metadata from response if present and not already set by UPI intent handling
+        connector_metadata = if response
+            .connector_metadata
+            .get("nextActionData")
+            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+            .is_some()
+        {
+            let wait_screen_metadata = build_upi_wait_screen_data()?;
+
+            let mut metadata_map = connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.as_object())
+                .cloned()
+                .unwrap_or_else(serde_json::Map::new);
+
+            metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
+
+            // For UPI Intent/QR, also preserve URI information from redirection data
+            if let Some(redirection_data) = response.redirection_data.as_ref() {
+                if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
+                    &redirection_data.form_type
+                {
+                    let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                        sdk_uri: uri.uri.clone(),
+                    };
+                    let uri_data = sdk_uri_info
+                        .encode_to_value()
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable(
+                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                        )?;
+                    metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data);
+                }
+            }
+
+            Some(serde_json::Value::Object(metadata_map))
+        } else {
+            connector_metadata
+        };
+
+        // Extract connector_metadata from response if present and not already set
         if connector_metadata.is_none() && !response.connector_metadata.is_empty() {
             connector_metadata = serde_json::to_value(&response.connector_metadata)
                 .map_err(|e| {
@@ -1709,7 +1786,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -1811,7 +1888,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -1920,7 +1997,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -2045,7 +2122,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: transaction_id,
@@ -2624,15 +2701,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -2657,7 +2737,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -2903,15 +2983,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -2936,7 +3019,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
@@ -3153,7 +3236,7 @@ pub fn build_webhook_transform_request(
                 "{}_{}_{}",
                 merchant_id,
                 connector_id,
-                time::OffsetDateTime::now_utc().unix_timestamp()
+                OffsetDateTime::now_utc().unix_timestamp()
             ))),
         }),
         request_details: Some(request_details_grpc),
@@ -3394,7 +3477,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: connector_response_reference_id,
@@ -3537,7 +3620,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_response_reference_id,
