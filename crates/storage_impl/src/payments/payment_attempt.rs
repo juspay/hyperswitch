@@ -11,6 +11,8 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
+#[cfg(all(feature = "v1", feature = "olap"))]
+use futures::future::{try_join_all, FutureExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
@@ -428,7 +430,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         use hyperswitch_domain_models::behaviour::Conversion;
 
         let conn = pg_connection_read(self).await?;
-        let intents = futures::future::try_join_all(pi.iter().cloned().map(|pi| async {
+        let intents = try_join_all(pi.iter().cloned().map(|pi| async {
             Conversion::convert(pi)
                 .await
                 .change_context(errors::StorageError::EncryptionError)
@@ -510,27 +512,26 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
-        let vec_diesel_payment_attempt =
-            DieselPaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
-                .await
-                .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(*er.current_context());
-                    er.change_context(new_err)
-                })?;
-        let mut domain_payment_attempts = Vec::with_capacity(vec_diesel_payment_attempt.len());
-        for diesel_payment_attempt in vec_diesel_payment_attempt.into_iter() {
-            domain_payment_attempts.push(
-                PaymentAttempt::convert_back(
-                    key_manager_state,
-                    diesel_payment_attempt,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?,
-            );
-        }
-        Ok(domain_payment_attempts)
+        DieselPaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(*er.current_context());
+                er.change_context(new_err)
+            })
+            .map(|v| {
+                try_join_all(v.into_iter().map(|diesel_payment_attempt| {
+                    PaymentAttempt::convert_back(
+                        key_manager_state,
+                        diesel_payment_attempt,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                }))
+                .map(|join_result| {
+                    join_result.change_context(errors::StorageError::DecryptionError)
+                })
+            })?
+            .await
     }
 
     #[cfg(feature = "v1")]
@@ -1915,27 +1916,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .attach_printable("Missing KeyManagerState")?;
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        let vec_diesel_payment_attempt = Box::pin(kv_wrapper(
+                        Box::pin(kv_wrapper(
                             self,
                             KvOperation::<DieselPaymentAttempt>::Scan("pa_*"),
                             key,
                         ))
                         .await?
-                        .try_into_scan()?;
-                        let mut vec_payment_attempt: Vec<PaymentAttempt> = vec![];
-                        for diesel_payment_attempt in vec_diesel_payment_attempt {
-                            let payment_attempt = PaymentAttempt::convert_back(
-                                key_manager_state,
-                                diesel_payment_attempt,
-                                merchant_key_store.key.get_inner(),
-                                merchant_id.clone().into(),
-                            )
-                            .await
-                            .change_context(redis_interface::errors::RedisError::UnknownResult)
-                            .attach_printable("Error while constructing domain model")?;
-                            vec_payment_attempt.push(payment_attempt);
-                        }
-                        Ok(vec_payment_attempt)
+                        .try_into_scan()
+                        .map(|v| {
+                            try_join_all(v.into_iter().map(|diesel_payment_attempt| {
+                                PaymentAttempt::convert_back(
+                                    key_manager_state,
+                                    diesel_payment_attempt,
+                                    merchant_key_store.key.get_inner(),
+                                    merchant_key_store.merchant_id.clone().into(),
+                                )
+                            }))
+                            .map(|join_result| {
+                                join_result
+                                    .change_context(errors::RedisError::UnknownResult)
+                                    .attach_printable("Error while constructing domain model")
+                            })
+                        })?
+                        .await
                     },
                     || async {
                         self.router_store

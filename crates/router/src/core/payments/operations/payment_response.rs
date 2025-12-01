@@ -1489,30 +1489,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     };
 
     // If the additional PM data is sensitive, encrypt it and populate encrypted_payment_method_data; otherwise populate additional_payment_method_data
-    let (additional_payment_method_data, encrypted_payment_method_data) = if payment_data
-        .payment_attempt
-        .payment_method
-        .as_ref()
-        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
-        .unwrap_or(false)
-    {
-        let encrypted_payment_method_data = additional_payment_method_data_intermediate
-            .clone()
-            .async_map(|additional_payment_method_data_intermediate| {
-                create_encrypted_data(
-                    key_manager_state,
-                    key_store,
-                    additional_payment_method_data_intermediate,
-                )
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt additional_payment_method_data")?;
-        (None, encrypted_payment_method_data)
-    } else {
-        (additional_payment_method_data_intermediate, None)
-    };
+    let (additional_payment_method_data, encrypted_payment_method_data) =
+        payments_helpers::get_payment_method_data_and_encrypted_payment_method_data(
+            &payment_data.payment_attempt,
+            key_manager_state,
+            key_store,
+            additional_payment_method_data_intermediate,
+        )
+        .await?;
 
     router_data.payment_method_status.and_then(|status| {
         payment_data

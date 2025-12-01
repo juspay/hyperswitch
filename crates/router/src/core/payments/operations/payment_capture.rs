@@ -298,7 +298,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>
@@ -323,7 +323,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
                         updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
-                    mechant_key_store,
+                    merchant_key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?

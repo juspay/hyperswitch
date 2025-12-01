@@ -1,13 +1,9 @@
 use std::vec::IntoIter;
 
-use common_utils::{
-    ext_traits::{AsyncExt, Encode},
-    types::MinorUnit,
-};
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::ext_traits::OptionExt;
-use payment_methods::controller::create_encrypted_data;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -485,32 +481,14 @@ where
     let key_manager_state = &state.into();
 
     // If the additional PM data is sensitive, encrypt it and populate encrypted_payment_method_data; otherwise populate additional_payment_method_data
-    let (additional_payment_method_data, encrypted_payment_method_data) = if payment_data
-        .get_payment_method_data()
-        .and_then(|payment_method_data| {
-            payment_method_data
-                .get_payment_method()
-                .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
-        })
-        .unwrap_or(false)
-    {
-        let encrypted_payment_method_data = additional_payment_method_data_intermediate
-            .clone()
-            .async_map(|additional_payment_method_data_intermediate| {
-                create_encrypted_data(
-                    key_manager_state,
-                    key_store,
-                    additional_payment_method_data_intermediate,
-                )
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt additional_payment_method_data")?;
-        (None, encrypted_payment_method_data)
-    } else {
-        (additional_payment_method_data_intermediate, None)
-    };
+    let (additional_payment_method_data, encrypted_payment_method_data) =
+        payments::helpers::get_payment_method_data_and_encrypted_payment_method_data(
+            payment_data.get_payment_attempt(),
+            key_manager_state,
+            key_store,
+            additional_payment_method_data_intermediate,
+        )
+        .await?;
 
     let debit_routing_savings = payment_data.get_payment_method_data().and_then(|data| {
         payments::helpers::get_debit_routing_savings_amount(

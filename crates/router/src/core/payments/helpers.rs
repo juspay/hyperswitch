@@ -24,7 +24,7 @@ use common_utils::{
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
-        keymanager::{Identifier, ToEncryptable},
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -7041,6 +7041,43 @@ pub fn add_connector_response_to_additional_payment_data(
         },
 
         _ => additional_payment_data,
+    }
+}
+
+pub async fn get_payment_method_data_and_encrypted_payment_method_data(
+    payment_attempt: &PaymentAttempt,
+    key_manager_state: &KeyManagerState,
+    key_store: &domain::MerchantKeyStore,
+    additional_payment_method_data_intermediate: Option<serde_json::Value>,
+) -> CustomResult<
+    (
+        Option<serde_json::Value>,
+        Option<Encryptable<masking::Secret<serde_json::Value>>>,
+    ),
+    errors::ApiErrorResponse,
+> {
+    if payment_attempt
+        .payment_method
+        .as_ref()
+        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+        .unwrap_or(false)
+    {
+        let encrypted_payment_method_data = additional_payment_method_data_intermediate
+            .clone()
+            .async_map(|additional_payment_method_data_intermediate| {
+                create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    additional_payment_method_data_intermediate,
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt additional_payment_method_data")?;
+        Ok((None, encrypted_payment_method_data))
+    } else {
+        Ok((additional_payment_method_data_intermediate, None))
     }
 }
 
