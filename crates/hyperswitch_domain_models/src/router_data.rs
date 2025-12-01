@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::AddressDetails, network_tokenization::NetworkTokenNumber,
-    payment_address::PaymentAddress, payment_method_data, payments,
+    payment_address::PaymentAddress, payment_method_data, payments, router_response_types,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         payment_attempt::{ErrorDetails, PaymentAttemptUpdate},
         payment_intent::PaymentIntentUpdate,
     },
-    router_flow_types, router_request_types, router_response_types,
+    router_flow_types, router_request_types,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -121,26 +121,43 @@ pub struct RouterData<Flow, Request, Response> {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
+    pub order_info: Option<OrderInfo>,
+    pub tax_info: Option<TaxInfo>,
+    pub customer_info: Option<CustomerInfo>,
+    pub shipping_details: Option<AddressDetails>,
+    pub billing_details: Option<BillingDetails>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderInfo {
     pub order_date: Option<time::PrimitiveDateTime>,
-    pub tax_status: Option<common_enums::TaxStatus>,
-    pub customer_tax_registration_id: Option<Secret<String>>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub merchant_order_reference_id: Option<String>,
     pub discount_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
-    pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub order_tax_amount: Option<MinorUnit>,
-    pub merchant_order_reference_id: Option<String>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub billing_address_city: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxInfo {
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub customer_tax_registration_id: Option<Secret<String>>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerInfo {
+    pub customer_id: Option<id_type::CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
-    pub shipping_details: Option<AddressDetails>,
 }
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BillingDetails {
+    pub address_city: Option<String>,
+}
 impl L2L3Data {
     pub fn get_shipping_country(&self) -> Option<common_enums::enums::CountryAlpha2> {
         self.shipping_details
@@ -183,8 +200,100 @@ impl L2L3Data {
             .as_ref()
             .and_then(|address| address.line2.clone())
     }
-}
 
+    pub fn get_order_date(&self) -> Option<time::PrimitiveDateTime> {
+        self.order_info.as_ref().and_then(|order| order.order_date)
+    }
+
+    pub fn get_order_details(&self) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.order_details.clone())
+    }
+
+    pub fn get_merchant_order_reference_id(&self) -> Option<String> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.merchant_order_reference_id.clone())
+    }
+
+    pub fn get_discount_amount(&self) -> Option<MinorUnit> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.discount_amount)
+    }
+
+    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.shipping_cost)
+    }
+
+    pub fn get_duty_amount(&self) -> Option<MinorUnit> {
+        self.order_info.as_ref().and_then(|order| order.duty_amount)
+    }
+
+    pub fn get_tax_status(&self) -> Option<common_enums::TaxStatus> {
+        self.tax_info.as_ref().and_then(|tax| tax.tax_status)
+    }
+
+    pub fn get_customer_tax_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.customer_tax_registration_id.clone())
+    }
+
+    pub fn get_merchant_tax_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.merchant_tax_registration_id.clone())
+    }
+
+    pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.shipping_amount_tax)
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_info.as_ref().and_then(|tax| tax.order_tax_amount)
+    }
+
+    pub fn get_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_id.clone())
+    }
+
+    pub fn get_customer_email(&self) -> Option<common_utils::pii::Email> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_email.clone())
+    }
+
+    pub fn get_customer_name(&self) -> Option<Secret<String>> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_name.clone())
+    }
+
+    pub fn get_customer_phone_number(&self) -> Option<Secret<String>> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_phone_number.clone())
+    }
+
+    pub fn get_customer_phone_country_code(&self) -> Option<String> {
+        self.customer_info
+            .as_ref()
+            .and_then(|customer| customer.customer_phone_country_code.clone())
+    }
+    pub fn get_billing_city(&self) -> Option<String> {
+        self.billing_details
+            .as_ref()
+            .and_then(|billing| billing.address_city.clone())
+    }
+}
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
@@ -327,6 +436,15 @@ pub enum PaymentMethodToken {
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
     GooglePayDecrypt(Box<common_payment_types::GPayPredecryptData>),
     PazeDecrypt(Box<PazeDecryptedData>),
+}
+
+impl PaymentMethodToken {
+    pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
+        match self {
+            Self::Token(secret_token) => Some(secret_token.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -515,6 +633,7 @@ pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
     is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
+    pub mandate_reference: Option<router_response_types::MandateReference>,
 }
 
 impl ConnectorResponseData {
@@ -525,17 +644,20 @@ impl ConnectorResponseData {
             additional_payment_method_data: Some(additional_payment_method_data),
             extended_authorization_response_data: None,
             is_overcapture_enabled: None,
+            mandate_reference: None,
         }
     }
     pub fn new(
         additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
         is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
         extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
+        mandate_reference: Option<router_response_types::MandateReference>,
     ) -> Self {
         Self {
             additional_payment_method_data,
             extended_authorization_response_data,
             is_overcapture_enabled,
+            mandate_reference,
         }
     }
 
@@ -565,18 +687,27 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+    BankRedirect {
+        interac: Option<InteracCustomerInfo>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub extended_authorization_last_applied_at: Option<time::PrimitiveDateTime>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteracCustomerInfo {
+    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Serialize)]

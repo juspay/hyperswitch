@@ -403,7 +403,13 @@ impl
                 original: value.0.amount.to_owned(),
             },
             key: santander_mca_metadata.pix_key.clone(),
-            request_payer: value.0.router_data.request.statement_descriptor.clone(),
+            request_payer: value
+                .0
+                .router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
             additional_info: None,
         })))
     }
@@ -675,7 +681,9 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
 impl From<router_env::env::Env> for Environment {
     fn from(item: router_env::env::Env) -> Self {
         match item {
-            router_env::env::Env::Sandbox | router_env::env::Env::Development => Self::Sandbox,
+            router_env::env::Env::Sandbox
+            | router_env::env::Env::Development
+            | router_env::env::Env::Integ => Self::Sandbox,
             router_env::env::Env::Production => Self::Production,
         }
     }

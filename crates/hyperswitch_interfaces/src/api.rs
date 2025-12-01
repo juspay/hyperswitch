@@ -12,6 +12,7 @@ pub mod files_v2;
 pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
+pub mod gateway;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -57,17 +58,18 @@ use hyperswitch_domain_models::{
         AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
+        self,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
-        PaymentsAuthorizeData, VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
-        VerifyWebhookSourceResponseData,
+        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
+        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -380,6 +382,8 @@ pub trait ConnectorCommon {
     }
 }
 
+impl ConnectorAccessTokenSuffix for BoxedConnector {}
+
 /// Current flow information passed to the connector specifications trait
 ///
 /// In order to make some desicion about the preprocessing or alternate flow
@@ -390,7 +394,12 @@ pub enum CurrentFlowInfo<'a> {
         /// The authentication type being used
         auth_type: &'a enums::AuthenticationType,
         /// The payment authorize request data
-        request_data: &'a PaymentsAuthorizeData,
+        request_data: &'a router_request_types::PaymentsAuthorizeData,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The payment authorize request data
+        request_data: &'a router_request_types::CompleteAuthorizeData,
     },
 }
 
@@ -406,11 +415,21 @@ pub enum AlternateFlow {
 ///
 /// For example, PreProcessing flow must be made before Authorize flow.
 /// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
-    #[default]
-    /// Pre-processing flow
-    PreProcessing,
+    /// Authentication flow must be made before the actual flow
+    Authenticate,
+    /// Post-authentication flow must be made before the actual flow
+    PostAuthenticate,
+}
+
+/// Response of the preprocessing flow
+#[derive(Debug)]
+pub struct PreProcessingFlowResponse<'a> {
+    /// Payment response data from the preprocessing flow
+    pub response: &'a Result<router_response_types::PaymentsResponseData, ErrorResponse>,
+    /// Attempt status after the preprocessing flow
+    pub attempt_status: enums::AttemptStatus,
 }
 
 /// The trait that provides specifications about the connector
@@ -420,7 +439,18 @@ pub trait ConnectorSpecifications {
         &self,
         _current_flow: CurrentFlowInfo<'_>,
     ) -> Option<PreProcessingFlowName> {
-        Some(PreProcessingFlowName::default())
+        None
+    }
+    /// Based on the current flow and preprocessing_flow_response, decide if the main flow must be called or not
+    ///
+    /// By default, always continue with the main flow after the preprocessing flow.
+    fn decide_should_continue_after_preprocessing(
+        &self,
+        _current_flow: CurrentFlowInfo<'_>,
+        _pre_processing_flow_name: PreProcessingFlowName,
+        _preprocessing_flow_response: PreProcessingFlowResponse<'_>,
+    ) -> bool {
+        true
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
@@ -510,6 +540,31 @@ pub trait ConnectorSpecifications {
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
+    }
+
+    #[cfg(feature = "v1")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        None
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        todo!()
+    }
+
+    /// Check if connector needs tokenization call before setup mandate flow
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        true
     }
 }
 
@@ -766,7 +821,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn validate_psync_reference_id
     fn validate_psync_reference_id(
         &self,
-        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        data: &router_request_types::PaymentsSyncData,
         _is_three_ds: bool,
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
@@ -847,5 +902,20 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         Ok(payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string))
+    }
+}
+
+/// Trait ConnectorAccessTokenSuffix
+pub trait ConnectorAccessTokenSuffix {
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(common_utils::access_token::get_default_access_token_key(
+            &router_data.merchant_id,
+            merchant_connector_id_or_connector_name,
+        ))
     }
 }

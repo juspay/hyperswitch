@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{PayLaterData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCancelData, PaymentsCaptureData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -18,7 +18,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 pub struct AffirmRouterData<T> {
@@ -718,18 +721,12 @@ impl From<AffirmEventType> for enums::AttemptStatus {
     }
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, AffirmCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<AffirmCaptureResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            AffirmCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<AffirmCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.event_type.clone()),
@@ -797,13 +794,10 @@ pub struct AffirmCancelResponse {
     pub merchant_transaction_id: Option<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, AffirmCancelResponse, PaymentsCancelData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCancelData, PaymentsResponseData>
-{
+impl TryFrom<PaymentsCancelResponseRouterData<AffirmCancelResponse>> for PaymentsCancelRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, AffirmCancelResponse, PaymentsCancelData, PaymentsResponseData>,
+        item: PaymentsCancelResponseRouterData<AffirmCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.event_type.clone()),

@@ -306,6 +306,12 @@ pub enum ApiErrorResponse {
         max_length: usize,
         received_length: usize,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "The Status token for connector costumer id {resource} is locked by different PaymentIntent ID")]
+    InvalidPaymentIdProvided { resource: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_49", message = "API does not support connected account operation")]
+    ConnectedAccountAuthNotSupported,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_50", message = "Invalid connected account operation")]
+    InvalidConnectedOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -669,6 +675,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CookieNotFound => {
                 AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
             },
+            Self::PlatformAccountAuthNotSupported => {
+                AER::BadRequest(ApiError::new("IR", 43, "API does not support platform account operation", None))
+            }
+            Self::InvalidPlatformOperation => {
+                AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
+            }
             Self::ExternalVaultFailed => {
                 AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
@@ -677,6 +689,15 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::MaxFieldLengthViolated { connector, field_name,  max_length, received_length} => {
                 AER::BadRequest(ApiError::new("IR", 47, format!("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}"), Some(Extra {connector: Some(connector.to_string()), ..Default::default()})))
+            }
+            Self::InvalidPaymentIdProvided {resource} => {
+                AER::NotFound(ApiError::new("IR", 48, format!("The Status token for connector costumer id {resource} is locked by different PaymentIntent ID"), None))
+            },
+            Self::ConnectedAccountAuthNotSupported => {
+                AER::BadRequest(ApiError::new("IR", 49, "API does not support connected account operation", None))
+            }
+            Self::InvalidConnectedOperation => {
+                AER::Unauthorized(ApiError::new("IR", 50, "Invalid connected account operation", None))
             }
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
@@ -709,12 +730,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                     ..Default::default()
                 })
             )),
-            Self::PlatformAccountAuthNotSupported => {
-                AER::BadRequest(ApiError::new("IR", 43, "API does not support platform operation", None))
-            }
-            Self::InvalidPlatformOperation => {
-                AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
-            }
             Self::TokenizationRecordNotFound{ id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Tokenization record not found for the given token_id '{id}' "), None))
             }

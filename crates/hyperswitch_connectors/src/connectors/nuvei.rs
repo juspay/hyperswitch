@@ -951,7 +951,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        let connector_req =
+            nuvei::NuveiThreeDSInitPaymentRequest::try_from((req, req.get_session_token()?))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1295,11 +1296,7 @@ impl IncomingWebhook for Nuvei {
                 }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                if let Some(dispute_event) = notification.chargeback.dispute_unified_status_code {
-                    nuvei::map_dispute_notification_to_event(dispute_event)
-                } else {
-                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-                }
+                nuvei::map_dispute_notification_to_event(&notification.chargeback)
             }
         }
     }
@@ -1340,18 +1337,18 @@ impl IncomingWebhook for Nuvei {
         let dispute_unified_status_code = webhook
             .chargeback
             .dispute_unified_status_code
+            .clone()
             .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let connector_dispute_id = webhook
             .chargeback
             .dispute_id
+            .clone()
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(disputes::DisputePayload {
             amount,
             currency,
-            dispute_stage: api_models::enums::DisputeStage::from(
-                dispute_unified_status_code.clone(),
-            ),
+            dispute_stage: nuvei::get_dispute_stage(&webhook.chargeback)?,
             connector_dispute_id,
             connector_reason: webhook.chargeback.chargeback_reason,
             connector_reason_code: webhook.chargeback.chargeback_reason_category,
@@ -1393,7 +1390,7 @@ impl ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
                     let acs_response: nuvei::NuveiACSResponse =
-                        utils::base64_decode(redirect_response.cres.expose())?
+                        utils::safe_base64_decode(redirect_response.cres.expose())?
                             .as_slice()
                             .parse_struct("NuveiACSResponse")
                             .switch()?;
@@ -1571,7 +1568,7 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nuvei",
         description: "Nuvei is the Canadian fintech company accelerating the business of clients around the world.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Beta,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

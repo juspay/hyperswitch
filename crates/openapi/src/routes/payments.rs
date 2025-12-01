@@ -1307,13 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Payment Method Balance Check
+/// Payments - Check Balance and Apply PM Data
 ///
-/// Check the balance of the provided payment method. Also validates whether the PM currency matches the payment currency
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/payments/{id}/payment-methods/check-balance",
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1323,13 +1323,13 @@ pub fn payments_list() {}
         ),
     ),
     request_body(
-      content = PaymentMethodBalanceCheckRequest,
+      content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Get the Payment Method Balance", body = PaymentMethodBalanceCheckResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
-    operation_id = "Retrieve Payment Method Balance",
+    operation_id = "Apply Payment Method Data",
     security(("publishable_key" = []))
 )]
-pub fn payment_check_gift_card_balance() {}
+pub fn payments_apply_pm_data() {}

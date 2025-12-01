@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -24,7 +24,7 @@ use common_utils::{
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        keymanager::{Identifier, ToEncryptable},
         MinorUnit,
     },
 };
@@ -34,6 +34,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use external_services::grpc_client;
 use futures::future::Either;
+pub use hyperswitch_domain_models::customer;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
@@ -43,7 +44,7 @@ use hyperswitch_domain_models::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
-    router_data::KlarnaSdkResponse,
+    router_data::{InteracCustomerInfo, KlarnaSdkResponse},
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -74,15 +75,15 @@ use super::{
 #[cfg(feature = "v1")]
 use crate::core::{
     payments::{
-        call_connector_service,
+        call_connector_service, customers,
         flows::{ConstructFlowSpecificData, Feature},
+        gateway::context as gateway_context,
         operations::ValidateResult as OperationsValidateResult,
         should_add_task_to_process_tracker, OperationSessionGetters, OperationSessionSetters,
         TokenizationAction,
     },
-    unified_connector_service::{
-        send_comparison_data, update_gateway_system_in_feature_metadata, ComparisonData,
-    },
+    unified_connector_service::update_gateway_system_in_feature_metadata,
+    utils as core_utils,
 };
 #[cfg(feature = "v1")]
 use crate::routes;
@@ -124,7 +125,8 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
+    core::{payment_methods::cards::create_encrypted_data, unified_connector_service},
+    types::storage::CustomerUpdate::Update,
 };
 
 #[instrument(skip_all)]
@@ -141,7 +143,6 @@ pub async fn create_or_update_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &session_state.store;
-    let key_manager_state = &session_state.into();
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
@@ -221,7 +222,6 @@ pub async fn create_or_update_address_for_payment_by_request(
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
-                        key_manager_state,
                         merchant_id,
                         payment_id,
                         id,
@@ -233,7 +233,6 @@ pub async fn create_or_update_address_for_payment_by_request(
                     .attach_printable("Error while fetching address")?;
                 Some(
                     db.update_address_for_payments(
-                        key_manager_state,
                         address,
                         address_update,
                         payment_id.to_owned(),
@@ -247,7 +246,6 @@ pub async fn create_or_update_address_for_payment_by_request(
             }
             None => Some(
                 db.find_address_by_merchant_id_payment_id_address_id(
-                    key_manager_state,
                     merchant_id,
                     payment_id,
                     id,
@@ -276,7 +274,6 @@ pub async fn create_or_update_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -308,11 +305,9 @@ pub async fn create_or_find_address_for_payment_by_request(
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
     let db = &state.store;
-    let key_manager_state = &state.into();
     Ok(match address_id {
         Some(id) => Some(
             db.find_address_by_merchant_id_payment_id_address_id(
-                key_manager_state,
                 merchant_id,
                 payment_id,
                 id,
@@ -340,7 +335,6 @@ pub async fn create_or_find_address_for_payment_by_request(
 
                 Some(
                     db.insert_address_for_payments(
-                        key_manager_state,
                         payment_id,
                         payment_address,
                         merchant_key_store,
@@ -444,7 +438,6 @@ pub async fn get_address_by_id(
             let db = &*state.store;
             Ok(db
                 .find_address_by_merchant_id_payment_id_address_id(
-                    &state.into(),
                     merchant_id,
                     payment_id,
                     &address_id,
@@ -463,7 +456,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTransactionType>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<MandateGenericData> {
@@ -496,15 +489,13 @@ pub async fn get_token_pm_type_mandate_details(
                         RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
                             if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
                                 let db = &*state.store;
-                                let key_manager_state = &state.into();
 
                                 #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                                    key_manager_state,
-                                    merchant_context.get_merchant_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
                                     mca_id,
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                 )
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -513,7 +504,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                                 #[cfg(feature = "v2")]
                             let connector_name = db
-                                .find_merchant_connector_account_by_id(key_manager_state, mca_id, merchant_key_store)
+                                .find_merchant_connector_account_by_id( mca_id, merchant_key_store)
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: mca_id.clone().get_string_repr().to_string(),
@@ -538,7 +529,7 @@ pub async fn get_token_pm_type_mandate_details(
                             let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
                                 state,
                                 request,
-                                merchant_context,
+                                platform,
                                 mandate_id.to_owned(),
                             ))
                             .await?;
@@ -559,10 +550,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
-                                    &(state.into()),
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                     payment_method_id,
-                                    merchant_context.get_merchant_account().storage_scheme,
+                                    platform.get_processor().get_account().storage_scheme,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -574,7 +564,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                             verify_mandate_details_for_recurring_payments(
                                 &payment_method_info.merchant_id,
-                                merchant_context.get_merchant_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 &payment_method_info.customer_id,
                                 customer_id,
                             )?;
@@ -594,10 +584,7 @@ pub async fn get_token_pm_type_mandate_details(
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
                         let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                            state,
-                            request,
-                            merchant_context,
-                            mandate_id,
+                            state, request, platform, mandate_id,
                         ))
                         .await?;
                         (
@@ -626,10 +613,9 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    &(state.into()),
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_processor().get_key_store(),
                                     customer_id,
-                                    merchant_context.get_merchant_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -682,10 +668,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        &(state.into()),
-                                        merchant_context.get_merchant_key_store(),
+                                        platform.get_processor().get_key_store(),
                                         &payment_method_id,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        platform.get_processor().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -713,10 +698,9 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            &(state.into()),
-                            merchant_context.get_merchant_key_store(),
+                            platform.get_processor().get_key_store(),
                             &payment_method_id,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -749,30 +733,28 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &SessionState,
     req: &api::PaymentsRequest,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     mandate_id: String,
 ) -> RouterResult<MandateGenericData> {
     let db = &*state.store;
 
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             mandate_id.as_str(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-    let key_manager_state: KeyManagerState = state.into();
     let original_payment_intent = mandate
         .original_payment_id
         .as_ref()
         .async_map(|payment_id| async {
             db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
                 payment_id,
                 &mandate.merchant_id,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -789,7 +771,7 @@ pub async fn get_token_for_recurring_mandate(
                 &payment_intent.payment_id,
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -827,10 +809,9 @@ pub async fn get_token_for_recurring_mandate(
 
     let payment_method = db
         .find_payment_method(
-            &(state.into()),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             payment_method_id.as_str(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -848,7 +829,7 @@ pub async fn get_token_for_recurring_mandate(
                 state,
                 &token,
                 &payment_method,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await?;
         }
@@ -1786,7 +1767,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         Some(customer_id) => {
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    key_manager_state,
                     &customer_id,
                     merchant_id,
                     key_store,
@@ -1848,10 +1828,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
+                            last_modified_by: None,
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
-                            key_manager_state,
                             customer_id,
                             merchant_id.to_owned(),
                             c,
@@ -1890,9 +1870,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
+                        // TODO: Populate created_by from authentication context once it is integrated in auth data
+                        created_by: None,
+                        last_modified_by: None, // Same as created_by on creation
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
-                    db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
+                    db.insert_customer(new_customer, key_store, storage_scheme)
                         .await
                 }
             })
@@ -1901,7 +1884,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    key_manager_state,
                     customer_id,
                     merchant_id,
                     key_store,
@@ -2126,34 +2108,145 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
         .unwrap_or(false)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct RolloutConfig {
+    pub rollout_percent: f64,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+impl Default for RolloutConfig {
+    fn default() -> Self {
+        Self {
+            rollout_percent: 0.0,
+            http_url: None,
+            https_url: None,
+        }
+    }
+}
+
+// Re-export ProxyOverride from hyperswitch_interfaces
+pub use hyperswitch_interfaces::types::ProxyOverride;
+
+#[derive(Debug, Clone)]
+pub struct RolloutExecutionResult {
+    pub should_execute: bool,
+    pub proxy_override: Option<ProxyOverride>,
+}
+
+/// Validates a proxy URL, filtering out invalid ones and logging warnings
+fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
+    url.and_then(|url_str| {
+        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
+            logger::warn!(
+                invalid_url = %url_str,
+                url_type = url_type,
+                "Invalid proxy URL in rollout config, ignoring"
+            );
+            None
+        } else {
+            Some(url_str)
+        }
+    })
+}
+
+/// Creates proxy override with validated URLs and logging
+fn create_proxy_override(
+    http_url: Option<String>,
+    https_url: Option<String>,
+) -> Option<ProxyOverride> {
+    let validated_http = validate_proxy_url(http_url, "HTTP");
+    let validated_https = validate_proxy_url(https_url, "HTTPS");
+
+    if validated_http.is_some() || validated_https.is_some() {
+        if let Some(ref http_url) = validated_http {
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+        }
+        if let Some(ref https_url) = validated_https {
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+        }
+        Some(ProxyOverride {
+            http_url: validated_http,
+            https_url: validated_https,
+        })
+    } else {
+        None
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<bool> {
+) -> RouterResult<RolloutExecutionResult> {
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
-            Ok(rollout_percent) => {
-                if !(0.0..=1.0).contains(&rollout_percent) {
-                    logger::warn!(
-                        rollout_percent,
-                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+        Ok(rollout_config) => {
+            // Try to parse as JSON first (new format), fallback to float (legacy format)
+            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+            {
+                Ok(config) => Ok(config),
+                Err(err) => {
+                    logger::debug!(
+                        error = ?err,
+                        config = %rollout_config.config,
+                        "Config not in JSON format, trying legacy float format"
                     );
-                    return Ok(false);
+                    // Fallback to legacy format (simple float)
+                    rollout_config.config.parse::<f64>()
+                        .map(|percent| RolloutConfig {
+                            rollout_percent: percent,
+                            http_url: None,
+                            https_url: None,
+                        })
+                        .map_err(|err| {
+                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
+                            err
+                        })
                 }
+            };
 
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                Ok(sampled_value < rollout_percent)
+            match config_result {
+                Ok(config) => {
+                    if !(0.0..=1.0).contains(&config.rollout_percent) {
+                        logger::warn!(
+                            rollout_percent = config.rollout_percent,
+                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                        );
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+
+                        return Ok(RolloutExecutionResult {
+                            should_execute: false,
+                            proxy_override,
+                        });
+                    }
+
+                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                    let should_execute = sampled_value < config.rollout_percent;
+
+                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
+
+                    Ok(RolloutExecutionResult {
+                        should_execute,
+                        proxy_override,
+                    })
+                }
+                Err(err) => {
+                    logger::error!(error = ?err, "Failed to parse rollout config");
+                    Ok(RolloutExecutionResult {
+                        should_execute: false,
+                        proxy_override: None,
+                    })
+                }
             }
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse rollout percent");
-                Ok(false)
-            }
-        },
+        }
         Err(err) => {
             logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(false)
+            Ok(RolloutExecutionResult {
+                should_execute: false,
+                proxy_override: None,
+            })
         }
     }
 }
@@ -2512,12 +2605,9 @@ pub async fn fetch_card_details_from_external_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     external_vault_mca_id: &id_type::MerchantConnectorAccountId,
 ) -> RouterResult<domain::Card> {
-    let key_manager_state = &state.into();
-
     let merchant_connector_account_details = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             external_vault_mca_id,
             merchant_key_store,
@@ -2558,6 +2648,10 @@ pub async fn fetch_card_details_from_external_vault(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to generate card data")?,
             )
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Network Token not supproted")
         }
     }
 }
@@ -2676,12 +2770,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
             if let Some(ref payment_method_id) = data.payment_method_id {
                 state
                     .store
-                    .find_payment_method(
-                        &(state.into()),
-                        merchant_key_store,
-                        payment_method_id,
-                        storage_scheme,
-                    )
+                    .find_payment_method(merchant_key_store, payment_method_id, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")
@@ -2693,12 +2782,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
-            .find_payment_method(
-                &(state.into()),
-                merchant_key_store,
-                &data.payment_method_id,
-                storage_scheme,
-            )
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieveing payment method from DB")
@@ -3235,13 +3319,7 @@ pub(super) async fn filter_by_constraints(
 ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
-        .filter_payment_intent_by_constraints(
-            &(state).into(),
-            merchant_id,
-            constraints,
-            key_store,
-            storage_scheme,
-        )
+        .filter_payment_intent_by_constraints(merchant_id, constraints, key_store, storage_scheme)
         .await?;
     Ok(result)
 }
@@ -3490,19 +3568,17 @@ pub async fn make_ephemeral_key(
 pub async fn make_client_secret(
     state: SessionState,
     resource_id: api_models::ephemeral_key::ResourceId,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
-    let key_manager_state = &((&state).into());
 
     match &resource_id {
         api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
             db.find_customer_by_global_id(
-                key_manager_state,
                 global_customer_id,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -3517,7 +3593,7 @@ pub async fn make_client_secret(
 
     let client_secret = create_client_secret(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         resource_id,
     )
     .await
@@ -3873,7 +3949,7 @@ pub(crate) fn validate_pm_or_token_given(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     todo!()
@@ -3883,7 +3959,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 // A function to perform database lookup and then verify the client secret
 pub async fn verify_payment_intent_time_and_client_secret(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     client_secret: Option<String>,
 ) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -3900,11 +3976,10 @@ pub async fn verify_payment_intent_time_and_client_secret(
             #[cfg(feature = "v1")]
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
-                    &state.into(),
                     &payment_id,
-                    merchant_context.get_merchant_account().get_id(),
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -3932,10 +4007,11 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> RouterResult<()> {
-    let primary_business_details = merchant_context
-        .get_merchant_account()
+    let primary_business_details = platform
+        .get_processor()
+        .get_account()
         .primary_business_details
         .clone()
         .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
@@ -3972,8 +4048,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[test]
@@ -3993,6 +4067,7 @@ mod tests {
             shipping_address_id: None,
             billing_address_id: None,
             mit_category: None,
+            tokenization: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now(),
@@ -4055,6 +4130,8 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4141,6 +4218,9 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4161,6 +4241,7 @@ mod tests {
             metadata: None,
             connector_id: None,
             mit_category: None,
+            tokenization: None,
             shipping_address_id: None,
             billing_address_id: None,
             statement_descriptor_name: None,
@@ -4225,6 +4306,8 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            billing_descriptor: None,
+            partner_merchant_identifier_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4280,7 +4363,6 @@ pub async fn get_merchant_connector_account(
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
     match creds_identifier {
         Some(creds_identifier) => {
             let key = merchant_id.get_creds_identifier_key(creds_identifier);
@@ -4359,7 +4441,6 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            key_manager_state,
                             merchant_id,
                             merchant_connector_id,
                             key_store,
@@ -4373,23 +4454,18 @@ pub async fn get_merchant_connector_account(
                     }
                     #[cfg(feature = "v2")]
                     {
-                        db.find_merchant_connector_account_by_id(
-                            &state.into(),
-                            merchant_connector_id,
-                            key_store,
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: merchant_connector_id.get_string_repr().to_string(),
-                            },
-                        )
+                        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: merchant_connector_id.get_string_repr().to_string(),
+                                },
+                            )
                     }
                 } else {
                     #[cfg(feature = "v1")]
                     {
                         db.find_merchant_connector_account_by_profile_id_connector_name(
-                            key_manager_state,
                             profile_id,
                             connector_name,
                             key_store,
@@ -4731,6 +4807,7 @@ impl AttemptType {
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
@@ -4742,6 +4819,7 @@ impl AttemptType {
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,
+            tokenization: None,
         }
     }
 
@@ -4774,7 +4852,6 @@ impl AttemptType {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
                 let db = &*state.store;
-                let key_manager_state = &state.into();
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt_to_insert = Self::make_new_payment_attempt(
                     request
@@ -4799,7 +4876,6 @@ impl AttemptType {
                 #[cfg(feature = "v2")]
                 let new_payment_attempt = db
                     .insert_payment_attempt(
-                        key_manager_state,
                         key_store,
                         new_payment_attempt_to_insert,
                         storage_scheme,
@@ -4810,7 +4886,6 @@ impl AttemptType {
 
                 let updated_payment_intent = db
                     .update_payment_intent(
-                        key_manager_state,
                         fetched_payment_intent,
                         storage::PaymentIntentUpdate::StatusAndAttemptUpdate {
                             status: payment_intent_status_fsm(
@@ -4911,7 +4986,6 @@ pub fn is_manual_retry_allowed(
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     #[test]
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
@@ -5088,24 +5162,28 @@ pub async fn get_additional_payment_data(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Eft { .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::OnlineBankingFpx { issuer } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: Some(issuer.to_owned()),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Ideal { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
                     details: None,
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::BancontactCard {
@@ -5126,6 +5204,7 @@ pub async fn get_additional_payment_data(
                             },
                         )),
                     ),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Blik { blik_code } => Ok(Some(
@@ -5138,6 +5217,7 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     }),
+                    interac: None,
                 },
             )),
             domain::BankRedirectData::Giropay {
@@ -5160,35 +5240,63 @@ pub async fn get_additional_payment_data(
                             },
                         ),
                     )),
+                    interac: None,
                 },
             )),
             _ => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     details: None,
+                    interac: None,
                 },
             )),
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
+                let (card_exp_month, card_exp_year) = match apple_pay_wallet_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.application_expiration_month.clone()),
+                        Some(token.application_expiration_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
+                    apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
-                    }),
+                        card_exp_month,
+                        card_exp_year,
+                    })),
                     google_pay: None,
                     samsung_pay: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
+                let (card_exp_month, card_exp_year) = match google_pay_pm_data
+                    .tokenization_data
+                    .get_decrypted_google_pay_payment_data_optional()
+                {
+                    Some(token) => (
+                        Some(token.card_exp_month.clone()),
+                        Some(token.card_exp_year.clone()),
+                    ),
+                    None => (None, None),
+                };
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
-                    google_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: google_pay_pm_data.info.card_details.clone(),
-                        card_network: google_pay_pm_data.info.card_network.clone(),
-                        card_type: Some(google_pay_pm_data.pm_type.clone()),
-                    }),
+                    google_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: google_pay_pm_data.info.card_details.clone(),
+                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            card_exp_month,
+                            card_exp_year,
+                        },
+                    )),
                     samsung_pay: None,
                 }))
             }
@@ -5196,17 +5304,21 @@ pub async fn get_additional_payment_data(
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: None,
-                    samsung_pay: Some(payment_additional_types::WalletAdditionalDataForCard {
-                        last4: samsung_pay_pm_data
-                            .payment_credential
-                            .card_last_four_digits
-                            .clone(),
-                        card_network: samsung_pay_pm_data
-                            .payment_credential
-                            .card_brand
-                            .to_string(),
-                        card_type: None,
-                    }),
+                    samsung_pay: Some(Box::new(
+                        payment_additional_types::WalletAdditionalDataForCard {
+                            last4: samsung_pay_pm_data
+                                .payment_credential
+                                .card_last_four_digits
+                                .clone(),
+                            card_network: samsung_pay_pm_data
+                                .payment_credential
+                                .card_brand
+                                .to_string(),
+                            card_type: None,
+                            card_exp_month: None,
+                            card_exp_year: None,
+                        },
+                    )),
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
@@ -5638,7 +5750,7 @@ pub fn get_debit_routing_savings_amount(
 #[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_data: &D,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -5656,9 +5768,9 @@ where
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         payment_data.get_creds_identifier(),
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
@@ -5677,10 +5789,9 @@ where
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -6905,6 +7016,16 @@ pub fn add_connector_response_to_additional_payment_data(
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
         },
+        (
+            api_models::payments::AdditionalPaymentData::BankRedirect { .. },
+            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                interac: Some(InteracCustomerInfo { customer_info }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::BankRedirect {
+            bank_name: None,
+            details: None,
+            interac: Some(api_models::payments::InteracPaymentMethod { customer_info }),
+        },
 
         _ => additional_payment_data,
     }
@@ -7411,7 +7532,6 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     let db = &*state.store;
     let merchant_connector_account_list = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             merchant_id,
             true,
             key_store,
@@ -7696,17 +7816,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                &state.into(),
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7762,7 +7881,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    merchant_context.get_merchant_account().get_id().clone()
+                    platform.get_processor().get_account().get_id().clone()
                 )),
             );
         }
@@ -7827,7 +7946,7 @@ pub async fn get_merchant_connector_account_v2(
     let db = &*state.store;
     match merchant_connector_id {
         Some(merchant_connector_id) => db
-            .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
+            .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),
@@ -7857,16 +7976,283 @@ pub fn is_stored_credential(
 }
 
 #[cfg(feature = "v1")]
+/// Helper function to get the connector label used for storing connector_customer_id
+/// Returns None if the merchant_connector_account ID is not present
+pub fn get_connector_label_for_customer<F, D>(
+    merchant_connector_account: &MerchantConnectorAccountType,
+    payment_data: &D,
+) -> Option<String>
+where
+    D: OperationSessionGetters<F>,
+{
+    // Get connector name from payment attempt
+    let connector_name = payment_data.get_payment_attempt().connector.as_ref()?;
+
+    // Generate the connector_label using the same logic as when storing connector_customer_id
+    let connector_label = core_utils::get_connector_label(
+        payment_data.get_payment_intent().business_country,
+        payment_data.get_payment_intent().business_label.as_ref(),
+        payment_data
+            .get_payment_attempt()
+            .business_sub_label
+            .as_ref(),
+        connector_name,
+    );
+
+    // Use the same priority as in call_create_connector_customer_if_required
+    // 1. Try merchant_connector_account ID first
+    // 2. Try the dynamically generated connector_label
+    // 3. Fallback to format!("{connector_name}_{profile_id}")
+    if let Some(connector_label) = merchant_connector_account
+        .get_mca_id()
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .or(connector_label)
+    {
+        Some(connector_label)
+    } else {
+        // Fallback to connector_name_profileId
+        payment_data
+            .get_payment_intent()
+            .profile_id
+            .as_ref()
+            .map(|profile_id| format!("{}_{}", connector_name, profile_id.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "v1")]
+/// Helper function to populate connector_customer_id from database before calling UCS
+/// This checks if a connector_customer_id already exists in the database and populates it into router_data
+/// Returns true if connector_customer_id was found and populated from DB, false otherwise
+async fn populate_connector_customer_from_db_before_ucs(
+    state: &SessionState,
+    connector_label: Option<&str>,
+    payment_attempt: &PaymentAttempt,
+    payment_id: &str,
+    customer: &Option<domain::Customer>,
+    merchant_connector_account: &MerchantConnectorAccountType,
+) -> RouterResult<Option<String>> {
+    match (connector_label, payment_attempt.connector.as_ref()) {
+        (Some(label), Some(connector_name)) => {
+            let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector_name,
+                api::GetToken::Connector,
+                merchant_connector_account.get_mca_id(),
+            )
+            .inspect_err(|e| {
+                router_env::logger::warn!(
+                    payment_id = %payment_id,
+                    connector_name = %connector_name,
+                    error = ?e,
+                    "Failed to get connector by name while populating connector_customer_id"
+                )
+            })?;
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(
+                    &connector,
+                    customer,
+                    payment_attempt,
+                    label,
+                );
+
+            match existing_connector_customer_id {
+                Some(connector_customer_id) => {
+                    router_env::logger::info!(
+                        connector_customer_id = %connector_customer_id,
+                        payment_id = %payment_id,
+                        connector_label = %label,
+                        should_call_connector = %should_call_connector,
+                        "Populating connector_customer from DB before UCS call"
+                    );
+                    Ok(Some(connector_customer_id.to_string()))
+                }
+                None => {
+                    router_env::logger::info!(
+                        payment_id = %payment_id,
+                        connector_label = %label,
+                        should_call_connector = %should_call_connector,
+                        "No connector_customer_id found in DB for UCS call"
+                    );
+                    Ok(None)
+                }
+            }
+        }
+        (Some(label), None) => {
+            router_env::logger::debug!(
+                payment_id = %payment_id,
+                connector_label = %label,
+                "No connector name available, skipping connector_customer_id population"
+            );
+            Ok(None)
+        }
+        (None, Some(connector_name)) => {
+            router_env::logger::debug!(
+                payment_id = %payment_id,
+                connector_name = %connector_name,
+                "No connector label available, skipping connector_customer_id population"
+            );
+            Ok(None)
+        }
+        (None, None) => Ok(None),
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+/// Helper function to save connector_customer_id after UCS call with proper error logging
+/// Handles the logic of checking if ID was already in DB and logging appropriately
+async fn save_connector_customer_id_after_ucs<F, Req>(
+    state: &SessionState,
+    router_data: &RouterData<F, Req, PaymentsResponseData>,
+    connector_customer_id_was_populated_from_db: Option<String>,
+    connector_label: &Option<String>,
+    customer: &Option<domain::Customer>,
+    platform: &domain::Platform,
+    payment_id: String,
+) -> RouterResult<()> {
+    match connector_customer_id_was_populated_from_db {
+        None => {
+            match (
+                router_data.connector_customer.as_ref(),
+                connector_label.as_ref(),
+            ) {
+                (Some(connector_customer_id), Some(connector_label_str)) => {
+                    save_new_connector_customer_id_from_ucs(
+                        state,
+                        connector_customer_id,
+                        connector_label_str,
+                        customer,
+                        platform,
+                        payment_id.clone(),
+                    )
+                    .await
+                    .inspect_err(|e| {
+                        router_env::logger::warn!(
+                            payment_id = %payment_id,
+                            error = ?e,
+                            "Failed to save connector_customer_id from UCS"
+                        )
+                    })
+                }
+                (None, Some(label)) => {
+                    router_env::logger::debug!(
+                        payment_id = %payment_id,
+                        connector_label = %label,
+                        "Missing connector_customer_id, skipping save"
+                    );
+                    Ok(())
+                }
+                (Some(id), None) => {
+                    router_env::logger::debug!(
+                        payment_id = %payment_id,
+                        connector_customer_id = %id,
+                        "Missing connector_label, skipping save"
+                    );
+                    Ok(())
+                }
+                (None, None) => {
+                    router_env::logger::debug!(
+                        payment_id = %payment_id,
+                        "Missing both connector_customer_id and connector_label, skipping save"
+                    );
+                    Ok(())
+                }
+            }
+        }
+        Some(existing_id) => {
+            router_env::logger::debug!(
+                payment_id = %payment_id,
+                existing_connector_customer_id = %existing_id,
+                "Connector customer ID already exists in DB, skipping save"
+            );
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+/// Helper function to save a new connector_customer_id from UCS to database
+/// This only saves if the ID doesn't already exist in the database
+async fn save_new_connector_customer_id_from_ucs(
+    state: &SessionState,
+    connector_customer_id: &str,
+    connector_label: &str,
+    customer: &Option<domain::Customer>,
+    platform: &domain::Platform,
+    payment_id: String,
+) -> RouterResult<()> {
+    // Process only if customer exists
+    match customer.as_ref() {
+        Some(customer_data) => {
+            router_env::logger::info!(
+            "Saving new connector_customer_id from UCS to DB for payment_id={}, connector_label={}",
+            payment_id,
+            connector_label
+        );
+
+            // Create and save customer update
+            match customers::update_connector_customer_in_customers(
+                connector_label,
+                Some(customer_data),
+                Some(connector_customer_id.to_string()),
+            )
+            .await
+            {
+                Some(update) => {
+                    let db = &*state.store;
+                    let _ = db
+                        .update_customer_by_customer_id_merchant_id(
+                            customer_data.customer_id.clone(),
+                            customer_data.merchant_id.clone(),
+                            customer_data.clone(),
+                            update,
+                            platform.get_processor().get_key_store(),
+                            platform.get_processor().get_account().storage_scheme,
+                        )
+                        .await
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                "Failed to save connector_customer_id to DB: {:?}",
+                                e
+                            )
+                        });
+                    Ok(())
+                }
+                None => {
+                    router_env::logger::error!(
+                        payment_id = %payment_id,
+                        connector_label = %connector_label,
+                        "No update generated for saving connector_customer_id"
+                    );
+                    Ok(())
+                }
+            }
+        }
+        None => {
+            router_env::logger::debug!(
+            "No customer data available, skipping connector_customer_id save for payment_id={}, connector_label={}",
+            payment_id,
+            connector_label
+        );
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 // Helper function to process through UCS gateway
 pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
+    call_connector_action: CallConnectorAction,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -7874,7 +8260,7 @@ pub async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     business_profile: &'a domain::Profile,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    mut router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, PaymentsResponseData>,
     MerchantConnectorAccountType,
@@ -7918,6 +8304,28 @@ where
         GatewaySystem::UnifiedConnectorService,
     )?;
 
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    // Extract merchant_order_reference_id from payment data for UCS audit trail
+    let merchant_order_reference_id = payment_data
+        .get_payment_intent()
+        .merchant_order_reference_id
+        .clone();
+    let (mut router_data, should_continue) = router_data
+        .call_preprocessing_through_unified_connector_service(
+            state,
+            &header_payload,
+            &lineage_ids,
+            merchant_connector_account.clone(),
+            platform,
+            connector_data,
+            ExecutionMode::Primary, // UCS is called in primary mode
+            merchant_order_reference_id.clone(),
+        )
+        .await?;
+
     // Update trackers
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -7926,38 +8334,81 @@ where
             req_state,
             payment_data.clone(),
             customer.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
             None,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
         .await?;
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+    // Calculate connector label once for reuse
+    let connector_label =
+        get_connector_label_for_customer(&merchant_connector_account, payment_data);
 
-    // Call UCS
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    // Extract merchant_order_reference_id from payment data for UCS audit trail
-    let merchant_order_reference_id = payment_data
-        .get_payment_intent()
-        .merchant_order_reference_id
-        .clone();
-
-    router_data
-        .call_unified_connector_service(
+    // Populate connector_customer_id from database before calling UCS
+    // Track whether ID was found in DB to avoid redundant save later
+    let connector_customer_id_was_populated_from_db =
+        populate_connector_customer_from_db_before_ucs(
             state,
-            &header_payload,
-            lineage_ids,
-            merchant_connector_account.clone(),
-            merchant_context,
-            connector_data,
-            ExecutionMode::Primary, // UCS is called in primary mode
-            merchant_order_reference_id,
+            connector_label.as_deref(),
+            payment_data.get_payment_attempt(),
+            payment_data
+                .get_payment_intent()
+                .payment_id
+                .get_string_repr(),
+            customer,
+            &merchant_connector_account,
         )
         .await?;
+
+    connector_customer_id_was_populated_from_db
+        .as_ref()
+        .map(|id| {
+            router_data.connector_customer = Some(id.clone());
+        });
+
+    // Based on the preprocessing response, decide whether to continue with UCS call
+    if should_continue {
+        router_data
+            .call_unified_connector_service(
+                state,
+                &header_payload,
+                lineage_ids,
+                merchant_connector_account.clone(),
+                platform,
+                connector_data,
+                ExecutionMode::Primary, // UCS is called in primary mode
+                merchant_order_reference_id,
+                call_connector_action,
+                creds_identifier,
+            )
+            .await?;
+    }
+
+    // Save connector_customer_id from UCS to database if needed
+    let payment_id = payment_data
+        .get_payment_intent()
+        .payment_id
+        .get_string_repr()
+        .to_string();
+    let _ = save_connector_customer_id_after_ucs(
+        state,
+        &router_data,
+        connector_customer_id_was_populated_from_db,
+        &connector_label,
+        customer,
+        platform,
+        payment_id.clone(),
+    )
+    .await
+    .inspect_err(|e| {
+        router_env::logger::warn!(
+            "Failed to save connector_customer_id after UCS call - payment_id={}, error={:?}",
+            payment_id,
+            e
+        )
+    }); // Don't fail payment if save fails
 
     Ok((router_data, merchant_connector_account))
 }
@@ -7969,7 +8420,7 @@ where
 pub async fn process_through_direct<'a, F, RouterDReq, ApiRequest, D>(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
@@ -8009,11 +8460,24 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: None,
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
 
     call_connector_service(
         state,
         req_state,
-        merchant_context,
+        platform,
         connector,
         operation,
         payment_data,
@@ -8029,6 +8493,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await
 }
@@ -8046,12 +8511,13 @@ pub async fn process_through_direct_with_shadow_unified_connector_service<
 >(
     state: &'a SessionState,
     req_state: routes::app::ReqState,
-    merchant_context: &'a domain::MerchantContext,
+    platform: &'a domain::Platform,
     connector: api::ConnectorData,
     operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
     payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     validate_result: &'a OperationsValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: domain_payments::HeaderPayload,
@@ -8087,13 +8553,27 @@ where
         .merchant_order_reference_id
         .clone();
 
+    // Calculate connector_label before cloning data for shadow UCS
+    let unified_connector_service_connector_label =
+        get_connector_label_for_customer(&merchant_connector_account, payment_data);
+
+    let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
+
     // Clone data needed for shadow UCS call
     let unified_connector_service_router_data = router_data.clone();
     let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
-    let unified_connector_service_merchant_context = merchant_context.clone();
+    let unified_connector_service_platform = platform.clone();
     let unified_connector_service_header_payload = header_payload.clone();
     let unified_connector_service_state = state.clone();
     let unified_connector_service_merchant_order_reference_id = merchant_order_reference_id;
+    let unified_connector_service_creds_identifier = creds_identifier.clone();
+    let unified_connector_service_customer = customer.clone();
+    let unified_connector_service_payment_attempt_data = payment_data.get_payment_attempt().clone();
+    let unified_connector_service_connector_payment_id = payment_data
+        .get_payment_intent()
+        .payment_id
+        .get_string_repr()
+        .to_string();
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -8102,17 +8582,28 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+    let execution_mode = ExecutionMode::NotApplicable;
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids: lineage_ids.clone(),
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode,
+    };
 
     // Call Direct connector service
     let result = call_connector_service(
         state,
         req_state,
-        merchant_context,
+        platform,
         connector.clone(),
         operation,
         payment_data,
         customer,
-        call_connector_action,
+        call_connector_action.clone(),
         validate_result,
         schedule_time,
         header_payload,
@@ -8123,6 +8614,7 @@ where
         merchant_connector_account,
         router_data,
         tokenization_action,
+        gateway_context,
     )
     .await?;
 
@@ -8137,10 +8629,24 @@ where
             lineage_ids,
             unified_connector_service_merchant_connector_account,
             &connector,
-            unified_connector_service_merchant_context,
+            unified_connector_service_platform,
             unified_connector_service_merchant_order_reference_id,
+            call_connector_action,
+            shadow_ucs_call_connector_action,
+            unified_connector_service_creds_identifier,
+            unified_connector_service_customer,
+            unified_connector_service_payment_attempt_data,
+            unified_connector_service_connector_label,
+            unified_connector_service_connector_payment_id,
         )
         .await
+        .map_err(|e| {
+            router_env::logger::debug!(
+                "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
+                e
+            )
+        })
+        .ok()
     });
 
     Ok(result)
@@ -8158,15 +8664,37 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_data: &api::ConnectorData,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     merchant_order_reference_id: Option<String>,
-) where
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    creds_identifier: Option<String>,
+    customer: Option<domain::Customer>,
+    payment_attempt_data: PaymentAttempt,
+    unified_connector_service_connector_label: Option<String>,
+    unified_connector_service_payment_id: String,
+) -> RouterResult<()>
+where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + Serialize,
     RouterData<F, RouterDReq, PaymentsResponseData>:
         Feature<F, RouterDReq> + Send + Clone + Serialize,
     dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, PaymentsResponseData>,
 {
+    let connector_customer_id_was_populated_from_db =
+        populate_connector_customer_from_db_before_ucs(
+            &state,
+            unified_connector_service_connector_label.as_deref(),
+            &payment_attempt_data,
+            &unified_connector_service_payment_id,
+            &customer,
+            &merchant_connector_account,
+        )
+        .await?;
+
+    connector_customer_id_was_populated_from_db.map(|id| {
+        unified_connector_service_router_data.connector_customer = Some(id);
+    });
     // Call UCS in shadow mode
     let _unified_connector_service_result = unified_connector_service_router_data
         .call_unified_connector_service(
@@ -8174,63 +8702,31 @@ pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            &merchant_context,
+            &platform,
             connector_data,
             ExecutionMode::Shadow, // Shadow mode for UCS
             merchant_order_reference_id,
+            shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
+            creds_identifier,
         )
         .await
         .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
 
     // Compare results
-    match serialize_router_data_and_send_to_comparison_service(
+    match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
         &state,
         direct_router_data,
         unified_connector_service_router_data,
     )
     .await
     {
-        Ok(_) => router_env::logger::debug!("Shadow UCS comparison completed successfully"),
-        Err(e) => router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e),
-    }
-}
-
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + Serialize,
-{
-    router_env::logger::info!("Simulating UCS call for shadow mode comparison");
-    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => masking::Secret::new(data),
-        Err(_) => {
-            router_env::logger::debug!("Failed to serialize HS router data");
-            return Ok(());
+        Ok(_) => {
+            router_env::logger::debug!("Shadow UCS comparison completed successfully");
+            Ok(())
         }
-    };
-
-    let unified_connector_service_data =
-        match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => masking::Secret::new(data),
-            Err(_) => {
-                router_env::logger::debug!("Failed to serialize UCS router data");
-                return Ok(());
-            }
-        };
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
+        Err(e) => {
+            router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
+            Ok(())
+        }
+    }
 }
