@@ -7044,6 +7044,7 @@ pub fn add_connector_response_to_additional_payment_data(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_payment_method_data_and_encrypted_payment_method_data(
     payment_attempt: &PaymentAttempt,
     key_manager_state: &KeyManagerState,
