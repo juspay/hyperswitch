@@ -76,8 +76,10 @@ impl Event {
         use super::generics;
         use crate::errors::DatabaseError;
 
-        let predicate = dsl::merchant_id
-            .eq(merchant_id.to_owned())
+        let predicate = dsl::event_id
+            .nullable()
+            .eq(dsl::initial_attempt_id) // Filter initial attempts only
+            .and(dsl::merchant_id.eq(merchant_id.to_owned()))
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =
@@ -186,8 +188,10 @@ impl Event {
         use super::generics;
         use crate::errors::DatabaseError;
 
-        let predicate = dsl::business_profile_id
-            .eq(profile_id.to_owned())
+        let predicate = dsl::event_id
+            .nullable()
+            .eq(dsl::initial_attempt_id) // Filter initial attempts only
+            .and(dsl::business_profile_id.eq(profile_id.to_owned()))
             .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()));
 
         let result =

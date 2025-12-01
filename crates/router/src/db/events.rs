@@ -748,6 +748,7 @@ impl EventInterface for MockDb {
 
         let event_opt = locked_events.iter().find(|event| {
             event.merchant_id == Some(merchant_id.to_owned())
+                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
                 && event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
         });
 
@@ -882,6 +883,7 @@ impl EventInterface for MockDb {
 
         let event_opt = locked_events.iter().find(|event| {
             event.business_profile_id == Some(profile_id.to_owned())
+                && event.initial_attempt_id.as_deref() == Some(&event.event_id)
                 && event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
         });
 
