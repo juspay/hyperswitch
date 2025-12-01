@@ -402,12 +402,8 @@ async fn get_tracker_for_sync<
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(
-                db,
-                platform.get_processor().get_account().get_id(),
-                mcd,
-            )
-            .await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;

@@ -116,7 +116,8 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -683,7 +684,8 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;

@@ -82,8 +82,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let ephemeral_key = Self::get_ephemeral_key(request, state, platform).await;
-        let merchant_id = platform.get_processor().get_account().get_id(); // check where this merchant_id is getting used
+        let ephemeral_key = Self::get_ephemeral_key(request, state, platform.get_provider()).await;
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -130,8 +129,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         {
             business_profile
         } else {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
+            platform_wrapper::business_profile::find_business_profile_by_profile_id(
+                db,
+                platform.get_processor(),
                 &profile_id,
             )
             .await
@@ -155,7 +155,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        // Need to check for internal working of this function
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -246,24 +245,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ),
             ));
 
-        // what is this payment link
+        // what is this payment link, shall we pass processor instead of merchant name
         let payment_link_data = match request.payment_link {
             Some(true) => {
-                let merchant_name = platform
-                    .get_processor()
-                    .get_account()
-                    .merchant_name
-                    .clone()
-                    .map(|name| name.into_inner().peek().to_owned())
-                    .unwrap_or_default();
-
                 let default_domain_name = state.base_url.clone();
 
                 let (payment_link_config, domain_name) =
                     payment_link::get_payment_link_config_based_on_priority(
                         request.payment_link_config.clone(),
                         business_profile.payment_link_config.clone(),
-                        merchant_name,
+                        platform.get_processor(),
                         default_domain_name,
                         request.payment_link_config_id.clone(),
                     )?;
@@ -271,7 +262,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 create_payment_link(
                     request,
                     payment_link_config,
-                    merchant_id,
+                    platform.get_processor(),
                     payment_id.clone(),
                     db,
                     amount,
@@ -325,7 +316,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let payment_intent = platform_wrapper::payment_intent::insert(
+        let payment_intent = platform_wrapper::payment_intent::insert_payment_intent(
             db,
             platform.get_provider(),
             payment_intent_new,
@@ -344,7 +335,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         }
 
         #[cfg(feature = "v1")]
-        let mut payment_attempt = platform_wrapper::payment_attempt::insert(
+        let mut payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
             db,
             platform.get_provider(),
             payment_attempt_new,
@@ -355,7 +346,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         })?;
 
         #[cfg(feature = "v2")]
-        let payment_attempt = platform_wrapper::payment_attempt::insert(
+        let payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
             db,
             platform.get_provider(),
             payment_attempt_new,
@@ -475,7 +466,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor(),
                     mcd,
                 )
                 .await
@@ -1665,18 +1656,13 @@ impl PaymentCreate {
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &SessionState,
-        platform: &domain::Platform,
+        provider: &domain::Provider,
     ) -> Option<ephemeral_key::EphemeralKey> {
         match request.get_customer_id() {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
                 customer_id.clone(),
-                platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .to_owned()
-                    .clone(),
+                provider.get_account().get_id().to_owned().clone(),
             )
             .await
             .ok()
@@ -1705,7 +1691,7 @@ pub fn payments_create_request_validation(
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor: &domain::Processor,
     payment_id: common_utils::id_type::PaymentId,
     db: &dyn StorageInterface,
     amount: api::Amount,
@@ -1718,6 +1704,7 @@ async fn create_payment_link(
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let locale_str = locale.unwrap_or("en".to_owned());
+    let merchant_id = processor.get_account().get_id();
     let open_payment_link = format!(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,

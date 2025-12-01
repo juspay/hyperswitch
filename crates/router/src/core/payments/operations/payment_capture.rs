@@ -190,7 +190,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor(),
                     mcd,
                 )
                 .await
