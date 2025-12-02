@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix2
+
+### Bug Fixes
+
+- **connectors:** [Nexixpay] add verify flag for zero-amount transactions ([#10506](https://github.com/juspay/hyperswitch/pull/10506)) ([`6cb1de8`](https://github.com/juspay/hyperswitch/commit/6cb1de8c8b86347e7f8bddf89547e2c618df10db))
+
+**Full Changelog:** [`2025.11.26.0-hotfix1...2025.11.26.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix1...2025.11.26.0-hotfix2)
+
+- - -
+
 ## 2025.11.26.0-hotfix1
 
 ### Bug Fixes
