@@ -608,6 +608,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     billing: None,
                     psp_tokenization: None,
                     network_tokenization: None,
+                    storage_type: Some(common_enums::StorageType::Persistent), //since customer acceptance is present, we always store it persistently
                 };
 
                 let (_pm_response, payment_method) =

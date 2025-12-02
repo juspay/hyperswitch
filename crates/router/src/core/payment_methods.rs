@@ -701,6 +701,7 @@ pub(crate) fn get_payment_method_create_request(
     customer_id: Option<id_type::GlobalCustomerId>,
     billing_address: Option<&api_models::payments::Address>,
     payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
@@ -739,6 +740,7 @@ pub(crate) fn get_payment_method_create_request(
                     .and_then(|pm_session| pm_session.psp_tokenization.clone()),
                 network_tokenization: payment_method_session
                     .and_then(|pm_session| pm_session.network_tokenization.clone()),
+                storage_type,
             };
             Ok(payment_method_request)
         }
@@ -891,7 +893,6 @@ pub async fn create_payment_method(
 
     Ok(services::ApplicationResponse::Json(response))
 }
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn create_payment_method_core(
@@ -901,7 +902,40 @@ pub async fn create_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    use common_utils::ext_traits::ValueExt;
+
+    match req.storage_type {
+        Some(common_enums::StorageType::Volatile) => {
+            create_volatile_payment_method_core(
+            state,
+            _request_state,
+            req,
+            platform,
+            profile,
+        )
+        .await
+    },
+        Some(common_enums::StorageType::Persistent) | None => {
+            create_persistent_payment_method_core(
+                state,
+                _request_state,
+                req,
+                platform,
+                profile,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn create_persistent_payment_method_core(
+    state: &SessionState,
+    _request_state: &routes::app::ReqState,
+    req: api::PaymentMethodCreate,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
 
     req.validate()?;
 
@@ -987,7 +1021,6 @@ pub async fn create_volatile_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
 
@@ -1035,6 +1068,7 @@ pub async fn create_volatile_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
+            logger::info!("Creating volatile card payment method");
             Box::pin(create_volatile_payment_method_card_core(
                 state,
                 req,
@@ -1145,7 +1179,7 @@ pub async fn create_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
 
             Ok((resp, payment_method))
         }
@@ -1244,6 +1278,7 @@ pub async fn create_volatile_payment_method_card_core(
                 "volatile_payment_method:{}",
                 payment_method.get_id().get_string_repr()
             );
+            logger::info!("Storing payment method id in redis");
 
             let payment_method_id_string = payment_method.get_id().get_string_repr().to_owned();
             redis_connection
@@ -1257,7 +1292,7 @@ pub async fn create_volatile_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert payment method id in redis")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
 
             Ok((resp, payment_method))
         }
@@ -1362,7 +1397,7 @@ pub async fn create_payment_method_proxy_card_core(
     .await?;
 
     let payment_method_response =
-        pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+        pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
 
     Ok((payment_method_response, payment_method))
 }
@@ -1749,7 +1784,7 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+    let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, None)?;
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -3156,7 +3191,7 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
-    transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache)
+    transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache, Some(common_enums::StorageType::Persistent))
         .map(services::ApplicationResponse::Json)
 }
 
@@ -3311,7 +3346,7 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method, &None)?;
+    let response = pm_transforms::generate_payment_method_response(&payment_method, &None, Some(common_enums::StorageType::Persistent))?;
 
     // Add a PT task to handle payment_method delete from vault
 
@@ -3595,6 +3630,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
+        None
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3662,6 +3698,7 @@ pub async fn payment_methods_session_update(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
         None,
+        None
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3689,6 +3726,7 @@ pub async fn payment_methods_session_retrieve(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
         None,
     );
 
@@ -3876,11 +3914,6 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    // let customer_id = payment_method_session
-    //     .customer_id
-    //     .clone()
-    //     .get_required_value("customer_id")?;
-
     let create_payment_method_request = get_payment_method_create_request(
         request
             .payment_method_data
@@ -3892,6 +3925,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_session.customer_id.clone(),
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
+        request.storage_type,
     )
     .attach_printable("Failed to create payment method request")?;
 
@@ -4019,6 +4053,7 @@ pub async fn payment_methods_session_confirm(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
         (tokenization_response.flatten()),
+        payment_method_response.storage_type,
     );
 
     Ok(services::ApplicationResponse::Json(
