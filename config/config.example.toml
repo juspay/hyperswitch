@@ -2,6 +2,9 @@
 # all the available configuration options, and is intended to be used
 # solely as a reference. Please copy this file to create a config.
 
+# Application source used to identify the running application instance
+application_source = "main"
+
 # Server configuration
 [server]
 port = 8080
