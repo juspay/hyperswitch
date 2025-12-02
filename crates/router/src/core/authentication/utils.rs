@@ -58,8 +58,10 @@ pub async fn update_trackers<F: Clone, Req>(
     authentication: hyperswitch_domain_models::authentication::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    device_details: Option<api_models::payments::DeviceDetails>,
+    merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
-    let key_state = state.into();
+    let key_manager_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             AuthenticationResponseData::PreAuthNResponse {
@@ -71,6 +73,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
                 directory_server_id,
+                scheme_id,
             } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
@@ -93,6 +96,8 @@ pub async fn update_trackers<F: Clone, Req>(
                 shipping_address: None,
                 browser_info: Box::new(None),
                 email: None,
+                scheme_id,
+                merchant_category_code,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
@@ -142,6 +147,18 @@ pub async fn update_trackers<F: Clone, Req>(
                     challenge_cancel,
                     challenge_code_reason,
                     message_extension,
+                    device_type: device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_type.clone()),
+                    device_brand: device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_brand.clone()),
+                    device_os: device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_os.clone()),
+                    device_display: device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_display.clone()),
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -215,7 +232,7 @@ pub async fn update_trackers<F: Clone, Req>(
             authentication,
             authentication_update,
             merchant_key_store,
-            key_state,
+            &key_manager_state,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -332,7 +349,7 @@ pub async fn create_new_authentication(
         message_extension: None,
         challenge_request_key: None,
         customer_details: None,
-        merchant_country_code: None
+        merchant_country_code: None,
     };
 
     state

@@ -1,5 +1,4 @@
-use common_utils::types::keymanager::KeyManagerState;
-use diesel_models::authentication::AuthenticationUpdateInternal;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
@@ -9,11 +8,7 @@ use router_env::{instrument, tracing};
 use storage_impl::StorageError;
 
 use super::{MockDb, Store};
-use crate::{
-    connection,
-    core::errors::{self, CustomResult},
-    types::storage,
-};
+use crate::{connection, core::errors::CustomResult, types::storage};
 
 #[async_trait::async_trait]
 pub trait AuthenticationInterface {
@@ -92,13 +87,17 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
-        .convert(
-            state,
-            merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone().into(),
-        )
+        .async_and_then(|authn| async {
+            authn
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+        })
         .await
-        .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -117,13 +116,17 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
-        .convert(
-            state,
-            merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone().into(),
-        )
+        .async_and_then(|authn| async {
+            authn
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+        })
         .await
-        .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -143,13 +146,17 @@ impl AuthenticationInterface for Store {
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
-        .convert(
-            state,
-            merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone().into(),
-        )
+        .async_and_then(|authn| async {
+            authn
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+        })
         .await
-        .change_context(StorageError::DecryptionError)
     }
 }
 
@@ -175,7 +182,7 @@ impl AuthenticationInterface for MockDb {
                 ),
             })?
         }
-        let authentication = storage::Authentication {
+        let authentication_new = storage::Authentication {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             authentication_id: authentication.authentication_id,
@@ -234,7 +241,7 @@ impl AuthenticationInterface for MockDb {
             earliest_supported_version: authentication.earliest_supported_version,
             latest_supported_version: authentication.latest_supported_version,
             mcc: authentication.mcc,
-            platform: authentication.platform,
+            platform: authentication.platform.map(|platform| platform.to_string()),
             device_type: authentication.device_type,
             device_brand: authentication.device_brand,
             device_os: authentication.device_os,
@@ -248,63 +255,115 @@ impl AuthenticationInterface for MockDb {
             issuer_country: authentication.issuer_country,
             merchant_country_code: authentication.merchant_country_code,
         };
+
+        let authentication: hyperswitch_domain_models::authentication::Authentication =
+            authentication_new
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::EncryptionError)?;
+
         authentications.push(authentication.clone());
         Ok(authentication)
     }
 
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        authentication_id: &common_utils::id_type::AuthenticationId,
-        state: &KeyManagerState,
-        merchant_key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
+        _merchant_key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
-        let authentications = self.authentications.lock().await;
-        authentications
-            .iter()
-            .find(|a| a.merchant_id == *merchant_id && a.authentication_id == *authentication_id)
-            .ok_or(
-                StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id:?} and merchant_id = {merchant_id:?}"
-                )).into(),
-            ).cloned()
+        // let authentications = self.authentications.lock().await;
+        // let authentication = authentications
+        //     .iter()
+        //     .find(|a| a.merchant_id == *merchant_id && a.authentication_id == *authentication_id)
+        //     .ok_or(
+        //         StorageError::ValueNotFound(format!(
+        //             "cannot find authentication for authentication_id = {authentication_id:?} and merchant_id = {merchant_id:?}"
+        //         )).into(),
+        //     ).cloned();
+        // authentication
+        // .async_and_then(|authn| async {
+        //     authn
+        //         .convert(
+        //             state,
+        //             merchant_key_store.key.get_inner(),
+        //             merchant_key_store.merchant_id.clone().into(),
+        //         )
+        //         .await
+        //         .change_context(StorageError::DecryptionError)
+        // })
+        // .await
+
+        Err(StorageError::MockDbError)?
     }
 
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         _merchant_id: common_utils::id_type::MerchantId,
         _connector_authentication_id: String,
-        _state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         Err(StorageError::MockDbError)?
     }
 
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: hyperswitch_domain_models::authentication::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
-        state: &KeyManagerState,
-        merchant_key_store: &MerchantKeyStore,
+        _previous_state: hyperswitch_domain_models::authentication::Authentication,
+        _authentication_update: storage::AuthenticationUpdate,
+        _merchant_key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
-        let mut authentications = self.authentications.lock().await;
-        let authentication_id = previous_state.authentication_id.clone();
-        let merchant_id = previous_state.merchant_id.clone();
-        authentications
-            .iter_mut()
-            .find(|authentication| authentication.authentication_id == authentication_id && authentication.merchant_id == merchant_id)
-            .map(|authentication| {
-                let authentication_update_internal =
-                    AuthenticationUpdateInternal::from(authentication_update);
-                let updated_authentication = authentication_update_internal.apply_changeset(previous_state);
-                *authentication = updated_authentication.clone();
-                updated_authentication
-            })
-            .ok_or(
-                errors::StorageError::ValueNotFound(format!(
-                    "cannot find authentication for authentication_id = {authentication_id:?} and merchant_id = {merchant_id:?}"
-                ))
-                .into(),
-            )
+        //     let mut authentications = self.authentications.lock().await;
+
+        //     let authentication_id = previous_state.authentication_id.clone();
+        //     let merchant_id = previous_state.merchant_id.clone();
+
+        //     let authentication = authentications
+        //         .iter_mut()
+        //         .find(|a| a.authentication_id == authentication_id && a.merchant_id == merchant_id)
+        //         .ok_or_else(|| {
+        //             StorageError::ValueNotFound(format!(
+        //                 "cannot find authentication for authentication_id = {authentication_id:?} \
+        //                  and merchant_id = {merchant_id:?}"
+        //             ))
+        //         })?;
+
+        //     let authentication_update_internal =
+        //         AuthenticationUpdateInternal::from(authentication_update);
+
+        //     let diesel_previous_state = previous_state
+        //         .construct_new()
+        //         .await
+        //         .change_context(StorageError::EncryptionError)?;
+
+        //     let updated = authentication_update_internal.apply_changeset(diesel_previous_state);
+
+        //     let updated = updated
+        //         .convert(
+        //             state,
+        //             merchant_key_store.key.get_inner(),
+        //             merchant_key_store.merchant_id.clone().into(),
+        //         )
+        //         .await
+        //         .change_context(StorageError::EncryptionError)?;
+
+        //     *authentication = updated.clone();
+
+        //     updated
+        //         .convert(
+        //             state,
+        //             merchant_key_store.key.get_inner(),
+        //             merchant_key_store.merchant_id.clone().into(),
+        //         )
+        //         .await
+        //         .change_context(StorageError::DecryptionError)
+        // }
+        Err(StorageError::MockDbError)?
     }
 }

@@ -26,7 +26,7 @@ use common_utils::{
     date_time, errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
     types::AmountConvertor,
 };
-use diesel_models::authentication::{Authentication, AuthenticationNew};
+use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -569,7 +569,7 @@ pub async fn create_new_authentication(
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
-    merchant_key_store:&domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -660,16 +660,12 @@ pub async fn create_new_authentication(
         message_extension: None,
         challenge_request_key: None,
         customer_details,
-        merchant_country_code: None
+        merchant_country_code: None,
     };
 
     state
         .store
-        .insert_authentication(
-            &key_manager_state,
-            merchant_key_store,
-            new_authentication,
-        )
+        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -813,7 +809,7 @@ pub async fn authentication_create_core(
         customer_details
             .clone()
             .map(common_utils::encryption::Encryption::from),
-        &merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_key_store(),
     )
     .await?;
 
@@ -1046,7 +1042,7 @@ pub async fn authentication_eligibility_core(
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
             &authentication_id,
-            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_key_store(),
             &key_manager_state,
         )
         .await
@@ -1149,11 +1145,14 @@ pub async fn authentication_eligibility_core(
         .change_context(ApiErrorResponse::InternalServerError)?;
 
     let merchant_country_code = authentication.acquirer_country_code.clone();
+    let merchant_category_code = business_profile.merchant_category_code.or(metadata
+        .clone()
+        .and_then(|metadata| metadata.merchant_category_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+        merchant_category_code,
         endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
@@ -1286,6 +1285,8 @@ pub async fn authentication_eligibility_core(
             .clone()
             .map(common_utils::encryption::Encryption::from),
         browser_info,
+        None,
+        merchant_category_code,
     )
     .await?;
 
@@ -1357,29 +1358,6 @@ pub async fn authentication_authenticate_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    // let email_encrypted = authentication
-    //     .email
-    //     .clone()
-    //     .async_lift(|inner| async {
-    //         domain::types::crypto_operation(
-    //             &key_manager_state,
-    //             common_utils::type_name!(Authentication),
-    //             domain::types::CryptoOperation::DecryptOptional(inner),
-    //             common_utils::types::keymanager::Identifier::Merchant(
-    //                 merchant_context
-    //                     .get_merchant_key_store()
-    //                     .merchant_id
-    //                     .clone(),
-    //             ),
-    //             merchant_context.get_merchant_key_store().key.peek(),
-    //         )
-    //         .await
-    //         .and_then(|val| val.try_into_optionaloperation())
-    //     })
-    //     .await
-    //     .change_context(ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Unable to decrypt email from authentication table")?;
-
     let browser_info = authentication
         .browser_info
         .clone()
@@ -1427,9 +1405,12 @@ pub async fn authentication_authenticate_core(
         req.device_channel,
         authentication.clone(),
         None,
-        req.sdk_information,
+        req.sdk_information.clone(),
         req.threeds_method_comp_ind,
-        authentication.email.clone().map(common_utils::pii::Email::from),
+        authentication
+            .email
+            .clone()
+            .map(common_utils::pii::Email::from),
         webhook_url,
         &three_ds_connector_account,
         &authentication_connector.to_string(),
@@ -1446,6 +1427,9 @@ pub async fn authentication_authenticate_core(
         None,
         None,
         None,
+        None,
+        req.sdk_information
+            .and_then(|sdk_information| sdk_information.device_details),
         None,
     )
     .await?;
@@ -1801,7 +1785,12 @@ pub async fn authentication_sync_core(
     let db = &*state.store;
     let key_manager_state = (&state).into();
     let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id, &merchant_context.get_merchant_key_store(), &key_manager_state)
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id,
+            &authentication_id,
+            merchant_context.get_merchant_key_store(),
+            &key_manager_state,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
@@ -1977,6 +1966,8 @@ pub async fn authentication_sync_core(
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .await?;
 
@@ -2003,57 +1994,6 @@ pub async fn authentication_sync_core(
         acquirer_merchant_id: updated_authentication.acquirer_merchant_id.clone(),
         merchant_country_code: updated_authentication.acquirer_country_code.clone(),
     });
-
-    // let encrypted_data = domain::types::crypto_operation(
-    //     &key_manager_state,
-    //     common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
-    //     domain::types::CryptoOperation::BatchDecrypt(
-    //         hyperswitch_domain_models::authentication::EncryptedAuthentication::to_encryptable(
-    //             hyperswitch_domain_models::authentication::EncryptedAuthentication {
-    //                 billing_address: updated_authentication.billing_address,
-    //                 shipping_address: updated_authentication.shipping_address,
-    //             },
-    //         ),
-    //     ),
-    //     common_utils::types::keymanager::Identifier::Merchant(
-    //         merchant_context
-    //             .get_merchant_key_store()
-    //             .merchant_id
-    //             .clone(),
-    //     ),
-    //     merchant_context.get_merchant_key_store().key.peek(),
-    // )
-    // .await
-    // .and_then(|val| val.try_into_batchoperation())
-    // .change_context(ApiErrorResponse::InternalServerError)
-    // .attach_printable("Unable to encrypt authentication data".to_string())?;
-
-    // let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
-    //     .change_context(ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Unable to get encrypted data for authentication after encryption")?;
-
-    // let email_decrypted = updated_authentication
-    //     .email
-    //     .clone()
-    //     .async_lift(|inner| async {
-    //         domain::types::crypto_operation(
-    //             &key_manager_state,
-    //             common_utils::type_name!(Authentication),
-    //             domain::types::CryptoOperation::DecryptOptional(inner),
-    //             common_utils::types::keymanager::Identifier::Merchant(
-    //                 merchant_context
-    //                     .get_merchant_key_store()
-    //                     .merchant_id
-    //                     .clone(),
-    //             ),
-    //             merchant_context.get_merchant_key_store().key.peek(),
-    //         )
-    //         .await
-    //         .and_then(|val| val.try_into_optionaloperation())
-    //     })
-    //     .await
-    //     .change_context(ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Unable to encrypt email")?;
 
     let browser_info = updated_authentication
         .browser_info
@@ -2171,7 +2111,7 @@ pub async fn authentication_post_sync_core(
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
             &authentication_id,
-            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_key_store(),
             &key_manager_state,
         )
         .await
@@ -2221,6 +2161,8 @@ pub async fn authentication_post_sync_core(
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
+        None,
+        None,
         None,
         None,
         None,
@@ -2283,7 +2225,7 @@ pub async fn authentication_session_core(
 ) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
-    let key_manager_state = &state.into();
+    let key_manager_state = (&state).into();
 
     let authentication_id = req.authentication_id;
     let authentication = state
@@ -2291,8 +2233,8 @@ pub async fn authentication_session_core(
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
             &authentication_id,
-            &merchant_context.get_merchant_key_store(),
-            key_manager_state
+            merchant_context.get_merchant_key_store(),
+            &key_manager_state,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {

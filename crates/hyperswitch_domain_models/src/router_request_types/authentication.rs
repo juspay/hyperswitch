@@ -3,11 +3,10 @@ use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address,
+    address, authentication,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::{Card, PaymentMethodData},
     router_request_types::BrowserInformation,
-    authentication
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

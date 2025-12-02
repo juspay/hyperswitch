@@ -63,7 +63,7 @@ pub async fn perform_authentication(
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
-        sdk_information,
+        sdk_information.clone(),
         threeds_method_comp_ind,
         email,
         webhook_url,
@@ -84,6 +84,8 @@ pub async fn perform_authentication(
         authentication_data,
         None,
         merchant_key_store,
+        sdk_information.and_then(|sdk_information| sdk_information.device_details),
+        None,
     )
     .await?;
     response
@@ -108,7 +110,7 @@ pub async fn perform_post_authentication(
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
 > {
-    let key_state = (&state).into();
+    let key_state = &state.into();
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
@@ -149,7 +151,16 @@ pub async fn perform_post_authentication(
         let router_data =
             utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
                 .await?;
-        utils::update_trackers(state, router_data, authentication, None, key_store).await?
+        utils::update_trackers(
+            state,
+            router_data,
+            authentication,
+            None,
+            key_store,
+            None,
+            None,
+        )
+        .await?
     } else {
         // trigger in case of webhook flow
         authentication
@@ -209,7 +220,7 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
-        Some(key_store),
+        key_store,
     )
     .await?;
 
@@ -236,6 +247,8 @@ pub async fn perform_pre_authentication(
             authentication,
             acquirer_details.clone(),
             key_store,
+            None,
+            None,
         )
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -269,6 +282,8 @@ pub async fn perform_pre_authentication(
         authentication,
         acquirer_details,
         key_store,
+        None,
+        None,
     )
     .await?;
 

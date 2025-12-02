@@ -1,17 +1,23 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_enums::MerchantCategoryCode;
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, errors::{CustomResult, ValidationError}, ext_traits::ValueExt, pii, types::keymanager::{Identifier, KeyManagerState, ToEncryptable}
+    crypto::Encryptable,
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
+    pii,
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use std::str::FromStr;
 
 use super::behaviour;
-use crate::{type_encryption::{AsyncLift, CryptoOperation, crypto_operation}};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
@@ -193,7 +199,7 @@ impl behaviour::Conversion for Authentication {
             earliest_supported_version: self.earliest_supported_version,
             latest_supported_version: self.latest_supported_version,
             mcc: self.mcc,
-            platform: self.platform.map(|platform|platform.to_string()),
+            platform: self.platform.map(|platform| platform.to_string()),
             device_type: self.device_type,
             device_brand: self.device_brand,
             device_os: self.device_os,
@@ -216,7 +222,7 @@ impl behaviour::Conversion for Authentication {
         _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let encrypted_data = crypto_operation(
-            &state,
+            state,
             common_utils::type_name!(Authentication),
             CryptoOperation::BatchDecrypt(EncryptedAuthentication::to_encryptable(
                 EncryptedAuthentication {
@@ -243,8 +249,8 @@ impl behaviour::Conversion for Authentication {
             .clone()
             .async_lift(|inner| async {
                 crypto_operation::<String, pii::EmailStrategy>(
-                    &state,
-                    common_utils::type_name!(Authentication),
+                    state,
+                    common_utils::type_name!(Self),
                     CryptoOperation::DecryptOptional(inner),
                     Identifier::Merchant(other.merchant_id.clone()),
                     key.peek(),
@@ -271,13 +277,13 @@ impl behaviour::Conversion for Authentication {
             .change_context(ValidationError::InvalidValue {
                 message: "Failed to parse billing address".to_string(),
             })?;
-    
+
         let shipping = decrypted_data
             .shipping_address
             .as_ref()
             .map(|shipping| {
                 shipping
-                .to_owned()
+                    .to_owned()
                     .into_inner()
                     .expose()
                     .parse_value::<api_models::payments::Address>("Address")
@@ -334,9 +340,13 @@ impl behaviour::Conversion for Authentication {
             platform: other
                 .platform
                 .as_deref()
-                .map(|s| api_models::payments::DeviceChannel::from_str(s).change_context(ValidationError::InvalidValue {
-                    message: "Invalid device channel".into(),
-                }))
+                .map(|s| {
+                    api_models::payments::DeviceChannel::from_str(s).change_context(
+                        ValidationError::InvalidValue {
+                            message: "Invalid device channel".into(),
+                        },
+                    )
+                })
                 .transpose()?,
             device_type: other.device_type,
             device_brand: other.device_brand,
@@ -364,66 +374,87 @@ impl behaviour::Conversion for Authentication {
             message_extension: other.message_extension,
             challenge_request_key: other.challenge_request_key,
             customer_details: other.customer_details,
-            billing_country: billing.and_then(|address| address.address.and_then(|address| address.country)),
-            shipping_country: shipping.and_then(|address| address.address.and_then(|address| address.country)),
+            billing_country: billing
+                .and_then(|address| address.address.and_then(|address| address.country)),
+            shipping_country: shipping
+                .and_then(|address| address.address.and_then(|address| address.country)),
             merchant_country_code: other.merchant_country_code,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            authentication_id: self.authentication_id,
-            merchant_id: self.merchant_id,
-            authentication_connector: self.authentication_connector,
-            connector_authentication_id: self.connector_authentication_id,
-            payment_method_id: self.payment_method_id,
-            authentication_type: self.authentication_type,
-            authentication_status: self.authentication_status,
-            authentication_lifecycle_status: self.authentication_lifecycle_status,
-            error_message: self.error_message,
-            error_code: self.error_code,
-            connector_metadata: self.connector_metadata,
-            maximum_supported_version: self.maximum_supported_version,
-            threeds_server_transaction_id: self.threeds_server_transaction_id,
-            cavv: self.cavv,
-            authentication_flow_type: self.authentication_flow_type,
-            message_version: self.message_version,
-            eci: self.eci,
-            trans_status: self.trans_status,
-            acquirer_bin: self.acquirer_bin,
-            acquirer_merchant_id: self.acquirer_merchant_id,
-            three_ds_method_data: self.three_ds_method_data,
-            three_ds_method_url: self.three_ds_method_url,
-            acs_url: self.acs_url,
-            challenge_request: self.challenge_request,
-            acs_reference_number: self.acs_reference_number,
-            acs_trans_id: self.acs_trans_id,
-            acs_signed_content: self.acs_signed_content,
-            profile_id: self.profile_id,
-            payment_id: self.payment_id,
-            merchant_connector_id: self.merchant_connector_id,
-            ds_trans_id: self.ds_trans_id,
-            directory_server_id: self.directory_server_id,
-            acquirer_country_code: self.acquirer_country_code,
-            service_details: self.service_details,
-            organization_id: self.organization_id,
-            authentication_client_secret: self.authentication_client_secret,
-            force_3ds_challenge: self.force_3ds_challenge,
-            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            return_url: self.return_url,
-            amount: self.amount,
-            currency: self.currency,
-            billing_address: self.billing_address.map(Encryption::from),
-            shipping_address: self.shipping_address.map(Encryption::from),
-            browser_info: self.browser_info,
-            email: self.email.map(|email| email.into()),
-            profile_acquirer_id: self.profile_acquirer_id,
-            challenge_code: self.challenge_code,
-            challenge_cancel: self.challenge_cancel,
-            challenge_code_reason: self.challenge_code_reason,
-            message_extension: self.message_extension,
-            challenge_request_key: self.challenge_request_key,
-            customer_details: self.customer_details,
+            authentication_id: __self.authentication_id,
+            merchant_id: __self.merchant_id,
+            authentication_connector: __self.authentication_connector,
+            connector_authentication_id: __self.connector_authentication_id,
+            payment_method_id: __self.payment_method_id,
+            authentication_type: __self.authentication_type,
+            authentication_status: __self.authentication_status,
+            authentication_lifecycle_status: __self.authentication_lifecycle_status,
+            error_message: __self.error_message,
+            error_code: __self.error_code,
+            connector_metadata: __self.connector_metadata,
+            maximum_supported_version: __self.maximum_supported_version,
+            threeds_server_transaction_id: __self.threeds_server_transaction_id,
+            cavv: __self.cavv,
+            authentication_flow_type: __self.authentication_flow_type,
+            message_version: __self.message_version,
+            eci: __self.eci,
+            trans_status: __self.trans_status,
+            acquirer_bin: __self.acquirer_bin,
+            acquirer_merchant_id: __self.acquirer_merchant_id,
+            three_ds_method_data: __self.three_ds_method_data,
+            three_ds_method_url: __self.three_ds_method_url,
+            acs_url: __self.acs_url,
+            challenge_request: __self.challenge_request,
+            acs_reference_number: __self.acs_reference_number,
+            acs_trans_id: __self.acs_trans_id,
+            acs_signed_content: __self.acs_signed_content,
+            profile_id: __self.profile_id,
+            payment_id: __self.payment_id,
+            merchant_connector_id: __self.merchant_connector_id,
+            ds_trans_id: __self.ds_trans_id,
+            directory_server_id: __self.directory_server_id,
+            acquirer_country_code: __self.acquirer_country_code,
+            service_details: __self.service_details,
+            organization_id: __self.organization_id,
+            authentication_client_secret: __self.authentication_client_secret,
+            force_3ds_challenge: __self.force_3ds_challenge,
+            psd2_sca_exemption_type: __self.psd2_sca_exemption_type,
+            return_url: __self.return_url,
+            amount: __self.amount,
+            currency: __self.currency,
+            billing_address: __self.billing_address.map(Encryption::from),
+            shipping_address: __self.shipping_address.map(Encryption::from),
+            browser_info: __self.browser_info,
+            email: __self.email.map(|email| email.into()),
+            profile_acquirer_id: __self.profile_acquirer_id,
+            challenge_code: __self.challenge_code,
+            challenge_cancel: __self.challenge_cancel,
+            challenge_code_reason: __self.challenge_code_reason,
+            message_extension: __self.message_extension,
+            challenge_request_key: __self.challenge_request_key,
+            customer_details: __self.customer_details,
+            earliest_supported_version: __self.earliest_supported_version,
+            latest_supported_version: __self.latest_supported_version,
+            mcc: __self.mcc,
+            platform: __self.platform.map(|platform| platform.to_string()),
+            device_type: __self.device_type,
+            device_brand: __self.device_brand,
+            device_os: __self.device_os,
+            device_display: __self.device_display,
+            browser_name: __self.browser_name,
+            browser_version: __self.browser_version,
+            scheme_name: __self.scheme_name,
+            exemption_requested: __self.exemption_requested,
+            exemption_accepted: __self.exemption_accepted,
+            issuer_id: __self.issuer_id,
+            issuer_country: __self.issuer_country,
+            merchant_country_code: __self.merchant_country_code,
+            created_at: __self.created_at,
+            modified_at: __self.modified_at,
+            authentication_data: __self.authentication_data,
         })
     }
 }

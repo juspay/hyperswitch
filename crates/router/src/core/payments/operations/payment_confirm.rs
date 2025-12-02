@@ -1468,10 +1468,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse webhook url")?;
 
+            let merchant_category_code = business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code));
+
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                merchant_category_code,
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
@@ -1512,6 +1514,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
+                    None,
+                    merchant_category_code
                 ).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
@@ -1597,6 +1601,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         None,
                         None,
                         None,
+                        None,
+                        None
                     ).await?
                 } else {
                     authentication

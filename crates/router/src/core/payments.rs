@@ -3588,7 +3588,12 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .attach_printable("missing authentication_id in payment_attempt")?;
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id, merchant_context.get_merchant_key_store(), key_manager_state)
+            .find_authentication_by_merchant_id_authentication_id(
+                &merchant_id,
+                &authentication_id,
+                merchant_context.get_merchant_key_store(),
+                key_manager_state,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
                 id: authentication_id.get_string_repr().to_string(),
@@ -10464,7 +10469,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 req.device_channel,
                 authentication.clone(),
                 return_url,
-                req.sdk_information,
+                req.sdk_information.clone(),
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
@@ -10482,6 +10487,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             None,
             None,
             None,
+            None,
+            req.sdk_information
+                .and_then(|sdk_information| sdk_information.device_details),
             None,
         )
         .await?;

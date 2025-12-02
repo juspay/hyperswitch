@@ -1,4 +1,4 @@
-use diesel_models::{authentication::Authentication, enums as storage_enums};
+use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
 #[serde_with::skip_serializing_none]
@@ -46,7 +46,9 @@ pub struct KafkaAuthenticationEvent<'a> {
 }
 
 impl<'a> KafkaAuthenticationEvent<'a> {
-    pub fn from_storage(authentication: &'a hyperswitch_domain_models::authentication::Authentication) -> Self {
+    pub fn from_storage(
+        authentication: &'a hyperswitch_domain_models::authentication::Authentication,
+    ) -> Self {
         Self {
             created_at: authentication.created_at.assume_utc(),
             modified_at: authentication.modified_at.assume_utc(),

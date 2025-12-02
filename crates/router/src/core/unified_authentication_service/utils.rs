@@ -155,6 +155,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     shipping_address: Option<common_utils::encryption::Encryption>,
     email: Option<common_utils::encryption::Encryption>,
     browser_info: Option<serde_json::Value>,
+    device_details: Option<api_models::payments::DeviceDetails>,
+    merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_state = state.into();
     let authentication_update = match router_data.response {
@@ -202,6 +204,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     email,
                     billing_address,
                     shipping_address,
+                    scheme_id: authentication_details.scheme_id,
+                    merchant_category_code,
                 },
             ),
             UasAuthenticationResponseData::Authentication {
@@ -254,6 +258,18 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_cancel: authentication_details.challenge_cancel,
                         challenge_code_reason: authentication_details.challenge_code_reason,
                         message_extension: authentication_details.message_extension,
+                        device_type: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_type.clone()),
+                        device_brand: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_brand.clone()),
+                        device_os: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_os.clone()),
+                        device_display: device_details
+                            .as_ref()
+                            .and_then(|details| details.device_display.clone()),
                     },
                 )
             }
@@ -320,7 +336,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             authentication,
             authentication_update,
             merchant_key_store,
-            key_state,
+            &key_state,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)

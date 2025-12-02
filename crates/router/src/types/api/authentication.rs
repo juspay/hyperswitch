@@ -10,9 +10,7 @@ pub use hyperswitch_domain_models::{
     router_request_types::authentication::MessageCategory,
 };
 
-use crate::{
-    connector, core::errors, services::connector_integration_interface::ConnectorEnum,
-};
+use crate::{connector, core::errors, services::connector_integration_interface::ConnectorEnum};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -35,7 +33,9 @@ pub struct AuthenticationResponse {
 
 impl TryFrom<hyperswitch_domain_models::authentication::Authentication> for AuthenticationResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(authentication: hyperswitch_domain_models::authentication::Authentication) -> Result<Self, Self::Error> {
+    fn try_from(
+        authentication: hyperswitch_domain_models::authentication::Authentication,
+    ) -> Result<Self, Self::Error> {
         let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("trans_status must be populated in authentication table authentication call is successful")?;
         let acs_url = authentication
             .acs_url

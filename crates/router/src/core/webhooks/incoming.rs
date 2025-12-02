@@ -2013,6 +2013,7 @@ async fn external_authentication_incoming_webhook_flow(
     business_profile: domain::Profile,
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let key_manager_state = (&state).into();
     if source_verified {
         let authentication_details = connector
             .get_external_authentication_details(request_details)
@@ -2037,6 +2038,8 @@ async fn external_authentication_incoming_webhook_flow(
                         .find_authentication_by_merchant_id_authentication_id(
                             merchant_context.get_merchant_account().get_id(),
                             &authentication_id,
+                            merchant_context.get_merchant_key_store(),
+                            &key_manager_state,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2050,6 +2053,8 @@ async fn external_authentication_incoming_webhook_flow(
                         .find_authentication_by_merchant_id_connector_authentication_id(
                             merchant_context.get_merchant_account().get_id().clone(),
                             connector_authentication_id.clone(),
+                            merchant_context.get_merchant_key_store(),
+                            &key_manager_state,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2067,6 +2072,8 @@ async fn external_authentication_incoming_webhook_flow(
             .update_authentication_by_merchant_id_authentication_id(
                 authentication,
                 authentication_update,
+                merchant_context.get_merchant_key_store(),
+                &key_manager_state,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

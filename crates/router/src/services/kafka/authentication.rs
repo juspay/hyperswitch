@@ -1,6 +1,6 @@
 use api_models::payments::DeviceChannel;
 use common_enums::MerchantCategoryCode;
-use diesel_models::{authentication::Authentication, enums as storage_enums};
+use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -48,13 +48,11 @@ pub struct KafkaAuthentication<'a> {
     pub mcc: Option<&'a MerchantCategoryCode>,
     pub currency: Option<&'a common_enums::Currency>,
     pub merchant_country: Option<&'a String>,
-    pub billing_country: Option<&'a String>,
-    pub shipping_country: Option<&'a String>,
+    pub billing_country: Option<storage_enums::CountryAlpha2>,
+    pub shipping_country: Option<storage_enums::CountryAlpha2>,
     pub issuer_country: Option<&'a String>,
     pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
     pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
-    pub whitelist_decision: Option<bool>,
-    pub device_manufacturer: Option<&'a String>,
     pub device_type: Option<&'a String>,
     pub device_brand: Option<&'a String>,
     pub device_os: Option<&'a String>,
@@ -68,7 +66,9 @@ pub struct KafkaAuthentication<'a> {
 }
 
 impl<'a> KafkaAuthentication<'a> {
-    pub fn from_storage(authentication: &'a hyperswitch_domain_models::authentication::Authentication) -> Self {
+    pub fn from_storage(
+        authentication: &'a hyperswitch_domain_models::authentication::Authentication,
+    ) -> Self {
         Self {
             created_at: authentication.created_at.assume_utc(),
             modified_at: authentication.modified_at.assume_utc(),
@@ -107,25 +107,23 @@ impl<'a> KafkaAuthentication<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
-            platform: authentication.platform,
-            mcc: authentication.mcc,
-            currency: authentication.currency,
-            merchant_country: authentication.merchant_country,
+            platform: authentication.platform.as_ref(),
+            mcc: authentication.mcc.as_ref(),
+            currency: authentication.currency.as_ref(),
+            merchant_country: authentication.merchant_country_code.as_ref(),
             billing_country: authentication.billing_country,
             shipping_country: authentication.shipping_country,
-            issuer_country: authentication.issuer_country,
-            earliest_supported_version: authentication.earliest_supported_version,
-            latest_supported_version: authentication.latest_supported_version,
-            whitelist_decision: authentication.whitelist_decision,
-            device_manufacturer: authentication.device_manufacturer,
-            device_type: authentication.device_type,
-            device_brand: authentication.device_brand,
-            device_os: authentication.device_os,
-            device_display: authentication.device_display,
-            browser_name: authentication.browser_name,
-            browser_version: authentication.browser_version,
-            issuer_id: authentication.issuer_id,
-            scheme_name: authentication.scheme_name,
+            issuer_country: authentication.issuer_country.as_ref(),
+            earliest_supported_version: authentication.earliest_supported_version.clone(),
+            latest_supported_version: authentication.latest_supported_version.clone(),
+            device_type: authentication.device_type.as_ref(),
+            device_brand: authentication.device_brand.as_ref(),
+            device_os: authentication.device_os.as_ref(),
+            device_display: authentication.device_display.as_ref(),
+            browser_name: authentication.browser_name.as_ref(),
+            browser_version: authentication.browser_version.as_ref(),
+            issuer_id: authentication.issuer_id.as_ref(),
+            scheme_name: authentication.scheme_name.as_ref(),
             exemption_requested: authentication.exemption_requested,
             exemption_accepted: authentication.exemption_accepted,
         }

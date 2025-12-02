@@ -10247,7 +10247,17 @@ pub enum ThreeDsCompletionIndicator {
 }
 
 /// Device Channel indicating whether request is coming from App or Browser
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq, Display, strum::EnumString)]
+#[derive(
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    ToSchema,
+    Eq,
+    PartialEq,
+    Display,
+    strum::EnumString,
+)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum DeviceChannel {
     #[strum(serialize = "APP")]
@@ -10275,6 +10285,21 @@ pub struct SdkInformation {
     pub sdk_max_timeout: u8,
     /// Indicates the type of 3DS SDK
     pub sdk_type: Option<SdkType>,
+    /// Device details for collecting Device information
+    pub device_details: Option<DeviceDetails>,
+}
+
+/// Device details for collecting Device information
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub struct DeviceDetails {
+    /// Device type
+    pub device_type: Option<String>,
+    /// Device brand
+    pub device_brand: Option<String>,
+    /// Device OS
+    pub device_os: Option<String>,
+    /// Device display
+    pub device_display: Option<String>,
 }
 
 /// Enum representing the type of 3DS SDK.
