@@ -682,6 +682,10 @@ impl StringMajorUnit {
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+    /// forms a new default 2-decimal major unit
+    pub fn zero_decimal() -> Self {
+        Self("0.00".to_string())
+    }
 }
 
 #[derive(
