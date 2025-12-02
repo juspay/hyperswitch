@@ -474,14 +474,7 @@ impl
             deduction_value: None,
             protest_type: None,
             protest_quantity_days: None,
-            write_off_quantity_days: value
-                .0
-                .router_data
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|days| days.write_off_quantity_days.clone()),
+            write_off_quantity_days: None,
             payment_type: Some(PaymentType::Registro),
             parcels_quantity: None,
             value_type: None,
@@ -1219,9 +1212,10 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            SantanderUpdateMetadataResponse::Pix(_) => {
-                todo!()
-            }
+            SantanderUpdateMetadataResponse::Pix(_) => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
+            )
+            .into()),
             SantanderUpdateMetadataResponse::Boleto(_) => {
                 let status = if item.http_code == 200 {
                     common_enums::PaymentResourceUpdateStatus::Success

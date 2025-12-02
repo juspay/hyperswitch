@@ -10906,16 +10906,6 @@ impl FeatureMetadata {
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BoletoAdditionalDetails {
-    /// The percentage of fine applied for late payment
-    pub fine_percentage: Option<String>,
-    /// The number of days after due date when fine is applied
-    pub fine_quantity_days: Option<String>,
-    /// The percentage of interest applied for late payment
-    pub interest_percentage: Option<String>,
-    /// Number of days after which the boleto can be written off
-    pub write_off_quantity_days: Option<String>,
-    /// Additional messages to display to the shopper
-    pub messages: Option<Vec<String>>,
     /// Due Date for the Boleto
     pub due_date: Option<String>,
 }
@@ -10923,13 +10913,6 @@ pub struct BoletoAdditionalDetails {
 impl BoletoAdditionalDetails {
     pub fn merge(self, other: Self) -> Self {
         Self {
-            fine_percentage: self.fine_percentage.or(other.fine_percentage),
-            fine_quantity_days: self.fine_quantity_days.or(other.fine_quantity_days),
-            interest_percentage: self.interest_percentage.or(other.interest_percentage),
-            write_off_quantity_days: self
-                .write_off_quantity_days
-                .or(other.write_off_quantity_days),
-            messages: self.messages.or(other.messages),
             due_date: self.due_date.or(other.due_date),
         }
     }

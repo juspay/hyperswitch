@@ -165,11 +165,6 @@ pub trait ToApiPixAdditionalDetails {
 impl ToDieselPixAdditionalDetails for api_models::payments::BoletoAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails {
         diesel_models::types::BoletoAdditionalDetails {
-            fine_percentage: self.fine_percentage.clone(),
-            fine_quantity_days: self.fine_quantity_days.clone(),
-            interest_percentage: self.interest_percentage.clone(),
-            write_off_quantity_days: self.write_off_quantity_days.clone(),
-            messages: self.messages.clone(),
             due_date: self.due_date.clone(),
         }
     }
@@ -178,11 +173,6 @@ impl ToDieselPixAdditionalDetails for api_models::payments::BoletoAdditionalDeta
 impl ToApiPixAdditionalDetails for diesel_models::types::BoletoAdditionalDetails {
     fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails {
         api_models::payments::BoletoAdditionalDetails {
-            fine_percentage: self.fine_percentage.clone(),
-            fine_quantity_days: self.fine_quantity_days.clone(),
-            interest_percentage: self.interest_percentage.clone(),
-            write_off_quantity_days: self.write_off_quantity_days.clone(),
-            messages: self.messages.clone(),
             due_date: self.due_date.clone(),
         }
     }

@@ -80,16 +80,6 @@ pub struct FeatureMetadata {
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct BoletoAdditionalDetails {
-    /// The percentage of fine applied for late payment
-    pub fine_percentage: Option<String>,
-    /// The number of days after due date when fine is applied
-    pub fine_quantity_days: Option<String>,
-    /// The percentage of interest applied for late payment
-    pub interest_percentage: Option<String>,
-    /// Number of days after which the boleto can be written off
-    pub write_off_quantity_days: Option<String>,
-    /// Additional messages to display to the shopper
-    pub messages: Option<Vec<String>>,
     /// Due Date for the Boleto
     pub due_date: Option<String>,
 }
