@@ -491,6 +491,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data.into(),
                             store.as_ref(),
                             &profile_id,
+                            None,
                         )
                         .await
                     })
@@ -1828,8 +1829,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
-                    .await
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    profile_id,
+                    payment_data.payment_method_token.as_ref(),
+                )
+                .await
             })
             .await
             .transpose()?
