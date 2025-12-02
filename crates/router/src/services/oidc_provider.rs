@@ -1,9 +1,8 @@
-use once_cell::sync::OnceCell;
-
 use api_models::oidc::{
     Jwk, JwksResponse, KeyType, KeyUse, OidcDiscoveryResponse, SigningAlgorithm,
 };
 use error_stack::ResultExt;
+use once_cell::sync::OnceCell;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse},
