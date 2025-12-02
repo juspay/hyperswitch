@@ -655,6 +655,7 @@ impl Action {
                     payment_attempt.id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
+                    state.conf.application_source,
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
