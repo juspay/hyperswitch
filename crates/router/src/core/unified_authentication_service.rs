@@ -671,7 +671,6 @@ pub async fn authentication_create_core(
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
         &platform,
@@ -682,11 +681,7 @@ pub async fn authentication_create_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1036,7 +1031,6 @@ pub async fn authentication_eligibility_core(
     let key_manager_state = (&state).into();
 
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
         None,
         None,
         &platform,
@@ -1047,11 +1041,7 @@ pub async fn authentication_eligibility_core(
     .await?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1307,11 +1297,7 @@ pub async fn authentication_authenticate_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1779,11 +1765,7 @@ pub async fn authentication_sync_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            &key_manager_state,
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1873,7 +1855,7 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, vault_token_data) =
+    let (updated_authentication, payment_method_data, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
                 ClickToPay::post_authentication(
@@ -1918,7 +1900,8 @@ pub async fn authentication_sync_core(
             };
 
             let vault_token_data = if should_disable_auth_tokenization {
-                utils::get_raw_authentication_token_data(&post_auth_response)
+                // Do not tokenize if the disable flag is present in the config
+                None
             } else {
                 Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
@@ -1928,6 +1911,9 @@ pub async fn authentication_sync_core(
                 ))
                 .await?
             };
+
+            let payment_method_data =
+                utils::get_authentication_payment_method_data(&post_auth_response);
 
             let auth_update_response = utils::external_authentication_update_trackers(
                 &state,
@@ -1942,9 +1928,9 @@ pub async fn authentication_sync_core(
             )
             .await?;
 
-            (auth_update_response, vault_token_data)
+            (auth_update_response, payment_method_data, vault_token_data)
         } else {
-            (authentication, None)
+            (authentication, None, None)
         };
 
     let eci = match auth_flow {
@@ -2086,6 +2072,7 @@ pub async fn authentication_sync_core(
         message_version: updated_authentication.message_version.clone(),
         connector_metadata: updated_authentication.connector_metadata.clone(),
         directory_server_id: updated_authentication.directory_server_id.clone(),
+        payment_method_data,
         vault_token_data,
         billing,
         shipping,
@@ -2131,10 +2118,8 @@ pub async fn authentication_post_sync_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let key_manager_state = (&state).into();
     let business_profile = db
         .find_business_profile_by_profile_id(
-            &key_manager_state,
             platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
@@ -2234,7 +2219,6 @@ pub async fn authentication_session_core(
 ) -> RouterResponse<api_models::authentication::AuthenticationSessionResponse> {
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
-    let key_manager_state = (&state).into();
 
     let authentication_id = req.authentication_id;
     let authentication = state
@@ -2250,7 +2234,6 @@ pub async fn authentication_session_core(
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(
-            &key_manager_state,
             platform.get_processor().get_key_store(),
             &authentication.profile_id,
         )
@@ -2301,7 +2284,6 @@ pub async fn get_session_token_for_click_to_pay(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &click_to_pay_mca_id,
             platform.get_processor().get_key_store(),

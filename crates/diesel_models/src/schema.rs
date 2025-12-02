@@ -1096,6 +1096,7 @@ diesel::table! {
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        encrypted_payment_method_data -> Nullable<Bytea>,
     }
 }
 
@@ -1205,6 +1206,7 @@ diesel::table! {
         billing_descriptor -> Nullable<Jsonb>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        partner_merchant_identifier_details -> Nullable<Jsonb>,
     }
 }
 

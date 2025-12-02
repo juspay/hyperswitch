@@ -37,7 +37,6 @@ pub async fn generate_sample_data(
     )>,
 > {
     let sample_data_size: usize = req.record.unwrap_or(100);
-    let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
         return Err(SampleDataError::InvalidRange.into());
     }
@@ -45,7 +44,6 @@ pub async fn generate_sample_data(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -54,7 +52,7 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
@@ -76,7 +74,6 @@ pub async fn generate_sample_data(
         let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
-            key_manager_state,
             business_country_default,
             business_label_default.as_ref(),
             &platform,
@@ -108,11 +105,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_profile_by_merchant_id(
-                    key_manager_state,
-                    platform.get_processor().get_key_store(),
-                    merchant_id,
-                )
+                .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -303,6 +296,7 @@ pub async fn generate_sample_data(
             mit_category: None,
             billing_descriptor: None,
             tokenization: None,
+            partner_merchant_identifier_details: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -403,6 +397,7 @@ pub async fn generate_sample_data(
             is_stored_credential: None,
             authorized_amount: None,
             tokenization: None,
+            encrypted_payment_method_data: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

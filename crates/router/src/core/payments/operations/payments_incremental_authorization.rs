@@ -56,7 +56,6 @@ impl<F: Send + Clone + Sync>
         >,
     > {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -66,7 +65,6 @@ impl<F: Send + Clone + Sync>
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
                 &payment_id,
                 merchant_id,
                 platform.get_processor().get_key_store(),
@@ -95,6 +93,7 @@ impl<F: Send + Clone + Sync>
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -120,7 +119,6 @@ impl<F: Send + Clone + Sync>
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 profile_id,
             )
@@ -266,7 +264,6 @@ impl<F: Clone + Sync>
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {
                     authorization_count: new_authorization_count,
@@ -300,7 +297,7 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
@@ -308,9 +305,9 @@ impl<F: Send + Clone + Sync>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

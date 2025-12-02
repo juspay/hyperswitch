@@ -247,6 +247,48 @@ impl PaymentMethod {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_payment_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        let common_mandate_reference = self.get_common_mandate_reference()?;
+        Ok(common_mandate_reference
+            .payments
+            .as_ref()
+            .and_then(|payments| payments.get(&merchant_connector_account_id))
+            .and_then(|record| record.connector_customer_id.clone()))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payout_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        let common_mandate_reference = self.get_common_mandate_reference()?;
+        Ok(common_mandate_reference
+            .payouts
+            .as_ref()
+            .and_then(|payouts| payouts.get(&merchant_connector_account_id))
+            .and_then(|record| record.connector_customer_id.clone()))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payout_connector_customer_id(
+        &self,
+        merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Result<Option<String>, ParsingError> {
+        todo!()
+    }
+
     #[cfg(feature = "v2")]
     pub fn set_payment_method_type(&mut self, payment_method_type: common_enums::PaymentMethod) {
         self.payment_method_type = Some(payment_method_type);
@@ -691,7 +733,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
     pub id: id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
     pub return_url: Option<common_utils::types::Url>,
@@ -807,7 +849,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -816,7 +857,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method_id: &id_type::GlobalPaymentMethodId,
         storage_scheme: MerchantStorageScheme,
@@ -825,7 +865,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -834,7 +873,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
@@ -845,7 +883,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         id: &id_type::GlobalCustomerId,
         limit: Option<i64>,
@@ -855,7 +892,6 @@ pub trait PaymentMethodInterface {
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
@@ -868,7 +904,6 @@ pub trait PaymentMethodInterface {
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         customer_id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
@@ -893,7 +928,6 @@ pub trait PaymentMethodInterface {
 
     async fn insert_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         storage_scheme: MerchantStorageScheme,
@@ -901,7 +935,6 @@ pub trait PaymentMethodInterface {
 
     async fn update_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         payment_method_update: PaymentMethodUpdate,
@@ -911,7 +944,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
     ) -> CustomResult<PaymentMethod, Self::Error>;
@@ -919,7 +951,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
@@ -927,7 +958,6 @@ pub trait PaymentMethodInterface {
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
-        state: &keymanager::KeyManagerState,
         key_store: &MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,

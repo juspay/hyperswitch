@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
-        payments::{self, access_token, helpers},
+        payments::{self, access_token, gateway::context as gateway_context, helpers},
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -48,7 +48,6 @@ pub async fn refund_create_core(
 
     payment_intent = db
         .find_payment_intent_by_id(
-            &(&state).into(),
             &req.payment_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
@@ -88,7 +87,6 @@ pub async fn refund_create_core(
 
     payment_attempt = db
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            &(&state).into(),
             platform.get_processor().get_key_store(),
             &req.payment_id,
             platform.get_processor().get_account().storage_scheme,
@@ -131,11 +129,7 @@ pub async fn trigger_refund_to_gateway(
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let mca = db
-        .find_merchant_connector_account_by_id(
-            &state.into(),
-            &mca_id,
-            platform.get_processor().get_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&mca_id, platform.get_processor().get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
@@ -169,12 +163,21 @@ pub async fn trigger_refund_to_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -282,11 +285,21 @@ pub async fn internal_trigger_refund_to_gateway(
     )
     .await?;
 
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
+
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -676,12 +689,10 @@ pub async fn refund_retrieve_core(
 ) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
     let db = &*state.store;
 
-    let key_manager_state = &(&state).into();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = &refund.payment_id;
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             payment_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
@@ -697,7 +708,6 @@ pub async fn refund_retrieve_core(
 
     let payment_attempt = db
         .find_payment_attempt_by_id(
-            key_manager_state,
             platform.get_processor().get_key_store(),
             &active_attempt_id,
             platform.get_processor().get_account().storage_scheme,
@@ -813,11 +823,7 @@ pub async fn sync_refund_with_gateway(
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let mca = db
-        .find_merchant_connector_account_by_id(
-            &state.into(),
-            &mca_id,
-            platform.get_processor().get_key_store(),
-        )
+        .find_merchant_connector_account_by_id(&mca_id, platform.get_processor().get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
@@ -837,12 +843,21 @@ pub async fn sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -924,12 +939,21 @@ pub async fn internal_sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 

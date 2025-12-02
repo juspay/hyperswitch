@@ -172,7 +172,7 @@ pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
         &'b self,
         request: &R,
-        platform: &domain::Platform,
+        platform: &domain::Processor,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 
@@ -237,10 +237,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _merchant_context: &domain::Platform,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _split_amount_data: (
-            api_models::payments::PaymentMethodData,
-            common_utils::types::MinorUnit,
-        ),
+        _pm_split_amount_data: domain::PaymentMethodDetailsWithSplitAmount,
         _attempts_group_id: &common_utils::id_type::GlobalAttemptGroupId,
     ) -> RouterResult<GetTrackerResponse<D>> {
         Err(errors::ApiErrorResponse::NotImplemented {
@@ -498,7 +495,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
@@ -610,7 +607,6 @@ where
                 // This function is to retrieve customer details. If the customer is deleted, it returns
                 // customer details that contains the fields as Redacted
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -696,7 +692,6 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
@@ -800,7 +795,6 @@ where
             None => None,
             Some(customer_id) => {
                 db.find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,

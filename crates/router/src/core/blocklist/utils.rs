@@ -396,7 +396,6 @@ where
     if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
-            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::RejectUpdate {
                 status: common_enums::IntentStatus::Failed,
@@ -431,6 +430,7 @@ where
             payment_data.payment_attempt.clone(),
             attempt_update,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

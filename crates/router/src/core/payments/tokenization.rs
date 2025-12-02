@@ -23,12 +23,15 @@ use hyperswitch_domain_models::{
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
 };
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::vault_payment_method_external_v1;
+use crate::core::payment_methods::{
+    get_payment_method_custom_data, vault_payment_method_external_v1,
+};
 use crate::{
     consts,
     core::{
@@ -39,7 +42,7 @@ use crate::{
             cards::{create_encrypted_data, PmCards},
             network_tokenization,
         },
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     logger,
     routes::{metrics, SessionState},
@@ -387,7 +390,6 @@ where
                             let payment_method = {
                                 let existing_pm_by_pmid = db
                                     .find_payment_method(
-                                        &(state.into()),
                                         platform.get_processor().get_key_store(),
                                         &payment_method_id,
                                         platform.get_processor().get_account().storage_scheme,
@@ -399,7 +401,6 @@ where
                                         locker_id = Some(payment_method_id.clone());
                                         let existing_pm_by_locker_id = db
                                             .find_payment_method_by_locker_id(
-                                                &(state.into()),
                                                 platform.get_processor().get_key_store(),
                                                 &payment_method_id,
                                                 platform
@@ -436,7 +437,6 @@ where
                                         connector_token,
                                     )?;
                                     payment_methods::cards::update_payment_method_metadata_and_last_used(
-                                        state,
                                         platform.get_processor().get_key_store(),
                                         db,
                                         pm.clone(),
@@ -491,7 +491,6 @@ where
                                 let payment_method = {
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
-                                            &(state.into()),
                                             platform.get_processor().get_key_store(),
                                             &payment_method_id,
                                             platform.get_processor().get_account().storage_scheme,
@@ -503,7 +502,6 @@ where
                                             locker_id = Some(payment_method_id.clone());
                                             let existing_pm_by_locker_id = db
                                                 .find_payment_method_by_locker_id(
-                                                    &(state.into()),
                                                     platform.get_processor().get_key_store(),
                                                     &payment_method_id,
                                                     platform
@@ -557,7 +555,6 @@ where
                                                     ConnectorMandateStatus::Inactive,
                                                 )?;
                                             payment_methods::cards::update_payment_method_connector_mandate_details(
-                                            state,
                                             platform.get_processor().get_key_store(),
                                             db,
                                             pm.clone(),
@@ -638,7 +635,6 @@ where
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                                        &(state.into()),
                                         platform.get_processor().get_key_store(),
                                         merchant_id,
                                         &resp.payment_method_id,
@@ -711,7 +707,6 @@ where
                                     .attach_printable("Unable to encrypt payment method data")?;
 
                                 payment_methods::cards::update_payment_method_and_last_used(
-                                    state,
                                     platform.get_processor().get_key_store(),
                                     db,
                                     existing_pm,
@@ -736,7 +731,6 @@ where
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    &(state.into()),
                                     platform.get_processor().get_key_store(),
                                     &customer_id,
                                     merchant_id,
@@ -1165,17 +1159,18 @@ pub async fn save_in_locker_external(
         .get_required_value("customer_id")?;
     // For external vault, we need to convert the card data to PaymentMethodVaultingData
     if let Some(card) = card_detail {
-        let payment_method_vaulting_data =
-            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone());
+        let payment_method_custom_vaulting_data = get_payment_method_custom_data(
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone()),
+            external_vault_connector_details
+                .vault_token_selector
+                .clone(),
+        )?;
 
         let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
-
-        let key_manager_state = &state.into();
 
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
                 platform.get_processor().get_account().get_id(),
                 &external_vault_mca_id,
                 platform.get_processor().get_key_store(),
@@ -1188,7 +1183,7 @@ pub async fn save_in_locker_external(
         // Call vault_payment_method_external_v1
         let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
-            &payment_method_vaulting_data,
+            &payment_method_custom_vaulting_data,
             platform.get_processor().get_account(),
             merchant_connector_account_details,
             None,
@@ -1406,6 +1401,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
     should_continue_payment: bool,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     if should_continue_payment {
         match tokenization_action {
@@ -1432,13 +1428,14 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let mut resp = services::execute_connector_processing_step(
+                let mut resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &pm_token_router_data,
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
+                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -1544,6 +1541,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 mandate_metadata,
                 connector_mandate_status: Some(ConnectorMandateStatus::Active),
                 connector_mandate_request_reference_id,
+                connector_customer_id: None,
             },
         );
         Some(CommonMandateReference {
@@ -1584,6 +1582,7 @@ pub fn update_connector_mandate_details(
                     connector_mandate_status: Some(ConnectorMandateStatus::Active),
                     connector_mandate_request_reference_id: connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
 
                 payment_mandate_reference
@@ -1597,6 +1596,7 @@ pub fn update_connector_mandate_details(
                         mandate_metadata: mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
                         connector_mandate_request_reference_id,
+                        connector_customer_id: None,
                     });
 
                 let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
@@ -1642,6 +1642,7 @@ pub fn update_connector_mandate_details_status(
                     connector_mandate_request_reference_id: pm
                         .connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
                 *pm = update_rec
             });

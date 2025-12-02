@@ -49,6 +49,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -167,7 +168,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -216,7 +216,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
@@ -294,12 +293,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         platform: &domain::Platform,
-        profile: &domain::Profile,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        split_amount_data: (
-            api_models::payments::PaymentMethodData,
-            common_utils::types::MinorUnit,
-        ),
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        pm_split_amount_data: domain::PaymentMethodDetailsWithSplitAmount,
         attempts_group_id: &id_type::GlobalAttemptGroupId,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
@@ -309,7 +305,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -353,14 +348,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 storage_scheme,
                 request,
                 encrypted_data,
-                split_amount_data.1,
+                pm_split_amount_data.split_amount,
                 attempts_group_id,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_type,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_subtype,
             )
             .await?;
 
         let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
@@ -371,7 +371,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_method_data =
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(
-                split_amount_data.0,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_data,
             );
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -430,12 +432,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &state.into(),
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
 
                 Ok((Box::new(self), Some(customer)))
@@ -738,7 +735,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         F: 'b + Send,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -816,7 +812,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
@@ -830,7 +825,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
@@ -848,7 +842,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
             let _updated_customer = db
                 .update_customer_by_global_id(
-                    key_manager_state,
                     &customer_id,
                     customer,
                     updated_customer,

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -307,11 +307,10 @@ async fn get_tracker_for_sync<
 
     payment_attempt.encoded_data.clone_from(&request.param);
     let db = &*state.store;
-    let key_manager_state = &state.into();
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
@@ -421,11 +420,7 @@ async fn get_tracker_for_sync<
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            platform.get_processor().get_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -435,7 +430,6 @@ async fn get_tracker_for_sync<
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             match db
                 .find_payment_method(
-                    &(state.into()),
                     platform.get_processor().get_key_store(),
                     payment_method_id,
                     storage_scheme,
@@ -575,27 +569,24 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
     fn validate_request<'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: request.resource_id.clone(),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -609,7 +600,6 @@ pub async fn get_payment_intent_payment_attempt(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
-    let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
     let get_pi_pa = || async {
         let (pi, pa);
@@ -617,7 +607,6 @@ pub async fn get_payment_intent_payment_attempt(
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
-                        &key_manager_state,
                         id,
                         merchant_id,
                         key_store,
@@ -630,6 +619,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         pi.active_attempt.get_id().as_str(),
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
             }
@@ -639,11 +629,11 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
-                        &key_manager_state,
                         &pa.payment_id,
                         merchant_id,
                         key_store,
@@ -653,11 +643,15 @@ pub async fn get_payment_intent_payment_attempt(
             }
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
-                    .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                    .find_payment_attempt_by_attempt_id_merchant_id(
+                        id,
+                        merchant_id,
+                        storage_scheme,
+                        key_store,
+                    )
                     .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
-                        &key_manager_state,
                         &pa.payment_id,
                         merchant_id,
                         key_store,
@@ -671,12 +665,12 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         merchant_id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
 
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
-                        &key_manager_state,
                         &pa.payment_id,
                         merchant_id,
                         key_store,

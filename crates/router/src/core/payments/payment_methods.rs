@@ -32,11 +32,9 @@ pub async fn list_payment_methods(
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponseForPayments> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
@@ -48,7 +46,6 @@ pub async fn list_payment_methods(
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile.get_id(),
             platform.get_processor().get_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
@@ -786,6 +783,7 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::RequiresCapture
         | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | common_enums::IntentStatus::PartiallyCaptured
+        | common_enums::IntentStatus::PartiallyCapturedAndProcessing
         | common_enums::IntentStatus::RequiresConfirmation
         | common_enums::IntentStatus::PartiallyCapturedAndCapturable
         | common_enums::IntentStatus::Expired => {

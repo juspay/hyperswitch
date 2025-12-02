@@ -72,7 +72,6 @@ pub async fn retrieve_dispute(
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
-                    &(&state).into(),
                     &dispute.payment_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_key_store(),
@@ -86,6 +85,7 @@ pub async fn retrieve_dispute(
                     &dispute.attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -135,7 +135,6 @@ pub async fn retrieve_dispute(
             let business_profile = state
                 .store
                 .find_business_profile_by_profile_id(
-                    &(&state).into(),
                     platform.get_processor().get_key_store(),
                     &payment_attempt.profile_id,
                 )
@@ -293,7 +292,6 @@ pub async fn accept_dispute(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -307,6 +305,7 @@ pub async fn accept_dispute(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -417,7 +416,6 @@ pub async fn submit_evidence(
 
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -431,6 +429,7 @@ pub async fn submit_evidence(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -768,11 +767,9 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
     let merchant_id = platform.get_processor().get_account().get_id();
     let merchant_connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
             merchant_id,
             &merchant_connector_id,
             platform.get_processor().get_key_store(),

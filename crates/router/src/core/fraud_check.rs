@@ -212,7 +212,6 @@ where
             #[cfg(feature = "v1")]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
-                    &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     platform.get_processor().get_key_store(),
@@ -778,7 +777,6 @@ pub async fn frm_fulfillment_core(
     let db = &*state.clone().store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
             &req.payment_id.clone(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -843,6 +841,7 @@ pub async fn make_fulfillment_api_call(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

@@ -82,6 +82,7 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -129,7 +130,6 @@ impl<F: Send + Clone + Sync>
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
@@ -187,7 +187,6 @@ impl<F: Send + Clone + Sync>
 
         let payment_attempt = db
             .insert_payment_attempt(
-                key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_attempt_domain_model,
                 storage_scheme,
@@ -276,7 +275,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
-                &state.into(),
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
