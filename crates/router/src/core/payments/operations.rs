@@ -237,10 +237,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _merchant_context: &domain::Platform,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _split_amount_data: (
-            api_models::payments::PaymentMethodData,
-            common_utils::types::MinorUnit,
-        ),
+        _pm_split_amount_data: domain::PaymentMethodDetailsWithSplitAmount,
         _attempts_group_id: &common_utils::id_type::GlobalAttemptGroupId,
     ) -> RouterResult<GetTrackerResponse<D>> {
         Err(errors::ApiErrorResponse::NotImplemented {
@@ -498,7 +495,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>

@@ -4169,7 +4169,7 @@ impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest 
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for api_models::subscription::GetPlansQuery {
+impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref().map(|s| s.as_string())
     }

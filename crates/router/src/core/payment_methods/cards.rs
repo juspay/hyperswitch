@@ -2710,6 +2710,7 @@ pub async fn list_payment_methods(
                 &pi.merchant_id,
                 &pi.active_attempt.get_id(),
                 platform.get_provider().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -3099,6 +3100,7 @@ pub async fn list_payment_methods(
                 payment_attempt.clone(),
                 attempt_update,
                 platform.get_provider().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -4519,6 +4521,7 @@ async fn perform_surcharge_ops(
                     platform.get_provider().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
                     platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
