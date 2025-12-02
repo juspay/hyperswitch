@@ -37,7 +37,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -135,6 +135,12 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     BASE64_ENGINE
         .decode(data)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
+        .iter()
+        .find_map(|d| d.decode(&data).ok())
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -2023,11 +2029,19 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 }
 
 pub trait CustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>> {
+        self.name.clone()
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
@@ -2053,7 +2067,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
-    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2163,9 +2176,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
-    }
-    fn is_mit_payment(&self) -> bool {
-        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -2624,6 +2634,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2635,6 +2646,11 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -6702,9 +6718,7 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>")
-        || response.starts_with("<!DOCTYPE html>")
-        || response.starts_with("<!doctype html>")
+    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
 }
 
 #[cfg(feature = "payouts")]

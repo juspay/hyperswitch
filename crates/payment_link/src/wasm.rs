@@ -41,6 +41,9 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         enabled_saved_payment_method: false,
         allowed_domains: None,
         payment_link_ui_rules: None,
+        custom_message_for_payment_method_types: payment_link_details
+            .custom_message_for_payment_method_types
+            .clone(),
     };
 
     if let Ok(config_from_json) = serde_json::from_str::<PaymentLinkConfig>(config_json) {

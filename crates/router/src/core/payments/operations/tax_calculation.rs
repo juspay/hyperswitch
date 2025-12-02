@@ -94,6 +94,7 @@ impl<F: Send + Clone + Sync>
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -454,7 +455,7 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'b, F>,
         operations::ValidateResult,
@@ -465,9 +466,9 @@ impl<F: Send + Clone + Sync>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

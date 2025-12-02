@@ -4,7 +4,7 @@ use common_utils::pii;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::types::{self, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
@@ -376,20 +376,13 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                     .router_data
                     .get_connector_customer_id()?;
 
+                let required_name: Name = stored_payment.item.router_data.try_into()?;
+
                 let card_holder = AdyenAccountHolder {
                     address: Some(address),
-                    first_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_first_name(),
-                    last_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_last_name(),
-                    full_name: stored_payment
-                        .item
-                        .router_data
-                        .get_optional_billing_full_name(),
+                    first_name: Some(required_name.first_name.clone()),
+                    last_name: Some(required_name.last_name.clone()),
+                    full_name: Some(required_name.get_full_name()),
                     email: stored_payment.item.router_data.get_optional_billing_email(),
                     customer_id: Some(customer_id_reference),
                     entity_type: Some(EntityType::from(request.entity_type)),
@@ -414,6 +407,82 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                 connector: "Adyenplatform",
             }
             .into()),
+        }
+    }
+}
+
+struct Name {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+}
+
+impl Name {
+    fn get_full_name(&self) -> Secret<String> {
+        Secret::new(format!(
+            "{} {}",
+            self.first_name.peek(),
+            self.last_name.peek()
+        ))
+    }
+}
+
+impl<F> TryFrom<&PayoutsRouterData<F>> for Name {
+    type Error = Error;
+    fn try_from(router_data: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        // get first_name from the customer
+        // if not present in customer, get from billing_details
+        // truncate whitespaces for the name
+        let first_name = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .and_then(|details| details.name.clone())
+            .and_then(|full_name| {
+                let mut name_collection = full_name.peek().split_whitespace();
+                name_collection
+                    .next()
+                    .map(|first_name| Secret::new(first_name.to_string()))
+            })
+            .or(router_data
+                .get_optional_billing_first_name()
+                .map(|first_name| Secret::new(first_name.peek().trim().to_string())))
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "first_name",
+            })?;
+
+        // get last_name from the customer
+        // skip the first_name in the full name and concatenate the rest to get the last name for customer
+        // if not present in customer, get from billing_details
+        // truncate whitespaces for the name
+        let last_name = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .and_then(|details| details.name.clone())
+            .map(|full_name| {
+                let mut name_collection = full_name.peek().split_whitespace();
+                let _first_name = name_collection.next();
+
+                Secret::new(name_collection.collect::<Vec<_>>().join(" "))
+            })
+            .or(router_data
+                .get_optional_billing_last_name()
+                .map(|last_name| Secret::new(last_name.peek().trim().to_string())))
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "last_name",
+            })?;
+
+        // check if the names are empty string
+        if first_name.peek().is_empty() || last_name.peek().is_empty() {
+            Err(ConnectorError::MissingRequiredField {
+                field_name: "either first_name or last_name",
+            }
+            .into())
+        } else {
+            Ok(Self {
+                first_name,
+                last_name,
+            })
         }
     }
 }

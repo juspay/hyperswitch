@@ -315,6 +315,23 @@ impl PaymentIntent {
                     .or_else(|| self.statement_descriptor_suffix.clone()),
                 reference: descriptor.reference.clone(),
             })
+            .or_else(|| {
+                // Only build a fallback if at least one descriptor exists
+                if self.statement_descriptor_name.is_some()
+                    || self.statement_descriptor_suffix.is_some()
+                {
+                    Some(BillingDescriptor {
+                        name: None,
+                        city: None,
+                        phone: None,
+                        reference: None,
+                        statement_descriptor: self.statement_descriptor_name.clone(),
+                        statement_descriptor_suffix: self.statement_descriptor_suffix.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -396,6 +413,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -434,6 +452,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -470,6 +489,7 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+            amount_captured: None,
         })
     }
 
@@ -618,7 +638,7 @@ pub struct PaymentIntent {
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
-    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
 }
 
 #[cfg(feature = "v2")]
@@ -807,7 +827,9 @@ impl PaymentIntent {
             created_by: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
-            enable_partial_authorization: request.enable_partial_authorization,
+            enable_partial_authorization: request
+                .enable_partial_authorization
+                .unwrap_or(false.into()),
         })
     }
 
@@ -916,6 +938,7 @@ impl PaymentIntent {
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Expired
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod

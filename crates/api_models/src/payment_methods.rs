@@ -318,6 +318,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -3007,6 +3008,7 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
+                            connector_customer_id: record.connector_customer_id.clone(),
                         },
                     )
                 })
@@ -3381,21 +3383,26 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
     pub status: api_enums::TokenStatus,
 
     /// The expiry month of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_month: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_month: Option<masking::Secret<String>>,
 
     /// The expiry year of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_year: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_year: Option<masking::Secret<String>>,
 
-    /// The last four digits of the card
-    pub card_last_four: String,
+    /// The last four digits of the card if active
+    pub card_last_four: Option<String>,
 
-    /// The last four digits of the network token
-    pub token_last_four: String,
+    /// The last four digits of the network token if active
+    pub token_last_four: Option<String>,
 
-    /// The expiry date of the card in MM/YY format
-    pub card_expiry: String,
+    /// The expiry month of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_month: Option<masking::Secret<String>>,
+
+    /// The expiry year of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_year: Option<masking::Secret<String>>,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]

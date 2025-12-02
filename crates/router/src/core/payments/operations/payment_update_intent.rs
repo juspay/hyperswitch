@@ -55,6 +55,7 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -298,7 +299,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .or(payment_intent.allowed_payment_method_types),
             active_attempt_id,
             enable_partial_authorization: enable_partial_authorization
-                .or(payment_intent.enable_partial_authorization),
+                .unwrap_or(payment_intent.enable_partial_authorization),
             setup_future_usage: setup_future_usage.unwrap_or(payment_intent.setup_future_usage),
             ..payment_intent
         };
@@ -390,7 +391,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 active_attempt_id: Some(intent.active_attempt_id),
                 force_3ds_challenge: intent.force_3ds_challenge,
                 is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
-                enable_partial_authorization: intent.enable_partial_authorization,
+                enable_partial_authorization: Some(intent.enable_partial_authorization),
             }));
 
         let new_payment_intent = db

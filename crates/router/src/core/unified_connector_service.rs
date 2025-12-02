@@ -1169,6 +1169,18 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
     Ok((connector_customer_result, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_create_order(
+    response: payments_grpc::PaymentServiceCreateOrderResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     response: payments_grpc::PaymentServicePostAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {
@@ -1176,6 +1188,18 @@ pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
 
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_method_token_create(
+    response: payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
 }
@@ -1225,21 +1249,25 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 
     let connector_customer_id =
         extract_connector_customer_id_from_ucs_state(response.state.as_ref());
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
 
     Ok(UcsSetupMandateResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
+        connector_response,
     })
 }
 
 pub fn handle_unified_connector_service_response_for_session_token_create(
     response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
 }

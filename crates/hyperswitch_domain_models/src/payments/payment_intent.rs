@@ -1970,7 +1970,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization,
+            enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
@@ -2126,7 +2126,9 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
-                enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_partial_authorization: storage_model
+                    .enable_partial_authorization
+                    .unwrap_or(false.into()),
             })
         }
         .await
@@ -2232,7 +2234,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization: self.enable_partial_authorization,
+            enable_partial_authorization: Some(self.enable_partial_authorization),
             tokenization: None,
         })
     }
