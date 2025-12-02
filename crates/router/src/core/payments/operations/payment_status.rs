@@ -310,7 +310,7 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
@@ -622,6 +622,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         pi.active_attempt.get_id().as_str(),
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
             }
@@ -631,6 +632,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
                 pi = db
@@ -644,7 +646,12 @@ pub async fn get_payment_intent_payment_attempt(
             }
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
-                    .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                    .find_payment_attempt_by_attempt_id_merchant_id(
+                        id,
+                        merchant_id,
+                        storage_scheme,
+                        key_store,
+                    )
                     .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
@@ -661,6 +668,7 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         merchant_id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
 
