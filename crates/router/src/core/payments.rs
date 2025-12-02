@@ -3733,6 +3733,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 &payment_intent.active_attempt.get_id(),
                 &merchant_id,
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -8276,6 +8277,7 @@ pub async fn list_payments(
                     &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
             {
@@ -10710,6 +10712,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             merchant_id,
             &attempt_id.clone(),
             storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -11080,6 +11083,7 @@ pub async fn payments_manual_update(
             &merchant_id,
             &attempt_id.clone(),
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -11145,6 +11149,7 @@ pub async fn payments_manual_update(
             payment_attempt.clone(),
             attempt_update,
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
