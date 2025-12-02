@@ -25,7 +25,10 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, helpers, helpers::MerchantConnectorAccountType},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers,
+            helpers::MerchantConnectorAccountType,
+        },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
         utils::{
@@ -206,12 +209,21 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -820,12 +832,21 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 

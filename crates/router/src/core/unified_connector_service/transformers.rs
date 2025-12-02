@@ -280,6 +280,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            order_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -345,7 +346,6 @@ impl
                 .as_ref()
                 .and_then(|pmt| pmt.get_payment_method_token())
                 .map(ExposeInterface::expose),
-            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -425,7 +425,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
-
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
@@ -446,7 +446,7 @@ impl
                 .phone
                 .as_ref()
                 .map(|phone| phone.peek().to_string()),
-            address: None,
+            address: Some(address),
             metadata: HashMap::new(),
         })
     }
@@ -846,6 +846,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .transpose()?;
 
         Ok(Self {
+            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -1375,6 +1376,14 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
+                match payment_method_token {
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
+                }
+            }),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1429,6 +1438,7 @@ impl
             request_extended_authorization: None,
             customer_acceptance,
             browser_info,
+            order_id: None,
             payment_experience: None,
             merchant_account_metadata: router_data
                 .connector_meta_data
@@ -2827,7 +2837,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2864,10 +2874,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::PaymentsCreateOrderResponse { order_id },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id })
         };
 
         Ok(response)
@@ -2875,7 +2882,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2898,14 +2905,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
                 connector_metadata: None,
             })
         } else {
-            // For connector PM token creation, we typically return a successful response with the connector payment method
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::TokenizationResponse {
-                    token: response.payment_method_token,
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::TokenizationResponse {
+                token: response.payment_method_token,
+            })
         };
 
         Ok(response)
@@ -3071,7 +3073,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -3094,14 +3096,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionToke
                 connector_metadata: None,
             })
         } else {
-            // For session token creation, we typically return a successful response with the session token
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::SessionTokenResponse {
-                    session_token: response.session_token.clone(),
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: response.session_token.clone(),
+            })
         };
 
         Ok(response)
