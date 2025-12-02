@@ -347,7 +347,7 @@ pub async fn perform_execute_payment(
 
             match psync_process {
                 Some(_) => {
-                    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
+                    let pcr_status: types::RevenueRecoveryPaymentIntentStatus =
                         intent_status.foreign_into();
 
                     pcr_status
@@ -508,8 +508,8 @@ pub async fn perform_payments_sync(
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .get_required_value("Payment Revenue Recovery Metadata")?
         .convert_back();
-    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
-        payment_attempt.status.foreign_into();
+    let pcr_status: types::RevenueRecoveryPaymentIntentStatus =
+        payment_intent.status.foreign_into();
 
     let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData {
         psync_data: Some(psync_data),

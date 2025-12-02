@@ -60,7 +60,7 @@ type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub enum RevenueRecoveryPaymentsAttemptStatus {
+pub enum RevenueRecoveryPaymentIntentStatus {
     Succeeded,
     Failed,
     Processing,
@@ -69,7 +69,7 @@ pub enum RevenueRecoveryPaymentsAttemptStatus {
     //  Cancelled,
 }
 
-impl RevenueRecoveryPaymentsAttemptStatus {
+impl RevenueRecoveryPaymentIntentStatus {
     pub(crate) async fn update_pt_status_based_on_intent_status_for_execute_payment(
         &self,
         db: &dyn StorageInterface,
@@ -146,9 +146,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
             .as_ref()
             .ok_or(errors::RecoveryError::ValueNotFound)
             .attach_printable("Psync data not found in revenue recovery payment data")?;
-        let attempt_status: Self = psync_response.payment_attempt.status.foreign_into();
-        let event_status = common_enums::EventType::from(attempt_status.clone());
-        match attempt_status {
+        let intent_status: Self = psync_response.payment_intent.status.foreign_into();
+        let event_status = common_enums::EventType::from(intent_status.clone());
+        match intent_status {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
                 db.as_scheduler()
@@ -562,11 +562,11 @@ impl Action {
                         logger::error!("Failed to handle account updater action: {:?}", e);
                     })
                     .ok();
-                let intent_status: RevenueRecoveryPaymentsAttemptStatus =
+                let intent_status: RevenueRecoveryPaymentIntentStatus =
                     payment_data.payment_intent.status.foreign_into();
                 let event_status = common_enums::EventType::from(intent_status.clone());
                 match intent_status {
-                    RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
+                    RevenueRecoveryPaymentIntentStatus::Succeeded => {
                         let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
                             &payment_data.payment_attempt,
@@ -632,7 +632,7 @@ impl Action {
                             payment_data.payment_attempt.clone(),
                         ))
                     }
-                    RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                    RevenueRecoveryPaymentIntentStatus::PartialCharged => {
                         let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
                             &payment_data.payment_attempt,
@@ -673,7 +673,7 @@ impl Action {
 
                         Ok(Self::PartialCharged)
                     }
-                    RevenueRecoveryPaymentsAttemptStatus::Failed => {
+                    RevenueRecoveryPaymentIntentStatus::Failed => {
                         let recovery_payment_attempt =
                         hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
                             &payment_data.payment_attempt,
@@ -747,10 +747,10 @@ impl Action {
                         Ok(Self::TerminalFailure(payment_data.payment_attempt.clone()))
                     }
 
-                    RevenueRecoveryPaymentsAttemptStatus::Processing => {
+                    RevenueRecoveryPaymentIntentStatus::Processing => {
                         Ok(Self::SyncPayment(payment_data.payment_attempt.clone()))
                     }
-                    RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(action) => {
+                    RevenueRecoveryPaymentIntentStatus::InvalidStatus(action) => {
                         logger::info!(?action, "Invalid Payment Status For PCR Payment");
                         Ok(Self::ManualReviewAction)
                     }
@@ -935,8 +935,8 @@ impl Action {
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
 
         match response {
-            Ok(_payment_data) => match payment_attempt.status.foreign_into() {
-                RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
+            Ok(_payment_data) => match payment_intent.status.foreign_into() {
+                RevenueRecoveryPaymentIntentStatus::Succeeded => {
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
@@ -963,7 +963,7 @@ impl Action {
 
                     Ok(Self::SuccessfulPayment(payment_attempt))
                 }
-                RevenueRecoveryPaymentsAttemptStatus::PartialCharged => {
+                RevenueRecoveryPaymentIntentStatus::PartialCharged => {
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
@@ -981,7 +981,7 @@ impl Action {
 
                     Ok(Self::PartialCharged)
                 }
-                RevenueRecoveryPaymentsAttemptStatus::Failed => {
+                RevenueRecoveryPaymentIntentStatus::Failed => {
                     let connector_customer_id = payment_intent
                         .extract_connector_customer_id_from_payment_intent()
                         .change_context(errors::RecoveryError::ValueNotFound)
@@ -1005,11 +1005,11 @@ impl Action {
                     let intent_status = payment_intent.status;
                     // unlocking the token
                     storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-        state,
-        &connector_customer_id,
-                        &payment_intent.id
-    )
-    .await;
+                            state,
+                            &connector_customer_id,
+                            &payment_intent.id
+                    )
+                    .await;
 
                     // Reopen calculate workflow on payment failure
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
@@ -1026,10 +1026,10 @@ impl Action {
                     Ok(Self::TerminalFailure(payment_attempt.clone()))
                 }
 
-                RevenueRecoveryPaymentsAttemptStatus::Processing => {
+                RevenueRecoveryPaymentIntentStatus::Processing => {
                     Ok(Self::SyncPayment(payment_attempt))
                 }
-                RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(action) => {
+                RevenueRecoveryPaymentIntentStatus::InvalidStatus(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR PSync Payment");
                     Ok(Self::ManualReviewAction)
                 }

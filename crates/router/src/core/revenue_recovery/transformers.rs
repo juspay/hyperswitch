@@ -1,50 +1,12 @@
-use common_enums::{AttemptStatus, IntentStatus};
+use common_enums::IntentStatus;
 use masking::PeekInterface;
 
 use crate::{
-    core::revenue_recovery::types::RevenueRecoveryPaymentsAttemptStatus,
+    core::revenue_recovery::types::RevenueRecoveryPaymentIntentStatus,
     types::transformers::ForeignFrom,
 };
 
-impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
-    fn foreign_from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
-                Self::Succeeded
-            }
-            AttemptStatus::PartiallyAuthorized
-            | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable => Self::PartialCharged,
-
-            AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-
-            AttemptStatus::Voided
-            | AttemptStatus::VoidedPostCharge
-            | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::PaymentMethodAwaited
-            | AttemptStatus::AuthenticationPending
-            | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved
-            | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::InvalidStatus(s.to_string()),
-        }
-    }
-}
-
-impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentsAttemptStatus {
+impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentIntentStatus {
     fn foreign_from(status: IntentStatus) -> Self {
         match status {
             IntentStatus::Succeeded => Self::Succeeded,
@@ -69,14 +31,14 @@ impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentsAttemptStatus {
     }
 }
 
-impl From<RevenueRecoveryPaymentsAttemptStatus> for common_enums::EventType {
-    fn from(status: RevenueRecoveryPaymentsAttemptStatus) -> Self {
+impl From<RevenueRecoveryPaymentIntentStatus> for common_enums::EventType {
+    fn from(status: RevenueRecoveryPaymentIntentStatus) -> Self {
         match status {
-            RevenueRecoveryPaymentsAttemptStatus::Succeeded => Self::PaymentSucceeded,
-            RevenueRecoveryPaymentsAttemptStatus::PartialCharged => Self::PaymentCaptured,
-            RevenueRecoveryPaymentsAttemptStatus::Processing => Self::PaymentProcessing,
-            RevenueRecoveryPaymentsAttemptStatus::Failed => Self::PaymentFailed,
-            RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(_) => Self::ActionRequired,
+            RevenueRecoveryPaymentIntentStatus::Succeeded => Self::PaymentSucceeded,
+            RevenueRecoveryPaymentIntentStatus::PartialCharged => Self::PaymentCaptured,
+            RevenueRecoveryPaymentIntentStatus::Processing => Self::PaymentProcessing,
+            RevenueRecoveryPaymentIntentStatus::Failed => Self::PaymentFailed,
+            RevenueRecoveryPaymentIntentStatus::InvalidStatus(_) => Self::ActionRequired,
         }
     }
 }
