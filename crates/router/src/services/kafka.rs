@@ -13,6 +13,7 @@ use serde_json::Value;
 #[cfg(feature = "payouts")]
 pub mod payout;
 use diesel_models::fraud_check::FraudCheck;
+use masking;
 
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
@@ -53,8 +54,10 @@ where
     Self: Serialize + std::fmt::Debug,
 {
     fn value(&self) -> MQResult<Vec<u8>> {
-        // Add better error logging here
-        serde_json::to_vec(&self).change_context(KafkaError::GenericError)
+        // Use masked serialization to ensure PII fields are properly masked
+        masking::masked_serialize(self)
+            .and_then(|value| serde_json::to_vec(&value))
+            .change_context(KafkaError::GenericError)
     }
 
     fn key(&self) -> String;
