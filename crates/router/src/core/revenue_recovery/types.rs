@@ -577,11 +577,7 @@ impl Action {
                         )
                         .await
                         .ok();
-
-                        let a = is_expiry_update.map(|_| true).or(is_hard_decline);
-
-                        println!("is_expiry_update_or_hard_decline: {:?}", a);
-
+                    
                         let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
                             &connector_customer_id,
