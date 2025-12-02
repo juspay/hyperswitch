@@ -384,14 +384,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlSyncResponse =
-            match utils::deserialize_xml_to_struct::<worldpayxml::PaymentService>(&res.response) {
-                Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
-                Err(_) => res
-                    .response
-                    .parse_struct("worldpayxml WorldpayxmlSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
+        let response: worldpayxml::WorldpayxmlSyncResponse = match utils::deserialize_xml_to_struct::<
+            worldpayxml::PaymentService,
+        >(&res.response)
+        {
+            Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
+            Err(_) => res
+                .response
+                .parse_struct("worldpayxml WorldpayxmlSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -736,14 +738,16 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::WorldpayxmlSyncResponse =
-            match utils::deserialize_xml_to_struct::<worldpayxml::PaymentService>(&res.response) {
-                Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
-                Err(_) => res
-                    .response
-                    .parse_struct("worldpayxml WorldpayxmlSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
+        let response: worldpayxml::WorldpayxmlSyncResponse = match utils::deserialize_xml_to_struct::<
+            worldpayxml::PaymentService,
+        >(&res.response)
+        {
+            Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
+            Err(_) => res
+                .response
+                .parse_struct("worldpayxml WorldpayxmlSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
