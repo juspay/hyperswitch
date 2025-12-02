@@ -77,7 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .dispute_polling_interval
                 .unwrap_or_default()
                 .deref();
-            let application_source = state.conf.application_source.clone();
+            let application_source = state.conf.application_source;
 
             tokio::spawn(
                 async move {

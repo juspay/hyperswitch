@@ -46,7 +46,7 @@ use crate::{
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
-        api as router_api_types, common_enums, domain,
+        api as router_api_types, domain,
         storage::{
             self, revenue_recovery as pcr, PaymentAttempt, ProcessTracker as ProcessTrackerStorage,
         },
@@ -57,8 +57,10 @@ use crate::{
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
-
 use common_enums::enums::ProcessTrackerStatus;
+
+#[cfg(feature = "v1")]
+use crate::types::common_enums;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
