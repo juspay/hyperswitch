@@ -4,7 +4,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RevenueRecoveryGetIntentResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -211,14 +212,7 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for payments::PaymentMethodBalanceCheckResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ApiEventMetric for payments::ApplyPaymentMethodDataResponse {
+impl ApiEventMetric for payments::CheckAndApplyPaymentMethodDataResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
     }
@@ -258,6 +252,15 @@ impl ApiEventMetric for PaymentAttemptListResponse {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsIntentResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl ApiEventMetric for RevenueRecoveryGetIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
@@ -498,6 +501,13 @@ impl ApiEventMetric for RecoveryPaymentsCreate {
 impl ApiEventMetric for RecoveryPaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
 

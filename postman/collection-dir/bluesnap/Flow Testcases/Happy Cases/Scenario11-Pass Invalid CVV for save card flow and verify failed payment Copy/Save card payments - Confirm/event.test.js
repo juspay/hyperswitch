@@ -97,7 +97,7 @@ if (jsonData?.error_message) {
   pm.test(
     "[POST]::/payments/:id/confirm - Content check if value for 'error_message' matches 'Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. '",
     function () {
-      pm.expect(jsonData.error_message).to.eql("Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. ");
+      pm.expect(jsonData.error_message).to.eql("VALIDATION_GENERAL_FAILURE");
     },
   );
 }

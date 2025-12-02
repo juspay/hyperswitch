@@ -933,6 +933,20 @@ export const connectorDetails = {
                     field_type: "user_card_cvc",
                     value: null,
                   },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: null,
+                  },
                 },
               },
             ],
@@ -976,6 +990,20 @@ export const connectorDetails = {
                     field_type: "user_card_expiry_year",
                     value: null,
                   },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
                 },
               },
             ],
@@ -994,7 +1022,22 @@ export const connectorDetails = {
                     eligible_connectors: ["adyen"],
                   },
                 ],
-                required_fields: {},
+                required_fields: {
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                },
               },
             ],
           },
@@ -1036,6 +1079,20 @@ export const connectorDetails = {
                     display_name: "card_exp_year",
                     field_type: "user_card_expiry_year",
                     value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
                   },
                 },
               },

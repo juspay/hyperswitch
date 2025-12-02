@@ -834,7 +834,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(response.result.transaction.id.clone()),
@@ -904,7 +904,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(noon_transaction.id.clone()),

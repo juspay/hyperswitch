@@ -24,8 +24,8 @@ mod business_profile {
     };
 }
 
-pub mod merchant_context {
-    pub use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+mod platform {
+    pub use hyperswitch_domain_models::platform::{Platform, Processor, Provider};
 }
 mod customers {
     pub use hyperswitch_domain_models::customer::*;
@@ -37,6 +37,11 @@ pub mod callback_mapper {
 
 mod network_tokenization {
     pub use hyperswitch_domain_models::network_tokenization::*;
+}
+
+#[cfg(feature = "v2")]
+mod split_payments {
+    pub use hyperswitch_domain_models::payments::split_payments::*;
 }
 
 pub use customers::*;
@@ -89,13 +94,15 @@ pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
-pub use merchant_context::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
+pub use platform::*;
 pub use routing::*;
+#[cfg(feature = "v2")]
+pub use split_payments::*;
 #[cfg(feature = "v2")]
 pub use tokenization::*;
 #[cfg(feature = "olap")]
