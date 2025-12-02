@@ -89,7 +89,6 @@ pub struct RouterData<Flow, Request, Response> {
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
-    pub is_migrated_card: Option<bool>,
 
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
@@ -437,6 +436,15 @@ pub enum PaymentMethodToken {
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
     GooglePayDecrypt(Box<common_payment_types::GPayPredecryptData>),
     PazeDecrypt(Box<PazeDecryptedData>),
+}
+
+impl PaymentMethodToken {
+    pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
+        match self {
+            Self::Token(secret_token) => Some(secret_token.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -852,6 +860,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -890,6 +899,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1009,7 +1019,8 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
@@ -1051,7 +1062,8 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1233,7 +1245,8 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1280,7 +1293,8 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1344,6 +1358,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1354,6 +1369,7 @@ impl
                         status: attempt_status,
                         amount_capturable,
                         updated_by: storage_scheme.to_string(),
+                        amount_captured,
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
@@ -1475,7 +1491,8 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1518,7 +1535,8 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1590,6 +1608,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1628,6 +1647,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1732,7 +1752,8 @@ impl
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -1762,7 +1783,8 @@ impl
             | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -1819,6 +1841,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1855,6 +1878,7 @@ impl
                                         }),
                                 ),
                             connector_response_reference_id: None,
+                            amount_captured,
                         },
                     ))
                 }
@@ -1955,7 +1979,8 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1994,7 +2019,8 @@ impl
             // For these statuses, update the amount captured when it reaches terminal state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,

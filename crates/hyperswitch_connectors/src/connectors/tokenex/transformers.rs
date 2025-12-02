@@ -4,9 +4,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
     router_request_types::VaultRequestData,
-    router_response_types::VaultResponseData,
+    router_response_types::{VaultIdType, VaultResponseData},
     types::VaultRouterData,
-    vault::PaymentMethodVaultingData,
+    vault::{PaymentMethodCustomVaultingData, PaymentMethodVaultingData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -37,8 +37,12 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::Card(req_card)) => Ok(Self {
-                data: req_card.card_number.clone(),
+            Some(PaymentMethodCustomVaultingData::CardData(req_card)) => Ok(Self {
+                data: req_card.card_number.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "card_number",
+                    },
+                )?,
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method apart from card".to_string(),
@@ -105,7 +109,7 @@ impl
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                        connector_vault_id: token.clone(),
+                        connector_vault_id: VaultIdType::SingleVaultId(token.clone()),
                         //fingerprint is not provided by tokenex, using token as fingerprint
                         fingerprint_id: token.clone(),
                     }),

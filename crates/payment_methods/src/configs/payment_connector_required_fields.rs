@@ -1288,7 +1288,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
         (Connector::Authipay, fields(vec![], vec![], card_basic())),
-        (Connector::Adyen, fields(vec![], vec![], card_basic())),
+        (Connector::Adyen, fields(vec![], vec![], card_with_name())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
             Connector::Authorizedotnet,
@@ -1673,6 +1673,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::BillingUserFirstName,
                 ],
             ),
+        ),
+        (
+            Connector::Worldpayxml,
+            fields(vec![], card_with_name(), vec![]),
         ),
         (
             Connector::Worldpayvantiv,
@@ -2354,6 +2358,7 @@ fn get_bank_redirect_required_fields(
                             RequiredField::BillingUserFirstName,
                             RequiredField::BillingUserLastName,
                             RequiredField::BillingPhone,
+                            RequiredField::BillingPhoneCountryCode,
                         ],
                         vec![],
                     ),
@@ -3293,6 +3298,28 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             .to_tuple(),
                             RequiredField::AchBankDebitAccountNumber.to_tuple(),
                             RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
+                    Connector::Payload,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingAddressLine1.to_tuple(),
+                            RequiredField::BillingAddressCity.to_tuple(),
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressState.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                            RequiredField::AchBankDebitAccountNumber.to_tuple(),
+                            RequiredField::AchBankDebitRoutingNumber.to_tuple(),
+                            RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
+                            RequiredField::AchBankDebitBankType(vec![
+                                enums::BankType::Checking,
+                                enums::BankType::Savings,
+                            ])
+                            .to_tuple(),
                         ]),
                     },
                 ),

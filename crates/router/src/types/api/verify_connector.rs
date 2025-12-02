@@ -70,6 +70,8 @@ impl VerifyConnectorData {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         }
     }
 
@@ -138,7 +140,6 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         }
     }
 }

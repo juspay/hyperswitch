@@ -951,7 +951,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        let connector_req =
+            nuvei::NuveiThreeDSInitPaymentRequest::try_from((req, req.get_session_token()?))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1389,7 +1390,7 @@ impl ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
                     let acs_response: nuvei::NuveiACSResponse =
-                        utils::base64_decode(redirect_response.cres.expose())?
+                        utils::safe_base64_decode(redirect_response.cres.expose())?
                             .as_slice()
                             .parse_struct("NuveiACSResponse")
                             .switch()?;
@@ -1567,7 +1568,7 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nuvei",
         description: "Nuvei is the Canadian fintech company accelerating the business of clients around the world.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Beta,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
@@ -1584,5 +1585,9 @@ impl ConnectorSpecifications for Nuvei {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&NUVEI_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        true
     }
 }

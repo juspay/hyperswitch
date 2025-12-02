@@ -58,6 +58,7 @@ pub enum PayoutConnectors {
     Stripe,
     Wise,
     Worldpay,
+    Worldpayxml,
 }
 
 #[cfg(feature = "v2")]
@@ -88,6 +89,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -109,6 +111,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -131,6 +134,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -249,9 +253,11 @@ pub struct UnresolvedResponseReason {
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     UserCardNumber,
+    UserGiftCardNumber,
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserGiftCardPin,
     UserCardNetwork,
     UserFullName,
     UserEmailAddress,
@@ -521,8 +527,12 @@ impl From<PermissionScope> for ReconPermissionScope {
 pub enum TokenStatus {
     /// Indicates that the token is active and can be used for payments
     Active,
+    /// Indicates that the token is inactive and can't be used for payments
+    Inactive,
     /// Indicates that the token is suspended from network's end for some reason and can't be used for payments until it is re-activated
     Suspended,
-    /// Indicates that the token is deactivated and further can't be used for payments
-    Deactivated,
+    /// Indicates that the token is expired and can't be used for payments
+    Expired,
+    /// Indicates that the token is deleted and further can't be used for payments
+    Deleted,
 }
