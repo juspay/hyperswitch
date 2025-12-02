@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as thunes;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
 
 #[derive(Clone)]
 pub struct Thunes {
@@ -235,12 +235,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Thunes PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -299,12 +313,26 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Thu
             .response
             .parse_struct("thunes PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -462,12 +490,26 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Thunes 
             res.response
                 .parse_struct("thunes RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -529,12 +571,26 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Thunes {
             .response
             .parse_struct("thunes RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 

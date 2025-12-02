@@ -116,6 +116,8 @@ impl From<ThunesPaymentStatus> for common_enums::AttemptStatus {
 pub struct ThunesPaymentsResponse {
     status: ThunesPaymentStatus,
     id: String,
+    amount: StringMinorUnit,
+    currency: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, ThunesPaymentsResponse, T, PaymentsResponseData>>
@@ -186,6 +188,8 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    amount: StringMinorUnit,
+    currency: String,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
