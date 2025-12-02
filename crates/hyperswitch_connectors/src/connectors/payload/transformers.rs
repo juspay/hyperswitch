@@ -99,11 +99,11 @@ fn build_payload_payment_request_data(
         .into()),
     };
 
-    let city = billing_address.get_city()?.to_owned();
-    let country = billing_address.get_country()?.to_owned();
+    let city = billing_address.get_optional_city().to_owned();
+    let country = billing_address.get_optional_country().to_owned();
     let postal_code = billing_address.get_zip()?.to_owned();
-    let state_province = billing_address.get_state()?.to_owned();
-    let street_address = billing_address.get_line1()?.to_owned();
+    let state_province = billing_address.get_optional_state().to_owned();
+    let street_address = billing_address.get_optional_line1().to_owned();
     // For manual capture, set status to "authorized"
     let status = if is_manual_capture(capture_method) {
         Some(responses::PayloadPaymentStatus::Authorized)
