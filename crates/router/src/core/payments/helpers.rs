@@ -11,10 +11,9 @@ use api_models::{
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
 use base64::Engine;
-use common_enums::enums::ExecutionMode;
 #[cfg(feature = "v1")]
 use common_enums::enums::{CallConnectorAction, ExecutionPath, GatewaySystem};
-use common_enums::ConnectorType;
+use common_enums::{enums::ExecutionMode, ConnectorType};
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
