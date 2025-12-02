@@ -1,4 +1,4 @@
-application_source = "cug"
+application_source = "main"
 
 [log.file]
 enabled = false
