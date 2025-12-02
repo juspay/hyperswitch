@@ -38,7 +38,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -48,7 +48,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,7 +68,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -83,7 +83,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -106,6 +106,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -126,7 +127,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -1088,6 +1089,21 @@ fn create_gpay_session_token(
                             billing_address_parameters: billing_address_parameters.clone(),
                             ..allowed_payment_methods.parameters
                         },
+                        tokenization_specification: payment_types::GpayTokenizationSpecification {
+                            parameters: payment_types::GpayTokenParameters {
+                                stripe_publishable_key: construct_stripe_publishable_key(
+                                    &allowed_payment_methods
+                                        .tokenization_specification
+                                        .parameters,
+                                    router_data,
+                                )
+                                .expose_option(),
+                                ..allowed_payment_methods
+                                    .tokenization_specification
+                                    .parameters
+                            },
+                            ..allowed_payment_methods.tokenization_specification
+                        },
                         ..allowed_payment_methods
                     },
                 )
@@ -1178,6 +1194,31 @@ fn get_allowed_payment_methods_from_cards(
             },
         },
     })
+}
+
+fn construct_stripe_publishable_key(
+    gpay_token_specific_parameters: &payment_types::GpayTokenParameters,
+    router_data: &types::PaymentsSessionRouterData,
+) -> Option<masking::Secret<String>> {
+    let suffix =
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) =
+            &router_data.request.split_payments
+        {
+            if stripe.charge_type
+                == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+            {
+                format!("/{}", stripe.transfer_account_id)
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+    gpay_token_specific_parameters
+        .stripe_publishable_key
+        .clone()
+        .map(|key| masking::Secret::new(format!("{}{}", key, suffix)))
 }
 
 fn is_session_response_delayed(

@@ -3,7 +3,7 @@ import { customerAcceptance } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4530910000012345",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -11,7 +11,7 @@ const successfulNo3DSCardDetails = {
 const successfulNoThreeDsCardDetailsRequest = {
   card_number: "4530910000012345",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "John",
   card_cvc: "111",
 };
@@ -19,7 +19,7 @@ const successfulNoThreeDsCardDetailsRequest = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "Joseph",
   card_cvc: "111",
 };
@@ -203,6 +203,15 @@ export const connectorDetails = {
         },
       },
     },
+    VoidAfterConfirm: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing", // this is an async process
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
@@ -219,7 +228,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -230,7 +239,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -241,7 +250,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -252,7 +261,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -265,14 +274,16 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      currency: "USD",
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Tesouro is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -286,7 +297,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -300,13 +310,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Tesouro is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -397,9 +403,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -416,9 +419,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -435,9 +435,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -454,9 +451,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -473,9 +467,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -493,21 +484,15 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "requires_capture",
         },
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -524,12 +509,20 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentIntentOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    SaveCardConfirmAutoCaptureOffSession: {
       Request: {
-        currency: "EUR",
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "USD",
         amount: 6000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,

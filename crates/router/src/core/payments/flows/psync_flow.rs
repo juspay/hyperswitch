@@ -6,9 +6,12 @@ use common_utils::{id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::unified_connector_service::{
-    get_payments_response_from_ucs_webhook_content,
-    handle_unified_connector_service_response_for_payment_get,
+use hyperswitch_interfaces::{
+    api::gateway,
+    unified_connector_service::{
+        get_payments_response_from_ucs_webhook_content,
+        handle_unified_connector_service_response_for_payment_get,
+    },
 };
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface;
@@ -20,7 +23,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, extract_connector_response_from_ucs,
+            get_access_token_from_ucs_response, set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -37,7 +41,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -54,7 +58,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -75,7 +79,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -87,7 +91,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -110,6 +114,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -133,6 +138,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         call_connector_action,
                         connector_integration,
                         return_raw_connector_response,
+                        gateway_context,
                     )
                     .await?;
                 // Initiating Integrity checks
@@ -148,13 +154,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut new_router_data = services::execute_connector_processing_step(
+                let mut new_router_data = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &self,
                     call_connector_action,
                     connector_request,
                     return_raw_connector_response,
+                    gateway_context,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -176,7 +183,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
@@ -236,11 +243,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
         call_connector_action: common_enums::CallConnectorAction,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         match call_connector_action {
             common_enums::CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
@@ -267,6 +275,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     self.status = status;
                     response
                 });
+
+                let connector_response = extract_connector_response_from_ucs(
+                    payment_get_response.connector_response.as_ref(),
+                );
+
                 self.response = router_data_response;
                 self.amount_captured = payment_get_response.captured_amount;
                 self.minor_amount_captured = payment_get_response
@@ -277,6 +290,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .clone()
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 self.connector_http_status_code = Some(status_code);
+
+                connector_response.map(|customer_response| {
+                    self.connector_response = Some(customer_response);
+                });
             }
             common_enums::CallConnectorAction::UCSHandleResponse(_)
             | common_enums::CallConnectorAction::Trigger => {
@@ -303,7 +320,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     );
                     return Ok(());
                 }
-
                 let client = state
                     .grpc_client
                     .unified_connector_service_client
@@ -319,9 +335,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to construct Payment Get Request")?;
 
+                let merchant_connector_id = merchant_connector_account.get_mca_id();
+
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
                     merchant_connector_account,
-                    merchant_context,
+                    platform,
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct request metadata")?;
@@ -342,7 +360,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .external_vault_proxy_metadata(None)
                     .merchant_reference_id(merchant_reference_id)
                     .lineage_ids(lineage_ids);
-                let updated_router_data = Box::pin(ucs_logging_wrapper(
+                let connector_name = self.connector.clone();
+                let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
                     self.clone(),
                     state,
                     payment_get_request,
@@ -363,6 +382,38 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .change_context(ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to deserialize UCS response")?;
 
+                        // Extract and store access token if present
+                        if let Some(access_token) = get_access_token_from_ucs_response(
+                            state,
+                            platform,
+                            &connector_name,
+                            merchant_connector_id.as_ref(),
+                            creds_identifier.clone(),
+                            payment_get_response.state.as_ref(),
+                        )
+                        .await
+                        {
+                            if let Err(error) = set_access_token_for_ucs(
+                                state,
+                                platform,
+                                &connector_name,
+                                access_token,
+                                merchant_connector_id.as_ref(),
+                                creds_identifier,
+                            )
+                            .await
+                            {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to store UCS access token from psync response"
+                                );
+                            } else {
+                                logger::debug!(
+                                    "Successfully stored access token from UCS psync response"
+                                );
+                            }
+                        }
+
                         let router_data_response =
                             router_data_response.map(|(response, status)| {
                                 router_data.status = status;
@@ -379,7 +430,15 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             .map(|raw_connector_response| raw_connector_response.expose().into());
                         router_data.connector_http_status_code = Some(status_code);
 
-                        Ok((router_data, payment_get_response))
+                        let connector_response = extract_connector_response_from_ucs(
+                            payment_get_response.connector_response.as_ref(),
+                        );
+
+                        connector_response.map(|customer_response| {
+                            router_data.connector_response = Some(customer_response);
+                        });
+
+                        Ok((router_data, (), payment_get_response))
                     },
                 ))
                 .await?;
@@ -406,15 +465,16 @@ where
 {
     async fn execute_connector_processing_step_for_each_capture(
         &self,
-        _state: &SessionState,
-        _pending_connector_capture_id_list: Vec<String>,
-        _call_connector_action: payments::CallConnectorAction,
-        _connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        state: &SessionState,
+        pending_connector_capture_id_list: Vec<String>,
+        call_connector_action: payments::CallConnectorAction,
+        connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -433,6 +493,7 @@ impl RouterDataPSync
             types::PaymentsResponseData,
         >,
         return_raw_connector_response: Option<bool>,
+        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -456,13 +517,14 @@ impl RouterDataPSync
                 let mut cloned_router_data = self.clone();
                 cloned_router_data.request.connector_transaction_id =
                     types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
-                let resp = services::execute_connector_processing_step(
+                let resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration.clone_box(),
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,
                     return_raw_connector_response,
+                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;

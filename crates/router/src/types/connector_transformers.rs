@@ -114,6 +114,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
+            api_enums::Connector::Payjustnow => Self::Payjustnow,
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
@@ -132,6 +133,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
+            api_enums::Connector::Zift => Self::Zift,
             api_enums::Connector::Silverflow => Self::Silverflow,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {

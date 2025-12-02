@@ -5,22 +5,26 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums,
-    payments::{self as api_payments, PaymentsGetIntentRequest, PaymentsResponse},
+    payments::{
+        self as api_payments, PaymentsGetIntentRequest, PaymentsResponse,
+        RecoveryPaymentsListResponseItem,
+    },
     process_tracker::revenue_recovery,
     webhooks,
 };
+use common_enums::enums::{IntentStatus, RecoveryStatus};
 use common_utils::{
     self,
     errors::CustomResult,
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     id_type,
+    id_type::GlobalPaymentId,
 };
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
-    merchant_context,
     payments::{PaymentIntent, PaymentIntentData, PaymentStatusData},
-    revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
+    platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
 
@@ -35,7 +39,7 @@ use crate::{
         revenue_recovery::types::{
             reopen_calculate_workflow_on_payment_failure, RevenueRecoveryOutgoingWebhook,
         },
-        revenue_recovery_data_backfill::unlock_connector_customer_status,
+        revenue_recovery_data_backfill::unlock_connector_customer_status_handler,
     },
     db::StorageInterface,
     logger,
@@ -43,7 +47,9 @@ use crate::{
     services::ApplicationResponse,
     types::{
         api as router_api_types, domain,
-        storage::{self, revenue_recovery as pcr},
+        storage::{
+            self, revenue_recovery as pcr, PaymentAttempt, ProcessTracker as ProcessTrackerStorage,
+        },
         transformers::{ForeignFrom, ForeignInto},
     },
     workflows::revenue_recovery as revenue_recovery_workflow,
@@ -52,11 +58,13 @@ pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
 
+use common_enums::enums::ProcessTrackerStatus;
+
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     recovery_intent_from_payment_intent: &domain_revenue_recovery::RecoveryPaymentIntent,
     business_profile: &domain::Profile,
     intent_retry_count: u16,
@@ -112,7 +120,7 @@ pub async fn upsert_calculate_pcr_task(
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
                 billing_mca_id: billing_connector_account.get_id(),
                 global_payment_id: payment_id.clone(),
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 profile_id: business_profile.get_id().to_owned(),
                 payment_attempt_id,
                 revenue_recovery_retry,
@@ -168,7 +176,7 @@ pub async fn record_internal_attempt_and_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -200,7 +208,7 @@ pub async fn record_internal_attempt_and_execute_payment(
                 payment_intent,
                 execute_task_process,
                 profile,
-                merchant_context,
+                platform,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
                 &record_attempt_response.id,
@@ -219,7 +227,7 @@ pub async fn record_internal_attempt_and_execute_payment(
         Err(err) => {
             logger::error!("Error while recording attempt: {:?}", err);
             let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                status: enums::ProcessTrackerStatus::Pending,
+                status: ProcessTrackerStatus::Pending,
                 business_status: Some(String::from(business_status::EXECUTE_WORKFLOW_REQUEUE)),
             };
             db.as_scheduler()
@@ -234,7 +242,7 @@ pub async fn perform_execute_payment(
     state: &SessionState,
     execute_task_process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -294,7 +302,7 @@ pub async fn perform_execute_payment(
                     db.as_scheduler()
                         .finish_process_with_business_status(
                             execute_task_process.clone(),
-                            business_status::EXECUTE_WORKFLOW_COMPLETE,
+                            business_status::EXECUTE_WORKFLOW_FAILURE,
                         )
                         .await?;
 
@@ -302,14 +310,14 @@ pub async fn perform_execute_payment(
                         state,
                         execute_task_process,
                         profile,
-                        merchant_context,
+                        platform,
                         payment_intent,
                         revenue_recovery_payment_data,
                         &tracking_data.payment_attempt_id,
                     ))
                     .await?;
 
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id).await?;
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
                 }
 
                 Some(payment_processor_token) => {
@@ -319,7 +327,7 @@ pub async fn perform_execute_payment(
                         state,
                         execute_task_process,
                         profile,
-                        merchant_context,
+                        platform,
                         tracking_data,
                         revenue_recovery_payment_data,
                         payment_intent,
@@ -392,7 +400,7 @@ pub async fn perform_execute_payment(
                 enums::TriggeredBy::Internal => {
                     // requeue the current tasks to update the fields for rescheduling a payment
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: enums::ProcessTrackerStatus::Pending,
+                        status: ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
                             business_status::EXECUTE_WORKFLOW_REQUEUE,
                         )),
@@ -431,7 +439,7 @@ async fn insert_psync_pcr_task_to_pt(
     billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
-    payment_id: id_type::GlobalPaymentId,
+    payment_id: GlobalPaymentId,
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
@@ -480,7 +488,7 @@ pub async fn perform_payments_sync(
     state: &SessionState,
     process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -515,7 +523,7 @@ pub async fn perform_payments_sync(
             payment_intent,
             process.clone(),
             profile,
-            merchant_context,
+            platform,
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
@@ -530,7 +538,7 @@ pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
     profile: &domain::Profile,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     tracking_data: &pcr::RevenueRecoveryWorkflowTrackingData,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
@@ -554,11 +562,12 @@ pub async fn perform_calculate_workflow(
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-    let merchant_context_from_revenue_recovery_payment_data =
-        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
 
     let retry_algorithm_type = match profile
         .revenue_recovery_retry_algorithm_type
@@ -582,7 +591,7 @@ pub async fn perform_calculate_workflow(
         state,
         &tracking_data.global_payment_id,
         revenue_recovery_payment_data,
-        &merchant_context_from_revenue_recovery_payment_data,
+        &platform_from_revenue_recovery_payment_data,
         active_payment_attempt_id,
     )
     .await?;
@@ -756,7 +765,7 @@ pub async fn perform_calculate_workflow(
             common_enums::EventClass::Payments,
             event_kind,
             payment_intent,
-            &merchant_context,
+            &platform,
             profile,
             tracking_data.payment_attempt_id.get_string_repr().to_string(),
             response
@@ -811,7 +820,7 @@ async fn update_calculate_job_schedule_time(
         schedule_time: Some(new_schedule_time),
         tracking_data: Some(tracking_data),
         business_status: Some(String::from(business_status::PENDING)),
-        status: Some(common_enums::ProcessTrackerStatus::Pending),
+        status: Some(ProcessTrackerStatus::Pending),
         updated_at: Some(common_utils::date_time::now()),
     };
 
@@ -905,7 +914,7 @@ async fn insert_execute_pcr_task_to_pt(
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(tracking_data_json),
                 business_status: Some(String::from(business_status::PENDING)),
-                status: Some(enums::ProcessTrackerStatus::Pending),
+                status: Some(ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
 
@@ -1011,7 +1020,7 @@ async fn insert_execute_pcr_task_to_pt(
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
-    id: id_type::GlobalPaymentId,
+    id: GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
     let task = EXECUTE_WORKFLOW;
@@ -1065,7 +1074,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
 
 pub async fn resume_revenue_recovery_process_tracker(
     state: SessionState,
-    id: id_type::GlobalPaymentId,
+    id: GlobalPaymentId,
     request_retrigger: revenue_recovery::RevenueRecoveryRetriggerRequest,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
@@ -1098,11 +1107,12 @@ pub async fn resume_revenue_recovery_process_tracker(
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to extract the revenue recovery data".to_owned(),
             })?;
-    let merchant_context_from_revenue_recovery_payment_data =
-        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = domain::Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+    );
     let create_intent_response = payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,
@@ -1112,7 +1122,7 @@ pub async fn resume_revenue_recovery_process_tracker(
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_context_from_revenue_recovery_payment_data,
+        platform_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
         payments::operations::PaymentGetIntent,
         request,
@@ -1127,7 +1137,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         .attach_printable("Unexpected response from payments core")?;
 
     match response.status {
-        enums::IntentStatus::Failed => {
+        IntentStatus::Failed => {
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: process_tracker.name.clone(),
                 tracking_data: Some(process_tracker.tracking_data.clone()),
@@ -1155,29 +1165,29 @@ pub async fn resume_revenue_recovery_process_tracker(
             };
             Ok(ApplicationResponse::Json(response))
         }
-        enums::IntentStatus::Succeeded
-        | enums::IntentStatus::Cancelled
-        | enums::IntentStatus::CancelledPostCapture
-        | enums::IntentStatus::Processing
-        | enums::IntentStatus::RequiresCustomerAction
-        | enums::IntentStatus::RequiresMerchantAction
-        | enums::IntentStatus::RequiresPaymentMethod
-        | enums::IntentStatus::RequiresConfirmation
-        | enums::IntentStatus::RequiresCapture
-        | enums::IntentStatus::PartiallyCaptured
-        | enums::IntentStatus::PartiallyCapturedAndCapturable
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-        | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
+        IntentStatus::Succeeded
+        | IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Processing
+        | IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyCaptured
+        | IntentStatus::PartiallyCapturedAndCapturable
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
         })),
     }
 }
 pub async fn get_payment_response_using_payment_get_operation(
     state: &SessionState,
-    payment_intent_id: &id_type::GlobalPaymentId,
+    payment_intent_id: &GlobalPaymentId,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
 ) -> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
     match active_payment_attempt_id {
@@ -1195,7 +1205,7 @@ pub async fn get_payment_response_using_payment_get_operation(
                 None,
                 None,
                 None,
-                merchant_context,
+                platform,
                 &revenue_recovery_payment_data.profile,
                 None,
             )?;
@@ -1243,17 +1253,243 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
                 "Call made to payments update intent api , with the request body {:?}",
                 payment_update_req
             );
-            api::update_payment_intent_api(
+            Box::pin(api::update_payment_intent_api(
                 state,
                 payment_intent.id.clone(),
                 revenue_recovery_payment_data,
                 payment_update_req,
-            )
+            ))
             .await
             .change_context(errors::RecoveryError::PaymentCallFailed)?;
 
             Ok(Some(()))
         }
         None => Ok(None),
+    }
+}
+
+pub async fn get_workflow_entries(
+    state: &SessionState,
+    payment_id: &GlobalPaymentId,
+) -> RouterResult<(Option<ProcessTrackerStorage>, Option<ProcessTrackerStorage>)> {
+    let db = &state.store;
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+
+    // Get calculate workflow entry
+    let calculate_task = CALCULATE_WORKFLOW;
+    let calculate_process_tracker_id =
+        format!("{runner}_{calculate_task}_{}", payment_id.get_string_repr());
+
+    let calculate_workflow = db
+        .as_scheduler()
+        .find_process_by_id(&calculate_process_tracker_id)
+        .await
+        .ok()
+        .flatten();
+
+    // Get execute workflow entry
+    let execute_task = EXECUTE_WORKFLOW;
+    let execute_process_tracker_id =
+        payment_id.get_execute_revenue_recovery_id(execute_task, runner);
+
+    let execute_workflow = db
+        .as_scheduler()
+        .find_process_by_id(&execute_process_tracker_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to fetch execute workflow entry for payment_id: {}",
+            payment_id.get_string_repr()
+        ))?;
+
+    Ok((calculate_workflow, execute_workflow))
+}
+
+fn determine_recovery_status_from_workflows(
+    calculate_business_status: Option<String>,
+    calculate_process_tracker_status: Option<String>,
+    execute_business_status: Option<String>,
+    execute_process_tracker_status: Option<String>,
+    default_fallback: impl FnOnce() -> RecoveryStatus,
+) -> RecoveryStatus {
+    match (
+        calculate_business_status,
+        calculate_process_tracker_status,
+        execute_business_status,
+        execute_process_tracker_status,
+    ) {
+        // Queued status conditions
+        (Some(cal_biz_status), Some(cal_pt_status), _, _)
+            if (cal_biz_status == business_status::PENDING
+                && (cal_pt_status
+                    == ProcessTrackerStatus::Processing.to_string().to_uppercase()
+                    || cal_pt_status
+                        == ProcessTrackerStatus::Pending.to_string().to_uppercase())) =>
+        {
+            RecoveryStatus::Queued
+        }
+
+        // Scheduled status conditions
+        (Some(cal_biz_status), Some(cal_pt_status), Some(exe_biz_status), Some(exe_pt_status))
+            if (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED
+                && cal_pt_status == ProcessTrackerStatus::Finish.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status
+                        == ProcessTrackerStatus::Pending.to_string().to_uppercase())
+                || (exe_biz_status == business_status::PENDING
+                    && exe_pt_status
+                        == ProcessTrackerStatus::ProcessStarted
+                            .to_string()
+                            .to_uppercase()) =>
+        {
+            RecoveryStatus::Scheduled
+        }
+
+        (_, _, Some(exe_biz_status), Some(exe_pt_status))
+            if (exe_biz_status == business_status::PENDING
+                && exe_pt_status
+                    == ProcessTrackerStatus::Processing.to_string().to_uppercase()) =>
+        {
+            RecoveryStatus::Processing
+        }
+
+        // Terminated status conditions
+        (Some(cal_biz_status), _, _, _)
+            if cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH
+                || cal_biz_status == business_status::RETRIES_EXCEEDED
+                || cal_biz_status == business_status::FAILURE
+                || cal_biz_status == business_status::GLOBAL_FAILURE =>
+        {
+            RecoveryStatus::Terminated
+        }
+
+        // Default fallback
+        _ => default_fallback(),
+    }
+}
+
+pub fn map_recovery_status(
+    intent_status: IntentStatus,
+    calculate_workflow: Option<&ProcessTrackerStorage>,
+    execute_workflow: Option<&ProcessTrackerStorage>,
+    attempt_count: i16,
+    max_retry_threshold: i16,
+) -> RecoveryStatus {
+    let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
+        .map(|calculate| {
+            (
+                Some(calculate.business_status.clone()),
+                Some(calculate.status.to_string().to_uppercase()),
+            )
+        })
+        .unwrap_or((None, None));
+
+    let (execute_business_status, execute_process_tracker_status) = execute_workflow
+        .map(|execute| {
+            (
+                Some(execute.business_status.clone()),
+                Some(execute.status.to_string().to_uppercase()),
+            )
+        })
+        .unwrap_or((None, None));
+
+    match intent_status {
+        // Only Failed payments are eligible for recovery
+        IntentStatus::Failed => determine_recovery_status_from_workflows(
+            calculate_business_status,
+            calculate_process_tracker_status,
+            execute_business_status,
+            execute_process_tracker_status,
+            || {
+                if attempt_count > max_retry_threshold {
+                    RecoveryStatus::NoPicked
+                } else {
+                    RecoveryStatus::Monitoring
+                }
+            },
+        ),
+
+        IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
+            determine_recovery_status_from_workflows(
+                calculate_business_status,
+                calculate_process_tracker_status,
+                execute_business_status,
+                execute_process_tracker_status,
+                || RecoveryStatus::PartiallyRecovered,
+            )
+        }
+
+        // For all other intent statuses, return the mapped recovery status
+        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Processing => RecoveryStatus::Processing,
+        IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired => RecoveryStatus::Terminated,
+
+        // For statuses that don't need recovery
+        IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
+    }
+}
+
+pub fn map_to_recovery_payment_item(
+    payment_intent: PaymentIntent,
+    payment_attempt: Option<PaymentAttempt>,
+    calculate_workflow: Option<ProcessTrackerStorage>,
+    execute_workflow: Option<ProcessTrackerStorage>,
+    max_retry_threshold: i16,
+) -> RecoveryPaymentsListResponseItem {
+    // Map the recovery status
+    let recovery_status = map_recovery_status(
+        payment_intent.status,
+        calculate_workflow.as_ref(),
+        execute_workflow.as_ref(),
+        payment_intent.attempt_count,
+        max_retry_threshold,
+    );
+
+    RecoveryPaymentsListResponseItem {
+        id: payment_intent.id,
+        merchant_id: payment_intent.merchant_id,
+        profile_id: payment_intent.profile_id,
+        customer_id: payment_intent.customer_id,
+        status: recovery_status,
+        amount: api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            payment_attempt.as_ref().map(|p| &p.amount_details),
+        )),
+        created: payment_intent.created_at,
+        payment_method_type: payment_attempt
+            .as_ref()
+            .and_then(|p| p.payment_method_type.into()),
+        payment_method_subtype: payment_attempt
+            .as_ref()
+            .and_then(|p| p.payment_method_subtype.into()),
+        connector: payment_attempt.as_ref().and_then(|p| p.connector.clone()),
+        merchant_connector_id: payment_attempt
+            .as_ref()
+            .and_then(|p| p.merchant_connector_id.clone()),
+        customer: None,
+        merchant_reference_id: payment_intent.merchant_reference_id,
+        description: payment_intent
+            .description
+            .map(|val| val.get_string_repr().to_string()),
+        attempt_count: payment_intent.attempt_count,
+        error: payment_attempt
+            .as_ref()
+            .and_then(|p| p.error.as_ref())
+            .map(api_models::payments::ErrorDetails::foreign_from),
+        cancellation_reason: payment_attempt
+            .as_ref()
+            .and_then(|p| p.cancellation_reason.clone()),
+        modified_at: payment_attempt.as_ref().map(|p| p.modified_at),
+        last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
     }
 }

@@ -1,5 +1,5 @@
 //! Types interface
-
+use common_utils::types::Url;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::flow_common_types,
@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -38,7 +38,8 @@ use hyperswitch_domain_models::{
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -66,7 +67,8 @@ use hyperswitch_domain_models::{
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
@@ -84,6 +86,7 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
+use serde;
 
 use crate::{api::ConnectorIntegration, connector_integration_v2::ConnectorIntegrationV2};
 /// struct Response
@@ -379,6 +382,27 @@ pub type GetSubscriptionEstimateType = dyn ConnectorIntegration<
     GetSubscriptionEstimateResponse,
 >;
 
+/// Type alias for `ConnectorIntegration<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>`
+pub type SubscriptionPauseType = dyn ConnectorIntegration<
+    SubscriptionPause,
+    SubscriptionPauseRequest,
+    SubscriptionPauseResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>`
+pub type SubscriptionResumeType = dyn ConnectorIntegration<
+    SubscriptionResume,
+    SubscriptionResumeRequest,
+    SubscriptionResumeResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>`
+pub type SubscriptionCancelType = dyn ConnectorIntegration<
+    SubscriptionCancel,
+    SubscriptionCancelRequest,
+    SubscriptionCancelResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
 pub type ExternalVaultInsertType =
     dyn ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>;
@@ -393,7 +417,7 @@ pub type ExternalVaultCreateType =
     dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
 /// Proxy configuration structure
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(default)]
 pub struct Proxy {
     /// The URL of the HTTP proxy server.
@@ -428,6 +452,12 @@ impl Default for Proxy {
     }
 }
 
+impl Proxy {
+    /// Check if any proxy configuration is present
+    pub fn has_proxy_config(&self) -> bool {
+        self.http_url.is_some() || self.https_url.is_some()
+    }
+}
 /// Proxy override configuration for rollout-based proxy switching
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProxyOverride {
@@ -444,3 +474,17 @@ pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
     ConnectorCustomerData,
     PaymentsResponseData,
 >;
+
+/// Configuration for the comparison service
+///
+/// This struct contains configuration parameters for the external comparison service
+/// used to compare results between different execution paths (e.g., Direct vs UCS).
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ComparisonServiceConfig {
+    /// The URL of the comparison service endpoint
+    pub url: Url,
+    /// Whether the comparison service is enabled
+    pub enabled: bool,
+    /// Timeout in seconds for comparison service requests
+    pub timeout_secs: Option<u64>,
+}
