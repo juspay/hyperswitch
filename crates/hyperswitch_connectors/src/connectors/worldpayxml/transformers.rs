@@ -1617,7 +1617,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             }
         };
 
-        let order_code = item.router_data.connector_request_reference_id.to_owned();
+        let reference_id = item.router_data.connector_request_reference_id.to_owned();
+
+        let order_code = if reference_id.starts_with("payout_") {
+            reference_id
+        } else {
+            format!("payout_{}", reference_id)
+        };
 
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
