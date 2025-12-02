@@ -1925,7 +1925,10 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            let customer_id = pm.customer_id.clone().get_required_value("GlobalCustomerId")?;
+            let customer_id = pm
+                .customer_id
+                .clone()
+                .get_required_value("GlobalCustomerId")?;
             retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2073,7 +2076,10 @@ pub async fn delete_payment_method_data_from_vault(
         .clone()
         .get_required_value("locker_id")
         .attach_printable("Missing locker_id in PaymentMethod")?;
-    let customer_id = &pm.customer_id.clone().get_required_value("GlobalCustomerId")?;
+    let customer_id = &pm
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
 
     match is_external_vault_enabled {
         true => {

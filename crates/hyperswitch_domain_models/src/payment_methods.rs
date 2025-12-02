@@ -9,7 +9,10 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable, ext_traits::OptionExt};
+use common_utils::{
+    crypto::Encryptable, encryption::Encryption, ext_traits::OptionExt,
+    types::keymanager::ToEncryptable,
+};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
@@ -29,8 +32,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
-use crate::
-    address::Address;
+use crate::address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
 use crate::{

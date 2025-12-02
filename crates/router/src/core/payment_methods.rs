@@ -3301,7 +3301,10 @@ pub async fn update_payment_method_core(
                 // using current vault_id for now,
                 // will have to refactor this to generate new one on each vaulting later on
                 current_vault_id,
-                &payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?,
+                &payment_method
+                    .customer_id
+                    .clone()
+                    .get_required_value("GlobalCustomerId")?,
             )
             .await
             .attach_printable("Failed to add payment method in vault")?;
@@ -3387,7 +3390,10 @@ pub async fn delete_payment_method_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    let customer_id = &payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?;
+    let customer_id = &payment_method
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
 
     when(
         payment_method.status == enums::PaymentMethodStatus::Inactive,
@@ -4387,7 +4393,10 @@ pub async fn check_network_token_status(
                         card_expiry_year: network_token_details.payload.card_expiry_year,
                         token_last_four: network_token_details.payload.token_last_four,
                         payment_method_id,
-                        customer_id: payment_method.customer_id.clone().get_required_value("GlobalCustomerId")?,
+                        customer_id: payment_method
+                            .customer_id
+                            .clone()
+                            .get_required_value("GlobalCustomerId")?,
                     },
                 )
             }
