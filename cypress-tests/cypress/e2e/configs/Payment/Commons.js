@@ -653,21 +653,20 @@ export const connectorDetails = {
     }),
   },
   real_time_payment_pm: {
-    PaymentIntent: () =>
-      getCustomExchange({
-        Request: {
-          currency: "MYR",
-          customer_acceptance: null,
-          setup_future_usage: "on_session",
-          billing: standardBillingAddress,
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "MYR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
+      },
+    }),
     DuitNow: getCustomExchange({
       Request: {
         payment_method: "real_time_payment",
