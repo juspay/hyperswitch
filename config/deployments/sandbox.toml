@@ -219,7 +219,7 @@ adyen = "Star,Pulse,Accel,Nyce"
 enabled = true
 
 [zero_mandates.supported_payment_methods]
-bank_debit.ach = { connector_list = "gocardless,adyen" }
+bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
 bank_debit.bacs = { connector_list = "gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
@@ -243,7 +243,7 @@ bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 
 [mandates.supported_payment_methods]
-bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
+bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
@@ -584,6 +584,8 @@ credit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 [pm_filters.payload]
 debit = { currency = "USD,CAD" }
 credit = { currency = "USD,CAD" }
+ach = { currency = "USD,CAD" }
+
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
