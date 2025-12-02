@@ -28,29 +28,29 @@ pub struct Beneficiary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BoletoDocumentKind {
-    /// Mercantile Duplicate
+    // Used when selling goods/products (commercial invoice).
     DuplicataMercantil,
-    /// Service Duplicate
+    // Used when selling services (service invoice).
     DuplicataServico,
-    /// Promissory Note
+    // A standard promissory note — customer promises to pay later.
     NotaPromissoria,
-    /// Rural Promissory Note
+    // Promissory note related to rural/agricultural operations.
     NotaPromissoriaRural,
-    /// Receipt
+    // A receipt, usually when the boleto is tied to a receipt-type transaction.
     Recibo,
-    /// Insurance Policy
+    // Related to insurance policy payments.
     ApoliceSeguro,
-    /// Credit Card Bill
+    // Used when the boleto is tied to credit card operations (e.g., card invoice).
     BoletoCartaoCredito,
-    /// Proposal Bill
+    // For payments related to commercial proposals/quotes.
     BoletoProposta,
-    /// Deposit/Contribution Slip
+    // For deposit or funding (aporte) into an account (e.g., prepaid wallet top-up).
     BoletoDepositoAporte,
-    /// Check
+    // Payment related to a cheque transaction.
     Cheque,
-    /// Direct Promissory Note
+    // A direct promissory note (often between borrower and lender directly).
     NotaPromissoriaDireta,
-    /// Others
+    // Anything that doesn't fit the above categories
     Outros,
 }
 
@@ -123,8 +123,8 @@ pub struct SantanderBoletoPaymentsResponse {
     pub nsu_code: String,
     pub nsu_date: String,
     pub covenant_code: String,
-    pub bank_number: Secret<String>,
-    pub client_number: Option<common_utils::id_type::CustomerId>,
+    pub bank_number: String,
+    pub client_number: Option<String>,
     pub due_date: String,
     pub issue_date: String,
     pub participant_code: Option<String>,
@@ -208,6 +208,21 @@ pub struct SantanderPixVoidResponse {
     pub solicitacao_pagador: Option<String>,
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderVoidResponse {
+    Pix(Box<SantanderPixVoidResponse>),
+    Boleto(Box<SantanderBoletoVoidResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoVoidResponse {
+    pub covenant_code: String,
+    pub bank_number: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -403,7 +418,7 @@ pub struct SantanderBoletoErrorResponse {
     #[serde(rename = "_message")]
     pub error_message: String,
     #[serde(rename = "_details")]
-    pub issuer_error_message: String,
+    pub issuer_error_message: Option<String>,
     #[serde(rename = "_timestamp")]
     pub timestamp: String,
     #[serde(rename = "_traceId")]
@@ -561,11 +576,11 @@ pub enum PaymentKind {
 #[serde(rename_all = "UPPERCASE")]
 /// Represents the type of boleto payment or registration action.
 pub enum PaymentType {
-    /// Payment or record corresponds to a registration entry.
+    /// Only the exact nominal value can be paid
     Registro,
-    /// Payment with a divergent (mismatched) amount or details.
+    /// Payer can pay any amount within a range, min to max value
     Divergente,
-    /// Partial payment made for the billed amount.
+    /// Payer can make up to 99 partial payments
     Parcial,
 }
 
@@ -632,4 +647,11 @@ pub struct QrDataUrlSantander {
     pub qr_code_url: url::Url,
     pub display_to_timestamp: Option<i64>,
     pub variant: Option<api_models::payments::ExpiryType>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderUpdateMetadataResponse {
+    Pix(Box<SantanderPixQRCodePaymentsResponse>),
+    Boleto(Box<SantanderUpdateBoletoResponse>),
 }

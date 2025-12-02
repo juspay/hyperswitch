@@ -10878,22 +10878,33 @@ pub struct FeatureMetadata {
 
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
-    pub fn merge(self, other: Self) -> Self {
-        Self {
-            redirect_response: self.redirect_response.or(other.redirect_response),
-            search_tags: self.search_tags.or(other.search_tags),
-            apple_pay_recurring_details: self
-                .apple_pay_recurring_details
-                .or(other.apple_pay_recurring_details),
-            pix_qr_expiry_time: self.pix_qr_expiry_time.or(other.pix_qr_expiry_time),
-            boleto_additional_details: self
-                .boleto_additional_details
-                .or(other.boleto_additional_details),
+    pub fn merge(self, other: Option<Self>) -> Self {
+        if let Some(other) = other {
+            Self {
+                redirect_response: self.redirect_response.or(other.redirect_response),
+                search_tags: self.search_tags.or(other.search_tags),
+                apple_pay_recurring_details: self
+                    .apple_pay_recurring_details
+                    .or(other.apple_pay_recurring_details),
+                pix_qr_expiry_time: self.pix_qr_expiry_time.or(other.pix_qr_expiry_time),
+
+                boleto_additional_details: match (
+                    self.boleto_additional_details,
+                    other.boleto_additional_details,
+                ) {
+                    (Some(s), Some(o)) => Some(s.merge(o)),
+                    (Some(s), None) => Some(s),
+                    (None, Some(o)) => Some(o),
+                    (None, None) => None,
+                },
+            }
+        } else {
+            self
         }
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BoletoAdditionalDetails {
     /// The percentage of fine applied for late payment
     pub fine_percentage: Option<String>,
@@ -10907,6 +10918,21 @@ pub struct BoletoAdditionalDetails {
     pub messages: Option<Vec<String>>,
     /// Due Date for the Boleto
     pub due_date: Option<String>,
+}
+
+impl BoletoAdditionalDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            fine_percentage: self.fine_percentage.or(other.fine_percentage),
+            fine_quantity_days: self.fine_quantity_days.or(other.fine_quantity_days),
+            interest_percentage: self.interest_percentage.or(other.interest_percentage),
+            write_off_quantity_days: self
+                .write_off_quantity_days
+                .or(other.write_off_quantity_days),
+            messages: self.messages.or(other.messages),
+            due_date: self.due_date.or(other.due_date),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

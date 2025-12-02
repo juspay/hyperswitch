@@ -60,8 +60,8 @@ use crate::{
         responses::{
             QrDataUrlSantander, SanatanderAccessTokenResponse, SantanderErrorResponse,
             SantanderGenericErrorResponse, SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderPixVoidResponse, SantanderRefundResponse,
-            SantanderWebhookBody,
+            SantanderPaymentsSyncResponse, SantanderRefundResponse,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderWebhookBody,
         },
     },
     constants::headers,
@@ -86,8 +86,8 @@ pub mod santander_constants {
     pub const SANTANDER_VERSION: &str = "v2";
     pub const PIX_MIN_LEN_PAYMENT_ID: usize = 26;
     pub const PIX_MAX_LEN_PAYMENT_ID: usize = 35;
-    pub const BOLETO_MIN_LEN_PAYMENT_ID: usize = 15;
-    pub const BOLETO_MAX_LEN_PAYMENT_ID: usize = 17;
+    pub const BOLETO_MIN_LEN_PAYMENT_ID: usize = 13;
+    pub const BOLETO_MAX_LEN_PAYMENT_ID: usize = 13;
 }
 
 impl api::Payment for Santander {}
@@ -172,12 +172,16 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                 .into()),
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{:?}/bank_slips",
-                    connectors.santander.secondary_base_url.clone(),
-                    santander_constants::SANTANDER_VERSION,
-                    boleto_mca_metadata.workspace_id
-                )),
+                Some(enums::PaymentMethodType::Boleto) => {
+                    let base_url = connectors
+                        .santander
+                        .secondary_base_url
+                        .clone()
+                        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                    let version = santander_constants::SANTANDER_VERSION;
+                    let workspace_id = boleto_mca_metadata.workspace_id.clone();
+                    Ok(format!("{base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips"))
+                }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -235,13 +239,16 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
     fn handle_response(
         &self,
         data: &PaymentsUpdateMetadataRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsUpdateMetadataRouterData, errors::ConnectorError> {
-        let response: SantanderPaymentsResponse = res
+        let response: SantanderUpdateMetadataResponse = res
             .response
             .parse_struct("Santander UpdateMetadataResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -1064,31 +1071,33 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let qr_data_santander: Option<QrDataUrlSantander> = req
-            .request
-            .connector_meta
-            .clone()
-            .map(|b| b.parse_value("QrDataUrlSantander"))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let santander_variant = qr_data_santander
-            .and_then(|data| data.variant)
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => match santander_variant {
-                    api_models::payments::ExpiryType::Immediate => Ok(format!(
-                        "{}api/v1/cob/{}",
-                        self.base_url(connectors),
-                        req.request.connector_transaction_id
-                    )),
-                    api_models::payments::ExpiryType::Scheduled => Ok(format!(
-                        "{}api/v1/cobv/{}",
-                        self.base_url(connectors),
-                        req.request.connector_transaction_id
-                    )),
-                },
+                Some(enums::PaymentMethodType::Pix) => {
+                    let qr_data_santander: Option<QrDataUrlSantander> = req
+                        .request
+                        .connector_meta
+                        .clone()
+                        .map(|b| b.parse_value("QrDataUrlSantander"))
+                        .transpose()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                    let santander_variant = qr_data_santander
+                        .and_then(|data| data.variant)
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    match santander_variant {
+                        api_models::payments::ExpiryType::Immediate => Ok(format!(
+                            "{}api/v1/cob/{}",
+                            self.base_url(connectors),
+                            req.request.connector_transaction_id
+                        )),
+                        api_models::payments::ExpiryType::Scheduled => Ok(format!(
+                            "{}api/v1/cobv/{}",
+                            self.base_url(connectors),
+                            req.request.connector_transaction_id
+                        )),
+                    }
+                }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -1096,12 +1105,20 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
                 .into()),
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                    "{:?}{}/workspaces/{:?}/bank_slips",
-                    connectors.santander.secondary_base_url.clone(),
-                    santander_constants::SANTANDER_VERSION,
-                    boleto_mca_metadata.workspace_id
-                )),
+                Some(enums::PaymentMethodType::Boleto) => {
+                    let base_url = connectors
+                        .santander
+                        .secondary_base_url
+                        .clone()
+                        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+
+                    let version = santander_constants::SANTANDER_VERSION;
+
+                    Ok(format!(
+                        "{base_url}collection_bill_management/{version}/workspaces/{}/bank_slips",
+                        boleto_mca_metadata.workspace_id,
+                    ))
+                }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -1152,10 +1169,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: SantanderPixVoidResponse = res
-            .response
-            .parse_struct("Santander PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: SantanderVoidResponse =
+            res.response
+                .parse_struct("Santander VoidResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {

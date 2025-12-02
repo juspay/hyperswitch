@@ -8,7 +8,7 @@ use crate::connectors::santander::responses;
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoUpdateRequest {
     #[serde(skip_deserializing)]
-    pub covenant_code: Secret<String>,
+    pub covenant_code: String,
     #[serde(skip_deserializing)]
     pub bank_number: Secret<String>,
     pub due_date: Option<String>,
@@ -43,13 +43,13 @@ pub struct DiscountObject {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DiscountType {
-    // Free
+    // No discount
     Isento,
-    // Fixed Date Value
+    // If the payer pays before a certain date, they get a fixed discount amount
     ValorDataFixa,
-    // Value Day Conductor
+    // This gives a discount per day of early payment, counting every day(weekends included). Example : $1.50 discount for each day before due date.
     ValorDiaCorrido,
-    // Value Worth Day
+    // Same as above, but only counts business days (Mon–Fri, excluding holidays). Example : $2 off per business day of early payment.
     ValorDiaUtil,
 }
 
@@ -66,7 +66,8 @@ pub struct BoletoMetadataObject {
     pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
     pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
     pub workspace_id: String,
-    pub covenant_code: Secret<String>, // max_size : 9
+    // It’s a number that identifies the merchant’s boleto contract with Santander
+    pub covenant_code: String, // max_size : 9
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -107,13 +108,13 @@ pub struct SantanderAuthRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProtestType {
-    // Without Protest
+    // No protest
     SemProtesto,
-    // Days Conducted
+    // Protest after X calendar days
     DiasCorridos,
-    // Working Days
+    // Protest after X business days
     DiasUteis,
-    // Registration Agreement
+    // No need to provide days, uses bank’s pre-registered setting
     CadastroConvenio,
 }
 
@@ -175,6 +176,7 @@ pub struct SantanderPixCancelRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SantanderPaymentsCancelRequest {
     PixQR(SantanderPixCancelRequest),
     Boleto(SantanderBoletoCancelRequest),
@@ -183,8 +185,8 @@ pub enum SantanderPaymentsCancelRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoCancelRequest {
-    pub covenant_code: Secret<String>,
-    pub bank_number: Secret<String>,
+    pub covenant_code: String,
+    pub bank_number: String,
     pub operation: SantanderBoletoCancelOperation,
 }
 
@@ -239,22 +241,38 @@ pub struct SantanderPixQRPaymentRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentRequest {
-    pub environment: Environment,
-    pub nsu_code: String,
-    pub nsu_date: String,
-    pub covenant_code: Secret<String>,
-    pub bank_number: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_number: Option<common_utils::id_type::CustomerId>,
-    pub due_date: String,
-    pub issue_date: String,
-    pub nominal_value: StringMajorUnit,
+    pub environment: Option<Environment>,
+    // This is a unique identifier for the boleto registration request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsu_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsu_date: Option<String>,
+    // It is a number which shows a contract between merchant and bank => static for all txn's
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub covenant_code: Option<String>,
+    // It is a unique ID which the merchant makes to identify each txn and the bank uses this to identify unique txn's
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_number: Option<String>,
+    // It is a unique ID which the merchant uses internally to identify each order
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nominal_value: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub participant_code: Option<String>,
-    pub payer: responses::Payer,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer: Option<responses::Payer>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beneficiary: Option<responses::Beneficiary>,
-    pub document_kind: responses::BoletoDocumentKind,
+    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_kind: Option<responses::BoletoDocumentKind>,
+    // The discount field indicates if the boleto gives the payer a discount for paying early
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Discount>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -265,31 +283,53 @@ pub struct SantanderBoletoPaymentRequest {
     pub interest_percentage: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deduction_value: Option<FloatMajorUnit>,
+    // Protest is a formal step a bank or notary office takes to claim unpaid boletos after the due date
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protest_type: Option<ProtestType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protest_quantity_days: Option<i64>,
+    // This field tells the bank after how many days past the due date the boleto should be automatically “written off”
     #[serde(skip_serializing_if = "Option::is_none")]
     pub write_off_quantity_days: Option<String>,
-    pub payment_type: responses::PaymentType,
+    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_type: Option<responses::PaymentType>,
+    // This becomes a required field if payment_type is Parcial. This field indicates the number of payments allowed for the same payment slip, with a maximum of 99.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parcels_quantity: Option<i64>,
+    // The valueType field defines how the min/max limits are expressed for boletos that allow flexible payments. Only used if paymentType is DIVERGENTE or PARCIAL.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_type: Option<String>,
+    pub value_type: Option<ValueType>,
+    // This field defines the minimum amount or minimum percentage the payer can pay for a boleto that allows DIVERGENTE or PARCIAL payments.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_value_or_percentage: Option<f64>,
+    // This field defines the max amount or max percentage the payer can pay for a boleto that allows DIVERGENTE or PARCIAL payments.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_value_or_percentage: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub iof_percentage: Option<f64>,
+    // This feature allows the merchant (beneficiário) to split the funds received from a boleto into up to four Santander accounts that they own.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<responses::Sharing>,
+    // This field indicates the type of PIX key that the beneficiary (merchant) has registered in Santander.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<responses::Key>,
+    // The transaction id of the QR Code payment request
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tx_id: Option<String>,
+    // Messages to be printed on the payment slip or the payer's receipt. They should be sent in list format with up to 45 texts of 100 characters each.
+    // Example : ["Payable at any bank until the due date.", "After the due date, only at Santander branches."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub messages: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum ValueType {
+    // Percentage
+    Percentual,
+    // Value terms
+    Valor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
