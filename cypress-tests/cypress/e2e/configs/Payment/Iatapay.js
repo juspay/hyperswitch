@@ -56,7 +56,30 @@ export const connectorDetails = {
     },
   },
   real_time_payment_pm: {
+    PaymentIntent: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
+      Request: {
+        currency: "MYR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     DuitNow: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -72,14 +95,14 @@ export const connectorDetails = {
             country: "MY",
           },
         },
-        currency: "MYR",
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "BAD_REQUEST",
-          error_message: "Payment country has to be enabled on merchant",
+          status: "requires_customer_action",
+          net_amount: 6000,
+          amount_received: null,
+          amount: 6000,
         },
       },
     },

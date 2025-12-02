@@ -659,7 +659,7 @@ export const connectorDetails = {
           currency: "MYR",
           customer_acceptance: null,
           setup_future_usage: "on_session",
-          billing: standardBillingAddress
+          billing: standardBillingAddress,
         },
         Response: {
           status: 200,
@@ -677,7 +677,7 @@ export const connectorDetails = {
             duit_now: {},
           },
         },
-        billing: standardBillingAddress
+        billing: standardBillingAddress,
       },
     }),
   },

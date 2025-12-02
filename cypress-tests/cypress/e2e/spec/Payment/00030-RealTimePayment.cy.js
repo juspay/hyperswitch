@@ -27,7 +27,7 @@ describe("Real Time Payment", () => {
     it("Create Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["PaymentIntent"]("DuitNow");
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,

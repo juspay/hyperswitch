@@ -3370,7 +3370,7 @@ Cypress.Commands.add(
           ) {
             switch (response.body.payment_method_type) {
               case "duit_now":
-                if (response.body.status === "requires_customer_action")
+                if (response.body.connector === "fiuu")
                   expect(response.body)
                     .to.have.property("next_action")
                     .and.have.nested.property("image_data_url").and.not.be.null;
@@ -3379,6 +3379,10 @@ Cypress.Commands.add(
                     response.body[key]
                   );
                 }
+                if (response.body.connector === "iatapay")
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
                 break;
 
               default:
