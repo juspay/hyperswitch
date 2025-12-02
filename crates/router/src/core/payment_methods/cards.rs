@@ -85,11 +85,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::{to_set, MerchantPreroutingConfig},
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::MerchantPreRoutingConfig, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -2912,29 +2908,28 @@ pub async fn list_payment_methods(
             )
             .await
             .ok()
-            .and_then(|cfg| serde_json::from_str::<MerchantPreroutingConfig>(&cfg.config).ok())
+            .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
             .unwrap_or_default();
 
-        let disabled_pms = to_set(merchant_cfg.disabled_payment_methods);
-        let disabled_pmts = to_set(merchant_cfg.disabled_payment_method_types);
-        let enabled_pmts_back = to_set(merchant_cfg.enabled_payment_method_types);
+        let skip_pre_routing: HashMap<_, _> = merchant_cfg
+            .skip_rules
+            .into_iter()
+            .map(|rule| (rule.payment_method, rule.payment_method_type))
+            .collect();
 
-        let routing_enabled_pms = router_consts::ROUTING_ENABLED_PAYMENT_METHODS
-            .difference(&disabled_pms)
-            .copied()
-            .collect::<HashSet<_>>();
-
-        let routing_enabled_pm_types = router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES
-            .difference(&disabled_pmts)
-            .copied()
-            .chain(enabled_pmts_back)
-            .collect::<HashSet<_>>();
+        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
+        let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
-            if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
-                || routing_enabled_pms.contains(&intermediate.payment_method)
-            {
+            let skip = skip_pre_routing
+                .get(&intermediate.payment_method)
+                .map(|ty| ty == &intermediate.payment_method_type)
+                .unwrap_or(false);
+            let pm_allowed = routing_enabled_pms.contains(&intermediate.payment_method);
+            let pmt_allowed = routing_enabled_pm_types.contains(&intermediate.payment_method_type);
+
+            if (pm_allowed || pmt_allowed) && !skip {
                 let connector_data = helpers::get_connector_data_with_token(
                     &state,
                     intermediate.connector.to_string(),
@@ -2952,6 +2947,7 @@ pub async fn list_payment_methods(
                 });
             }
         }
+
         let sfr = SessionFlowRoutingInput {
             state: &state,
             country: billing_address.clone().and_then(|ad| ad.country),
