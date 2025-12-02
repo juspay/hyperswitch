@@ -1,10 +1,12 @@
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use diesel_models::enums;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct SchedulerSettings {
     pub stream: String,
+    pub cug_stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
     pub loop_interval: u64,
@@ -36,4 +38,5 @@ pub struct ProducerSettings {
 pub struct ConsumerSettings {
     pub disabled: bool,
     pub consumer_group: String,
+    pub application_source: enums::ApplicationSource,
 }

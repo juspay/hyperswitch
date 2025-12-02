@@ -46,7 +46,9 @@ use crate::{
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
-        api as router_api_types, domain,
+        api as router_api_types,
+        common_enums,
+        domain,
         storage::{
             self, revenue_recovery as pcr, PaymentAttempt, ProcessTracker as ProcessTrackerStorage,
         },
@@ -140,6 +142,7 @@ pub async fn upsert_calculate_pcr_task(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                common_enums::ApplicationSource::Main,
             )
             .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;
@@ -467,6 +470,7 @@ async fn insert_psync_pcr_task_to_pt(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        common_enums::ApplicationSource::Main,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
@@ -979,6 +983,7 @@ async fn insert_execute_pcr_task_to_pt(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                common_enums::ApplicationSource::Main,
             )
             .map_err(|e| {
                 logger::error!(

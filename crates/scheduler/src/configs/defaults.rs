@@ -2,6 +2,7 @@ impl Default for super::settings::SchedulerSettings {
     fn default() -> Self {
         Self {
             stream: "SCHEDULER_STREAM".into(),
+            cug_stream: "CUG_SCHEDULER_STREAM".into(),
             producer: super::settings::ProducerSettings::default(),
             consumer: super::settings::ConsumerSettings::default(),
             graceful_shutdown_interval: 60000,
@@ -28,6 +29,7 @@ impl Default for super::settings::ConsumerSettings {
         Self {
             disabled: false,
             consumer_group: "SCHEDULER_GROUP".into(),
+            application_source: diesel_models::enums::ApplicationSource::Main,
         }
     }
 }

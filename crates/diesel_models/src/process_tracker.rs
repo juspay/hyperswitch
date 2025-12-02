@@ -5,7 +5,9 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResult};
+use crate::{
+    enums as storage_enums, enums::ApplicationSource, errors, schema::process_tracker, StorageResult,
+};
 
 #[derive(
     Clone,
@@ -40,6 +42,7 @@ pub struct ProcessTracker {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     pub version: ApiVersion,
+    pub application_source: Option<ApplicationSource>,
 }
 
 impl ProcessTracker {
@@ -66,6 +69,7 @@ pub struct ProcessTrackerNew {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub version: ApiVersion,
+    pub application_source: Option<ApplicationSource>,
 }
 
 impl ProcessTrackerNew {
@@ -79,6 +83,7 @@ impl ProcessTrackerNew {
         retry_count: Option<i32>,
         schedule_time: PrimitiveDateTime,
         api_version: ApiVersion,
+        application_source: ApplicationSource,
     ) -> StorageResult<Self>
     where
         T: Serialize + std::fmt::Debug,
@@ -102,6 +107,7 @@ impl ProcessTrackerNew {
             created_at: current_time,
             updated_at: current_time,
             version: api_version,
+            application_source: Some(application_source),
         })
     }
 }

@@ -1229,6 +1229,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 Some(new_retry_count),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .change_context(errors::RecoveryError::ProcessTrackerFailure)
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;

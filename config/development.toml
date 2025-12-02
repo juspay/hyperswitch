@@ -1,3 +1,5 @@
+application_source = "cug"
+
 [log.file]
 enabled = false
 
@@ -59,6 +61,7 @@ id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or
 [server]
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32768
+port = 8081
 
 [secrets]
 admin_api_key = "test_admin"
@@ -380,13 +383,15 @@ zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
+cug_stream = "CUG_SCHEDULER_STREAM"
+application_source = "cug"
 
 [scheduler.consumer]
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
 [scheduler.server]
-port = 3000
+port = 3002
 host = "127.0.0.1"
 workers = 1
 

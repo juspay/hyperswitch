@@ -77,6 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .dispute_polling_interval
                 .unwrap_or_default()
                 .deref();
+            let application_source = state.conf.application_source.clone();
 
             tokio::spawn(
                 async move {
@@ -84,6 +85,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                         &*m_db,
                         &m_tracking_data,
                         dispute_polling_interval,
+                        application_source,
                     )
                     .await
                     .map_err(|error| {
@@ -198,6 +200,7 @@ pub async fn schedule_next_dispute_list_task(
     db: &dyn StorageInterface,
     tracking_data: &api::DisputeListPTData,
     dispute_polling_interval: i32,
+    application_source: common_enums::ApplicationSource,
 ) -> Result<(), errors::ProcessTrackerError> {
     let new_created_till = tracking_data
         .created_till
@@ -216,6 +219,7 @@ pub async fn schedule_next_dispute_list_task(
         tracking_data.merchant_connector_id.clone(),
         tracking_data.profile_id.clone(),
         fetch_request,
+        application_source,
     )
     .await?;
     Ok(())

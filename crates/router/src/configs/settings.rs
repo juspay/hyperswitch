@@ -46,6 +46,7 @@ use scheduler::SchedulerSettings;
 use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
+use common_enums;
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 #[cfg(feature = "v2")]
@@ -73,6 +74,7 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,

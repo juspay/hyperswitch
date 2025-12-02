@@ -1173,7 +1173,7 @@ impl Vault {
             merchant_key_store.key.get_inner(),
         )
         .await?;
-        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
+        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm, state.conf.application_source).await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
@@ -2201,6 +2201,7 @@ pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<()> {
     let runner = storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
     let process_tracker_id = format!("{runner}_{lookup_key}");
@@ -2224,6 +2225,7 @@ pub async fn add_delete_tokenized_data_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
