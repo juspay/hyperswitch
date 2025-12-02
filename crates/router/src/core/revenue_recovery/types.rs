@@ -577,7 +577,7 @@ impl Action {
                         )
                         .await
                         .ok();
-                    
+
                         let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
                             &connector_customer_id,
