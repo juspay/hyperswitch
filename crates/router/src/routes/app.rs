@@ -1307,6 +1307,7 @@ impl Subscription {
             .service(
                 web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
             )
+            .service(web::resource("/list").route(web::get().to(subscription::list_subscriptions)))
             .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {

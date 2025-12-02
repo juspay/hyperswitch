@@ -2458,6 +2458,26 @@ impl PaymentMethod {
             | Self::MobilePayment => false,
         }
     }
+
+    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
+        match self {
+            Self::BankRedirect => true,
+            Self::Card
+            | Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::GiftCard
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment => false,
+        }
+    }
 }
 
 /// Indicates the gateway system through which the payment is processed.
@@ -2838,6 +2858,7 @@ pub enum FrmTransactionType {
     Default,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -2846,6 +2867,7 @@ pub enum FrmTransactionType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MandateStatus {
     #[default]
     Active,
@@ -9471,6 +9493,12 @@ pub enum ConnectorMandateStatus {
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
+}
+
+impl ConnectorMandateStatus {
+    pub fn is_active(&self) -> bool {
+        self == &Self::Active
+    }
 }
 
 /// Connector Mandate Status

@@ -580,7 +580,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -1288,7 +1288,7 @@ where
     );
     let (operation, validate_result) = operation
         .to_validate_request()?
-        .validate_request(&req, &platform)?;
+        .validate_request(&req, platform.get_processor())?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -3365,7 +3365,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
                         api_models::payments::NextActionData::CollectOtp{ .. } => None,
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
-                        api_models::payments::NextActionData::SdkUpiIntentInformation{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
+                        api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -3732,6 +3733,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 &payment_intent.active_attempt.get_id(),
                 &merchant_id,
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -8275,6 +8277,7 @@ pub async fn list_payments(
                     &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
             {
@@ -10709,6 +10712,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             merchant_id,
             &attempt_id.clone(),
             storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -11079,6 +11083,7 @@ pub async fn payments_manual_update(
             &merchant_id,
             &attempt_id.clone(),
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -11144,6 +11149,7 @@ pub async fn payments_manual_update(
             payment_attempt.clone(),
             attempt_update,
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

@@ -750,6 +750,7 @@ pub struct UcsSetupMandateResponseData {
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
     pub connector_customer_id: Option<String>,
+    pub connector_response: Option<ConnectorResponseData>,
 }
 
 #[derive(Debug, Clone, Copy)]

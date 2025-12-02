@@ -293,12 +293,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         platform: &domain::Platform,
-        profile: &domain::Profile,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        split_amount_data: (
-            api_models::payments::PaymentMethodData,
-            common_utils::types::MinorUnit,
-        ),
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        pm_split_amount_data: domain::PaymentMethodDetailsWithSplitAmount,
         attempts_group_id: &id_type::GlobalAttemptGroupId,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
@@ -351,8 +348,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 storage_scheme,
                 request,
                 encrypted_data,
-                split_amount_data.1,
+                pm_split_amount_data.split_amount,
                 attempts_group_id,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_type,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_subtype,
             )
             .await?;
 
@@ -368,7 +371,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_method_data =
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(
-                split_amount_data.0,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_data,
             );
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
