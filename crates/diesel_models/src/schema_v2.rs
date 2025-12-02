@@ -1038,6 +1038,7 @@ diesel::table! {
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        encrypted_payment_method_data -> Nullable<Bytea>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1062,6 +1063,7 @@ diesel::table! {
         network_error_message -> Nullable<Text>,
         #[max_length = 64]
         attempts_group_id -> Nullable<Varchar>,
+        amount_captured -> Nullable<Int8>,
     }
 }
 
@@ -1139,6 +1141,7 @@ diesel::table! {
         billing_descriptor -> Nullable<Jsonb>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        partner_merchant_identifier_details -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
