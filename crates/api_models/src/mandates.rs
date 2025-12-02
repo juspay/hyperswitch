@@ -12,107 +12,144 @@ pub struct MandateId {
     pub mandate_id: String,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Debug, Deserialize, Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateRevokedResponse {
     /// The identifier for mandate
+    #[smithy(value_type = "String")]
     pub mandate_id: String,
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
+    #[smithy(value_type = "MandateStatus")]
     pub status: api_enums::MandateStatus,
     /// If there was an error while calling the connectors the code is received here
     #[schema(example = "E0001")]
+    #[smithy(value_type = "Option<String>")]
     pub error_code: Option<String>,
     /// If there was an error while calling the connector the error message is received here
     #[schema(example = "Failed while verifying the card")]
+    #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]
+#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateResponse {
     /// The identifier for mandate
+    #[smithy(value_type = "String")]
     pub mandate_id: String,
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
+    #[smithy(value_type = "MandateStatus")]
     pub status: api_enums::MandateStatus,
     /// The identifier for payment method
+    #[smithy(value_type = "String")]
     pub payment_method_id: String,
     /// The payment method
+    #[smithy(value_type = "String")]
     pub payment_method: String,
     /// The payment method type
+    #[smithy(value_type = "Option<String>")]
     pub payment_method_type: Option<String>,
     /// The card details for mandate
+    #[smithy(value_type = "Option<MandateCardDetails>")]
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
     #[schema(value_type = Option<CustomerAcceptance>)]
+    #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]
+#[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateCardDetails {
     /// The last 4 digits of card
+    #[smithy(value_type = "Option<String>")]
     pub last4_digits: Option<String>,
     /// The expiry month of card
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_exp_month: Option<Secret<String>>,
     /// The expiry year of card
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_exp_year: Option<Secret<String>>,
     /// The card holder name
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
     /// The token from card locker
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub card_token: Option<Secret<String>>,
     /// The card scheme network for the particular card
+    #[smithy(value_type = "Option<String>")]
     pub scheme: Option<String>,
     /// The country code in in which the card was issued
+    #[smithy(value_type = "Option<String>")]
     pub issuer_country: Option<String>,
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
     /// The first 6 digits of card
+    #[smithy(value_type = "Option<String>")]
     pub card_isin: Option<String>,
     /// The bank that issued the card
+    #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
     /// The network that facilitates payment card transactions
     #[schema(value_type = Option<CardNetwork>)]
+    #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
     /// The type of the payment card
+    #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
     /// The nick_name of the card holder
     #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<Secret<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, SmithyModel)]
 #[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types", mixin = true)]
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
+    #[smithy(value_type = "Option<i64>", http_query = "limit")]
     pub limit: Option<i64>,
     /// offset on the number of objects to return
+    #[smithy(value_type = "Option<i64>", http_query = "offset")]
     pub offset: Option<i64>,
     /// status of the mandate
+    #[smithy(value_type = "Option<MandateStatus>", http_query = "mandate_status")]
     pub mandate_status: Option<api_enums::MandateStatus>,
     /// connector linked to mandate
+    #[smithy(value_type = "Option<String>", http_query = "connector")]
     pub connector: Option<String>,
     /// The time at which mandate is created
     #[schema(example = "2022-09-10T10:11:12Z")]
+    #[smithy(value_type = "Option<String>", http_query = "created_time")]
     pub created_time: Option<PrimitiveDateTime>,
     /// Time less than the mandate created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.lt")]
+    #[smithy(value_type = "Option<String>", http_query = "created_time.lt")]
     pub created_time_lt: Option<PrimitiveDateTime>,
     /// Time greater than the mandate created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.gt")]
+    #[smithy(value_type = "Option<String>", http_query = "created_time.gt")]
     pub created_time_gt: Option<PrimitiveDateTime>,
     /// Time less than or equals to the mandate created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.lte")]
+    #[smithy(value_type = "Option<String>", http_query = "created_time.lte")]
     pub created_time_lte: Option<PrimitiveDateTime>,
     /// Time greater than or equals to the mandate created time
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(rename = "created_time.gte")]
+    #[smithy(value_type = "Option<String>", http_query = "created_time.gte")]
     pub created_time_gte: Option<PrimitiveDateTime>,
 }
 

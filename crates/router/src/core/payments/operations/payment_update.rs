@@ -122,6 +122,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -844,6 +845,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         ),
                 },
                 storage_scheme,
+                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1010,7 +1012,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
@@ -1026,14 +1028,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
@@ -1067,9 +1066,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id,
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)
