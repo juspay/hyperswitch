@@ -55,8 +55,8 @@ pub async fn create_payment_method_api(
             .await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
