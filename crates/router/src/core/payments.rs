@@ -2727,10 +2727,38 @@ pub async fn revenue_recovery_get_intent_core(
         0
     };
 
+    let payment_attempt = state
+        .store
+        .find_payment_attempts_by_payment_intent_id(
+            &payment_intent.id,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .ok()
+        .and_then(|attempts| {
+            payment_intent
+                .active_attempt_id
+                .as_ref()
+                .and_then(|active_attempt_id| {
+                    attempts
+                        .iter()
+                        .find(|attempt| attempt.id == *active_attempt_id)
+                        .cloned()
+                })
+                .or_else(|| {
+                    attempts
+                        .iter()
+                        .max_by_key(|attempt| attempt.created_at)
+                        .cloned()
+                })
+        });
+
     let response = transformers::generate_revenue_recovery_get_intent_response(
         payment_data,
         recovery_status,
         card_attached,
+        payment_attempt.as_ref(),
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -8458,25 +8486,64 @@ pub async fn revenue_recovery_list_payments(
             let workflow_results = join_all(workflow_futures).await;
             let billing_connector_results = join_all(billing_connector_futures).await;
 
+            let attempt_futures: Vec<_> = list
+                .iter()
+                .map(|(payment_intent, payment_attempt)| {
+                    let platform_clone = platform.clone();
+
+                    async move {
+                        if payment_attempt.is_some() {
+                            payment_attempt.clone()
+                        } else {
+                            db.find_payment_attempts_by_payment_intent_id(
+                                &payment_intent.id.clone(),
+                                platform_clone.get_processor().get_key_store(),
+                                platform_clone.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .ok()
+                            .and_then(|attempts| {
+                                payment_intent
+                                    .active_attempt_id
+                                    .as_ref()
+                                    .and_then(|active_attempt_id| {
+                                        attempts
+                                            .iter()
+                                            .find(|attempt| attempt.id == *active_attempt_id)
+                                            .cloned()
+                                    })
+                                    .or_else(|| {
+                                        attempts
+                                            .iter()
+                                            .max_by_key(|attempt| attempt.created_at)
+                                            .cloned()
+                                    })
+                            })
+                        }
+                    }
+                })
+                .collect();
+
+            let attempt_results = join_all(attempt_futures).await;
+
             let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> = list
                 .into_iter()
                 .zip(workflow_results.into_iter())
                 .zip(billing_connector_results.into_iter())
+                .zip(attempt_results.into_iter())
                 .map(
                     |(
-                        ((payment_intent, payment_attempt), workflow_result),
-                        billing_connector_account,
+                        (((payment_intent, _), workflow_result), billing_connector_account),
+                        payment_attempt,
                     )| {
                         let (calculate_workflow, execute_workflow) =
                             workflow_result.unwrap_or((None, None));
 
-                        // Get retry threshold from billing connector account
                         let max_retry_threshold = billing_connector_account
                             .as_ref()
                             .and_then(|mca| mca.get_retry_threshold())
-                            .unwrap_or(0); // Default fallback
+                            .unwrap_or(0);
 
-                        // Use custom mapping function
                         map_to_recovery_payment_item(
                             payment_intent,
                             payment_attempt,

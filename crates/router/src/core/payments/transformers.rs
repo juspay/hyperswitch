@@ -2177,6 +2177,7 @@ pub fn generate_revenue_recovery_get_intent_response<F, D>(
     payment_data: D,
     recovery_status: common_enums::RecoveryStatus,
     card_attached: u32,
+    payment_attempt: Option<&storage::PaymentAttempt>,
 ) -> RevenueRecoveryGetIntentResponse
 where
     F: Clone,
@@ -2188,10 +2189,12 @@ where
     RevenueRecoveryGetIntentResponse {
         id: payment_intent.id.clone(),
         profile_id: payment_intent.profile_id.clone(),
-        status: recovery_status, // Note: field is named 'status' not 'recovery_status'
-        amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
-            payment_intent.amount_details.clone(),
-        ),
+        status: recovery_status,
+        amount_details: api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            payment_attempt.map(|pa| &pa.amount_details), // Same pattern as list API
+        )),
+        created_at: payment_intent.created_at,
         client_secret: client_secret.clone(),
         merchant_reference_id: payment_intent.merchant_reference_id.clone(),
         routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),

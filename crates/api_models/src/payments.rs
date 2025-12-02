@@ -716,7 +716,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub status: common_enums::RecoveryStatus,
 
     /// The amount details for the payment
-    pub amount_details: AmountDetailsResponse,
+    pub amount_details: PaymentAmountDetailsResponse,
 
     /// It's a token used for client side verification.
     #[schema(value_type = String, example = "cs_0195b34da95d75239c6a4bf514458896")]
@@ -831,6 +831,10 @@ pub struct RevenueRecoveryGetIntentResponse {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_on: PrimitiveDateTime,
+
+    /// Time when the payment was created
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime, // Add this new field
 
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
