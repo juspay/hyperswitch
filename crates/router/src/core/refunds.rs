@@ -1735,7 +1735,7 @@ pub async fn schedule_refund_execution(
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.refund_id))?;
-            Ok((refund, None))
+                            Ok((refund, None))
                         }
                         api_models::refunds::RefundType::Instant => {
                             // [#255]: This is not possible in schedule_refund_execution as it will always be scheduled

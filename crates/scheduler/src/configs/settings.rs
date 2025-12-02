@@ -1,5 +1,5 @@
-pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use diesel_models::enums;
+pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]

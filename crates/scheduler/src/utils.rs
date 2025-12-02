@@ -29,7 +29,11 @@ where
 {
     let batches = divide(tasks, settings, application_source);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
-    logger::info!("Adding {} batches for application_source: {:?}", batches.len(), application_source);
+    logger::info!(
+        "Adding {} batches for application_source: {:?}",
+        batches.len(),
+        application_source
+    );
     #[allow(clippy::as_conversions)]
     metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {

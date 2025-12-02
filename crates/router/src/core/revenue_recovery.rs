@@ -46,9 +46,7 @@ use crate::{
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
-        api as router_api_types,
-        common_enums,
-        domain,
+        api as router_api_types, common_enums, domain,
         storage::{
             self, revenue_recovery as pcr, PaymentAttempt, ProcessTracker as ProcessTrackerStorage,
         },

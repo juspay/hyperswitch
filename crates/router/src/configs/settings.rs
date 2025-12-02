@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+use common_enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -46,7 +47,6 @@ use scheduler::SchedulerSettings;
 use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
-use common_enums;
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
 #[cfg(feature = "v2")]

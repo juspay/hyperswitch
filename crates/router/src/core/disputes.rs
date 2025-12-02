@@ -12,6 +12,8 @@ use router_env::{
 use strum::IntoEnumIterator;
 pub mod transformers;
 
+use common_enums;
+
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
@@ -32,7 +34,6 @@ use crate::{
     },
     workflows::process_dispute,
 };
-use common_enums;
 
 pub(crate) fn should_call_connector_for_dispute_sync(
     force_sync: Option<bool>,

@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums as storage_enums, enums::ApplicationSource, errors, schema::process_tracker, StorageResult,
+    enums as storage_enums, enums::ApplicationSource, errors, schema::process_tracker,
+    StorageResult,
 };
 
 #[derive(

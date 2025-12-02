@@ -1173,7 +1173,13 @@ impl Vault {
             merchant_key_store.key.get_inner(),
         )
         .await?;
-        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm, state.conf.application_source).await?;
+        add_delete_tokenized_data_task(
+            &*state.store,
+            &lookup_key,
+            pm,
+            state.conf.application_source,
+        )
+        .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
