@@ -20,10 +20,10 @@ pm.test("[POST]::/payments/:id/confirm - Response has JSON Body", function () {
     pm.response.to.have.jsonBody();
 });
 
-//// Response body should have value "succeeded" for "status"
+//// Response body should have value "processing" for "status"
 if (jsonData?.status) {
-pm.test("[POST]::/payments - Content check if value for 'status' matches 'succeeded'", function() {
-  pm.expect(jsonData.status).to.eql("succeeded");
+pm.test("[POST]::/payments - Content check if value for 'status' matches 'processing'", function() {
+  pm.expect(jsonData.status).to.eql("processing");
 })};
 
 
