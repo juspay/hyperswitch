@@ -3008,7 +3008,7 @@ impl MerchantCategoryCode {
     pub fn get_code(&self) -> Result<u16, InvalidMccError> {
         // since self.0 is private field we can safely ensure self.0 is string "0001"-"9999"
         self.0.parse::<u16>().map_err(|_| InvalidMccError {
-            message: format!("Invalid MCC code found"),
+            message: "Invalid MCC code found".to_string(),
         })
     }
 
@@ -3047,7 +3047,7 @@ impl MerchantCategoryCode {
             8000..=8999 => Ok("Professional Services and Membership Organizations"),
             9000..=9999 => Ok("Government Services"),
             _ => Err(InvalidMccError {
-                message: format!("Invalid MCC range found . Required 0001-9999",),
+                message: "Invalid MCC range found . Required 0001-9999".to_string(),
             }),
         }
     }
