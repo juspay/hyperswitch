@@ -8,16 +8,15 @@ use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
+use common_utils::ext_traits::Encode;
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::Encode,
-    types::keymanager::ToEncryptable,
-};
-use common_utils::{
+    crypto::Encryptable,
+    encryption::Encryption,
     errors::{CustomResult, ValidationError},
     ext_traits::{OptionExt, ValueExt},
     id_type, pii,
     types::{
-        keymanager::{self, KeyManagerState},
+        keymanager::{self, KeyManagerState, ToEncryptable},
         ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
     },
 };
@@ -34,31 +33,27 @@ use diesel_models::{
     PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
-#[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v1")]
 use serde::Deserialize;
 use serde::Serialize;
-#[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
+use url::Url;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
+use crate::{address::Address, consts, router_response_types};
 use crate::{
-    address::Address,
-    consts,
+    behaviour, errors,
     merchant_key_store::MerchantKeyStore,
-    router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
+    ForeignIDRef,
 };
-use crate::{behaviour, errors, ForeignIDRef};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},
@@ -71,8 +66,9 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
-        payment_attempt: PaymentAttemptNew,
+        payment_attempt: PaymentAttempt,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -89,6 +85,7 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -107,6 +104,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -115,6 +113,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -123,6 +122,7 @@ pub trait PaymentAttemptInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -139,6 +139,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -157,6 +158,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -165,6 +167,7 @@ pub trait PaymentAttemptInterface {
         attempt_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -189,6 +192,7 @@ pub trait PaymentAttemptInterface {
         preprocessing_id: &str,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -197,6 +201,7 @@ pub trait PaymentAttemptInterface {
         merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -955,7 +960,7 @@ impl PaymentAttempt {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, router_derive::ToEncryption)]
 pub struct PaymentAttempt {
     pub payment_id: id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
@@ -984,15 +989,15 @@ pub struct PaymentAttempt {
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
     pub mandate_id: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<Value>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<Value>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<Value>,
     pub business_sub_label: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
+    pub straight_through_algorithm: Option<Value>,
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<MandateDataType>,
@@ -1002,7 +1007,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
-    pub authentication_data: Option<serde_json::Value>,
+    pub authentication_data: Option<Value>,
     pub encoded_data: Option<String>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub unified_code: Option<String>,
@@ -1043,6 +1048,8 @@ pub struct PaymentAttempt {
     pub is_stored_credential: Option<bool>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    #[encrypt(ty = Value)]
+    pub encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1208,6 +1215,75 @@ impl PaymentAttempt {
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         todo!()
     }
+
+    fn get_connector_metadata_value(&self) -> Option<&Value> {
+        self.connector_metadata
+            .as_ref()
+            .map(|metadata| metadata.peek())
+    }
+
+    pub fn get_upi_next_action(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::NextActionData>,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let sdk_uri_opt = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
+            .map(|uri_info_value| {
+                serde_json::from_value::<api_models::payments::SdkUpiUriInformation>(
+                    uri_info_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .and_then(|uri_info| {
+                    Url::parse(&uri_info.sdk_uri).change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                })
+            })
+            .transpose()
+            .attach_printable("Failed to parse SdkUpiUriInformation from connector_metadata")?;
+
+        let wait_screen_info = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+            .map(|wait_screen_value| {
+                serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize WaitScreenInstructions from connector_metadata",
+            )?;
+
+        Ok(
+            match (self.payment_method_type, self.payment_method_subtype) {
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    storage_enums::PaymentMethodType::UpiIntent,
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
+                    }),
+                (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
+                    sdk_uri_opt
+                        .zip(wait_screen_info)
+                        .map(|(sdk_uri, wait_info)| {
+                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                        })
+                }
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    storage_enums::PaymentMethodType::UpiCollect,
+                ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
+                _ => None,
+            },
+        )
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1240,10 +1316,10 @@ impl PaymentAttempt {
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
-        self.payment_method_data
+        self.check_and_get_payment_method_data_based_on_encryption_strategy()
             .clone()
             .and_then(|data| match data {
-                serde_json::Value::Null => None,
+                Value::Null => None,
                 _ => Some(data.parse_value("AdditionalPaymentData")),
             })
             .transpose()
@@ -1263,6 +1339,88 @@ impl PaymentAttempt {
             ),
         }
     }
+
+    fn get_connector_metadata_value(&self) -> Option<&Value> {
+        self.connector_metadata.as_ref()
+    }
+    pub fn get_upi_next_action(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::NextActionData>,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let sdk_uri_opt = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("SdkUpiUriInformation"))
+            .map(|uri_info_value| {
+                serde_json::from_value::<api_models::payments::SdkUpiUriInformation>(
+                    uri_info_value.clone(),
+                )
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .and_then(|uri_info| {
+                    Url::parse(&uri_info.sdk_uri).change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                })
+            })
+            .transpose()
+            .attach_printable("Failed to parse SdkUpiUriInformation from connector_metadata")?;
+
+        let wait_screen_info = self
+            .get_connector_metadata_value()
+            .and_then(|metadata| metadata.get("WaitScreenInstructions"))
+            .map(|wait_screen_value| {
+                serde_json::from_value::<api_models::payments::WaitScreenInstructions>(
+                    wait_screen_value.clone(),
+                )
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize WaitScreenInstructions from connector_metadata",
+            )?;
+
+        Ok(match (self.payment_method, self.payment_method_type) {
+            (
+                Some(storage_enums::PaymentMethod::Upi),
+                Some(storage_enums::PaymentMethodType::UpiIntent),
+            ) => sdk_uri_opt
+                .zip(wait_screen_info)
+                .map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
+                }),
+            (
+                Some(storage_enums::PaymentMethod::Upi),
+                Some(storage_enums::PaymentMethodType::UpiQr),
+            ) => sdk_uri_opt
+                .zip(wait_screen_info)
+                .map(|(sdk_uri, wait_info)| {
+                    api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                }),
+            (
+                Some(storage_enums::PaymentMethod::Upi),
+                Some(storage_enums::PaymentMethodType::UpiCollect),
+            ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
+            _ => None,
+        })
+    }
+
+    pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
+        if self
+            .payment_method
+            .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+            .unwrap_or(false)
+        {
+            self.encrypted_payment_method_data
+                .clone()
+                .map(|encrypted_payment_method_data| {
+                    encrypted_payment_method_data.get_inner().peek().clone()
+                })
+                .or(self.payment_method_data.clone())
+        } else {
+            self.payment_method_data.clone()
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1276,91 +1434,7 @@ pub struct PaymentListFilters {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaymentAttemptNew {
-    pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
-    pub attempt_id: String,
-    pub status: storage_enums::AttemptStatus,
-    /// amount + surcharge_amount + tax_amount
-    /// This field will always be derived before updating in the Database
-    pub net_amount: NetAmount,
-    pub currency: Option<storage_enums::Currency>,
-    // pub auto_capture: Option<bool>,
-    pub save_to_locker: Option<bool>,
-    pub connector: Option<String>,
-    pub error_message: Option<String>,
-    pub offer_amount: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub capture_method: Option<storage_enums::CaptureMethod>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub capture_on: Option<PrimitiveDateTime>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub modified_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub cancellation_reason: Option<String>,
-    pub amount_to_capture: Option<MinorUnit>,
-    pub mandate_id: Option<String>,
-    pub browser_info: Option<serde_json::Value>,
-    pub payment_token: Option<String>,
-    pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub payment_method_data: Option<serde_json::Value>,
-    pub business_sub_label: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
-    pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateDataType>,
-    pub error_reason: Option<String>,
-    pub connector_response_reference_id: Option<String>,
-    pub multiple_capture_count: Option<i16>,
-    pub amount_capturable: MinorUnit,
-    pub updated_by: String,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub external_three_ds_authentication_attempted: Option<bool>,
-    pub authentication_connector: Option<String>,
-    pub authentication_id: Option<id_type::AuthenticationId>,
-    pub mandate_data: Option<MandateDetails>,
-    pub payment_method_billing_address_id: Option<String>,
-    pub fingerprint_id: Option<String>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: id_type::ProfileId,
-    pub organization_id: id_type::OrganizationId,
-    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub tokenization: Option<common_enums::Tokenization>,
-    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
-    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
-    pub capture_before: Option<PrimitiveDateTime>,
-    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
-    pub card_discovery: Option<common_enums::CardDiscovery>,
-    /// merchant who owns the credentials of the processor, i.e. processor owner
-    pub processor_merchant_id: id_type::MerchantId,
-    /// merchant or user who invoked the resource-based API (identifier) and the source (Api, Jwt(Dashboard))
-    pub created_by: Option<CreatedBy>,
-    pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
-    pub routing_approach: Option<storage_enums::RoutingApproach>,
-    pub connector_request_reference_id: Option<String>,
-    pub network_transaction_id: Option<String>,
-    pub network_details: Option<NetworkDetails>,
-    pub is_stored_credential: Option<bool>,
-    pub authorized_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum PaymentAttemptUpdate {
     Update {
         net_amount: NetAmount,
@@ -1369,7 +1443,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_token: Option<String>,
-        payment_method_data: Option<serde_json::Value>,
+        payment_method_data: Option<Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
@@ -1383,7 +1457,7 @@ pub enum PaymentAttemptUpdate {
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
-        straight_through_algorithm: Option<serde_json::Value>,
+        straight_through_algorithm: Option<Value>,
         amount_capturable: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
         tax_amount: Option<MinorUnit>,
@@ -1403,14 +1477,14 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         capture_method: Option<storage_enums::CaptureMethod>,
         payment_method: Option<storage_enums::PaymentMethod>,
-        browser_info: Option<serde_json::Value>,
+        browser_info: Option<Value>,
         connector: Option<String>,
         payment_token: Option<String>,
-        payment_method_data: Option<serde_json::Value>,
+        payment_method_data: Option<Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
-        straight_through_algorithm: Option<serde_json::Value>,
+        straight_through_algorithm: Option<Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         updated_by: String,
@@ -1467,7 +1541,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
-        connector_metadata: Option<serde_json::Value>,
+        connector_metadata: Option<Value>,
         payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
@@ -1475,14 +1549,15 @@ pub enum PaymentAttemptUpdate {
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<MinorUnit>,
         updated_by: String,
-        authentication_data: Option<serde_json::Value>,
+        authentication_data: Option<Value>,
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         capture_before: Option<PrimitiveDateTime>,
         extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
-        payment_method_data: Option<serde_json::Value>,
+        payment_method_data: Option<Value>,
+        encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
@@ -1517,7 +1592,8 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
-        payment_method_data: Option<serde_json::Value>,
+        payment_method_data: Option<Value>,
+        encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         issuer_error_code: Option<String>,
         issuer_error_message: Option<String>,
@@ -1536,14 +1612,14 @@ pub enum PaymentAttemptUpdate {
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
         payment_method_id: Option<String>,
-        connector_metadata: Option<serde_json::Value>,
+        connector_metadata: Option<Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
     },
     ConnectorResponse {
-        authentication_data: Option<serde_json::Value>,
+        authentication_data: Option<Value>,
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
@@ -1574,7 +1650,7 @@ pub enum PaymentAttemptUpdate {
     },
     PostSessionTokensUpdate {
         updated_by: String,
-        connector_metadata: Option<serde_json::Value>,
+        connector_metadata: Option<Value>,
     },
 }
 
@@ -1799,6 +1875,7 @@ impl PaymentAttemptUpdate {
                 extended_authorization_applied,
                 extended_authorization_last_applied_at,
                 payment_method_data,
+                encrypted_payment_method_data,
                 connector_mandate_detail,
                 tokenization,
                 charges,
@@ -1837,6 +1914,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 is_overcapture_enabled,
                 authorized_amount,
+                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1878,6 +1956,7 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
+                encrypted_payment_method_data,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1894,6 +1973,7 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
+                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -2228,14 +2308,15 @@ impl behaviour::Conversion for PaymentAttempt {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
         })
     }
 
     async fn convert_back(
-        _state: &KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
-        _key: &Secret<Vec<u8>>,
-        _key_manager_identifier: keymanager::Identifier,
+        key: &Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -2244,6 +2325,25 @@ impl behaviour::Conversion for PaymentAttempt {
             let connector_transaction_id = storage_model
                 .get_optional_connector_transaction_id()
                 .cloned();
+            let decrypted_data = crypto_operation(
+                state,
+                common_utils::type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentAttempt::to_encryptable(
+                    EncryptedPaymentAttempt {
+                        encrypted_payment_method_data: storage_model.encrypted_payment_method_data,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let decrypted_data = EncryptedPaymentAttempt::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
+            let encrypted_payment_method_data = decrypted_data.encrypted_payment_method_data;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id.clone(),
@@ -2334,6 +2434,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 network_details: storage_model.network_details,
                 is_stored_credential: storage_model.is_stored_credential,
                 authorized_amount: storage_model.authorized_amount,
+                encrypted_payment_method_data,
             })
         }
         .await
@@ -2430,6 +2531,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
         })
     }
 }
@@ -2608,6 +2710,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: None,
             authorized_amount,
             tokenization: None,
+            encrypted_payment_method_data: None,
         })
     }
 
@@ -2895,6 +2998,7 @@ impl behaviour::Conversion for PaymentAttempt {
             attempts_group_id,
             is_stored_credential: None,
             authorized_amount,
+            encrypted_payment_method_data: None,
         })
     }
 }

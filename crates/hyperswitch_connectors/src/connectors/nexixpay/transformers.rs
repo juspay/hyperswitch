@@ -5,7 +5,10 @@ use common_enums::{
     AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
 };
 use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, request::Method, types::StringMinorUnit,
+    errors::CustomResult,
+    ext_traits::ValueExt,
+    request::Method,
+    types::{MinorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -302,6 +305,13 @@ pub struct RecurrenceRequest {
 pub struct NexixpayNonMandatePaymentRequest {
     card: NexixpayCard,
     recurrence: RecurrenceRequest,
+    action_type: Option<NexixpayPaymentRequestActionType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NexixpayPaymentRequestActionType {
+    Verify,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -343,6 +353,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
     capture_type: Option<NexixpayCaptureType>,
     three_d_s_auth_data: ThreeDSAuthData,
     recurrence: RecurrenceRequest,
+    action_type: Option<NexixpayPaymentRequestActionType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -808,6 +819,13 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                                         cvv: req_card.card_cvc.clone(),
                                     },
                                     recurrence: recurrence_request_obj,
+                                    action_type: if item.router_data.request.minor_amount
+                                        == MinorUnit::zero()
+                                    {
+                                        Some(NexixpayPaymentRequestActionType::Verify)
+                                    } else {
+                                        None
+                                    },
                                 },
                             )))
                         } else {
@@ -1415,6 +1433,11 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             capture_type,
             three_d_s_auth_data,
             recurrence: recurrence_request_obj,
+            action_type: if item.router_data.request.minor_amount == MinorUnit::zero() {
+                Some(NexixpayPaymentRequestActionType::Verify)
+            } else {
+                None
+            },
         })
     }
 }
