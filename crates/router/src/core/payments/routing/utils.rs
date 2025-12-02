@@ -2199,8 +2199,28 @@ pub enum ContractUpdationStatusEventResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreRoutingSkipRule {
+    /// The payment method for which specific payment method types should skip pre-routing.
+    /// IMPORTANT:
+    /// - Do NOT add multiple entries with the same `payment_method`.
+    /// - Each `payment_method` should appear **only once** in the config.
+    ///
+    /// Example:
+    ///     {
+    ///         bank_redirect: ["interac", "ach", "blik"]
+    ///     }
+    ///
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+
+    /// The list of payment method types under this payment method
+    /// for which pre-routing must be skipped.
+    ///
+    /// This is a Vec because a single PM can have many PMTs
+    /// that need to skip pre-routing:
+    ///
+    /// Example:
+    ///     payment_method_types = ["interac", "ach", "blik"]
+    ///
+    pub payment_method_types: Vec<common_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

@@ -2911,11 +2911,17 @@ pub async fn list_payment_methods(
             .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
             .unwrap_or_default();
 
-        let skip_pre_routing: HashMap<_, _> = merchant_cfg
-            .skip_rules
-            .into_iter()
-            .map(|rule| (rule.payment_method, rule.payment_method_type))
-            .collect();
+        let mut skip_pre_routing: HashMap<
+            common_enums::PaymentMethod,
+            HashSet<common_enums::PaymentMethodType>,
+        > = HashMap::new();
+
+        for rule in merchant_cfg.skip_rules.iter() {
+            skip_pre_routing
+                .entry(rule.payment_method)
+                .or_default()
+                .extend(rule.payment_method_types.iter().copied());
+        }
 
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
@@ -2924,8 +2930,9 @@ pub async fn list_payment_methods(
         for intermediate in &response {
             let skip = skip_pre_routing
                 .get(&intermediate.payment_method)
-                .map(|ty| ty == &intermediate.payment_method_type)
+                .map(|config_pmt| config_pmt.contains(&intermediate.payment_method_type))
                 .unwrap_or(false);
+
             let pm_allowed = routing_enabled_pms.contains(&intermediate.payment_method);
             let pmt_allowed = routing_enabled_pm_types.contains(&intermediate.payment_method_type);
 
@@ -2967,6 +2974,14 @@ pub async fn list_payment_methods(
         .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
+            let skip = skip_pre_routing
+                .get(&intermediate.payment_method)
+                .map(|config_pmt| config_pmt.contains(&intermediate.payment_method_type))
+                .unwrap_or(false);
+            if skip {
+                return false;
+            }
+
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 && !routing_enabled_pms.contains(&intermediate.payment_method)
             {
