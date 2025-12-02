@@ -2029,11 +2029,19 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 }
 
 pub trait CustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>> {
+        self.name.clone()
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
