@@ -833,7 +833,7 @@ impl TryFrom<(&types::PaymentsCaptureRouterData, MinorUnit)> for WorldpayPartial
     fn try_from(req: (&types::PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
         let (item, amount) = req;
         Ok(Self {
-            reference: item.payment_id.clone().replace("_", "-"),
+            reference: item.connector_request_reference_id.clone().replace("_", "-"),
             value: PaymentValue {
                 amount: amount.get_amount_as_i64(),
                 currency: item.request.currency,
