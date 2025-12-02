@@ -1614,7 +1614,8 @@ pub async fn list_payment_methods_for_session(
 
     let customer_payment_methods = match payment_method_session.customer_id {
         Some(customer_id) => {
-            list_customer_payment_methods_core(&state, platform.get_provider(), &customer_id).await?
+            list_customer_payment_methods_core(&state, platform.get_provider(), &customer_id)
+                .await?
         }
         None => Vec::new(),
     };
