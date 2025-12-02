@@ -1789,6 +1789,10 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// The payment has been authorized for a partial amount and requires capture
     PartiallyAuthorizedAndRequiresCapture,
+    /// The payment has been captured partially and the remaining amount can be authorized/capturable.
+    /// The other amount is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
+    PartiallyCapturedAndProcessing,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
     /// The payment expired before it could be captured.
@@ -1813,7 +1817,8 @@ impl IntentStatus {
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
-            | Self::Conflicted => false,
+            | Self::Conflicted
+            | Self::PartiallyCapturedAndProcessing => false,
         }
     }
 
@@ -1834,7 +1839,8 @@ impl IntentStatus {
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            | Self::PartiallyAuthorizedAndRequiresCapture => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture
+            | Self::PartiallyCapturedAndProcessing => true,
         }
     }
 }
@@ -10026,6 +10032,7 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::PartiallyCapturedAndCapturable
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,

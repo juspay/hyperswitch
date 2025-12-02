@@ -1063,6 +1063,7 @@ diesel::table! {
         network_error_message -> Nullable<Text>,
         #[max_length = 64]
         attempts_group_id -> Nullable<Varchar>,
+        amount_captured -> Nullable<Int8>,
     }
 }
 
