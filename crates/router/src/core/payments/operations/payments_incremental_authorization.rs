@@ -93,6 +93,7 @@ impl<F: Send + Clone + Sync>
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

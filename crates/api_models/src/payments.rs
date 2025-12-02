@@ -954,6 +954,9 @@ pub struct AmountDetailsResponse {
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
+    /// For automatic captures, this will be the same as net amount for the order
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -1013,6 +1016,8 @@ pub struct PaymentAttemptAmountDetails {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     pub order_tax_amount: Option<MinorUnit>,
+    /// The total amount that is captured for this payment attempt.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -7067,10 +7072,6 @@ pub struct PaymentsResponse {
     #[schema(example = "Failed while verifying the card")]
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
-
-    #[schema(example = "Insufficient Funds")]
-    #[smithy(value_type = "Option<String>")]
-    pub error_reason: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
     #[remove_in(PaymentsCreateResponseOpenApi)]

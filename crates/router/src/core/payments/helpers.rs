@@ -25,7 +25,7 @@ use common_utils::{
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
-        keymanager::{Identifier, ToEncryptable},
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
     },
 };
@@ -773,6 +773,7 @@ pub async fn get_token_for_recurring_mandate(
                 &mandate.merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -4727,6 +4728,7 @@ pub fn get_attempt_type(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
+        | enums::IntentStatus::PartiallyCapturedAndProcessing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
@@ -4784,10 +4786,10 @@ impl AttemptType {
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> storage::PaymentAttemptNew {
-        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
+    ) -> PaymentAttempt {
+        let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
-        storage::PaymentAttemptNew {
+        PaymentAttempt {
             attempt_id: old_payment_attempt
                 .payment_id
                 .get_attempt_id(new_attempt_count),
@@ -4812,7 +4814,7 @@ impl AttemptType {
             authentication_type: old_payment_attempt.authentication_type,
             created_at,
             modified_at,
-            last_synced,
+            last_synced: Some(last_synced),
             cancellation_reason: None,
             amount_to_capture: old_payment_attempt.amount_to_capture,
 
@@ -4876,6 +4878,14 @@ impl AttemptType {
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,
             tokenization: None,
+            encrypted_payment_method_data: None,
+            connector_transaction_id: None,
+            charge_id: None,
+            charges: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+            debit_routing_savings: None,
+            is_overcapture_enabled: None,
         }
     }
 
@@ -4923,7 +4933,11 @@ impl AttemptType {
 
                 #[cfg(feature = "v1")]
                 let new_payment_attempt = db
-                    .insert_payment_attempt(new_payment_attempt_to_insert, storage_scheme)
+                    .insert_payment_attempt(
+                        new_payment_attempt_to_insert,
+                        storage_scheme,
+                        key_store,
+                    )
                     .await
                     .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                         payment_id: fetched_payment_intent.get_id().to_owned(),
@@ -5023,6 +5037,7 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
+        | enums::IntentStatus::PartiallyCapturedAndProcessing
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
@@ -7087,6 +7102,44 @@ pub fn add_connector_response_to_additional_payment_data(
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn get_payment_method_data_and_encrypted_payment_method_data(
+    payment_attempt: &PaymentAttempt,
+    key_manager_state: &KeyManagerState,
+    key_store: &domain::MerchantKeyStore,
+    additional_payment_method_data_intermediate: Option<serde_json::Value>,
+) -> CustomResult<
+    (
+        Option<serde_json::Value>,
+        Option<Encryptable<masking::Secret<serde_json::Value>>>,
+    ),
+    errors::ApiErrorResponse,
+> {
+    if payment_attempt
+        .payment_method
+        .as_ref()
+        .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+        .unwrap_or(false)
+    {
+        let encrypted_payment_method_data = additional_payment_method_data_intermediate
+            .clone()
+            .async_map(|additional_payment_method_data_intermediate| {
+                create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    additional_payment_method_data_intermediate,
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt additional_payment_method_data")?;
+        Ok((None, encrypted_payment_method_data))
+    } else {
+        Ok((additional_payment_method_data_intermediate, None))
+    }
+}
+
 pub fn update_additional_payment_data_with_connector_response_pm_data(
     additional_payment_data: Option<serde_json::Value>,
     connector_response_pm_data: Option<AdditionalPaymentMethodConnectorResponse>,
@@ -8516,19 +8569,14 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let lineage_ids = grpc_client::LineageIds::new(
+
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
+        payment_data.get_creds_identifier().map(str::to_owned),
     );
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: None,
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
 
     call_connector_service(
         state,
@@ -8636,19 +8684,16 @@ where
         business_profile.get_id().clone(),
     );
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+        creds_identifier,
+    );
+
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let execution_mode = ExecutionMode::NotApplicable;
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids: lineage_ids.clone(),
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode,
-    };
 
     // Call Direct connector service
     let result = call_connector_service(
