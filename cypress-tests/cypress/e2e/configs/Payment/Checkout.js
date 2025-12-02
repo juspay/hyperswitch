@@ -7,11 +7,11 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4111111111111111",
+  card_number: "372688581899681",
   card_exp_month: "12",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "100",
+  card_cvc: "1234",
 };
 
 const customerAcceptance = {
@@ -156,6 +156,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -172,6 +176,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -204,6 +212,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
