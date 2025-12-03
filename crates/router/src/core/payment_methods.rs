@@ -25,7 +25,7 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable,
+    crypto::{Encryptable, GcmAes256, EncodeMessage},
     errors::CustomResult,
     ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
@@ -2891,7 +2891,7 @@ pub async fn vault_payment_method(
 pub async fn vault_payment_method_in_volatile_storage(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
-    _platform: &domain::Platform,
+    platform: &domain::Platform,
     _profile: &domain::Profile,
     _existing_vault_id: Option<domain::VaultId>,
     customer_id: &Option<id_type::GlobalCustomerId>,
@@ -2900,6 +2900,16 @@ pub async fn vault_payment_method_in_volatile_storage(
     Option<id_type::MerchantConnectorAccountId>,
 )> {
     let vault_id = domain::VaultId::generate(generate_id(consts::ID_LENGTH, "vault"));
+    let merchant_key_store = platform.get_processor().get_key_store();
+
+    let payload = pmd
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let encrypted_payload = GcmAes256
+            .encode_message(merchant_key_store.key.get_inner().peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode redis temp locker data")?;
 
     let redis_connection = state
         .store
@@ -2908,12 +2918,11 @@ pub async fn vault_payment_method_in_volatile_storage(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let redis_key = format!("volatile_vaulting_data:{}", vault_id.get_string_repr());
-
+    logger::info!("Storing payment method vaulting data in redis");
     redis_connection
         .serialize_and_set_key_with_expiry(
-            &redis_key.into(),
-            pmd.clone(),
+            &vault_id.get_string_repr().into(),
+            encrypted_payload,
             consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
         )
         .await
