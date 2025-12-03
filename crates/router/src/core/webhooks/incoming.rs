@@ -1477,102 +1477,6 @@ async fn payouts_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    let payout_id =
-        get_payout_id_from_object_reference_id(&state, &platform, &webhook_details).await?;
-
-    let lock_action = api_locking::LockAction::Hold {
-        input: api_locking::LockingInput {
-            unique_locking_key: payout_id.get_string_repr().to_owned(),
-            api_identifier: lock_utils::ApiIdentifier::Payouts,
-            override_lock_retries: None,
-        },
-    };
-
-    lock_action
-        .clone()
-        .perform_locking_action(
-            &state,
-            platform.get_processor().get_account().get_id().to_owned(),
-        )
-        .await?;
-
-    let payout_response = Box::pin(process_payout_incoming_webhook(
-        state.clone(),
-        platform.clone(),
-        business_profile,
-        webhook_details,
-        event_type,
-        source_verified,
-        request_details,
-        connector,
-    ))
-    .await;
-
-    lock_action
-        .free_lock_action(
-            &state,
-            platform.get_processor().get_account().get_id().to_owned(),
-        )
-        .await?;
-
-    payout_response
-}
-
-#[cfg(feature = "payouts")]
-enum PaoyoutWebhookAction {
-    UpdateStatus,
-    RetrieveStatus,
-    NoAction,
-}
-
-#[cfg(feature = "payouts")]
-async fn get_payout_id_from_object_reference_id(
-    state: &SessionState,
-    platform: &domain::Platform,
-    webhook_details: &api::IncomingWebhookDetails,
-) -> CustomResult<common_utils::id_type::PayoutId, errors::ApiErrorResponse> {
-    let db = &*state.store;
-    let payout_attempt = match webhook_details.object_reference_id.clone() {
-        webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
-            webhooks::PayoutIdType::PayoutAttemptId(id) => db
-                .find_payout_attempt_by_merchant_id_payout_attempt_id(
-                    platform.get_processor().get_account().get_id(),
-                    &id,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable("Failed to fetch the payout attempt")?,
-            webhooks::PayoutIdType::ConnectorPayoutId(id) => db
-                .find_payout_attempt_by_merchant_id_connector_payout_id(
-                    platform.get_processor().get_account().get_id(),
-                    &id,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable("Failed to fetch the payout attempt")?,
-        },
-        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("received a non-payout id when processing payout webhooks")?,
-    };
-
-    Ok(payout_attempt.payout_id)
-}
-
-#[cfg(feature = "payouts")]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-async fn process_payout_incoming_webhook(
-    state: SessionState,
-    platform: domain::Platform,
-    business_profile: domain::Profile,
-    webhook_details: api::IncomingWebhookDetails,
-    event_type: webhooks::IncomingWebhookEvent,
-    source_verified: bool,
-    request_details: &IncomingWebhookRequestDetails<'_>,
-    connector: &ConnectorEnum,
-) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
     let db = &*state.store;
     //find payout_attempt by object_reference_id
@@ -1624,10 +1528,10 @@ async fn process_payout_incoming_webhook(
     ))
     .await?;
 
-    let payout_webhook_action = PaoyoutWebhookAction::from((
+    let payout_webhook_action = get_payout_webhook_action(
         payout_attempt.status.is_non_terminal_status(),
         source_verified,
-    ));
+    );
     match payout_webhook_action {
         PaoyoutWebhookAction::UpdateStatus => {
             payout_incoming_webhook_update_status(
@@ -1658,17 +1562,23 @@ async fn process_payout_incoming_webhook(
     }
 }
 
+enum PaoyoutWebhookAction {
+    UpdateStatus,
+    RetrieveStatus,
+    NoAction,
+}
+
 // only update if the payout is in non-terminal status
 // if source verified, update the payout attempt and trigger outgoing webhook
 // if not source verified, do a payout retrieve call and update the status
-#[cfg(feature = "payouts")]
-impl From<(bool, bool)> for PaoyoutWebhookAction {
-    fn from((is_non_terminal_status, is_source_verified): (bool, bool)) -> Self {
-        match (is_non_terminal_status, is_source_verified) {
-            (true, true) => Self::UpdateStatus,
-            (true, false) => Self::RetrieveStatus,
-            (false, true) | (false, false) => Self::NoAction,
-        }
+fn get_payout_webhook_action(
+    is_non_terminal_status: bool,
+    is_source_verified: bool,
+) -> PaoyoutWebhookAction {
+    match (is_non_terminal_status, is_source_verified) {
+        (true, true) => PaoyoutWebhookAction::UpdateStatus,
+        (true, false) => PaoyoutWebhookAction::RetrieveStatus,
+        (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
     }
 }
 
