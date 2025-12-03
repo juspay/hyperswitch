@@ -2923,9 +2923,8 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let pre_routing_disabled_pm_pmt_key = &platform
-            .get_processor()
-            .get_account()
+        let pre_routing_disabled_pm_pmt_key = merchant_context
+            .get_merchant_account()
             .get_id()
             .get_pre_routing_disabled_pm_pmt_key();
 
