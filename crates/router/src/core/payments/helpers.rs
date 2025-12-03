@@ -5688,7 +5688,7 @@ pub fn is_predecrypted_flow_supported_googlepay(
     connector_metadata
         .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
         .ok()
-        .and_then(|metadata| Some(metadata.google_pay.is_predecrypted_token_supported()))
+        .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
         .unwrap_or(false)
 }
 pub fn is_predecrypted_flow_supported_applepay(
@@ -5699,12 +5699,10 @@ pub fn is_predecrypted_flow_supported_applepay(
             "ApplepayCombinedSessionTokenData",
         )
         .ok()
-        .and_then(|apple_pay_metadata| {
-            Some(
-                apple_pay_metadata
-                    .apple_pay_combined
-                    .is_predecrypted_token_supported(),
-            )
+        .map(|apple_pay_metadata| {
+            apple_pay_metadata
+                .apple_pay_combined
+                .is_predecrypted_token_supported()
         })
         .unwrap_or(false)
 }
