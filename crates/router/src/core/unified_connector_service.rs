@@ -394,6 +394,7 @@ fn decide_execution_path(
     execution_mode: ExecutionMode,
 ) -> RouterResult<(GatewaySystem, ExecutionPath)> {
     match connector_type {
+        // UCS-only connectors always use UCS
         ConnectorIntegrationType::UcsConnector => Ok((
             GatewaySystem::UnifiedConnectorService,
             ExecutionPath::UnifiedConnectorService,
@@ -401,33 +402,33 @@ fn decide_execution_path(
         ConnectorIntegrationType::DirectConnector => {
             match (previous_gateway, execution_mode) {
                 (Some(GatewaySystem::Direct), ExecutionMode::NotApplicable) => {
-                    // Previously used UCS, now switching back to Direct
+                    // Previous gateway was Direct, continue using Direct
                     Ok((GatewaySystem::Direct, ExecutionPath::Direct))
                 }
                 (Some(GatewaySystem::Direct), ExecutionMode::Primary) => {
-                    // Maintain Direct for backward compatibility - don't switch mid-transaction
+                    // Previous gateway was Direct, continue using Direct
                     Ok((GatewaySystem::Direct, ExecutionPath::Direct))
                 }
                 (Some(GatewaySystem::Direct), ExecutionMode::Shadow) => {
-                    // Continue with Direct as primary, execute UCS in shadow mode for testing
+                    // Previous gateway was Direct, but now UCS is in shadow mode for comparison
                     Ok((
                         GatewaySystem::Direct,
                         ExecutionPath::ShadowUnifiedConnectorService,
                     ))
                 }
                 (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::NotApplicable) => {
-                    // Migration scenario: UCS was used before, but now we're reverting to Direct
+                    // Previous gateway was UCS, continue using Direct as the config key has notapplicable execution mode
                     Ok((GatewaySystem::Direct, ExecutionPath::Direct))
                 }
                 (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::Primary) => {
-                    // Revert to Direct as primary
+                    // previous gateway was UCS, and config key has execution mode primary - continue using UCS
                     Ok((
                         GatewaySystem::UnifiedConnectorService,
                         ExecutionPath::UnifiedConnectorService,
                     ))
                 }
                 (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::Shadow) => {
-                    // Revert to Direct as primary, but keep UCS in shadow mode for comparison
+                    // previous gateway was UCS, but now UCS is in shadow mode for comparison
                     Ok((
                         GatewaySystem::Direct,
                         ExecutionPath::ShadowUnifiedConnectorService,
