@@ -85,11 +85,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::{load_skip_pre_routing_config, should_skip_prerouting},
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::load_skip_pre_routing_config, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -2660,6 +2656,8 @@ pub async fn list_payment_methods(
     platform: domain::Platform,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
+    use crate::core::payments::routing::utils::perform_pre_routing;
+
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
     let payment_intent = if let Some(cs) = &req.client_secret {
@@ -2916,16 +2914,13 @@ pub async fn list_payment_methods(
 
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
-            let should_skip_prerouting = should_skip_prerouting(
+            if perform_pre_routing(
+                routing_enabled_pms,
+                routing_enabled_pm_types,
+                &intermediate.payment_method,
+                &intermediate.payment_method_type,
                 &skip_pre_routing,
-                intermediate.payment_method,
-                intermediate.payment_method_type,
-            );
-
-            let pm_allowed = routing_enabled_pms.contains(&intermediate.payment_method);
-            let pmt_allowed = routing_enabled_pm_types.contains(&intermediate.payment_method_type);
-
-            if (pm_allowed || pmt_allowed) && !should_skip_prerouting {
+            ) {
                 let connector_data = helpers::get_connector_data_with_token(
                     &state,
                     intermediate.connector.to_string(),
@@ -2963,16 +2958,13 @@ pub async fn list_payment_methods(
         .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
-            let should_skip_prerouting = should_skip_prerouting(
+            if !perform_pre_routing(
+                routing_enabled_pms,
+                routing_enabled_pm_types,
+                &intermediate.payment_method,
+                &intermediate.payment_method_type,
                 &skip_pre_routing,
-                intermediate.payment_method,
-                intermediate.payment_method_type,
-            );
-
-            if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
-                && !routing_enabled_pms.contains(&intermediate.payment_method)
-                && !should_skip_prerouting
-            {
+            ) {
                 return true;
             }
 

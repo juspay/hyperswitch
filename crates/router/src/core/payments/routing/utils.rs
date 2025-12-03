@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::LazyLock,
 };
 
 use api_models::{
@@ -2265,11 +2266,26 @@ pub async fn load_skip_pre_routing_config(
 /// the given (payment_method, payment_method_type) pair.
 pub fn should_skip_prerouting(
     skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
-    pm: enums::PaymentMethod,
-    pmt: enums::PaymentMethodType,
+    pm: &enums::PaymentMethod,
+    pmt: &enums::PaymentMethodType,
 ) -> bool {
     skip_map
-        .get(&pm)
-        .map(|set| set.contains(&pmt))
+        .get(pm)
+        .map(|set| set.contains(pmt))
         .unwrap_or(false)
+}
+
+pub fn perform_pre_routing(
+    allowed_pm_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethod>>,
+    allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
+    payment_method: &enums::PaymentMethod,
+    payment_method_type: &enums::PaymentMethodType,
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+) -> bool {
+    let should_skip_prerouting =
+        should_skip_prerouting(skip_map, payment_method, payment_method_type);
+
+    let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
+    let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
+    (pm_allowed || pmt_allowed) && !should_skip_prerouting
 }
