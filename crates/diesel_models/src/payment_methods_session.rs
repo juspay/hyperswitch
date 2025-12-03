@@ -4,7 +4,7 @@ use common_utils::pii;
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodSession {
     pub id: common_utils::id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub billing: Option<common_utils::encryption::Encryption>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
