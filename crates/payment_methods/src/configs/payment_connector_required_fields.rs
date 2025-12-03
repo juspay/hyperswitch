@@ -2355,8 +2355,14 @@ fn get_bank_redirect_required_fields(
                         vec![],
                         vec![
                             RequiredField::BillingEmail,
-                            RequiredField::BillingUserFirstName,
-                            RequiredField::BillingUserLastName,
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
                             RequiredField::BillingPhone,
                             RequiredField::BillingPhoneCountryCode,
                         ],
@@ -2369,8 +2375,14 @@ fn get_bank_redirect_required_fields(
                         vec![],
                         vec![
                             RequiredField::BillingEmail,
-                            RequiredField::BillingUserFirstName,
-                            RequiredField::BillingUserLastName,
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
                         ],
                         vec![],
                     ),
