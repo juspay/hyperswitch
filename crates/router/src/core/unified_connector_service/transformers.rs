@@ -299,7 +299,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             browser_info,
 
-            session_token: None,
+            session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
