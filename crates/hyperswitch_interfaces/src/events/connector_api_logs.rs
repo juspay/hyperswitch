@@ -25,6 +25,7 @@ pub struct ConnectorEvent {
     latency: u128,
     refund_id: Option<String>,
     dispute_id: Option<String>,
+    payout_id: Option<String>,
     status_code: u16,
 }
 
@@ -44,6 +45,7 @@ impl ConnectorEvent {
         latency: u128,
         refund_id: Option<String>,
         dispute_id: Option<String>,
+        payout_id: Option<String>,
         status_code: u16,
     ) -> Self {
         Self {
@@ -68,6 +70,7 @@ impl ConnectorEvent {
             latency,
             refund_id,
             dispute_id,
+            payout_id,
             status_code,
         }
     }
