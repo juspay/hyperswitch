@@ -85,7 +85,11 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{self, utils::load_skip_pre_routing_config, SessionFlowRoutingInput},
+            routing::{
+                self,
+                utils::{load_skip_pre_routing_config, perform_pre_routing},
+                SessionFlowRoutingInput,
+            },
         },
         utils as core_utils,
     },
@@ -2656,8 +2660,6 @@ pub async fn list_payment_methods(
     platform: domain::Platform,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
-    use crate::core::payments::routing::utils::perform_pre_routing;
-
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
     let payment_intent = if let Some(cs) = &req.client_secret {
