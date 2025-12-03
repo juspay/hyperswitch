@@ -6873,20 +6873,6 @@ required=true
 type="Text"
 
 [[santander.metadata.pix]]
-name="cpf"
-label="Cpf"
-placeholder="Enter your cpf number"
-required=true
-type="Text"
-
-[[santander.metadata.pix]]
-name="cnpj"
-label="Cnpj"
-placeholder="Enter your cnpj number"
-required=true
-type="Text"
-
-[[santander.metadata.pix]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
@@ -6911,20 +6897,6 @@ type="Text"
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
-required=true
-type="Text"
-
-[[santander.metadata.boleto]]
-name="cpf"
-label="Cpf"
-placeholder="Enter your cpf number"
-required=true
-type="Text"
-
-[[santander.metadata.boleto]]
-name="cnpj"
-label="Cnpj"
-placeholder="Enter your cnpj number"
 required=true
 type="Text"
 
