@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix3
+
+### Features
+
+- **core:** Map Connector Customer Id Inside Connector Mandate Details inside Batch Migrations API ([#10514](https://github.com/juspay/hyperswitch/pull/10514)) ([`531ae5a`](https://github.com/juspay/hyperswitch/commit/531ae5a157e5bfe1850b5e0d4ddac14c049acc3c))
+
+### Bug Fixes
+
+- **nuvei:** 3ds for base64 padding issue in prod ([#10515](https://github.com/juspay/hyperswitch/pull/10515)) ([`07c7709`](https://github.com/juspay/hyperswitch/commit/07c77096146984cf9ec88ea71c384f994dde24d8))
+- **payouts:** Update payout intent in case of webhook ([#10532](https://github.com/juspay/hyperswitch/pull/10532)) ([`977fd42`](https://github.com/juspay/hyperswitch/commit/977fd425a2e2b613143627e73bf8685f3346f683))
+
+**Full Changelog:** [`2025.11.26.0-hotfix2...2025.11.26.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix2...2025.11.26.0-hotfix3)
+
+- - -
+
 ## 2025.11.26.0-hotfix2
 
 ### Bug Fixes
