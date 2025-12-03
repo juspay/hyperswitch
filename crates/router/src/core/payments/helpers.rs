@@ -5678,6 +5678,32 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+pub fn is_predecrypted_flow_supported_googlepay(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .and_then(|metadata| Some(metadata.google_pay.is_predecrypted_token_supported()))
+        .unwrap_or(false)
+}
+pub fn is_predecrypted_flow_supported_applepay(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .ok()
+        .and_then(|apple_pay_metadata| {
+            Some(
+                apple_pay_metadata
+                    .apple_pay_combined
+                    .is_predecrypted_token_supported(),
+            )
+        })
+        .unwrap_or(false)
+}
 pub fn get_applepay_metadata(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {

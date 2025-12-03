@@ -125,7 +125,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
-        payments::helpers::get_applepay_metadata,
+        payments::helpers::{get_applepay_metadata, is_predecrypted_flow_supported_googlepay},
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
@@ -3830,7 +3830,7 @@ where
                 connector_call_type_optional,
             )
             .await?;
-        // Check if the wallet has already decrypted the token from the payment data and enable_predecrypted_token is true.
+        // Check if the wallet has already decrypted the token from the payment data and support_predecrypted_token is true.
         // If a pre-decrypted token is available, check if it is enabled in mca and use it directly to avoid redundant decryption.
 
         if let Some(predecrypted_token) =
@@ -5767,25 +5767,19 @@ where
             None
         };
 
-        let enable_predecrypted_token = merchant_connector_account
-            .get_metadata()
-            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
-                "ApplepayCombinedSessionTokenData",
-            )
-            .ok()
-            .and_then(|apple_pay_metadata| {
-                apple_pay_metadata
-                    .apple_pay_combined
-                    .enable_predecrypted_token
-            })
-            .unwrap_or(false);
-        match (pre_decrypted_token, enable_predecrypted_token) {
-            (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Predecrypted token is not enabled for ApplePay".to_string(),
+        let support_predecrypted_token =
+            is_predecrypted_flow_supported_googlepay(merchant_connector_account.get_metadata());
+        match (pre_decrypted_token, support_predecrypted_token) {
+            (Some(PaymentMethodToken::ApplePayDecrypt(_token)), false) => {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Predecrypted token is not enabled for ApplePay".to_string(),
+                }
+                .into())
             }
-            .into()),
-            (Some(token), true) => Ok(Some(token)),
-            (None, _) => Ok(None),
+            (Some(PaymentMethodToken::ApplePayDecrypt(token)), true) => {
+                Ok(Some(PaymentMethodToken::ApplePayDecrypt(token)))
+            }
+            (_, _) => Ok(None),
         }
     }
 
@@ -5899,19 +5893,19 @@ where
         } else {
             None
         };
-        let enable_predecrypted_token = merchant_connector_account
-            .get_metadata()
-            .parse_value::<api_models::payments::GooglePayWalletDetails>("GooglePayWalletDetails")
-            .ok()
-            .and_then(|metadata| metadata.google_pay.enable_predecrypted_token)
-            .unwrap_or(false);
-        match (pre_decrypted_token, enable_predecrypted_token) {
-            (Some(_token), false) => Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Predecrypted token config is not enabled for GooglePay".to_string(),
+        let support_predecrypted_token =
+            is_predecrypted_flow_supported_googlepay(merchant_connector_account.get_metadata());
+        match (pre_decrypted_token, support_predecrypted_token) {
+            (Some(PaymentMethodToken::GooglePayDecrypt(_token)), false) => {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Predecrypted token config is not enabled for GooglePay".to_string(),
+                }
+                .into())
             }
-            .into()),
-            (Some(token), true) => Ok(Some(token)),
-            (None, _) => Ok(None),
+            (Some(PaymentMethodToken::GooglePayDecrypt(token)), true) => {
+                Ok(Some(PaymentMethodToken::GooglePayDecrypt(token)))
+            }
+            (_, _) => Ok(None),
         }
     }
     fn decide_wallet_flow(
@@ -7339,7 +7333,7 @@ fn get_google_pay_connector_wallet_details(
                 });
 
             google_pay_wallet_details
-                .ok().and_then(|details| details.google_pay.data)
+                .ok().map(|details| details.google_pay)
                 .and_then(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details.provider_details {

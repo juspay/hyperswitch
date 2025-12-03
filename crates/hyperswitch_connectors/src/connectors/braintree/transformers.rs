@@ -1665,24 +1665,35 @@ impl
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
-                        let gpay_data: payment_types::GpaySessionTokenData =
-                            if let Some(connector_meta) = data.connector_meta_data.clone() {
-                                connector_meta
-                                    .expose()
-                                    .parse_value("GpaySessionTokenData")
-                                    .change_context(errors::ConnectorError::ParsingFailed)
-                                    .attach_printable("Failed to parse gpay metadata")?
+                        let gpay_data: payment_types::GpayMetaData = if let Some(connector_meta) =
+                            data.connector_meta_data.clone()
+                        {
+                            let metadata = connector_meta
+                                .expose()
+                                .parse_value::<payment_types::GpaySessionTokenData>(
+                                    "GpaySessionTokenData",
+                                )
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .attach_printable("Failed to parse gpay metadata")?;
+                            if let Some(gpay_metadata) = metadata.google_pay.data {
+                                gpay_metadata
                             } else {
-                                return Err(errors::ConnectorError::NoConnectorMetaData)
-                                    .attach_printable("connector_meta_data is None");
-                            };
+                                return Err(errors::ConnectorError::InvalidConnectorConfig {
+                                    config:
+                                        "metadata.google_pay , no googlepay metadata is configured ",
+                                }.into());
+                            }
+                        } else {
+                            return Err(errors::ConnectorError::NoConnectorMetaData)
+                                .attach_printable("connector_meta_data is None");
+                        };
 
                         SessionToken::GooglePay(Box::new(
                             api_models::payments::GpaySessionTokenResponse::GooglePaySession(
                                 api_models::payments::GooglePaySessionResponse {
                                     merchant_info: payment_types::GpayMerchantInfo {
-                                        merchant_name: gpay_data.data.merchant_info.merchant_name,
-                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
+                                        merchant_name: gpay_data.merchant_info.merchant_name,
+                                        merchant_id: gpay_data.merchant_info.merchant_id,
                                     },
                                     shipping_address_required: false,
                                     email_required: false,
@@ -1690,7 +1701,7 @@ impl
                                         payment_types::GpayShippingAddressParameters {
                                             phone_number_required: false,
                                         },
-                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                                    allowed_payment_methods: gpay_data.allowed_payment_methods,
                                     transaction_info: payment_types::GpayTransactionInfo {
                                         country_code: data.request.country.ok_or(
                                             errors::ConnectorError::MissingRequiredField {

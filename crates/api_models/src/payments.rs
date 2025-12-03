@@ -8914,9 +8914,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9085,7 +9096,12 @@ pub struct ApplepaySessionTokenData {
 pub struct ApplePayCombinedWrapper {
     #[serde(flatten)]
     pub data: Option<ApplePayCombinedMetadata>,
-    pub enable_predecrypted_token: Option<bool>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9192,20 +9208,13 @@ pub struct SessionTokenForSimplifiedApplePay {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayWalletDetails {
-    pub google_pay: GooglePayDetailsWrapper,
+    pub google_pay: GooglePayDetails,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayDetails {
     pub provider_details: GooglePayProviderDetails,
     pub cards: GpayAllowedMethodsParameters,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GooglePayDetailsWrapper {
-    #[serde(flatten)]
-    pub data: Option<GooglePayDetails>,
-    pub enable_predecrypted_token: Option<bool>,
 }
 
 // Google Pay Provider Details can of two types: GooglePayMerchantDetails or GooglePayHyperSwitchDetails
@@ -10422,7 +10431,7 @@ pub struct PaymentsStartRequest {
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct FeatureMetadata {
+pub struct Feature {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,

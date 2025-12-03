@@ -34,7 +34,7 @@ use crate::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers},
-        payments::helpers,
+        payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
@@ -1370,6 +1370,55 @@ impl ConnectorMetadata<'_> {
             })?;
         Ok(())
     }
+
+    fn validate_flow_enabled_for_googlepay(&self) -> RouterResult<()> {
+        match self
+            .connector_metadata
+            .clone()
+            .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+            .ok()
+        {
+            Some(gpay_metadata) => {
+                if gpay_metadata.google_pay.data.is_none()
+                    && !gpay_metadata.google_pay.is_predecrypted_token_supported()
+                {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "metadata.google_pay : no flow is enabled for googlepay"
+                            .to_string(),
+                    }
+                    .into());
+                }
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+    // if apple_pay_combined is present validate atleast one flow is enabled i.e predecrypted or (combined flows)
+    fn validate_flow_enabled_for_applepay(&self) -> RouterResult<()> {
+        match self
+            .connector_metadata
+            .clone()
+            .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+                "ApplepayCombinedSessionTokenData",
+            )
+            .ok()
+        {
+            Some(apple_pay_metadata) => {
+                let applepay_combined = apple_pay_metadata.apple_pay_combined;
+                if applepay_combined.data.is_none()
+                    && !applepay_combined.is_predecrypted_token_supported()
+                {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "metadata.apple_pay_combined: no flow is enabled for applepay "
+                            .to_string(),
+                    }
+                    .into());
+                }
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
 }
 
 struct PMAuthConfigValidation<'a> {
@@ -2493,6 +2542,8 @@ pub async fn create_connector(
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
+    connector_metadata.validate_flow_enabled_for_applepay()?;
+    connector_metadata.validate_flow_enabled_for_googlepay()?;
 
     #[cfg(feature = "v1")]
     helpers::validate_business_details(
@@ -2843,6 +2894,13 @@ pub async fn update_connector(
         .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let connector_metadata = ConnectorMetadata {
+        connector_metadata: &req.metadata,
+    };
+    connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
+    connector_metadata.validate_flow_enabled_for_applepay()?;
+    connector_metadata.validate_flow_enabled_for_googlepay()?;
 
     let mca = req
         .clone()
