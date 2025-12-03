@@ -25,5 +25,5 @@ describe("Account Create flow test", () => {
     // Automatically create rollout configs and shadow config after successful merchant creation
     cy.createRolloutConfig(globalState);
     cy.createShadowRolloutConfig(globalState);
-  })
+  });
 });
