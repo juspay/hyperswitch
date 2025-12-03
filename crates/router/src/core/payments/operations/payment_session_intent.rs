@@ -342,7 +342,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                                 .connector
                                 .connector_name
                                 .to_string()
-                                .parse::<common_enums::RoutableConnectors>()
+                                .parse::<euclid::enums::RoutableConnectors>()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             merchant_connector_id: choice.connector.merchant_connector_id.clone(),
                         };
