@@ -85,7 +85,11 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{self, utils::MerchantPreRoutingConfig, SessionFlowRoutingInput},
+            routing::{
+                self,
+                utils::{load_skip_pre_routing_config, should_skip_prerouting},
+                SessionFlowRoutingInput,
+            },
         },
         utils as core_utils,
     },
@@ -2897,46 +2901,30 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let merchant_cfg = state
-            .store
-            .find_config_by_key_from_db(
-                &platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .get_pre_routing_disabled_pm_pmt_key(),
-            )
-            .await
-            .ok()
-            .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
-            .unwrap_or_default();
+        let pre_routing_disabled_pm_pmt_key = &platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_pre_routing_disabled_pm_pmt_key();
 
-        let mut skip_pre_routing: HashMap<
-            common_enums::PaymentMethod,
-            HashSet<common_enums::PaymentMethodType>,
-        > = HashMap::new();
-
-        for rule in merchant_cfg.skip_rules.iter() {
-            skip_pre_routing
-                .entry(rule.payment_method)
-                .or_default()
-                .extend(rule.payment_method_types.iter().copied());
-        }
+        let skip_pre_routing =
+            load_skip_pre_routing_config(&state, pre_routing_disabled_pm_pmt_key.to_string()).await;
 
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
-            let skip = skip_pre_routing
-                .get(&intermediate.payment_method)
-                .map(|config_pmt| config_pmt.contains(&intermediate.payment_method_type))
-                .unwrap_or(false);
+            let should_skip_prerouting = should_skip_prerouting(
+                &skip_pre_routing,
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
 
             let pm_allowed = routing_enabled_pms.contains(&intermediate.payment_method);
             let pmt_allowed = routing_enabled_pm_types.contains(&intermediate.payment_method_type);
 
-            if (pm_allowed || pmt_allowed) && !skip {
+            if (pm_allowed || pmt_allowed) && !should_skip_prerouting {
                 let connector_data = helpers::get_connector_data_with_token(
                     &state,
                     intermediate.connector.to_string(),
@@ -2974,16 +2962,15 @@ pub async fn list_payment_methods(
         .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
-            let skip = skip_pre_routing
-                .get(&intermediate.payment_method)
-                .map(|config_pmt| config_pmt.contains(&intermediate.payment_method_type))
-                .unwrap_or(false);
-            if skip {
-                return false;
-            }
+            let should_skip_prerouting = should_skip_prerouting(
+                &skip_pre_routing,
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
 
             if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 && !routing_enabled_pms.contains(&intermediate.payment_method)
+                && !should_skip_prerouting
             {
                 return true;
             }
