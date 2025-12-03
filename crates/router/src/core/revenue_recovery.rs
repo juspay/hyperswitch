@@ -1176,6 +1176,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyCaptured
         | IntentStatus::PartiallyCapturedAndCapturable
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::PartiallyCapturedAndProcessing => {
@@ -1428,9 +1429,8 @@ pub fn map_recovery_status(
 
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
-        IntentStatus::Processing => RecoveryStatus::Processing,
-        IntentStatus::PartiallyCapturedAndProcessing => {
-            RecoveryStatus::PartiallyCapturedAndProcessing
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            RecoveryStatus::Processing
         }
         IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture

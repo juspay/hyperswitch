@@ -976,6 +976,7 @@ impl PaymentIntent {
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::Expired
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod

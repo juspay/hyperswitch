@@ -327,16 +327,16 @@ impl AttemptAmountDetails {
         self.amount_capturable
     }
 
+    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
+        self.amount_captured
+    }
+
     pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
         self.shipping_cost
     }
 
     pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
         self.order_tax_amount
-    }
-
-    pub fn get_amount_captured(&self) -> Option<MinorUnit> {
-        self.amount_captured
     }
 
     pub fn set_amount_to_capture(&mut self, amount_to_capture: MinorUnit) {
