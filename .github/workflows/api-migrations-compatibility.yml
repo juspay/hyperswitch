@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   api-compatibility-check:
-    name: API & Migration Compatibility Check
+    name: API Compatibility Check
     runs-on: ubuntu-latest
 
     steps:
@@ -65,7 +65,7 @@ jobs:
 
           if oasdiff breaking \
             --fail-on ERR \
-            --warn-ignore .github/oasdiff/.oasdiff-warn-ignore.yaml \
+            --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
             base-v1-schema.json pr-v1-schema.json > v1-breaking-report.txt 2>&1; then
             echo "V1 API is backward compatible" > v1-breaking-status.txt
           else
@@ -76,7 +76,7 @@ jobs:
 
           if oasdiff breaking \
             --fail-on ERR \
-            --warn-ignore .github/oasdiff/.oasdiff-warn-ignore.yaml \
+            --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
             base-v2-schema.json pr-v2-schema.json > v2-breaking-report.txt 2>&1; then
             echo "V2 API is backward compatible" > v2-breaking-status.txt
           else
@@ -139,7 +139,7 @@ jobs:
         id: migration_check
         run: |
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "migrations/**/*.sql" 2>/dev/null || echo "")
+          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "migrations/**/up.sql" 2>/dev/null || echo "")
 
           if [[ -z "$NEW_MIGRATIONS" ]]; then
             echo "breaking_changes=0" >> $GITHUB_OUTPUT
@@ -147,31 +147,57 @@ jobs:
             exit 0
           fi
 
+          # Load migration rules using yq
+          RULES_FILE=".github/api-migration-compatibility/migration-rules.yaml"
+
+          # Extract breaking rule patterns for migrations folder
+          BREAKING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.migrations.breaking[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
+          # Extract warning rule patterns for migrations folder
+          WARNING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.migrations.warnings[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
           BREAKING=0
           WARNINGS=0
 
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
-            CONTENT=$(cat "$file")
 
-            if echo "$CONTENT" | grep -iE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" >/dev/null; then
+            # Check for breaking changes
+            if grep -iEq "$BREAKING_PATTERNS" "$file"; then
               echo "BREAKING: $file"
-              echo "$CONTENT" | grep -inE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
-              BREAKING=$((BREAKING + 1))
+              MATCH_COUNT=$(grep -icE "$BREAKING_PATTERNS" "$file")
+              grep -inE "$BREAKING_PATTERNS" "$file" | sed 's/^/  /' || true
+              BREAKING=$((BREAKING + MATCH_COUNT))
             fi
 
-            if echo "$CONTENT" | grep -iE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
+            # Check for warnings
+            if grep -iEq "$WARNING_PATTERNS" "$file"; then
               echo "WARNING: $file"
-              echo "$CONTENT" | grep -inE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
-              WARNINGS=$((WARNINGS + 1))
+              MATCH_COUNT=$(grep -icE "$WARNING_PATTERNS" "$file")
+              grep -inE "$WARNING_PATTERNS" "$file" | sed 's/^/  /' || true
+              WARNINGS=$((WARNINGS + MATCH_COUNT))
             fi
           done <<< "$NEW_MIGRATIONS"
 
           echo "breaking_changes=$BREAKING" >> $GITHUB_OUTPUT
           echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
-        continue-on-error: true
+
+          if [[ $BREAKING -gt 0 ]]; then
+            echo "::error::Breaking changes detected in V1 database migrations."
+            echo "::error::Found $BREAKING breaking change(s)."
+            exit 1
+          fi
 
       - name: Validate V2 migrations
+        if: success() || failure()
         id: v2_migration_check
         run: |
           if [[ ! -d "v2_migrations" ]]; then
@@ -181,7 +207,7 @@ jobs:
           fi
 
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "v2_migrations/**/*.sql" 2>/dev/null || echo "")
+          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "v2_migrations/**/up.sql" 2>/dev/null || echo "")
 
           if [[ -z "$NEW_MIGRATIONS" ]]; then
             echo "breaking_changes=0" >> $GITHUB_OUTPUT
@@ -189,30 +215,57 @@ jobs:
             exit 0
           fi
 
+          # Load migration rules using yq
+          RULES_FILE=".github/api-migration-compatibility/migration-rules.yaml"
+
+          # Extract breaking rule patterns for v2_migrations folder
+          BREAKING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.v2_migrations.breaking[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
+          # Extract warning rule patterns for v2_migrations folder
+          WARNING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.v2_migrations.warnings[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
           BREAKING=0
           WARNINGS=0
 
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
-            CONTENT=$(cat "$file")
 
-            if echo "$CONTENT" | grep -iE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" >/dev/null; then
+            # Check for breaking changes
+            if grep -iEq "$BREAKING_PATTERNS" "$file"; then
               echo "BREAKING: $file"
-              echo "$CONTENT" | grep -inE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
-              BREAKING=$((BREAKING + 1))
+              MATCH_COUNT=$(grep -icE "$BREAKING_PATTERNS" "$file")
+              grep -inE "$BREAKING_PATTERNS" "$file" | sed 's/^/  /' || true
+              BREAKING=$((BREAKING + MATCH_COUNT))
             fi
-            if echo "$CONTENT" | grep -iE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
+
+            # Check for warnings
+            if grep -iEq "$WARNING_PATTERNS" "$file"; then
               echo "WARNING: $file"
-              echo "$CONTENT" | grep -inE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
-              WARNINGS=$((WARNINGS + 1))
+              MATCH_COUNT=$(grep -icE "$WARNING_PATTERNS" "$file")
+              grep -inE "$WARNING_PATTERNS" "$file" | sed 's/^/  /' || true
+              WARNINGS=$((WARNINGS + MATCH_COUNT))
             fi
           done <<< "$NEW_MIGRATIONS"
 
           echo "breaking_changes=$BREAKING" >> $GITHUB_OUTPUT
           echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
-        continue-on-error: true
+
+          if [[ $BREAKING -gt 0 ]]; then
+            echo "::error::Breaking changes detected in V2 database migrations."
+            echo "::error::Found $BREAKING breaking change(s)."
+            exit 1
+          fi
 
       - name: Validate V2 compatible migrations
+        if: success() || failure()
         id: v2_compat_migration_check
         run: |
           if [[ ! -d "v2_compatible_migrations" ]]; then
@@ -222,7 +275,7 @@ jobs:
           fi
 
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "v2_compatible_migrations/**/*.sql" 2>/dev/null || echo "")
+          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=AM "$BASE_REF"...HEAD -- "v2_compatible_migrations/**/up.sql" 2>/dev/null || echo "")
 
           if [[ -z "$NEW_MIGRATIONS" ]]; then
             echo "breaking_changes=0" >> $GITHUB_OUTPUT
@@ -230,31 +283,57 @@ jobs:
             exit 0
           fi
 
+          # Load migration rules using yq
+          RULES_FILE=".github/api-migration-compatibility/migration-rules.yaml"
+
+          # Extract breaking rule patterns for v2_compatible_migrations folder
+          BREAKING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.v2_compatible_migrations.breaking[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
+          # Extract warning rule patterns for v2_compatible_migrations folder
+          WARNING_PATTERNS=$(
+            for rule in $(yq '.folder_rules.v2_compatible_migrations.warnings[]' "$RULES_FILE"); do
+              yq ".rule_patterns.$rule.pattern" "$RULES_FILE"
+            done | paste -sd'|' -
+          )
+
           BREAKING=0
           WARNINGS=0
 
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
-            CONTENT=$(cat "$file")
 
-            if echo "$CONTENT" | grep -iE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" >/dev/null; then
+            # Check for breaking changes
+            if grep -iEq "$BREAKING_PATTERNS" "$file"; then
               echo "BREAKING: $file"
-              echo "$CONTENT" | grep -inE "(DROP TABLE|DROP COLUMN|DELETE FROM|TRUNCATE)" | sed 's/^/  /'
-              BREAKING=$((BREAKING + 1))
+              MATCH_COUNT=$(grep -icE "$BREAKING_PATTERNS" "$file")
+              grep -inE "$BREAKING_PATTERNS" "$file" | sed 's/^/  /' || true
+              BREAKING=$((BREAKING + MATCH_COUNT))
             fi
 
-            if echo "$CONTENT" | grep -iE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" >/dev/null; then
+            # Check for warnings
+            if grep -iEq "$WARNING_PATTERNS" "$file"; then
               echo "WARNING: $file"
-              echo "$CONTENT" | grep -inE "(ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP INDEX|DROP CONSTRAINT)" | sed 's/^/  /'
-              WARNINGS=$((WARNINGS + 1))
+              MATCH_COUNT=$(grep -icE "$WARNING_PATTERNS" "$file")
+              grep -inE "$WARNING_PATTERNS" "$file" | sed 's/^/  /' || true
+              WARNINGS=$((WARNINGS + MATCH_COUNT))
             fi
           done <<< "$NEW_MIGRATIONS"
 
           echo "breaking_changes=$BREAKING" >> $GITHUB_OUTPUT
           echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
-        continue-on-error: true
+
+          if [[ $BREAKING -gt 0 ]]; then
+            echo "::error::Breaking changes detected in V2 compatible database migrations."
+            echo "::error::Found $BREAKING breaking change(s)."
+            exit 1
+          fi
 
       - name: Calculate migration totals
+        if: always()
         id: migration_report
         env:
           MIGRATION_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
@@ -301,9 +380,7 @@ jobs:
           echo "Status: ${{ steps.migration_report.outputs.validation_status }}"
           echo "=========================================="
 
-      - name: Fail if migration breaking changes detected
-        if: steps.migration_report.outputs.total_breaking != '0' && steps.migration_report.outputs.total_breaking != ''
-        run: |
-          echo "::error::Breaking changes detected in database migrations."
-          echo "::error::Found ${{ steps.migration_report.outputs.total_breaking }} breaking change(s)."
-          exit 1
+          if [[ "${{ steps.migration_report.outputs.total_breaking }}" != "0" && "${{ steps.migration_report.outputs.total_breaking }}" != "" ]]; then
+            echo "::error::Migration validation failed with breaking changes."
+            exit 1
+          fi
