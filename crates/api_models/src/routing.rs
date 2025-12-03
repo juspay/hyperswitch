@@ -776,7 +776,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 success_based_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -794,7 +793,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }

@@ -2407,10 +2407,6 @@ impl Profile {
                     .service(
                         web::scope("/success_based")
                             .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_success_based_routing)),
-                            )
-                            .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
                             )
@@ -2432,10 +2428,6 @@ impl Profile {
                     )
                     .service(
                         web::scope("/elimination")
-                            .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_elimination_routing)),
-                            )
                             .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
