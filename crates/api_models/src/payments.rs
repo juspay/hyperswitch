@@ -11888,7 +11888,6 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-
     pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
             processor_payment_token: self

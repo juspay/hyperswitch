@@ -10069,7 +10069,6 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
-            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
