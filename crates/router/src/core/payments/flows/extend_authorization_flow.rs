@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_domain_models::router_flow_types::ExtendAuthorization;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -14,10 +15,10 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::ExtendAuthorization,
+        ExtendAuthorization,
         types::PaymentsExtendAuthorizationData,
         types::PaymentsResponseData,
-    > for PaymentData<api::ExtendAuthorization>
+    > for PaymentData<ExtendAuthorization>
 {
     #[cfg(feature = "v2")]
     async fn construct_router_data<'a>(
@@ -47,7 +48,7 @@ impl
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsExtendAuthorizationRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
-            api::ExtendAuthorization,
+            ExtendAuthorization,
             types::PaymentsExtendAuthorizationData,
         >(
             state,
@@ -66,9 +67,9 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
+impl Feature<ExtendAuthorization, types::PaymentsExtendAuthorizationData>
     for types::RouterData<
-        api::ExtendAuthorization,
+        ExtendAuthorization,
         types::PaymentsExtendAuthorizationData,
         types::PaymentsResponseData,
     >
@@ -90,7 +91,7 @@ impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
         );
 
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::ExtendAuthorization,
+            ExtendAuthorization,
             types::PaymentsExtendAuthorizationData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
@@ -136,7 +137,7 @@ impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::ExtendAuthorization,
+                    ExtendAuthorization,
                     types::PaymentsExtendAuthorizationData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();

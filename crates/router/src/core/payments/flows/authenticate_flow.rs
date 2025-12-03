@@ -10,7 +10,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, transformers},
+        payments::{self, access_token, flows::gateway_context, transformers},
     },
     logger,
     routes::{metrics, SessionState},
@@ -31,6 +31,7 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             Authenticate,
@@ -56,13 +57,19 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+        ))
+        .await
     }
-
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &SessionState,
@@ -109,12 +116,16 @@ impl Feature<Authenticate, types::PaymentsAuthenticateData>
 
     async fn call_unified_connector_service<'a>(
         &mut self,
-
         state: &SessionState,
         header_payload: &domain_payments::HeaderPayload,
         lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
+        connector_data: &api::ConnectorData,
+        unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
+        creds_identifier: Option<String>,
     ) -> RouterResult<()> {
         todo!()
     }
@@ -133,7 +144,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -146,7 +157,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                merchant_context,
+                platform,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,

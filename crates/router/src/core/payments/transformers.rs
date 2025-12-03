@@ -298,7 +298,7 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::PreAuthenticate>,
     connector_id: &str,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -336,8 +336,9 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .publishable_key
                 .as_ref(),
         )
@@ -363,16 +364,22 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
         .clone()
         .map(types::BrowserInformation::from);
 
+    let payment_method_data = payment_data
+        .payment_method_data
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "payment_method_data",
+        })
+        .attach_printable("payment_method_data not found in PaymentData")?;
+
     let request = router_request_types::PaymentsPreAuthenticateData {
-        payment_method_data: payment_data.payment_method_data,
-        amount: Some(
-            payment_data
-                .payment_attempt
-                .amount_details
-                .get_net_amount()
-                .get_amount_as_i64(),
-        ),
-        minor_amount: Some(payment_data.payment_attempt.amount_details.get_net_amount()),
+        payment_method_data,
+        amount: payment_data
+            .payment_attempt
+            .amount_details
+            .get_net_amount()
+            .get_amount_as_i64(),
+
+        minor_amount: payment_data.payment_attempt.amount_details.get_net_amount(),
         currency: Some(payment_data.payment_intent.amount_details.currency),
         browser_info,
         email,
@@ -381,7 +388,8 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
         router_return_url: Some(router_return_url),
         complete_authorize_url,
 
-        redirect_response: None,
+        customer_name: None,
+        metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -392,7 +400,7 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
@@ -477,7 +485,7 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::Authenticate>,
     connector_id: &str,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -516,8 +524,9 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .publishable_key
                 .as_ref(),
         )
@@ -557,9 +566,7 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
         currency: Some(payment_data.payment_intent.amount_details.currency),
         browser_info,
         email,
-        enrolled_for_3ds: true,
         payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
-        router_return_url: Some(router_return_url),
         complete_authorize_url,
         redirect_response: None,
     };
@@ -572,7 +579,7 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,
@@ -657,7 +664,7 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentConfirmData<api::PostAuthenticate>,
     connector_id: &str,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -689,14 +696,13 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
 
     let router_base_url = &state.base_url;
 
-    let complete_authorize_url = None;
-
     let router_return_url = payment_data
         .payment_intent
         .create_finish_redirection_url(
             router_base_url,
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .publishable_key
                 .as_ref(),
         )
@@ -722,6 +728,13 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
         .clone()
         .map(types::BrowserInformation::from);
 
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_id,
+        api::GetToken::Connector,
+        payment_data.payment_attempt.merchant_connector_id.clone(),
+    )?;
+
     let request = router_request_types::PaymentsPostAuthenticateData {
         payment_method_data: payment_data.payment_method_data,
         amount: Some(
@@ -735,11 +748,13 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
         currency: Some(payment_data.payment_intent.amount_details.currency),
         browser_info,
         email,
-        enrolled_for_3ds: true,
         payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
-        router_return_url: Some(router_return_url),
-        complete_authorize_url,
 
+        connector_transaction_id: connector
+            .connector
+            .connector_transaction_id(&payment_data.payment_attempt)?
+            .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?
+            .into(),
         redirect_response: None,
     };
     let connector_mandate_request_reference_id = payment_data
@@ -751,7 +766,7 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         tenant_id: state.tenant.tenant_id.clone(),
         // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
         customer_id,

@@ -29,9 +29,8 @@ use hyperswitch_domain_models::{
         },
         unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
         webhooks::VerifyWebhookSource,
-        AccessTokenAuth, AccessTokenAuthentication, Authenticate, ExternalVaultCreateFlow,
+        AccessTokenAuth, AccessTokenAuthentication, ExternalVaultCreateFlow,
         ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
-        PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         authentication,
@@ -110,12 +109,13 @@ use hyperswitch_interfaces::{
         payments_v2::{
             ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate, MandateSetupV2,
             PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
-            PaymentCreateOrderV2, PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
-            PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
-            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsCompleteAuthorizeV2,
-            PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
-            PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, TaxCalculationV2,
+            PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
+            PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2,
+            PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
+            PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
+            PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2,
+            PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
+            PaymentsPreProcessingV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -158,9 +158,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentsPostAuthenticateV2 for $path::$connector{}
             impl PaymentsPreProcessingV2 for $path::$connector{}
             impl PaymentsGiftCardBalanceCheckV2 for $path::$connector{}
-            impl PaymentsPreAuthenticateV2 for $path::$connector{}
-            impl PaymentsAuthenticateV2 for $path::$connector{}
-            impl PaymentsPostAuthenticateV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
@@ -303,24 +300,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             > for $path::$connector{}
         impl ConnectorIntegrationV2<CreateOrder, PaymentFlowData, CreateOrderRequestData, PaymentsResponseData>
             for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
     )*
     };
 }

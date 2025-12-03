@@ -1361,6 +1361,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1399,6 +1400,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1520,7 +1522,8 @@ impl
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::Expired
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
@@ -1587,6 +1590,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
@@ -1625,6 +1629,7 @@ impl
                                 ),
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
+                            amount_captured,
                         },
                     ))
                 }
@@ -1746,7 +1751,8 @@ impl
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::Expired
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
         }
     }
 
