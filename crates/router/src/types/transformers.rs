@@ -305,7 +305,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PayBright
             | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley
-            | api_enums::PaymentMethodType::Breadpay => Self::PayLater,
+            | api_enums::PaymentMethodType::Breadpay
+            | api_enums::PaymentMethodType::Payjustnow => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
             | api_enums::PaymentMethodType::Sofort
@@ -1199,6 +1200,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::foreign_from(bank_redirect)
             }
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                passthrough.token_type
+            }
         }
     }
 }
@@ -1243,18 +1247,27 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                Self::from(passthrough.token_type)
+            }
         }
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
-    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        value: &api_models::payouts::PayoutMethodData,
+    ) -> Result<Self, Self::Error> {
         match value {
-            api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
-            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
-            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
-            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
+            api_models::payouts::PayoutMethodData::Bank(_) => Ok(Self::Bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Ok(Self::Card),
+            api_models::payouts::PayoutMethodData::Wallet(_) => Ok(Self::Wallet),
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                Self::foreign_try_from(api_enums::PaymentMethod::from(passthrough.token_type))
+            }
         }
     }
 }
@@ -1280,6 +1293,7 @@ impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType 
             api_enums::PaymentMethod::Card => Ok(Self::Card),
             api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
             api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            api_enums::PaymentMethod::BankRedirect => Ok(Self::BankRedirect),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("PaymentMethod {value:?} is not supported for payouts"),
             })
@@ -1950,6 +1964,12 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
         }
     }
 }
@@ -1961,6 +1981,32 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
+            vault_token_selector: item.vault_token_selector.map(|vault_token_selector| {
+                vault_token_selector
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::VaultTokenField>
+    for diesel_models::business_profile::VaultTokenField
+{
+    fn foreign_from(item: api_models::admin::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
+    for api_models::admin::VaultTokenField
+{
+    fn foreign_from(item: diesel_models::business_profile::VaultTokenField) -> Self {
+        Self {
+            token_type: item.token_type,
         }
     }
 }
@@ -2110,6 +2156,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: item.custom_message_for_payment_method_types,
             payment_button_colour: item.payment_button_colour,
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
@@ -2146,6 +2193,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_button_text: item.payment_button_text,
             skip_status_screen: item.skip_status_screen,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: item.custom_message_for_payment_method_types,
             payment_button_colour: item.payment_button_colour,
             background_colour: item.background_colour,
             payment_button_text_colour: item.payment_button_text_colour,
@@ -2157,6 +2205,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }

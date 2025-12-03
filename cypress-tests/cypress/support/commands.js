@@ -947,6 +947,15 @@ Cypress.Commands.add(
   }
 );
 
+// NOTE: The following `customerListCall` command tests the OLD `/customers/list` endpoint.
+// A new API `/api/customers/list_with_count` has been introduced to include pagination
+// and total count in the response.
+//
+// Once the new endpoint is stable and fully rolled out in production,
+// this old endpoint and related test (`customerListCall`) will be deprecated and removed.
+
+// OLD customer list (to be deprecated later)
+
 Cypress.Commands.add("customerListCall", (globalState) => {
   cy.request({
     method: "GET",
@@ -966,6 +975,59 @@ Cypress.Commands.add("customerListCall", (globalState) => {
     });
   });
 });
+
+// NEW customer list (with count and pagination)
+
+Cypress.Commands.add(
+  "customerListWithCountCallTest",
+  (globalState, limit = 20, offset = 0) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/customers/list_with_count?limit=${limit}&offset=${offset}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.eq(200);
+        expect(response.body).to.have.property("data");
+        expect(response.body).to.have.property("total_count");
+
+        const actualDataLength = response.body.data.length;
+        const totalCount = response.body.total_count;
+
+        // Validate total_count is a number
+        expect(totalCount).to.be.a("number");
+
+        // Data length should never exceed the requested limit
+        expect(actualDataLength).to.be.at.most(
+          limit,
+          `Data length (${actualDataLength}) should not exceed limit (${limit})`
+        );
+
+        // If offset is within range, validate data length expectations
+        if (offset < totalCount) {
+          const remainingRecords = totalCount - offset;
+          const expectedDataLength = Math.min(limit, remainingRecords);
+          expect(actualDataLength).to.equal(
+            expectedDataLength,
+            `Expected ${expectedDataLength} records but got ${actualDataLength} (total: ${totalCount}, offset: ${offset}, limit: ${limit})`
+          );
+        } else {
+          // If offset >= total_count, data should be empty
+          expect(actualDataLength).to.equal(
+            0,
+            `When offset (${offset}) >= total_count (${totalCount}), data should be empty`
+          );
+        }
+      });
+    });
+  }
+);
 
 Cypress.Commands.add("customerRetrieveCall", (globalState) => {
   const customer_id = globalState.get("customerId");
@@ -3262,6 +3324,92 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmRealTimePaymentCallTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentID = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profile_id;
+
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+
+          validateErrorMessage(response, resData);
+
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            switch (response.body.payment_method_type) {
+              case "duit_now":
+                if (response.body.connector === "fiuu")
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
+                if (response.body.connector === "iatapay")
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                break;
+
+              default:
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("image_data_url");
+                globalState.set(
+                  "image_data_url",
+                  response.body.next_action.redirect_to_url
+                );
+                globalState.set("nextActionType", "image_data_url");
+                break;
+            }
+          } else {
+            throw new Error(
+              `Invalid capture method ${response.body.capture_method}`
+            );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "handleUpiRedirection",
   (globalState, paymentMethodType, expected_redirection) => {
     const connectorId = globalState.get("connectorId");
@@ -3469,7 +3617,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -3511,7 +3659,7 @@ Cypress.Commands.add(
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4119,6 +4267,153 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
 
   cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
+
+// Blocklist and Eligibility API Commands
+Cypress.Commands.add(
+  "blocklistCreateRule",
+  (requestBody, cardBin, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/blocklist`;
+
+    const body = {
+      ...requestBody,
+      type: "card_bin",
+      data: cardBin,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("fingerprint_id")
+            .to.equal(cardBin);
+          expect(response.body)
+            .to.have.property("data_kind")
+            .to.equal("card_bin");
+          expect(response.body).to.have.property("created_at").to.not.be.null;
+          globalState.set("blocklistRuleId", response.body.fingerprint_id);
+        } else {
+          throw new Error(
+            `Blocklist create rule failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/blocklist`;
+
+  const body = {
+    type: type,
+    data: data,
+  };
+
+  cy.request({
+    method: "DELETE",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.log(`Blocklist rule deleted for ${type}: ${data}`);
+      } else {
+        throw new Error(
+          `Blocklist delete failed with status: ${response.status} and message: ${response.body?.error?.message}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "paymentsEligibilityCheck",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const publishableKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/payments/${paymentId}/eligibility`;
+
+    const body = {
+      ...requestBody,
+      client_secret: clientSecret,
+      ...reqData,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": publishableKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("payment_id")
+            .to.equal(paymentId);
+
+          // Check for expected response structure based on test case
+          if (resData.body.sdk_next_action?.next_action?.deny) {
+            expect(response.body).to.have.property("sdk_next_action");
+            expect(response.body.sdk_next_action).to.have.property(
+              "next_action"
+            );
+            expect(response.body.sdk_next_action.next_action).to.have.property(
+              "deny"
+            );
+            expect(response.body.sdk_next_action.next_action.deny)
+              .to.have.property("message")
+              .to.equal(resData.body.sdk_next_action.next_action.deny.message);
+          } else {
+            // For non-blocklisted cards, we expect no deny action
+            if (response.body.sdk_next_action?.next_action?.deny) {
+              throw new Error(
+                "Expected no deny action for non-blocklisted card"
+              );
+            }
+          }
+        } else {
+          throw new Error(
+            `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
 
 // DDC Race Condition Test Commands
 Cypress.Commands.add(

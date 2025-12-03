@@ -19,6 +19,15 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const blocklistedCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "2050",
+  card_holder_name: "John Smith",
+  card_cvc: "349",
+  card_network: "Visa",
+};
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
@@ -51,6 +60,24 @@ export const multiUseMandateData = {
       amount: 8000,
       currency: "USD",
     },
+  },
+};
+
+export const standardBillingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "CA",
+    zip: "94122",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "8056594427",
+    country_code: "+91",
   },
 };
 
@@ -622,6 +649,34 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
+      },
+    }),
+  },
+  real_time_payment_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "MYR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DuitNow: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: standardBillingAddress,
       },
     }),
   },
@@ -1620,6 +1675,19 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
     DDCRaceConditionServerSide: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -1856,6 +1924,56 @@ export const connectorDetails = {
             code: "IR_06",
             error_type: "invalid_request",
           },
+        },
+      },
+    }),
+  },
+  eligibility_api: {
+    PaymentIntentForBlocklist: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    BlocklistedCardDenied: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: blocklistedCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          sdk_next_action: {
+            next_action: {
+              deny: {
+                message: "Card number is blocklisted",
+              },
+            },
+          },
+        },
+      },
+    }),
+    NonBlocklistedCardAllowed: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          // Should not have deny action for non-blocklisted cards
         },
       },
     }),

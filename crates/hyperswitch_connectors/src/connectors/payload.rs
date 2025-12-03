@@ -8,6 +8,7 @@ use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
+    crypto::{HmacSha256, VerifySignature},
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -47,7 +48,7 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsVoidType, Response, SetupMandateType},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -179,8 +180,10 @@ impl ConnectorValidation for Payload {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::Card,
+            utils::PaymentMethodDataType::AchBankDebit,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -215,7 +218,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::PayloadCardsRequestData::try_from(req)?;
+        let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -768,19 +771,35 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Payload {
-    async fn verify_webhook_source(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(HmacSha256))
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
-        _connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        // Payload does not support source verification
-        // It does, but the client id and client secret generation is not possible at present
-        // It requires OAuth connect which falls under Access Token flow and it also requires multiple calls to be made
-        // We return false just so that a PSync call is triggered internally
-        Ok(false)
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let security_header_with_algo =
+            utils::get_header_key_value("X-Payload-Signature", request.headers)?;
+        let security_header = security_header_with_algo
+            .strip_prefix("sha256=")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        hex::decode(security_header)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_object_reference_id(
@@ -792,7 +811,7 @@ impl webhooks::IncomingWebhook for Payload {
             .parse_struct("PayloadWebhookEvent")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let reference_id = match webhook_body.trigger {
+        match webhook_body.trigger {
             responses::PayloadWebhooksTrigger::Payment
             | responses::PayloadWebhooksTrigger::Processed
             | responses::PayloadWebhooksTrigger::Authorized
@@ -807,33 +826,25 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::Chargeback
-            | responses::PayloadWebhooksTrigger::ChargebackReversal
             | responses::PayloadWebhooksTrigger::TransactionOperation
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
-                )
-            }
+                let reference_id = webhook_body
+                    .triggered_on
+                    .transaction_id
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-            responses::PayloadWebhooksTrigger::Refund => {
-                api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        webhook_body
-                            .triggered_on
-                            .transaction_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
-                )
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(reference_id),
+                ))
             }
-        };
-
-        Ok(reference_id)
+            // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
+            // The only differentiator is the distinct IDs received for payment and refund.
+            responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal => {
+                Err(errors::ConnectorError::WebhooksNotImplemented.into())
+            }
+        }
     }
 
     fn get_webhook_event_type(
@@ -855,8 +866,11 @@ impl webhooks::IncomingWebhook for Payload {
         let webhook_body: responses::PayloadWebhookEvent = request
             .body
             .parse_struct("PayloadWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(Box::new(webhook_body))
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(Box::new(responses::PayloadPaymentsResponse::try_from(
+            webhook_body,
+        )?))
     }
 }
 
@@ -910,6 +924,16 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
             ),
         },
     );
+    payload_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        enums::PaymentMethodType::Ach,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
     payload_supported_payment_methods
 });
 
@@ -917,7 +941,7 @@ static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payload",
     description: "Payload is an embedded finance solution for modern platforms and businesses, automating inbound and outbound payments with an industry-leading platform and driving innovation into the future.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

@@ -295,7 +295,6 @@ pub struct PaymentMethodRecordUpdateResponse {
     pub network_transaction_id: Option<String>,
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub updated_payment_method_data: Option<bool>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -319,6 +318,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -413,6 +413,7 @@ impl PaymentMethodCreate {
                     card_network: payment_method_migrate_card.card_network.clone(),
                     card_issuer: payment_method_migrate_card.card_issuer.clone(),
                     card_type: payment_method_migrate_card.card_type.clone(),
+                    card_cvc: None,
                 });
 
         Self {
@@ -481,6 +482,9 @@ pub struct PaymentMethodUpdate {
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetailUpdate>,
 
+    /// Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -540,6 +544,10 @@ pub struct CardDetail {
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
     pub card_exp_year: masking::Secret<String>,
+
+    /// Card CVC for Volatile Storage
+    #[schema(value_type = Option<String>,example = "123")]
+    pub card_cvc: Option<masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
@@ -769,20 +777,36 @@ pub struct MigrateNetworkTokenDetail {
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card Expiry Month
-    #[schema(value_type = String,example = "10")]
+    #[schema(value_type = String, example = "10")]
     pub card_exp_month: Option<masking::Secret<String>>,
 
     /// Card Expiry Year
-    #[schema(value_type = String,example = "25")]
+    #[schema(value_type = String, example = "25")]
     pub card_exp_year: Option<masking::Secret<String>>,
 
     /// Card Holder Name
-    #[schema(value_type = String,example = "John Doe")]
+    #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
-    #[schema(value_type = Option<String>,example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card's Last 4 Digits
+    #[schema(value_type = Option<String>, example = "1111")]
+    pub last4_digits: Option<String>,
+
+    /// Issuing Bank of the Particular Card
+    #[schema(value_type = Option<String>, example = "Bank of America")]
+    pub card_issuer: Option<String>,
+
+    /// The country where that particular card was issued
+    #[schema(value_type = Option<String>, example = "US")]
+    pub issuer_country: Option<String>,
+
+    /// The card network
+    #[schema(value_type = Option<String>, example = "VISA")]
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "v1")]
@@ -806,6 +830,7 @@ impl CardDetailUpdate {
                 .nick_name
                 .clone()
                 .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_cvc: None,
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -922,6 +947,70 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodUpdateResponse {
+    /// Unique identifier for a merchant
+    #[schema(example = "merchant_1671528864", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The unique identifier of the Payment method
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    pub payment_method_id: String,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Card details from card locker
+    #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
+    pub card: Option<CardDetailFromLocker>,
+
+    /// Updated Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
+
+    /// Type of payment experience enabled with the connector
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// For Client based calls
+    pub client_secret: Option<String>,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct ConnectorTokenDetails {
@@ -1095,7 +1184,7 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
     pub last4: String,
@@ -1104,6 +1193,12 @@ pub struct PaymentMethodDataWalletInfo {
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// The card's expiry month
+    #[schema(value_type = Option<String>,example = "10")]
+    pub card_exp_month: Option<masking::Secret<String>>,
+    /// The card's expiry year
+    #[schema(value_type = Option<String>,example = "25")]
+    pub card_exp_year: Option<masking::Secret<String>>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1112,6 +1207,8 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1122,6 +1219,8 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             last4: item.last4,
             card_network: item.card_network,
             card_type: item.card_type,
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
@@ -1140,18 +1239,22 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                 .collect(),
             card_network: item.network,
             card_type: Some(item.pm_type),
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
         }
     }
 }
 
-impl TryFrom<PaymentMethodDataWalletInfo> for payments::ApplepayPaymentMethod {
+impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMethod> {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
+        Ok(Self::new(payments::ApplepayPaymentMethod {
             display_name: item.last4,
             network: item.card_network,
             pm_type: item.card_type.get_required_value("card_type")?,
-        })
+            card_exp_month: item.card_exp_month,
+            card_exp_year: item.card_exp_year,
+        }))
     }
 }
 
@@ -1195,6 +1298,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
             nick_name: card.nick_name.map(masking::Secret::new),
+            card_cvc: None,
             card_issuing_country: None,
             card_network,
             card_issuer: None,
@@ -2044,6 +2148,10 @@ pub struct PaymentMethodListResponse {
 
     /// flag that indicates whether to calculate tax on the order amount
     pub is_tax_calculation_enabled: bool,
+
+    /// indicates the next action to be performed by the SDK
+    #[schema(value_type = SdkNextAction)]
+    pub sdk_next_action: payments::SdkNextAction,
 }
 
 #[cfg(feature = "v1")]
@@ -2583,6 +2691,7 @@ pub struct TokenizedCardValue1 {
     pub nickname: Option<String>,
     pub card_last_four: Option<String>,
     pub card_token: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -2707,7 +2816,6 @@ pub struct PaymentMethodUpdateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_error: Option<String>,
     pub updated_payment_method_data: Option<bool>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub line_number: Option<i64>,
 }
 
@@ -2849,7 +2957,6 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: res.network_transaction_id,
                 connector_mandate_details: res.connector_mandate_details,
                 updated_payment_method_data: res.updated_payment_method_data,
-                connector_customer: res.connector_customer,
                 update_status: UpdateStatus::Success,
                 update_error: None,
                 line_number: record.line_number,
@@ -2860,7 +2967,6 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: record.network_transaction_id,
                 connector_mandate_details: None,
                 updated_payment_method_data: None,
-                connector_customer: None,
                 update_status: UpdateStatus::Failed,
                 update_error: Some(e),
                 line_number: record.line_number,
@@ -2902,6 +3008,7 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
+                            connector_customer_id: record.connector_customer_id.clone(),
                         },
                     )
                 })
@@ -3110,8 +3217,8 @@ impl From<&Card> for MigrateCardDetail {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionRequest {
     /// The customer id for which the payment methods session is to be created
-    #[schema(value_type = String, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::GlobalCustomerId,
+    #[schema(value_type = Option<String>, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
@@ -3206,8 +3313,8 @@ pub struct PaymentMethodSessionResponse {
     pub id: id_type::GlobalPaymentMethodSessionId,
 
     /// The customer id for which the payment methods session is to be created
-    #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
-    pub customer_id: id_type::GlobalCustomerId,
+    #[schema(value_type = Option<String>, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
@@ -3276,21 +3383,26 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
     pub status: api_enums::TokenStatus,
 
     /// The expiry month of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_month: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_month: Option<masking::Secret<String>>,
 
     /// The expiry year of the network token if active
-    #[schema(value_type = String)]
-    pub token_expiry_year: masking::Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_year: Option<masking::Secret<String>>,
 
-    /// The last four digits of the card
-    pub card_last_four: String,
+    /// The last four digits of the card if active
+    pub card_last_four: Option<String>,
 
-    /// The last four digits of the network token
-    pub token_last_four: String,
+    /// The last four digits of the network token if active
+    pub token_last_four: Option<String>,
 
-    /// The expiry date of the card in MM/YY format
-    pub card_expiry: String,
+    /// The expiry month of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_month: Option<masking::Secret<String>>,
+
+    /// The expiry year of the card if active
+    #[schema(value_type = Option<String>)]
+    pub card_expiry_year: Option<masking::Secret<String>>,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]

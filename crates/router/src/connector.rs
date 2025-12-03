@@ -17,8 +17,8 @@ pub use hyperswitch_connectors::connectors::{
     ctp_mastercard, ctp_mastercard::CtpMastercard, custombilling, custombilling::Custombilling,
     cybersource, cybersource::Cybersource, datatrans, datatrans::Datatrans, deutschebank,
     deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
-    dwolla, dwolla::Dwolla, ebanx, ebanx::Ebanx, elavon, elavon::Elavon, facilitapay,
-    facilitapay::Facilitapay, finix, finix::Finix, fiserv, fiserv::Fiserv, fiservemea,
+    dwolla, dwolla::Dwolla, ebanx, ebanx::Ebanx, elavon, elavon::Elavon, envoy, envoy::Envoy,
+    facilitapay, facilitapay::Facilitapay, finix, finix::Finix, fiserv, fiserv::Fiserv, fiservemea,
     fiservemea::Fiservemea, fiuu, fiuu::Fiuu, flexiti, flexiti::Flexiti, forte, forte::Forte,
     getnet, getnet::Getnet, gigadat, gigadat::Gigadat, globalpay, globalpay::Globalpay, globepay,
     globepay::Globepay, gocardless, gocardless::Gocardless, gpayments, gpayments::Gpayments,
@@ -49,5 +49,5 @@ pub use hyperswitch_connectors::connectors::{
     wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
     wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayvantiv,
     worldpayvantiv::Worldpayvantiv, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
-    zen, zen::Zen, zsl, zsl::Zsl,
+    zen, zen::Zen, zift, zift::Zift, zsl, zsl::Zsl,
 };
