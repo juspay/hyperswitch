@@ -63,8 +63,6 @@ pub struct SantanderMetadataObject {
 pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
-    pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
     pub workspace_id: String,
     // It’s a number that identifies the merchant’s boleto contract with Santander
     pub covenant_code: String, // max_size : 9
@@ -75,8 +73,6 @@ pub struct PixMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
     pub pix_key: Secret<String>,
-    pub cpf: Secret<String>, // req in scheduled type pix      // 11 characters at max
-    pub cnpj: Secret<String>, // req in immediate type pix      // 14 characters at max
     pub merchant_name: String,
     pub merchant_city: String,
 }

@@ -6598,7 +6598,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,
             search_tags: feature_metadata.search_tags.clone(),
-            pix_qr_expiry_time: None,
+            pix_additional_details: None,
             boleto_additional_details: None,
         }
     }

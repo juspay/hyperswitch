@@ -437,7 +437,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SdkType,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
-        api_models::payments::PixQRExpirationDuration,
+        api_models::payments::PixAdditionalDetails,
         api_models::payments::ImmediateExpirationTime,
         api_models::payments::ScheduledExpirationTime,
         api_models::payments::BoletoAdditionalDetails,

@@ -1101,7 +1101,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
         .attach_printable("Failed to parse Vault connector")?;
 
-    let unified_service_vault_metadata = match external_vault_connector {
+    let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
             let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
                 .expose()
@@ -1119,9 +1119,9 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
-    match unified_service_vault_metadata {
-        Some(metadata) => {
-            let external_vault_metadata_bytes = serde_json::to_vec(&metadata)
+    match unified_service_vault_metdata {
+        Some(metdata) => {
+            let external_vault_metadata_bytes = serde_json::to_vec(&metdata)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
                 .attach_printable("Failed to convert External vault metadata to bytes")?;
 

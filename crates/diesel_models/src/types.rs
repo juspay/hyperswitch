@@ -72,7 +72,7 @@ pub struct FeatureMetadata {
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
     /// Pix QR Code expiry time for Merchants
-    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
@@ -124,14 +124,14 @@ pub struct FeatureMetadata {
     /// The system that the gateway is integrated with, e.g., `Direct`(through hyperswitch), `UnifiedConnectorService`(through ucs), etc.
     pub gateway_system: Option<common_enums::GatewaySystem>,
     /// Pix QR Code expiry time for Merchants
-    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
-pub enum PixQRExpirationDuration {
+pub enum PixAdditionalDetails {
     Immediate(ImmediateExpirationTime),
     Scheduled(ScheduledExpirationTime),
 }

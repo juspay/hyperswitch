@@ -509,32 +509,53 @@ impl
             .pix
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
+        let pix_data = match value.1 {
+            BankTransferData::Pix {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            } => (
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            ),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
+            ))?,
+        };
+
         let (calendar, debtor) = match &value
             .0
             .router_data
             .request
             .feature_metadata
             .as_ref()
-            .and_then(|f| f.pix_qr_expiry_time.as_ref())
+            .and_then(|f| f.pix_additional_details.as_ref())
         {
-            Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
+            Some(api_models::payments::PixAdditionalDetails::Immediate(val)) => {
                 let cal =
                     SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
                         expiracao: val.time,
                     });
                 let debt = Some(SantanderDebtor {
-                    cnpj: Some(pix_mca_metadata.cnpj.clone()),
+                    cnpj: pix_data.2.clone(),
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cpf: None,
+                    cpf: pix_data.1.clone(),
                 });
 
                 (Some(cal), debt)
             }
-            Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
+            Some(api_models::payments::PixAdditionalDetails::Scheduled(val)) => {
                 let cal =
                     SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
                         data_de_vencimento: val.date.clone(),
@@ -542,13 +563,13 @@ impl
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cpf: Some(pix_mca_metadata.cpf.clone()),
+                    cpf: pix_data.1.clone(),
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cnpj: None,
+                    cnpj: pix_data.2.clone(),
                 });
 
                 (Some(cal), debt)
@@ -560,13 +581,13 @@ impl
                     });
 
                 let debt = Some(SantanderDebtor {
-                    cnpj: Some(pix_mca_metadata.cpf.clone()),
+                    cnpj: pix_data.2.clone(),
                     nome: value.0.router_data.get_billing_full_name()?,
                     logradouro: None,
                     cidade: None,
                     uf: None,
                     cep: None,
-                    cpf: None,
+                    cpf: pix_data.1.clone(),
                 });
 
                 (Some(cal), debt)
@@ -779,7 +800,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     entry_date: boleto_data.entry_date.clone(),
                     download_url: None,
                     instructions_url: None,
-                    bank_number: Some(Secret::new(boleto_data.bank_number.clone())),
                 };
 
                 let connector_metadata = Some(voucher_data.encode_to_value())
@@ -1145,9 +1165,9 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
                     .request
                     .feature_metadata
                     .as_ref()
-                    .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                    .and_then(|f| f.pix_additional_details.as_ref())
                 {
-                    Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
+                    Some(api_models::payments::PixAdditionalDetails::Immediate(val)) => {
                         let cal = SantanderPixRequestCalendar::Immediate(
                             SantanderPixImmediateCalendarRequest {
                                 expiracao: val.time,
@@ -1155,7 +1175,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
                         );
                         Some(cal)
                     }
-                    Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
+                    Some(api_models::payments::PixAdditionalDetails::Scheduled(val)) => {
                         let cal = SantanderPixRequestCalendar::Scheduled(
                             SantanderPixDueDateCalendarRequest {
                                 data_de_vencimento: val.date.clone(),

@@ -1277,9 +1277,9 @@ where
                 .as_ref()
                 .and_then(|data| data.apple_pay_recurring_details.clone()),
             payment_revenue_recovery_metadata,
-            pix_qr_expiry_time: payment_intent_feature_metadata
+            pix_additional_details: payment_intent_feature_metadata
                 .as_ref()
-                .and_then(|data| data.pix_qr_expiry_time.clone()),
+                .and_then(|data| data.pix_additional_details.clone()),
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),

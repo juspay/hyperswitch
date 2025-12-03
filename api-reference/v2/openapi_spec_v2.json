@@ -7650,34 +7650,6 @@
       "BoletoAdditionalDetails": {
         "type": "object",
         "properties": {
-          "fine_percentage": {
-            "type": "string",
-            "description": "The percentage of fine applied for late payment",
-            "nullable": true
-          },
-          "fine_quantity_days": {
-            "type": "string",
-            "description": "The number of days after due date when fine is applied",
-            "nullable": true
-          },
-          "interest_percentage": {
-            "type": "string",
-            "description": "The percentage of interest applied for late payment",
-            "nullable": true
-          },
-          "write_off_quantity_days": {
-            "type": "string",
-            "description": "Number of days after which the boleto can be written off",
-            "nullable": true
-          },
-          "messages": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Additional messages to display to the shopper",
-            "nullable": true
-          },
           "due_date": {
             "type": "string",
             "description": "Due Date for the Boleto",
@@ -11993,10 +11965,10 @@
             ],
             "nullable": true
           },
-          "pix_qr_expiry_time": {
+          "pix_additional_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixQRExpirationDuration"
+                "$ref": "#/components/schemas/PixAdditionalDetails"
               }
             ],
             "nullable": true
@@ -22959,6 +22931,32 @@
           }
         }
       },
+      "PixAdditionalDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Immediate"
+            ],
+            "properties": {
+              "Immediate": {
+                "$ref": "#/components/schemas/ImmediateExpirationTime"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Scheduled"
+            ],
+            "properties": {
+              "Scheduled": {
+                "$ref": "#/components/schemas/ScheduledExpirationTime"
+              }
+            }
+          }
+        ]
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -23037,16 +23035,6 @@
             "nullable": true
           }
         }
-      },
-      "PixQRExpirationDuration": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/ImmediateExpirationTime"
-          },
-          {
-            "$ref": "#/components/schemas/ScheduledExpirationTime"
-          }
-        ]
       },
       "PollConfig": {
         "type": "object",

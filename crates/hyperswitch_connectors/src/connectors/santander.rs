@@ -143,24 +143,24 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                         .request
                         .feature_metadata
                         .as_ref()
-                        .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                        .and_then(|f| f.pix_additional_details.as_ref())
                     {
-                        Some(api_models::payments::PixQRExpirationDuration::Immediate(
-                            _immediate,
-                        )) => Ok(format!(
-                            "{}api/v1/cob/{}",
-                            self.base_url(connectors),
-                            req.connector_request_reference_id
-                        )),
-                        Some(api_models::payments::PixQRExpirationDuration::Scheduled(
-                            _scheduled,
-                        )) => Ok(format!(
-                            "{}api/v1/cobv/{}",
-                            self.base_url(connectors),
-                            req.connector_request_reference_id
-                        )),
+                        Some(api_models::payments::PixAdditionalDetails::Immediate(_immediate)) => {
+                            Ok(format!(
+                                "{}api/v1/cob/{}",
+                                self.base_url(connectors),
+                                req.connector_request_reference_id
+                            ))
+                        }
+                        Some(api_models::payments::PixAdditionalDetails::Scheduled(_scheduled)) => {
+                            Ok(format!(
+                                "{}api/v1/cobv/{}",
+                                self.base_url(connectors),
+                                req.connector_request_reference_id
+                            ))
+                        }
                         None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "pix_qr_expiry_time",
+                            field_name: "pix_additional_details",
                         }
                         .into()),
                     }
@@ -612,24 +612,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         .request
                         .feature_metadata
                         .as_ref()
-                        .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                        .and_then(|f| f.pix_additional_details.as_ref())
                     {
-                        Some(api_models::payments::PixQRExpirationDuration::Immediate(
-                            _immediate,
-                        )) => Ok(format!(
-                            "{}api/v1/cob/{}",
-                            self.base_url(connectors),
-                            req.connector_request_reference_id
-                        )),
-                        Some(api_models::payments::PixQRExpirationDuration::Scheduled(
-                            _scheduled,
-                        )) => Ok(format!(
-                            "{}api/v1/cobv/{}",
-                            self.base_url(connectors),
-                            req.connector_request_reference_id
-                        )),
+                        Some(api_models::payments::PixAdditionalDetails::Immediate(_immediate)) => {
+                            Ok(format!(
+                                "{}api/v1/cob/{}",
+                                self.base_url(connectors),
+                                req.connector_request_reference_id
+                            ))
+                        }
+                        Some(api_models::payments::PixAdditionalDetails::Scheduled(_scheduled)) => {
+                            Ok(format!(
+                                "{}api/v1/cobv/{}",
+                                self.base_url(connectors),
+                                req.connector_request_reference_id
+                            ))
+                        }
                         None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "pix_qr_expiry_time",
+                            field_name: "pix_additional_details",
                         }
                         .into()),
                     }

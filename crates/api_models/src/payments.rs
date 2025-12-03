@@ -6626,8 +6626,6 @@ pub struct VoucherNextStepData {
     /// Human-readable numeric version of the barcode.
     #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
-    /// Bank Number where the boleto was registered
-    pub bank_number: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -10827,7 +10825,7 @@ pub struct FeatureMetadata {
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
     /// Pix QR Code expiry time for Merchants
-    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
@@ -10849,7 +10847,7 @@ impl FeatureMetadata {
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
-            pix_qr_expiry_time: self.pix_qr_expiry_time,
+            pix_additional_details: self.pix_additional_details,
             boleto_additional_details: self.boleto_additional_details,
         }
     }
@@ -10872,7 +10870,7 @@ pub struct FeatureMetadata {
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// Pix QR Code expiry time for Merchants
-    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
 }
@@ -10887,7 +10885,9 @@ impl FeatureMetadata {
                 apple_pay_recurring_details: self
                     .apple_pay_recurring_details
                     .or(other.apple_pay_recurring_details),
-                pix_qr_expiry_time: self.pix_qr_expiry_time.or(other.pix_qr_expiry_time),
+                pix_additional_details: self
+                    .pix_additional_details
+                    .or(other.pix_additional_details),
 
                 boleto_additional_details: match (
                     self.boleto_additional_details,
@@ -10920,8 +10920,7 @@ impl BoletoAdditionalDetails {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(untagged)]
-pub enum PixQRExpirationDuration {
+pub enum PixAdditionalDetails {
     Immediate(ImmediateExpirationTime),
     Scheduled(ScheduledExpirationTime),
 }
