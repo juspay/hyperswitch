@@ -294,7 +294,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "card_declined",
-          error_message: "message - Your card was declined., decline_code - generic_decline",
+          error_message:
+            "message - Your card was declined., decline_code - generic_decline",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
