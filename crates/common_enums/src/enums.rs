@@ -1789,6 +1789,10 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
     /// The payment has been authorized for a partial amount and requires capture
     PartiallyAuthorizedAndRequiresCapture,
+    /// The payment has been captured partially and the remaining amount can be authorized/capturable.
+    /// The other amount is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
+    PartiallyCapturedAndProcessing,
     /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
     Conflicted,
     /// The payment expired before it could be captured.
@@ -1813,7 +1817,8 @@ impl IntentStatus {
             | Self::RequiresCapture
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
-            | Self::Conflicted => false,
+            | Self::Conflicted
+            | Self::PartiallyCapturedAndProcessing => false,
         }
     }
 
@@ -1834,7 +1839,8 @@ impl IntentStatus {
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
             | Self::PartiallyCapturedAndCapturable
-            | Self::PartiallyAuthorizedAndRequiresCapture => true,
+            | Self::PartiallyAuthorizedAndRequiresCapture
+            | Self::PartiallyCapturedAndProcessing => true,
         }
     }
 }
@@ -2416,6 +2422,26 @@ impl PaymentMethod {
             | Self::MobilePayment => false,
         }
     }
+
+    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
+        match self {
+            Self::BankRedirect => true,
+            Self::Card
+            | Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::GiftCard
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment => false,
+        }
+    }
 }
 
 /// Indicates the gateway system through which the payment is processed.
@@ -2796,6 +2822,7 @@ pub enum FrmTransactionType {
     Default,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -2804,6 +2831,7 @@ pub enum FrmTransactionType {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum MandateStatus {
     #[default]
     Active,
@@ -9431,6 +9459,12 @@ pub enum ConnectorMandateStatus {
     Inactive,
 }
 
+impl ConnectorMandateStatus {
+    pub fn is_active(&self) -> bool {
+        self == &Self::Active
+    }
+}
+
 /// Connector Mandate Status
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
@@ -9998,6 +10032,7 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::PartiallyCapturedAndCapturable
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
