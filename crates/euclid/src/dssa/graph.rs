@@ -42,6 +42,7 @@ impl cgraph::NodeViz for dir::DirValue {
         match self {
             Self::PaymentMethod(pm) => pm.to_string(),
             Self::CardBin(bin) => bin.value.clone(),
+            Self::ExtendedCardBin(ebin) => ebin.value.clone(),
             Self::CardType(ct) => ct.to_string(),
             Self::CardNetwork(cn) => cn.to_string(),
             Self::PayLaterType(plt) => plt.to_string(),

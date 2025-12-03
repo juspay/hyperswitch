@@ -183,6 +183,12 @@ pub enum RoutableConnectors {
     Zift,
     Plaid,
     Zsl,
+    Juspaythreedsserver,
+    CtpMastercard,
+    CtpVisa,
+    Netcetera,
+    Cardinal,
+    Threedsecureio,
 }
 
 // A connector is an integration to fulfill payments
@@ -407,6 +413,10 @@ impl Connector {
         matches!((self, payout_method), (Self::Paypal, _))
     }
     #[cfg(feature = "payouts")]
+    pub fn supports_access_token_for_external_vault(self) -> bool {
+        matches!(self, Self::Vgs)
+    }
+    #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
     }
@@ -460,7 +470,6 @@ impl Connector {
             Self::Aci
             // Add Separate authentication support for connectors
 			| Self::Authipay
-            | Self::Adyen
             | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
@@ -485,7 +494,6 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
-            | Self::Zift
             | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -584,7 +592,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
+            Self::Checkout |Self::Zift| Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
 
@@ -759,6 +767,12 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
             RoutableConnectors::Payjustnow => Self::Payjustnow,
+            RoutableConnectors::Juspaythreedsserver => Self::Juspaythreedsserver,
+            RoutableConnectors::CtpMastercard => Self::CtpMastercard,
+            RoutableConnectors::CtpVisa => Self::CtpVisa,
+            RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Cardinal => Self::Cardinal,
+            RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }
     }
 }
