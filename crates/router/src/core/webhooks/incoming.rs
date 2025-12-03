@@ -1615,7 +1615,7 @@ async fn payout_incoming_webhook_update_status(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payouts: payout_id: {}",
@@ -1657,7 +1657,7 @@ async fn payout_incoming_webhook_update_status(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payout attempt: payout_attempt_id: {}",
