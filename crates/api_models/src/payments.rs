@@ -10820,7 +10820,7 @@ pub struct PaymentsStartRequest {
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct Feature {
+pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
