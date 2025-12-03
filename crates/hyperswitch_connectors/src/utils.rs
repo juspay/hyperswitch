@@ -37,7 +37,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -135,6 +135,12 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     BASE64_ENGINE
         .decode(data)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
+        .iter()
+        .find_map(|d| d.decode(&data).ok())
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -2023,11 +2029,19 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 }
 
 pub trait CustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>> {
+        self.name.clone()
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
@@ -2620,6 +2634,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2631,6 +2646,11 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -7081,6 +7101,11 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         is_stored_credential: data.request.is_stored_credential,
         mit_category: None,
         billing_descriptor: data.request.billing_descriptor.clone(),
+        tokenization: None,
+        partner_merchant_identifier_details: data
+            .request
+            .partner_merchant_identifier_details
+            .clone(),
     }
 }
 

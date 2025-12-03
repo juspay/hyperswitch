@@ -183,6 +183,12 @@ pub enum RoutableConnectors {
     Zift,
     Plaid,
     Zsl,
+    Juspaythreedsserver,
+    CtpMastercard,
+    CtpVisa,
+    Netcetera,
+    Cardinal,
+    Threedsecureio,
 }
 
 // A connector is an integration to fulfill payments
@@ -488,7 +494,6 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
-            | Self::Zift
             | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
@@ -587,7 +592,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Checkout |Self::Zift| Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
 
@@ -762,6 +767,12 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paytm => Self::Paytm,
             RoutableConnectors::Phonepe => Self::Phonepe,
             RoutableConnectors::Payjustnow => Self::Payjustnow,
+            RoutableConnectors::Juspaythreedsserver => Self::Juspaythreedsserver,
+            RoutableConnectors::CtpMastercard => Self::CtpMastercard,
+            RoutableConnectors::CtpVisa => Self::CtpVisa,
+            RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Cardinal => Self::Cardinal,
+            RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }
     }
 }
