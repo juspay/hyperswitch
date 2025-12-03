@@ -328,6 +328,10 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
+    StateUpdate {
+        state: common_enums::DisputeStatus,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -456,6 +460,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub state: Option<common_enums::DisputeStatus>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -509,6 +514,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -558,6 +564,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -605,6 +612,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -652,6 +660,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -702,6 +711,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -789,6 +799,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
                     enable_partial_authorization,
+                    state: None,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -838,6 +849,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -881,6 +893,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -928,6 +941,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -971,6 +985,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
+                state: None,
             }),
         }
     }
@@ -1177,6 +1192,56 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 ..Default::default()
             },
+            PaymentIntentUpdate::StateUpdate { state, updated_by } => Self {
+                state: Some(state),
+                updated_by,
+                amount: None,
+                currency: None,
+                status: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: None,
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                fingerprint_id: None,
+                session_expiry: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                payment_channel: None,
+                feature_metadata: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+            },
         }
     }
 }
@@ -1228,6 +1293,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 metadata,
                 updated_by,
             },
+            PaymentIntentUpdate::StateUpdate { state, updated_by } => {
+                Self::StateUpdate { state, updated_by }
+            }
             PaymentIntentUpdate::Update(value) => {
                 Self::Update(Box::new(DieselPaymentIntentUpdateFields {
                     amount: value.amount,
@@ -1438,6 +1506,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            state,
         } = value;
         Self {
             amount,
@@ -1488,6 +1557,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            state,
         }
     }
 }
@@ -1976,6 +2046,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state: None,
         })
     }
     async fn convert_back(
@@ -2234,6 +2305,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: None,
             enable_partial_authorization: self.enable_partial_authorization,
             tokenization: None,
+            state: None,
         })
     }
 }
@@ -2321,6 +2393,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state: self.state,
         })
     }
 
@@ -2435,6 +2508,7 @@ impl behaviour::Conversion for PaymentIntent {
                 tokenization: storage_model.tokenization,
                 partner_merchant_identifier_details: storage_model
                     .partner_merchant_identifier_details,
+                state: storage_model.state,
             })
         }
         .await
@@ -2520,6 +2594,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state: self.state,
         })
     }
 }

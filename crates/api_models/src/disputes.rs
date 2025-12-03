@@ -8,9 +8,9 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{Currency, DisputeStage, DisputeStatus};
-use crate::{admin::MerchantConnectorInfo, files};
+use crate::{admin::MerchantConnectorInfo, files, refunds::RefundResponse};
 
-#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -56,6 +56,9 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// The list of refunds associated with the dispute
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refunds: Option<Vec<RefundResponse>>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
@@ -243,6 +246,8 @@ pub struct DisputeRetrieveRequest {
     pub dispute_id: String,
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
+    /// If enabled provides list of refunds linked to payment intent
+    pub expand_refunds: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -255,6 +260,8 @@ pub struct DisputesAggregateResponse {
 pub struct DisputeRetrieveBody {
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
+    /// If enabled provides list of refunds linked to payment intent
+    pub expand_refunds: Option<bool>,
 }
 
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

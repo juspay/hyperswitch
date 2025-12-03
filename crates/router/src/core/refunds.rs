@@ -84,6 +84,22 @@ pub async fn refund_create_core(
         },
     )?;
 
+    // Block refund when already refunded via chargeback
+    utils::when(
+        payment_intent.state == Some(enums::DisputeStatus::DisputeLost),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "refund".into(),
+                field_name: "state".into(),
+                current_value: enums::DisputeStatus::DisputeLost.to_string(),
+                states: "refund not allowed due to chargeback".to_string(),
+            })
+            .attach_printable(
+                "refund not possible because customer already got refund via chargeback",
+            ))
+        },
+    )?;
+
     // Amount is not passed in request refer from payment intent.
     amount = req
         .amount

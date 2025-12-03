@@ -475,6 +475,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeRetrieveRequest {
                 dispute_id,
                 force_sync: None,
+                expand_refunds: Some(false),
             };
 
             let dispute_response =

@@ -2482,6 +2482,7 @@ async fn disputes_incoming_webhook_flow(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+        let option_dispute_clone = option_dispute.clone();
         let dispute_status = common_enums::DisputeStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("event type to dispute status mapping failed")?;
@@ -2498,6 +2499,42 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+        if option_dispute_clone.clone().is_none()
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            let payment_intent = db
+                .find_payment_intent_by_payment_id_merchant_id(
+                    &payment_attempt.payment_id,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(subscriptions::errors::ApiErrorResponse::InternalServerError)?;
+
+            let domain_update =
+                hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+                    state: dispute_object.dispute_status,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .clone()
+                        .to_string(),
+                };
+
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    domain_update,
+                    &platform.get_processor().get_key_store().clone(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(subscriptions::errors::ApiErrorResponse::InternalServerError)?;
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 

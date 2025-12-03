@@ -11130,6 +11130,14 @@
             "type": "string",
             "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
             "nullable": true
+          },
+          "refunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundResponse"
+            },
+            "description": "The list of refunds associated with the dispute",
+            "nullable": true
           }
         }
       },
