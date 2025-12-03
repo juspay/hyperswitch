@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0
+
+### Features
+
+- **connector:**
+  - [Mollie] Add Recurring Payment and Manual Capture Flows ([#10408](https://github.com/juspay/hyperswitch/pull/10408)) ([`fa9f401`](https://github.com/juspay/hyperswitch/commit/fa9f40149b18ec324d5c2eb637306d1bffd6679f))
+  - Payload ach recurring ([#10412](https://github.com/juspay/hyperswitch/pull/10412)) ([`f81c153`](https://github.com/juspay/hyperswitch/commit/f81c1531b3ffe632ee21bf5ab429592c2c281630))
+- **core:** Add amount captured in payment attempt ([#10498](https://github.com/juspay/hyperswitch/pull/10498)) ([`decbe33`](https://github.com/juspay/hyperswitch/commit/decbe33334429df2a5252dd093e2a0515ff6a248))
+- **payment-methods:** Add support for session create api and customer pml for guest checkout ([#10334](https://github.com/juspay/hyperswitch/pull/10334)) ([`1164cd8`](https://github.com/juspay/hyperswitch/commit/1164cd8214c7e4f2f6069303e9678f7976fd16b2))
+- **router:** Add `encrypted_payment_method_data` to payment_attempt to conditionally persist sensitive additional payment_method_data ([#10484](https://github.com/juspay/hyperswitch/pull/10484)) ([`6c9202f`](https://github.com/juspay/hyperswitch/commit/6c9202fc14580fce1669696134297f8ee2722368))
+- **subscriptions:** Update get plans to get items ([#10434](https://github.com/juspay/hyperswitch/pull/10434)) ([`2be1452`](https://github.com/juspay/hyperswitch/commit/2be1452d74996d8971e85d26912092749216a03c))
+- Implement UCS granular flows with gateway context refactoring ([#10420](https://github.com/juspay/hyperswitch/pull/10420)) ([`1b2bd68`](https://github.com/juspay/hyperswitch/commit/1b2bd68288f6e3fd852a74c522b17708f29458cf))
+
+### Bug Fixes
+
+- **connector:** Tesouro mandate fix for hyperswitch decrypt flow for wallets ([#10351](https://github.com/juspay/hyperswitch/pull/10351)) ([`8e33f24`](https://github.com/juspay/hyperswitch/commit/8e33f24202fbeb6e1a0921487f7727231345e39d))
+- **ucs:** Merchant account metadata parsing of nested json objects ([#10244](https://github.com/juspay/hyperswitch/pull/10244)) ([`1c9e9a4`](https://github.com/juspay/hyperswitch/commit/1c9e9a443d524ae90ba34b9854c6e857d0dd0501))
+
+### Revert
+
+- **connector:** [Payouts] revert impl for name formation for adyenplatform ([#10511](https://github.com/juspay/hyperswitch/pull/10511)) ([`8ba4cfb`](https://github.com/juspay/hyperswitch/commit/8ba4cfbc46e7c569b128c97d56aa09843269afa7))
+
+**Full Changelog:** [`2025.12.02.0...2025.12.03.0`](https://github.com/juspay/hyperswitch/compare/2025.12.02.0...2025.12.03.0)
+
+- - -
+
 ## 2025.12.02.0
 
 ### Bug Fixes
