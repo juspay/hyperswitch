@@ -7,7 +7,7 @@ use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -17,7 +17,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+            self, access_token, customers, gateway::context as gateway_context, helpers,
+            session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
@@ -27,10 +28,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{
-        self, api, domain,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -119,7 +117,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,
@@ -141,13 +139,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 }
             }
         }
-        let resp = services::execute_connector_processing_step(
+        let resp = gateway::execute_payment_gateway(
             state,
             connector_integration,
             &self,
             call_connector_action.clone(),
             connector_request,
             None,
+            gateway_context,
         )
         .await
         .to_setup_mandate_failed_response()?;
@@ -160,46 +159,31 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         state: &SessionState,
         connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<()>
     where
         Self: Sized,
     {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::foreign_from((
-            &self,
-            types::AuthorizeSessionTokenData::foreign_from(&self),
-        ));
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_payment_failed_response()?;
-        let mut router_data = self;
-        router_data.session_token = resp.session_token;
-        Ok(router_data)
+        self.session_token =
+            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
+                .await?;
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(
@@ -208,6 +192,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
         if connector
             .connector
@@ -221,6 +206,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
                 should_continue_payment,
+                gateway_context,
             )
             .await
         } else {
@@ -236,12 +222,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self.request.to_owned())?,
+            gateway_context,
         )
         .await
     }

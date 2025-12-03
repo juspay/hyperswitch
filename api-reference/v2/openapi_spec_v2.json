@@ -4659,6 +4659,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12022,6 +12030,12 @@
           {
             "type": "string",
             "enum": [
+              "user_gift_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_card_expiry_month"
             ]
           },
@@ -12035,6 +12049,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_gift_card_pin"
             ]
           },
           {
@@ -13858,6 +13878,7 @@
           "partially_captured",
           "partially_captured_and_capturable",
           "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
           "conflicted",
           "expired"
         ]
@@ -17463,6 +17484,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19358,14 +19387,12 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -19415,7 +19442,6 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id",
           "expires_at",
           "client_secret"
         ],
@@ -19427,7 +19453,8 @@
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "billing": {
             "allOf": [

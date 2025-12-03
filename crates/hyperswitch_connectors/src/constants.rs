@@ -61,5 +61,3 @@ pub(crate) const CANNOT_CONTINUE_AUTH: &str =
 
 #[cfg(feature = "payouts")]
 pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
-
-pub(crate) const PLAN_ITEM_TYPE: &str = "plan";

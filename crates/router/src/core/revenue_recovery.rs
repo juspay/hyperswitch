@@ -1177,6 +1177,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyCaptured
         | IntentStatus::PartiallyCapturedAndCapturable
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Conflicted
         | IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
@@ -1423,7 +1424,9 @@ pub fn map_recovery_status(
 
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
-        IntentStatus::Processing => RecoveryStatus::Processing,
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            RecoveryStatus::Processing
+        }
         IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
