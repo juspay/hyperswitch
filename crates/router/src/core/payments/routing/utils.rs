@@ -12,7 +12,7 @@ use api_models::{
     },
 };
 use async_trait::async_trait;
-use common_enums::{RoutableConnectors, TransactionType};
+use common_enums::TransactionType;
 use common_utils::{
     ext_traits::{BytesExt, StringExt},
     id_type,
@@ -21,6 +21,7 @@ use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
     backend::BackendInput,
+    enums::RoutableConnectors,
     frontend::{
         ast::{self},
         dir::{self, transformers::IntoDirValue},

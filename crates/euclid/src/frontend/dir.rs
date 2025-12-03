@@ -505,7 +505,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::Connector => Some(
-                common_enums::RoutableConnectors::iter()
+                crate::enums::RoutableConnectors::iter()
                     .map(|connector| {
                         DirValue::Connector(Box::new(ast::ConnectorChoice { connector }))
                     })
