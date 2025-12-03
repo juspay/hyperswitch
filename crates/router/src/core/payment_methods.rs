@@ -1272,19 +1272,12 @@ pub async fn create_volatile_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get redis connection")?;
 
-            // Store payment method id instead of the whole payment method object
-            // since PaymentMethod doesn't implement Serialize in v2
-            let redis_key = format!(
-                "volatile_payment_method:{}",
-                payment_method.get_id().get_string_repr()
-            );
             logger::info!("Storing payment method id in redis");
 
-            let payment_method_id_string = payment_method.get_id().get_string_repr().to_owned();
             redis_connection
                 .serialize_and_set_key_with_expiry(
-                    &redis_key.into(),
-                    payment_method_id_string,
+                    &payment_method.get_id().get_string_repr().to_string().into(),
+                    payment_method.clone(),
                     consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
                 )
                 .await
