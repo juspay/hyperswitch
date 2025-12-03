@@ -1,5 +1,3 @@
-use once_cell::sync::OnceCell;
-
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use api_models::{
@@ -14,6 +12,7 @@ use common_utils::{ext_traits::StringExt, pii};
 use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
+use once_cell::sync::OnceCell;
 use router_env::tracing;
 use serde::{Deserialize, Serialize};
 use url::Url;

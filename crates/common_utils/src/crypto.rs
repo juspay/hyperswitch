@@ -12,8 +12,10 @@ use ring::{
 #[cfg(feature = "logs")]
 use router_env::logger;
 use rsa::{
-    pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey, pkcs8::DecodePublicKey,
-    signature::Verifier, traits::PublicKeyParts,
+    pkcs1::DecodeRsaPrivateKey,
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
+    signature::Verifier,
+    traits::PublicKeyParts,
 };
 
 use crate::{
