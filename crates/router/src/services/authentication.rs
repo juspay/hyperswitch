@@ -4273,7 +4273,10 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
 
     if api_key.starts_with("pk_") {
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth::default())),
+            Box::new(HeaderAuth(PublishableKeyAuth {
+                is_connected_allowed: api_auth.is_connected_allowed,
+                is_platform_allowed: api_auth.is_platform_allowed,
+            })),
             api::AuthFlow::Client,
         ));
     }
