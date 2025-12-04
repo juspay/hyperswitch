@@ -5623,6 +5623,8 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
+[[payload.bank_debit]]
+payment_method_type = "ach"
 
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
 processing_account_id = "processing_account_id"
@@ -6384,6 +6386,24 @@ options=["CRYPTOGRAM_3DS"]
 api_key="Username"
 api_secret="Password"
 key1="Account ID"
+[zift.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[zift.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[zift.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
