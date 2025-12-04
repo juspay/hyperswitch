@@ -480,17 +480,15 @@ force_two_factor_auth = false        # Whether to force two factor authenticatio
 force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
 
 # OIDC configuration for OpenID Connect authentication
-[oidc]
-
-[[oidc.keys]]
+[oidc.key.k1]
 kid = ""
 private_key = ""
 
-[[oidc.keys]]
+[oidc.key.k2]
 kid = ""
 private_key = ""
 
-[[oidc.clients]]
+[oidc.client.c1]
 client_id = ""
 client_secret = ""
 redirect_uri = ""
