@@ -4791,8 +4791,6 @@ fn get_transaction_metadata(
 ) -> HashMap<String, Value> {
     let mut meta_data =
         HashMap::from([("metadata[order_id]".to_string(), Value::String(order_id))]);
-    let mut request_hash_map = HashMap::new();
-
     if let Some(metadata) = merchant_metadata {
         let hashmap: HashMap<String, Value> =
             serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
@@ -4800,15 +4798,13 @@ fn get_transaction_metadata(
         for (key, value) in hashmap {
             match value {
                 Value::String(string_value) => {
-                    request_hash_map.insert(format!("metadata[{key}]"), string_value);
+                    meta_data.insert(format!("metadata[{key}]"), Value::String(string_value));
                 }
                 value_data => {
-                    request_hash_map.insert(format!("metadata[{key}]"), value_data.to_string())
+                    meta_data.insert(format!("metadata[{key}]"), Value::String(value_data.to_string()));
                 }
             }
         }
-
-        meta_data.extend(request_hash_map)
     };
     meta_data
 }
