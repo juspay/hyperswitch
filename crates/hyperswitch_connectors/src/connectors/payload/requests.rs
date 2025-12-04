@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
-    PayloadCardsRequest(Box<PayloadCardsRequestData>),
+    PaymentRequest(Box<PayloadPaymentRequestData>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
 }
 
@@ -37,18 +37,16 @@ pub struct BillingAddress {
     pub street_address: Secret<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadCardsRequestData {
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadPaymentRequestData {
     pub amount: StringMajorUnit,
     #[serde(flatten)]
-    pub card: PayloadCard,
+    pub payment_method: PayloadPaymentMethods,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
-    #[serde(rename = "payment_method[type]")]
-    pub payment_method_type: String,
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
@@ -82,6 +80,42 @@ pub struct PayloadCard {
     pub cvc: Secret<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PayloadBank {
+    #[serde(rename = "payment_method[bank_account][account_class]")]
+    pub account_class: Option<PayloadAccClass>,
+    #[serde(rename = "payment_method[bank_account][account_currency]")]
+    pub account_currency: String,
+    #[serde(rename = "payment_method[bank_account][account_number]")]
+    pub account_number: Secret<String>,
+    #[serde(rename = "payment_method[bank_account][account_type]")]
+    pub account_type: PayloadAccAccountType,
+    #[serde(rename = "payment_method[bank_account][routing_number]")]
+    pub routing_number: Secret<String>,
+    #[serde(rename = "payment_method[account_holder]")]
+    pub account_holder: Secret<String>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadAccClass {
+    Personal,
+    Business,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadAccAccountType {
+    Checking,
+    Savings,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "payment_method[type]")]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadPaymentMethods {
+    Card(PayloadCard),
+    BankAccount(PayloadBank),
+}
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadCancelRequest {
     pub status: responses::PayloadPaymentStatus,

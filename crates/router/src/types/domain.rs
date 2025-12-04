@@ -39,6 +39,11 @@ mod network_tokenization {
     pub use hyperswitch_domain_models::network_tokenization::*;
 }
 
+#[cfg(feature = "v2")]
+mod split_payments {
+    pub use hyperswitch_domain_models::payments::split_payments::*;
+}
+
 pub use customers::*;
 pub use merchant_account::*;
 
@@ -96,6 +101,8 @@ pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use platform::*;
 pub use routing::*;
+#[cfg(feature = "v2")]
+pub use split_payments::*;
 #[cfg(feature = "v2")]
 pub use tokenization::*;
 #[cfg(feature = "olap")]
