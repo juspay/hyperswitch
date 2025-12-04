@@ -55,7 +55,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentsSyncRequestData, RefundsRequestData},
+};
 
 #[derive(Clone)]
 pub struct Payload {
@@ -461,12 +465,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let payment_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
@@ -797,11 +796,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req
-            .request
-            .connector_refund_id
-            .as_ref()
-            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+        let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
