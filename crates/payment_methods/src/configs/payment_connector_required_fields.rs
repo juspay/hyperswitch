@@ -1574,7 +1574,12 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 [
                     email(),
                     card_with_name(),
-                    vec![RequiredField::BillingAddressZip],
+                    vec![
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
+                    ],
                 ]
                 .concat(),
             ),

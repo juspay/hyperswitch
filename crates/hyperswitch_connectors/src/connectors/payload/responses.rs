@@ -48,7 +48,10 @@ pub struct PayloadCardsResponseData {
     #[serde(rename = "type")]
     pub response_type: Option<String>,
 }
-
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct CustomerResponse {
+    pub id: String,
+}
 // Type definition for Refund Response
 // Added based on assumptions since this is not provided in the documentation
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]

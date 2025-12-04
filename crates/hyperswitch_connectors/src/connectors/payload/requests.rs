@@ -1,8 +1,8 @@
+use crate::connectors::payload::responses;
+use common_utils::pii::Email;
 use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-use crate::connectors::payload::responses;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -55,6 +55,15 @@ pub struct PayloadPaymentRequestData {
     /// This is true by default
     #[serde(rename = "payment_method[keep_active]")]
     pub keep_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CustomerRequest {
+    pub keep_active: bool,
+    pub email: Email,
+    pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
