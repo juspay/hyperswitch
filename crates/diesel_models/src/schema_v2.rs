@@ -468,6 +468,7 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         dispute_currency -> Nullable<Currency>,
+        state -> Nullable<DisputeStatus>
     }
 }
 
