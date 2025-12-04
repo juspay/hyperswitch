@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.19.0-hotfix7
+
+### Features
+
+- **euclid:** Add configs to disable pre-routing for certain specific PMs and PMTs ([#10529](https://github.com/juspay/hyperswitch/pull/10529)) ([`97e861a`](https://github.com/juspay/hyperswitch/commit/97e861aec15ba72a0a5816bd45cc46b2ac85cde9))
+
+**Full Changelog:** [`2025.11.19.0-hotfix6...2025.11.19.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2025.11.19.0-hotfix6...2025.11.19.0-hotfix7)
+
+- - -
+
 ## 2025.11.19.0-hotfix6
 
 ### Features
