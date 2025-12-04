@@ -954,6 +954,9 @@ pub struct AmountDetailsResponse {
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
+    /// For automatic captures, this will be the same as net amount for the order
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -1013,6 +1016,8 @@ pub struct PaymentAttemptAmountDetails {
     /// Tax amount for the order.
     /// This is either derived by calling an external tax processor, or sent by the merchant
     pub order_tax_amount: Option<MinorUnit>,
+    /// The total amount that is captured for this payment attempt.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -6900,6 +6905,12 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub created: Option<PrimitiveDateTime>,
 
+    /// Timestamp indicating when this payment intent was last modified, in ISO 8601 format.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
+    pub modified_at: Option<PrimitiveDateTime>,
+
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
@@ -11435,8 +11446,8 @@ pub struct ClickToPaySessionResponse {
     pub acquirer_bin: String,
     #[smithy(value_type = "String")]
     pub acquirer_merchant_id: String,
-    #[smithy(value_type = "String")]
-    pub merchant_category_code: String,
+    #[smithy(value_type = "Option<String>")]
+    pub merchant_category_code: Option<String>,
     #[smithy(value_type = "String")]
     pub merchant_country_code: String,
     #[schema(value_type = String, example = "38.02")]

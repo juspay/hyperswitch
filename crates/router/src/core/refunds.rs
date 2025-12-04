@@ -25,7 +25,10 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, helpers, helpers::MerchantConnectorAccountType},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers,
+            helpers::MerchantConnectorAccountType,
+        },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
         utils::{
@@ -105,6 +108,7 @@ pub async fn refund_create_core(
             &req.payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
@@ -206,12 +210,21 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -672,6 +685,7 @@ pub async fn refund_retrieve_core(
             payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -820,12 +834,21 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -1923,6 +1946,7 @@ pub async fn trigger_refund_execute_workflow(
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
+                    &key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

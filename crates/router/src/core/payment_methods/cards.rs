@@ -85,7 +85,11 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{self, SessionFlowRoutingInput},
+            routing::{
+                self,
+                utils::{load_skip_pre_routing_config, perform_pre_routing},
+                SessionFlowRoutingInput,
+            },
         },
         utils as core_utils,
     },
@@ -2736,6 +2740,7 @@ pub async fn list_payment_methods(
                 &pi.merchant_id,
                 &pi.active_attempt.get_id(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -2897,15 +2902,27 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
+        let pre_routing_disabled_pm_pmt_key = &platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_pre_routing_disabled_pm_pmt_key();
 
+        let skip_pre_routing =
+            load_skip_pre_routing_config(&state, pre_routing_disabled_pm_pmt_key.to_string()).await;
+
+        let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
 
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
-            if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
-                || routing_enabled_pms.contains(&intermediate.payment_method)
-            {
+            if perform_pre_routing(
+                routing_enabled_pms,
+                routing_enabled_pm_types,
+                &intermediate.payment_method,
+                &intermediate.payment_method_type,
+                &skip_pre_routing,
+            ) {
                 let connector_data = helpers::get_connector_data_with_token(
                     &state,
                     intermediate.connector.to_string(),
@@ -2923,6 +2940,7 @@ pub async fn list_payment_methods(
                 });
             }
         }
+
         let sfr = SessionFlowRoutingInput {
             state: &state,
             country: billing_address.clone().and_then(|ad| ad.country),
@@ -2942,9 +2960,13 @@ pub async fn list_payment_methods(
         .attach_printable("error performing session flow routing")?;
 
         response.retain(|intermediate| {
-            if !routing_enabled_pm_types.contains(&intermediate.payment_method_type)
-                && !routing_enabled_pms.contains(&intermediate.payment_method)
-            {
+            if !perform_pre_routing(
+                routing_enabled_pms,
+                routing_enabled_pm_types,
+                &intermediate.payment_method,
+                &intermediate.payment_method_type,
+                &skip_pre_routing,
+            ) {
                 return true;
             }
 
@@ -3125,6 +3147,7 @@ pub async fn list_payment_methods(
                 payment_attempt.clone(),
                 attempt_update,
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -4544,6 +4567,7 @@ async fn perform_surcharge_ops(
                     platform.get_processor().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
                     platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData},
+    payment_method_data::{Card, GooglePayWalletData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
@@ -410,6 +410,9 @@ enum PaymentMethod {
 
     #[serde(rename = "ECMC-SSL")]
     EcmcSSL(CardSSL),
+
+    #[serde(rename = "PAYWITHGOOGLE-SSL")]
+    PayWithGoogleSSL(GooglePayData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -462,6 +465,14 @@ struct Date {
     year: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
+}
+
 #[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -499,6 +510,13 @@ enum Action {
     Refund,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayxmlSyncResponse {
+    Webhook(Box<WorldpayXmlWebhookBody>),
+    Payment(Box<PaymentService>),
+}
+
 impl TryFrom<(&Card, Option<enums::CaptureMethod>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -527,93 +545,33 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>)> for PaymentDetails {
     }
 }
 
-impl TryFrom<(&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card)> for PaymentService {
+impl TryFrom<(&GooglePayWalletData, Option<enums::CaptureMethod>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: (&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>, &Card),
+        (gpay_data, capture_method): (&GooglePayWalletData, Option<enums::CaptureMethod>),
     ) -> Result<Self, Self::Error> {
-        let authorize_data = item.0;
-        let card_data = item.1;
-        let auth = WorldpayxmlAuthType::try_from(&authorize_data.router_data.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let token_string = gpay_data
+            .tokenization_data
+            .get_encrypted_google_pay_token()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "gpay wallet_token",
+            })?
+            .to_owned();
 
-        let order_code = if authorize_data
-            .router_data
-            .connector_request_reference_id
-            .len()
-            <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
-        {
-            Ok(authorize_data
-                .router_data
-                .connector_request_reference_id
-                .clone())
-        } else {
-            Err(errors::ConnectorError::MaxFieldLengthViolated {
-                connector: "Worldpayxml".to_string(),
-                field_name: "order_code".to_string(),
-                max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
-                received_length: authorize_data
-                    .router_data
-                    .connector_request_reference_id
-                    .len(),
-            })
-        }?;
-
-        let capture_delay = if authorize_data.router_data.request.is_auto_capture()? {
-            Some(AutoCapture::On)
-        } else {
-            Some(AutoCapture::Off)
-        };
-        let description = authorize_data.router_data.description.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "description",
-            },
-        )?;
-        let exponent = authorize_data
-            .router_data
-            .request
-            .currency
-            .number_of_digits_after_decimal_point()
-            .to_string();
-        let amount = WorldpayXmlAmount {
-            currency_code: authorize_data.router_data.request.currency.to_owned(),
-            exponent,
-            value: authorize_data.amount.to_owned(),
-        };
-        let shopper = get_shopper_details(authorize_data.router_data);
-        let billing_address = authorize_data
-            .router_data
-            .get_optional_billing()
-            .and_then(get_address_details);
-        let shipping_address = authorize_data
-            .router_data
-            .get_optional_shipping()
-            .and_then(get_address_details);
-
-        let payment_details = PaymentDetails::try_from((
-            card_data,
-            authorize_data.router_data.request.capture_method,
-        ))?;
-        let submit = Some(Submit {
-            order: Order {
-                order_code,
-                capture_delay,
-                description,
-                amount,
-                payment_details,
-                shopper,
-                billing_address,
-                shipping_address,
-            },
-        });
+        let parsed_token = serde_json::from_str::<GooglePayData>(&token_string)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
 
         Ok(Self {
-            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
-            merchant_code: auth.merchant_code.clone(),
-            submit,
-            reply: None,
-            inquiry: None,
-            modify: None,
+            action: if connector_utils::is_manual_capture(capture_method) {
+                Some(Action::Authorise)
+            } else {
+                Some(Action::Sale)
+            },
+            payment_method: PaymentMethod::PayWithGoogleSSL(GooglePayData {
+                protocol_version: parsed_token.protocol_version,
+                signature: parsed_token.signature,
+                signed_message: parsed_token.signed_message.clone(),
+            }),
         })
     }
 }
@@ -702,12 +660,93 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 connector: "Worldpayxml",
             })?
         };
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+
+        let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let order_code = if item.router_data.connector_request_reference_id.len()
+            <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+        {
+            Ok(item.router_data.connector_request_reference_id.clone())
+        } else {
+            Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Worldpayxml".to_string(),
+                field_name: "order_code".to_string(),
+                max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+                received_length: item.router_data.connector_request_reference_id.len(),
+            })
+        }?;
+
+        let capture_delay = if item.router_data.request.is_auto_capture()? {
+            Some(AutoCapture::On)
+        } else {
+            Some(AutoCapture::Off)
+        };
+        let description = item.router_data.description.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "description",
+            },
+        )?;
+        let exponent = item
+            .router_data
+            .request
+            .currency
+            .number_of_digits_after_decimal_point()
+            .to_string();
+
+        let amount = WorldpayXmlAmount {
+            currency_code: item.router_data.request.currency.to_owned(),
+            exponent,
+            value: item.amount.to_owned(),
+        };
+
+        let shopper = get_shopper_details(item.router_data);
+        let billing_address = item
+            .router_data
+            .get_optional_billing()
+            .and_then(get_address_details);
+
+        let shipping_address = item
+            .router_data
+            .get_optional_shipping()
+            .and_then(get_address_details);
+
+        let payment_details = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => {
+                PaymentDetails::try_from((&req_card, item.router_data.request.capture_method))?
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                PaymentDetails::try_from((
+                    &google_pay_data,
+                    item.router_data.request.capture_method,
+                ))?
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
             ))?,
-        }
+        };
+
+        let submit = Some(Submit {
+            order: Order {
+                order_code,
+                capture_delay,
+                description,
+                amount,
+                payment_details,
+                shopper,
+                billing_address,
+                shipping_address,
+            },
+        });
+
+        Ok(Self {
+            version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
+            merchant_code: auth.merchant_code.clone(),
+            submit,
+            reply: None,
+            inquiry: None,
+            modify: None,
+        })
     }
 }
 
@@ -951,36 +990,108 @@ fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, error
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, PaymentsResponseData>>
+impl<F>
+    TryFrom<ResponseRouterData<F, WorldpayxmlSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaymentService, PaymentsSyncData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            WorldpayxmlSyncResponse,
+            PaymentsSyncData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
-        let reply = item
-            .response
-            .reply
-            .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Missing reply data".to_string()),
-            ))?;
+        match item.response {
+            WorldpayxmlSyncResponse::Payment(data) => {
+                let is_auto_capture = item.data.request.is_auto_capture()?;
+                let reply = data
+                    .reply
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from("Missing reply data".to_string()),
+                    ))?;
 
-        validate_reply(&reply)?;
-        if let Some(order_status) = reply.order_status {
-            validate_order_status(&order_status)?;
+                validate_reply(&reply)?;
+                if let Some(order_status) = reply.order_status {
+                    validate_order_status(&order_status)?;
 
-            if let Some(payment_data) = order_status.payment {
+                    if let Some(payment_data) = order_status.payment {
+                        let status = get_attempt_status(
+                            is_auto_capture,
+                            payment_data.last_event,
+                            Some(&item.data.status),
+                        )?;
+                        let response = process_payment_response(
+                            status,
+                            &payment_data,
+                            item.http_code,
+                            order_status.order_code.clone(),
+                        )
+                        .map_err(|err| *err);
+
+                        Ok(Self {
+                            status,
+                            response,
+                            ..item.data
+                        })
+                    } else {
+                        order_status.error
+                                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                                    bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
+                                ))?;
+                        // Handle API errors unrelated to the payment to prevent failing the payment.
+                        Ok(Self {
+                            status: item.data.status,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    order_status.order_code.clone(),
+                                ),
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: Some(
+                                    order_status.order_code.clone(),
+                                ),
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                } else {
+                    // Handle API errors unrelated to the payment to prevent failing the payment
+                    Ok(Self {
+                        status: item.data.status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: item.data.request.connector_transaction_id.clone(),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            WorldpayxmlSyncResponse::Webhook(data) => {
+                let is_auto_capture = item.data.request.is_auto_capture()?;
+                let order_status_event = data.notify.order_status_event;
+
                 let status = get_attempt_status(
                     is_auto_capture,
-                    payment_data.last_event,
+                    order_status_event.payment.last_event,
                     Some(&item.data.status),
                 )?;
                 let response = process_payment_response(
                     status,
-                    &payment_data,
+                    &order_status_event.payment,
                     item.http_code,
-                    order_status.order_code.clone(),
+                    order_status_event.order_code.clone(),
                 )
                 .map_err(|err| *err);
 
@@ -989,45 +1100,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, PaymentsSyncData, Payments
                     response,
                     ..item.data
                 })
-            } else {
-                order_status.error
-                        .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
-                        ))?;
-                // Handle API errors unrelated to the payment to prevent failing the payment.
-                Ok(Self {
-                    status: item.data.status,
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            order_status.order_code.clone(),
-                        ),
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(order_status.order_code.clone()),
-                        incremental_authorization_allowed: None,
-                        charges: None,
-                    }),
-                    ..item.data
-                })
             }
-        } else {
-            // Handle API errors unrelated to the payment to prevent failing the payment
-            Ok(Self {
-                status: item.data.status,
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: item.data.request.connector_transaction_id.clone(),
-                    redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    charges: None,
-                }),
-                ..item.data
-            })
         }
     }
 }
@@ -1268,24 +1341,94 @@ pub struct WorldpayxmlRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, PaymentService>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
+    for RefundsRouterData<RSync>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, PaymentService>,
+        item: RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let reply = item
-            .response
-            .reply
-            .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Missing reply data".to_string()),
-            ))?;
+        match item.response {
+            WorldpayxmlSyncResponse::Payment(data) => {
+                let reply = data
+                    .reply
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from("Missing reply data".to_string()),
+                    ))?;
 
-        validate_reply(&reply)?;
+                validate_reply(&reply)?;
 
-        if let Some(order_status) = reply.order_status {
-            validate_order_status(&order_status)?;
+                if let Some(order_status) = reply.order_status {
+                    validate_order_status(&order_status)?;
 
-            if let Some(payment_data) = order_status.payment {
+                    if let Some(payment_data) = order_status.payment {
+                        let status = get_refund_status(payment_data.last_event)?;
+                        let response = if connector_utils::is_refund_failure(status) {
+                            let error_code = payment_data
+                                .return_code
+                                .as_ref()
+                                .map(|code| code.code.clone());
+                            let error_message = payment_data
+                                .return_code
+                                .as_ref()
+                                .map(|code| code.description.clone());
+
+                            Err(ErrorResponse {
+                                code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                                message: error_message
+                                    .clone()
+                                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                                reason: error_message.clone(),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
+                                connector_metadata: None,
+                            })
+                        } else {
+                            Ok(RefundsResponseData {
+                                connector_refund_id: order_status.order_code,
+                                refund_status: status,
+                            })
+                        };
+
+                        Ok(Self {
+                            response,
+                            ..item.data
+                        })
+                    } else {
+                        order_status.error
+                                .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                                    bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
+                                ))?;
+                        // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment.
+                        let response = Ok(RefundsResponseData {
+                            connector_refund_id: order_status.order_code,
+                            refund_status: enums::RefundStatus::Pending,
+                        });
+                        Ok(Self {
+                            response,
+                            ..item.data
+                        })
+                    }
+                } else {
+                    // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment
+                    let response = Ok(RefundsResponseData {
+                        connector_refund_id: item.data.request.connector_transaction_id.clone(),
+                        refund_status: enums::RefundStatus::Pending,
+                    });
+
+                    Ok(Self {
+                        response,
+                        ..item.data
+                    })
+                }
+            }
+            WorldpayxmlSyncResponse::Webhook(data) => {
+                let payment_data = data.notify.order_status_event.payment;
+
                 let status = get_refund_status(payment_data.last_event)?;
                 let response = if connector_utils::is_refund_failure(status) {
                     let error_code = payment_data
@@ -1313,7 +1456,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaymentService>> for RefundsRouter
                     })
                 } else {
                     Ok(RefundsResponseData {
-                        connector_refund_id: order_status.order_code,
+                        connector_refund_id: data.notify.order_status_event.order_code,
                         refund_status: status,
                     })
                 };
@@ -1322,32 +1465,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PaymentService>> for RefundsRouter
                     response,
                     ..item.data
                 })
-            } else {
-                order_status.error
-                        .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
-                        ))?;
-                // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment.
-                let response = Ok(RefundsResponseData {
-                    connector_refund_id: order_status.order_code,
-                    refund_status: enums::RefundStatus::Pending,
-                });
-                Ok(Self {
-                    response,
-                    ..item.data
-                })
             }
-        } else {
-            // Return TransactionResponse for API errors unrelated to the payment to prevent failing the payment
-            let response = Ok(RefundsResponseData {
-                connector_refund_id: item.data.request.connector_transaction_id.clone(),
-                refund_status: enums::RefundStatus::Pending,
-            });
-
-            Ok(Self {
-                response,
-                ..item.data
-            })
         }
     }
 }
@@ -1531,7 +1649,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             }
         };
 
-        let order_code = item.router_data.connector_request_reference_id.to_owned();
+        let reference_id = item.router_data.connector_request_reference_id.to_owned();
+
+        let order_code = if reference_id.starts_with("payout_") {
+            reference_id
+        } else {
+            format!("payout_{}", reference_id)
+        };
 
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -1868,4 +1992,45 @@ pub fn get_payout_webhook_event(status: LastEvent) -> api_models::webhooks::Inco
             api_models::webhooks::IncomingWebhookEvent::EventNotSupported
         }
     }
+}
+
+pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
+    match status {
+        LastEvent::Authorised | LastEvent::SentForAuthorisation => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+        }
+        LastEvent::Captured | LastEvent::Settled => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+        }
+        LastEvent::Refunded | LastEvent::RefundedByMerchant => {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess
+        }
+        LastEvent::Cancelled => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
+        LastEvent::Refused => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
+        LastEvent::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+pub fn is_refund_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::SentForRefund
+            | LastEvent::RefundedByMerchant
+            | LastEvent::RefundRequested
+            | LastEvent::Refunded
+            | LastEvent::RefundFailed
+    )
+}
+
+pub fn is_transaction_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::Authorised
+            | LastEvent::Settled
+            | LastEvent::Captured
+            | LastEvent::SentForAuthorisation
+            | LastEvent::Cancelled
+            | LastEvent::Refused
+    )
 }
