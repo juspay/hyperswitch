@@ -2697,7 +2697,7 @@ pub async fn response_handler(
         recurring: payouts.recurring,
         metadata: payouts.metadata,
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
-        status: payout_attempt.status.to_owned(),
+        status: payouts.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
         profile_id: payout_attempt.profile_id,
