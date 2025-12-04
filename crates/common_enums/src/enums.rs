@@ -2501,6 +2501,16 @@ pub enum ExecutionPath {
     ShadowUnifiedConnectorService,
 }
 
+impl ExecutionPath {
+    /// Checks if the execution path is through Direct Gateway (Hyperswitch Direct)
+    pub fn is_direct_gateway(&self) -> bool {
+        match self {
+            Self::Direct | Self::ShadowUnifiedConnectorService => true,
+            Self::UnifiedConnectorService => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
