@@ -1052,7 +1052,10 @@ impl ConnectorSpecifications for Payload {
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
+        #[cfg(feature = "v1")]
         return payment_attempt.customer_acceptance.is_some()
             && payment_attempt.setup_future_usage_applied == Some(enums::FutureUsage::OffSession);
+        #[cfg(feature = "v2")]
+        return false;
     }
 }
