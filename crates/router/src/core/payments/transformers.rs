@@ -2,6 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
+#[cfg(feature = "v1")]
+use api_models::payments::PaymentMethodTokenizationDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
@@ -458,7 +460,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         mit_category: None,
         tokenization: None,
         payment_channel: None,
-        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(
+            payment_data.payment_intent.enable_partial_authorization,
+        ),
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
@@ -1322,6 +1326,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         payment_method,
         payment_method_type,
+        split_payments: payment_data.payment_intent.split_payments,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -2235,7 +2240,7 @@ where
         frm_metadata: payment_intent.frm_metadata.clone(),
         request_external_three_ds_authentication: payment_intent
             .request_external_three_ds_authentication,
-        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         card_attached,
     }
 }
@@ -2636,7 +2641,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
-                enable_partial_authorization: payment_intent.enable_partial_authorization,
+                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
             },
             vec![],
         )))
@@ -3307,8 +3312,7 @@ where
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data
                 .get_payment_attempt()
-                .payment_method_data
-                .clone()
+                .check_and_get_payment_method_data_based_on_encryption_strategy()
                 .map(|data| data.parse_value("payment_method_data"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -3396,7 +3400,7 @@ where
 {
     use std::ops::Not;
 
-    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE, NO_ERROR_REASON};
+    use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
@@ -3474,8 +3478,7 @@ where
         .unwrap_or("".to_owned());
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
         payment_attempt
-            .payment_method_data
-            .clone()
+            .check_and_get_payment_method_data_based_on_encryption_strategy()
             .and_then(|data| match data {
                 serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
                 _ => Some(data.parse_value("AdditionalPaymentData")),
@@ -3867,6 +3870,11 @@ where
             Some(false) | None => None,
         };
 
+        let payment_method_tokenization_details = payment_data
+            .get_payment_method_info()
+            .map(PaymentMethodTokenizationDetails::foreign_try_from)
+            .transpose()?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3925,11 +3933,9 @@ where
                 .error_code
                 .filter(|code| code != NO_ERROR_CODE),
             error_message: payment_attempt
-                .error_message
-                .filter(|message| message != NO_ERROR_MESSAGE),
-            error_reason: payment_attempt
                 .error_reason
-                .filter(|reason| reason != NO_ERROR_REASON),
+                .or(payment_attempt.error_message)
+                .filter(|message| message != NO_ERROR_MESSAGE),
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             payment_experience: payment_attempt.payment_experience,
@@ -4000,6 +4006,7 @@ where
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
+            payment_method_tokenization_details,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4255,7 +4262,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             cancellation_reason: None,
             error_code: None,
             error_message: None,
-            error_reason: None,
             unified_code: None,
             unified_message: None,
             payment_experience: None,
@@ -4308,7 +4314,33 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
+            payment_method_tokenization_details: None,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<&domain::PaymentMethod> for PaymentMethodTokenizationDetails {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(payment_method: &domain::PaymentMethod) -> Result<Self, Self::Error> {
+        let connector_common_mandate_details = payment_method
+            .get_common_mandate_reference()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get the common mandate reference")?;
+        let psp_tokenization = connector_common_mandate_details
+            .payments
+            .map(|payments| payments.is_active_connector_mandate_available())
+            .unwrap_or(false);
+        let network_tokenization = payment_method.network_token_locker_id.is_some();
+        let is_network_transaction_id_present = payment_method.network_transaction_id.is_some();
+        Ok(Self {
+            payment_method_id: payment_method.payment_method_id.clone(),
+            payment_method_status: payment_method.status,
+            psp_tokenization,
+            network_tokenization,
+            network_transaction_id: payment_method.network_transaction_id.clone(),
+            is_eligible_for_mit_payment: psp_tokenization || is_network_transaction_id_present,
+        })
     }
 }
 
@@ -5571,6 +5603,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
             payment_method: Some(payment_data.payment_attempt.payment_method_type),
             payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+            split_payments: payment_data.payment_intent.split_payments,
         })
     }
 }
@@ -5676,6 +5709,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata,
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            split_payments: payment_data.payment_intent.split_payments,
         })
     }
 }
@@ -6362,6 +6396,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
             amount_capturable: amount.get_amount_capturable(),
             shipping_cost: amount.get_shipping_cost(),
             order_tax_amount: amount.get_order_tax_amount(),
+            amount_captured: amount.get_amount_captured(),
         }
     }
 }
@@ -6509,6 +6544,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             surcharge_calculation: amount_details.skip_surcharge_calculation,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
+            amount_captured: amount_details.amount_captured,
         }
     }
 }
@@ -6633,6 +6669,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }

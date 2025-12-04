@@ -86,6 +86,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -237,7 +238,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _mechant_key_store: &domain::MerchantKeyStore,
+        _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
@@ -255,26 +256,23 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsStartRequest, Payme
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = Some(&request.merchant_id);
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         let payment_id = request.payment_id.clone();
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))

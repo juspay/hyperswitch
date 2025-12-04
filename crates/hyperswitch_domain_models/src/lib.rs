@@ -596,6 +596,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms,
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }
@@ -731,6 +732,7 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
@@ -747,6 +749,7 @@ impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
