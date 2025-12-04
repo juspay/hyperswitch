@@ -2235,6 +2235,8 @@ pub async fn construct_payment_method_object(
         last_modified_by: None,
     })
 }
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_for_confirm(
