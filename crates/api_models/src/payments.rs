@@ -6905,6 +6905,12 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub created: Option<PrimitiveDateTime>,
 
+    /// Timestamp indicating when this payment intent was last modified, in ISO 8601 format.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
+    pub modified_at: Option<PrimitiveDateTime>,
+
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
