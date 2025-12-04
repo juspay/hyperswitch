@@ -33,8 +33,9 @@ use crate::{
     services::{self, encryption},
     settings,
     types::{api, domain, payment_methods as pm_types},
-    utils::ext_traits::OptionExt,
 };
+#[cfg(feature = "v2")]
+use crate::utils::ext_traits::OptionExt;
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
