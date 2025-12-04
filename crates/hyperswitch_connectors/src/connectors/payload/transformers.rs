@@ -40,6 +40,7 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+#[allow(clippy::too_many_arguments)]
 fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
     connector_auth_type: &ConnectorAuthType,
