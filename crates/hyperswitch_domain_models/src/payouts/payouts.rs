@@ -180,6 +180,9 @@ pub enum PayoutsUpdate {
     StatusUpdate {
         status: storage_enums::PayoutStatus,
     },
+    ManualUpdate {
+        status: Option<storage_enums::PayoutStatus>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -254,6 +257,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
+                ..Default::default()
+            },
+            PayoutsUpdate::ManualUpdate { status } => Self {
+                status,
                 ..Default::default()
             },
         }
