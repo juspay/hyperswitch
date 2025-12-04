@@ -25,7 +25,7 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::{Encryptable, GcmAes256, EncodeMessage},
+    crypto::{EncodeMessage, Encryptable, GcmAes256},
     errors::CustomResult,
     ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
@@ -902,27 +902,13 @@ pub async fn create_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-
     match req.storage_type {
         Some(common_enums::StorageType::Volatile) => {
-            create_volatile_payment_method_core(
-            state,
-            _request_state,
-            req,
-            platform,
-            profile,
-        )
-        .await
-    },
+            create_volatile_payment_method_core(state, _request_state, req, platform, profile).await
+        }
         Some(common_enums::StorageType::Persistent) | None => {
-            create_persistent_payment_method_core(
-                state,
-                _request_state,
-                req,
-                platform,
-                profile,
-            )
-            .await
+            create_persistent_payment_method_core(state, _request_state, req, platform, profile)
+                .await
         }
     }
 }
@@ -936,7 +922,6 @@ pub async fn create_persistent_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-
     req.validate()?;
 
     let db = &*state.store;
@@ -1021,7 +1006,6 @@ pub async fn create_volatile_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-
     req.validate()?;
 
     let db = &*state.store;
@@ -1179,7 +1163,11 @@ pub async fn create_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
+            let resp = pm_transforms::generate_payment_method_response(
+                &payment_method,
+                &None,
+                req.storage_type,
+            )?;
 
             Ok((resp, payment_method))
         }
@@ -1285,7 +1273,11 @@ pub async fn create_volatile_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert payment method id in redis")?;
 
-            let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
+            let resp = pm_transforms::generate_payment_method_response(
+                &payment_method,
+                &None,
+                req.storage_type,
+            )?;
 
             Ok((resp, payment_method))
         }
@@ -2903,13 +2895,16 @@ pub async fn vault_payment_method_in_volatile_storage(
     let merchant_key_store = platform.get_processor().get_key_store();
 
     let payload = pmd
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let encrypted_payload = GcmAes256
-            .encode_message(merchant_key_store.key.get_inner().peek().as_ref(), payload.as_bytes())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode redis temp locker data")?;
+    let encrypted_payload = GcmAes256
+        .encode_message(
+            merchant_key_store.key.get_inner().peek().as_ref(),
+            payload.as_bytes(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode redis temp locker data")?;
 
     let redis_connection = state
         .store
@@ -3193,8 +3188,12 @@ pub async fn retrieve_payment_method(
     .await
     .unwrap_or_default();
 
-    transformers::generate_payment_method_response(&payment_method, &single_use_token_in_cache, Some(common_enums::StorageType::Persistent))
-        .map(services::ApplicationResponse::Json)
+    transformers::generate_payment_method_response(
+        &payment_method,
+        &single_use_token_in_cache,
+        Some(common_enums::StorageType::Persistent),
+    )
+    .map(services::ApplicationResponse::Json)
 }
 
 // TODO: When we separate out microservices, this function will be an endpoint in payment_methods
@@ -3351,7 +3350,11 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let response = pm_transforms::generate_payment_method_response(&payment_method, &None, Some(common_enums::StorageType::Persistent))?;
+    let response = pm_transforms::generate_payment_method_response(
+        &payment_method,
+        &None,
+        Some(common_enums::StorageType::Persistent),
+    )?;
 
     // Add a PT task to handle payment_method delete from vault
 
@@ -3638,7 +3641,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
-        None
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3706,7 +3709,7 @@ pub async fn payment_methods_session_update(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
         None,
-        None
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
