@@ -208,17 +208,15 @@ base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
 
-[oidc]
-
-[[oidc.keys]]
+[oidc.key.k1]
 kid = ""
 private_key = ""
 
-[[oidc.keys]]
+[oidc.key.k2]
 kid = ""
 private_key = ""
 
-[[oidc.clients]]
+[oidc.client.c1]
 client_id = ""
 client_secret = ""
 redirect_uri = ""

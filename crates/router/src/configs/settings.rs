@@ -696,8 +696,8 @@ pub struct UserSettings {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct OidcSettings {
-    pub keys: Vec<OidcKey>,
-    pub clients: Vec<OidcClient>,
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -715,17 +715,15 @@ pub struct OidcClient {
 
 impl OidcSettings {
     pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
-        self.clients.iter().find(|c| c.client_id == client_id)
+        self.client.values().find(|c| c.client_id == client_id)
     }
 
-    /// Get the latest (first) signing key for creating new tokens
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        self.keys.first()
+        self.key.values().next()
     }
 
-    /// Get all keys for JWKS endpoint (for token validation)
-    pub fn get_all_keys(&self) -> &[OidcKey] {
-        &self.keys
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
     }
 }
 
