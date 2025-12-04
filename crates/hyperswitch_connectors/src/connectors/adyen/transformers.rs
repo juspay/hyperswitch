@@ -4812,6 +4812,7 @@ pub fn get_qr_metadata(
         let qr_code_info = QrCodeInformation::QrCodeImageUrl {
             qr_code_url,
             display_to_timestamp,
+            expiry_type: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()

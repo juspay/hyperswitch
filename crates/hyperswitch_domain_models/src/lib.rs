@@ -118,6 +118,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            pix_additional_details,
+            boleto_additional_details,
+            ..
         } = from;
 
         Self {
@@ -126,6 +129,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
             gateway_system: None,
+            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.to_diesel()),
         }
     }
 
@@ -134,15 +139,81 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response,
             search_tags,
             apple_pay_recurring_details,
+            pix_additional_details,
+            boleto_additional_details,
             ..
         } = self;
 
         ApiFeatureMetadata {
-            redirect_response: redirect_response
-                .map(|redirect_response| redirect_response.convert_back()),
+            redirect_response: redirect_response.map(|v| v.convert_back()),
             search_tags,
-            apple_pay_recurring_details: apple_pay_recurring_details
-                .map(|value| value.convert_back()),
+            apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.to_api()),
+        }
+    }
+}
+
+pub trait ToDieselPixAdditionalDetails {
+    fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails;
+}
+
+pub trait ToApiPixAdditionalDetails {
+    fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails;
+}
+
+impl ToDieselPixAdditionalDetails for api_models::payments::BoletoAdditionalDetails {
+    fn to_diesel(&self) -> diesel_models::types::BoletoAdditionalDetails {
+        diesel_models::types::BoletoAdditionalDetails {
+            due_date: self.due_date.clone(),
+        }
+    }
+}
+
+impl ToApiPixAdditionalDetails for diesel_models::types::BoletoAdditionalDetails {
+    fn to_api(&self) -> api_models::payments::BoletoAdditionalDetails {
+        api_models::payments::BoletoAdditionalDetails {
+            due_date: self.due_date.clone(),
+        }
+    }
+}
+
+pub trait ToDieselPixQR {
+    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails;
+}
+
+pub trait ToApiPixQR {
+    fn to_api(&self) -> api_models::payments::PixAdditionalDetails;
+}
+
+impl ToDieselPixQR for api_models::payments::PixAdditionalDetails {
+    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
+        match self {
+            Self::Immediate(v) => diesel_models::types::PixAdditionalDetails::Immediate(
+                diesel_models::types::ImmediateExpirationTime { time: v.time },
+            ),
+            Self::Scheduled(v) => diesel_models::types::PixAdditionalDetails::Scheduled(
+                diesel_models::types::ScheduledExpirationTime {
+                    date: v.date.clone(),
+                    validity_after_expiration: v.validity_after_expiration,
+                },
+            ),
+        }
+    }
+}
+
+impl ToApiPixQR for diesel_models::types::PixAdditionalDetails {
+    fn to_api(&self) -> api_models::payments::PixAdditionalDetails {
+        match self {
+            Self::Immediate(v) => api_models::payments::PixAdditionalDetails::Immediate(
+                api_models::payments::ImmediateExpirationTime { time: v.time },
+            ),
+            Self::Scheduled(v) => api_models::payments::PixAdditionalDetails::Scheduled(
+                api_models::payments::ScheduledExpirationTime {
+                    date: v.date.clone(),
+                    validity_after_expiration: v.validity_after_expiration,
+                },
+            ),
         }
     }
 }
@@ -155,6 +226,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
             revenue_recovery: payment_revenue_recovery_metadata,
+            pix_additional_details,
+            boleto_additional_details,
         } = from;
 
         Self {
@@ -164,6 +237,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(ApplePayRecurringDetails::convert_from),
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
+            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.to_diesel()),
         }
     }
 
@@ -173,6 +248,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
             payment_revenue_recovery_metadata,
+            pix_additional_details,
+            boleto_additional_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -182,6 +259,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
+            boleto_additional_details: boleto_additional_details.map(|v| v.to_api()),
         }
     }
 }

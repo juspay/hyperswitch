@@ -7106,6 +7106,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .request
             .partner_merchant_identifier_details
             .clone(),
+        feature_metadata: None,
     }
 }
 
@@ -7175,6 +7176,25 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
 pub fn generate_12_digit_number() -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    (0..len)
+        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
+        .collect()
+}
+
+pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    rng.sample_iter(&rand::distributions::Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
 }
 
 /// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
