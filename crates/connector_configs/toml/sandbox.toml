@@ -6482,7 +6482,7 @@ type = "Text"
 name = "merchant_category_code"
 label = "Merchant Category Code"
 placeholder = "Enter Merchant Category Code"
-required = true
+required=false
 type = "Text"
 
 [ctp_visa.metadata.merchant_country_code]

@@ -11440,8 +11440,8 @@ pub struct ClickToPaySessionResponse {
     pub acquirer_bin: String,
     #[smithy(value_type = "String")]
     pub acquirer_merchant_id: String,
-    #[smithy(value_type = "String")]
-    pub merchant_category_code: String,
+    #[smithy(value_type = "Option<String>")]
+    pub merchant_category_code: Option<String>,
     #[smithy(value_type = "String")]
     pub merchant_country_code: String,
     #[schema(value_type = String, example = "38.02")]
