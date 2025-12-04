@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.04.0
+
+### Features
+
+- **connector:** [Dlocal] Implement oxxo voucher ([#10450](https://github.com/juspay/hyperswitch/pull/10450)) ([`50d303c`](https://github.com/juspay/hyperswitch/commit/50d303cb5583c3dc908c9e3414a98eea09918473))
+- **euclid:** Add configs to disable pre-routing for certain specific PMs and PMTs ([#10470](https://github.com/juspay/hyperswitch/pull/10470)) ([`6458e80`](https://github.com/juspay/hyperswitch/commit/6458e80bd3e96b08c9725aa69c5789e5aac6a74c))
+
+### Bug Fixes
+
+- **payouts:** Update payout intent in case of webhook ([#10531](https://github.com/juspay/hyperswitch/pull/10531)) ([`c671266`](https://github.com/juspay/hyperswitch/commit/c671266546f620e6dbba0ca2e527c5c6095425e2))
+
+**Full Changelog:** [`2025.12.03.0...2025.12.04.0`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0...2025.12.04.0)
+
+- - -
+
 ## 2025.12.03.0
 
 ### Features
