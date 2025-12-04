@@ -1,8 +1,8 @@
-use crate::connectors::payload::responses;
-use common_utils::pii::Email;
-use common_utils::types::StringMajorUnit;
+use common_utils::{pii::Email, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use crate::connectors::payload::responses;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

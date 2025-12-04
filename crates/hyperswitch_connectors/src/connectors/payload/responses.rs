@@ -48,7 +48,7 @@ pub struct PayloadCardsResponseData {
     #[serde(rename = "type")]
     pub response_type: Option<String>,
 }
-#[derive(Debug, Clone,Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomerResponse {
     pub id: String,
 }
