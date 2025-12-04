@@ -15719,7 +15719,7 @@
           "network_token": {
             "type": "string",
             "description": "The network token",
-            "example": "4242424242424242"
+            "example": "4604000460040787"
           },
           "token_exp_month": {
             "type": "string",
@@ -15780,7 +15780,7 @@
           },
           "eci": {
             "type": "string",
-            "description": "The ECI value for this authentication.",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
           }
         }
@@ -16134,7 +16134,7 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
@@ -16151,7 +16151,7 @@
           "network_token": {
             "type": "string",
             "description": "The Network Token",
-            "example": "4242424242424242"
+            "example": "4604000460040787"
           },
           "token_exp_month": {
             "type": "string",
@@ -16208,12 +16208,12 @@
           },
           "eci": {
             "type": "string",
-            "description": "The ECI value for this authentication.",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhere `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },

@@ -247,7 +247,7 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub nick_name: Option<Secret<String>>,
 
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
-    /// where `setup_future_usage` is set to `off_session`.
+    /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
@@ -259,7 +259,7 @@ pub struct NetworkTransactionIdAndCardDetails {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The Network Token
-    #[schema(value_type = String, example = "4242424242424242")]
+    #[schema(value_type = String, example = "4604000460040787")]
     #[smithy(value_type = "String")]
     pub network_token: cards::NetworkToken,
 
@@ -308,13 +308,13 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<Secret<String>>,
 
-    /// The ECI value for this authentication.
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub eci: Option<String>,
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
-    /// where `setup_future_usage` is set to `off_session`.
+    /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,

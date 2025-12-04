@@ -22,8 +22,8 @@ use common_utils::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-use crate::router_data::PaymentMethodToken;
-use crate::{errors::api_error_response::ApiErrorResponse, helpers};
+
+use crate::{errors::api_error_response::ApiErrorResponse, router_data::PaymentMethodToken};
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -108,7 +108,7 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub nick_name: Option<Secret<String>>,
 
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
-    /// where `setup_future_usage` is set to `off_session`.
+    /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
 }
 
@@ -144,11 +144,11 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The card holder's nick name
     pub nick_name: Option<Secret<String>>,
 
-    /// The ECI value for this authentication.
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
     pub eci: Option<String>,
 
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
-    /// where `setup_future_usage` is set to `off_session`.
+    /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
 }
 
@@ -3211,26 +3211,14 @@ impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
             }
             mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
                 network_transaction_id_and_card_details,
-            ) => {
-                helpers::validate_card_expiry(
-                    &network_transaction_id_and_card_details.card_exp_month,
-                    &network_transaction_id_and_card_details.card_exp_year,
-                )?;
-                Ok(Self::NetworkTransactionIdAndCardDetails(
-                    network_transaction_id_and_card_details.into(),
-                ))
-            }
+            ) => Ok(Self::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details.into(),
+            )),
             mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
                 network_transaction_id_and_network_token_details,
-            ) => {
-                helpers::validate_card_expiry(
-                    &network_transaction_id_and_network_token_details.token_exp_month,
-                    &network_transaction_id_and_network_token_details.token_exp_year,
-                )?;
-                Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(
-                    network_transaction_id_and_network_token_details.into(),
-                ))
-            }
+            ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(
+                network_transaction_id_and_network_token_details.into(),
+            )),
         }
     }
 }

@@ -3398,7 +3398,7 @@ pub struct VaultToken {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTokenData {
     /// The network token
-    #[schema(value_type = String, example = "4242424242424242")]
+    #[schema(value_type = String, example = "4604000460040787")]
     #[smithy(value_type = "String")]
     pub network_token: NetworkToken,
 
@@ -3452,7 +3452,7 @@ pub struct NetworkTokenData {
     #[smithy(value_type = "Option<String>")]
     pub nick_name: Option<Secret<String>>,
 
-    /// The ECI value for this authentication.
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub eci: Option<String>,
