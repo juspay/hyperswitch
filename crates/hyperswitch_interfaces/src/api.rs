@@ -12,6 +12,7 @@ pub mod files_v2;
 pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
+pub mod gateway;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -381,6 +382,8 @@ pub trait ConnectorCommon {
     }
 }
 
+impl ConnectorAccessTokenSuffix for BoxedConnector {}
+
 /// Current flow information passed to the connector specifications trait
 ///
 /// In order to make some desicion about the preprocessing or alternate flow
@@ -537,6 +540,31 @@ pub trait ConnectorSpecifications {
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
+    }
+
+    /// Is Authorize session token required before authorize
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        false
+    }
+
+    #[cfg(feature = "v1")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        None
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        todo!()
     }
 
     /// Check if connector needs tokenization call before setup mandate flow
@@ -879,5 +907,20 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         Ok(payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string))
+    }
+}
+
+/// Trait ConnectorAccessTokenSuffix
+pub trait ConnectorAccessTokenSuffix {
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(common_utils::access_token::get_default_access_token_key(
+            &router_data.merchant_id,
+            merchant_connector_id_or_connector_name,
+        ))
     }
 }

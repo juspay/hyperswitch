@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use common_enums::{self, enums};
+use common_enums::{self, enums, CaptureMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
@@ -205,10 +205,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/transactions", self.base_url(connectors)))
+        match req.request.capture_method.unwrap_or_default() {
+            CaptureMethod::Automatic => Ok(format!(
+                "{}/transactions/create-and-confirm",
+                self.base_url(connectors)
+            )),
+            CaptureMethod::Manual => Ok(format!("{}/transactions", self.base_url(connectors))),
+            CaptureMethod::ManualMultiple
+            | CaptureMethod::Scheduled
+            | CaptureMethod::SequentialAutomatic => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 
     fn get_request_body(
@@ -762,10 +773,7 @@ impl webhooks::IncomingWebhook for Peachpayments {
 
 static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+        let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
@@ -820,7 +828,7 @@ static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Peach Payments",
     description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Beta,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =

@@ -33,7 +33,15 @@ impl EncryptionManagementConfig {
     pub fn validate(&self) -> Result<(), &'static str> {
         match self {
             #[cfg(feature = "aws_kms")]
-            Self::AwsKms { aws_kms } => aws_kms.validate(),
+            Self::AwsKms { aws_kms } => {
+                use common_utils::fp_utils::when;
+
+                aws_kms.validate()?;
+
+                when(aws_kms.key_id.is_none(), || {
+                    Err("KMS AWS key ID must not be empty")
+                })
+            }
 
             Self::NoEncryption => Ok(()),
         }

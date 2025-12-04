@@ -164,12 +164,12 @@ pub struct SubscriptionCreateData {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlansData {
+pub struct GetSubscriptionItemsData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlanPricesData {
+pub struct GetSubscriptionItemPricesData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
 }
 

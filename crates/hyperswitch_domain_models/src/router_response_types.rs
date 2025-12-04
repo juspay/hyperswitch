@@ -10,7 +10,8 @@ pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
-use serde::Serialize;
+use error_stack::ResultExt;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
@@ -721,7 +722,7 @@ pub enum VaultResponseData {
         client_secret: masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
-        connector_vault_id: String,
+        connector_vault_id: VaultIdType,
         fingerprint_id: String,
     },
     ExternalVaultRetrieveResponse {
@@ -732,10 +733,85 @@ pub enum VaultResponseData {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VaultIdType {
+    SingleVaultId(String),
+    MultiVauldIds(MultiVaultIdType),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MultiVaultIdType {
+    Card {
+        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
+        tokenized_card_cvc: Option<masking::Secret<String>>,
+    },
+    NetworkToken {
+        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
+        tokenized_cryptogram: Option<masking::Secret<String>>,
+    },
+}
+
+impl VaultIdType {
+    pub fn get_single_vault_id(&self) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
+            Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "SingleVaultId",
+            }
+            .into()),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_auth_vault_token_data(
+        &self,
+    ) -> Result<
+        api_models::authentication::AuthenticationVaultTokenData,
+        error_stack::Report<ApiErrorResponse>,
+    > {
+        match self.clone() {
+            Self::MultiVauldIds(multi_vault_data) => match multi_vault_data {
+                MultiVaultIdType::Card {
+                    tokenized_card_number,
+                    tokenized_card_expiry_year,
+                    tokenized_card_expiry_month,
+                    tokenized_card_cvc,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::CardData {
+                        tokenized_card_number,
+                        tokenized_card_expiry_month,
+                        tokenized_card_expiry_year,
+                        tokenized_card_cvc,
+                    },
+                ),
+                MultiVaultIdType::NetworkToken {
+                    tokenized_network_token,
+                    tokenized_network_token_exp_month,
+                    tokenized_network_token_exp_year,
+                    tokenized_cryptogram,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
+                        tokenized_network_token,
+                        tokenized_expiry_month: tokenized_network_token_exp_month,
+                        tokenized_expiry_year: tokenized_network_token_exp_year,
+                        tokenized_cryptogram,
+                    },
+                ),
+            },
+            Self::SingleVaultId(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected Behaviour, Multi Token Data is missing"),
+        }
+    }
+}
+
 impl Default for VaultResponseData {
     fn default() -> Self {
         Self::ExternalVaultInsertResponse {
-            connector_vault_id: String::new(),
+            connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
     }
