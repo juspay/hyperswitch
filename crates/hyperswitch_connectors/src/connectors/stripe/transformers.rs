@@ -197,7 +197,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
-    pub meta_data: HashMap<String, Value>,
+    pub meta_data: HashMap<String, String>,
     pub return_url: String,
     pub confirm: bool,
     pub payment_method: Option<Secret<String>>,
@@ -264,7 +264,7 @@ pub struct SetupIntentRequest {
     pub payment_data: StripePaymentMethodData,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     #[serde(flatten)]
-    pub meta_data: Option<HashMap<String, Value>>,
+    pub meta_data: Option<HashMap<String, String>>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
@@ -363,7 +363,7 @@ pub struct ChargesRequest {
     pub customer: Secret<String>,
     pub source: Secret<String>,
     #[serde(flatten)]
-    pub meta_data: Option<HashMap<String, Value>>,
+    pub meta_data: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -4788,25 +4788,18 @@ pub struct DisputeObj {
 fn get_transaction_metadata(
     merchant_metadata: Option<Secret<Value>>,
     order_id: String,
-) -> HashMap<String, Value> {
-    let mut meta_data =
-        HashMap::from([("metadata[order_id]".to_string(), Value::String(order_id))]);
+) -> HashMap<String, String> {
+    let mut meta_data = HashMap::from([("metadata[order_id]".to_string(), order_id)]);
     if let Some(metadata) = merchant_metadata {
         let hashmap: HashMap<String, Value> =
             serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
 
         for (key, value) in hashmap {
-            match value {
-                Value::String(string_value) => {
-                    meta_data.insert(format!("metadata[{key}]"), Value::String(string_value));
-                }
-                value_data => {
-                    meta_data.insert(
-                        format!("metadata[{key}]"),
-                        Value::String(value_data.to_string()),
-                    );
-                }
-            }
+            let metadata_value = match value {
+                Value::String(string_value) => string_value,
+                value_data => value_data.to_string(),
+            };
+            meta_data.insert(format!("metadata[{key}]"), metadata_value);
         }
     };
     meta_data
