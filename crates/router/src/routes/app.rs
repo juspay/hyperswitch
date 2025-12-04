@@ -1528,10 +1528,6 @@ impl Payouts {
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
-                )
-                .service(
-                    web::resource("/{payout_id}/manual-update")
-                        .route(web::put().to(payouts_manual_update)),
                 );
         }
         route = route

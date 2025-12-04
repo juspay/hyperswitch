@@ -153,14 +153,6 @@ pub enum PayoutAttemptUpdate {
     AdditionalPayoutMethodDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     },
-    ManualUpdate {
-        status: Option<storage_enums::PayoutStatus>,
-        error_code: Option<String>,
-        error_message: Option<String>,
-        unified_code: Option<UnifiedCode>,
-        unified_message: Option<UnifiedMessage>,
-        connector_payout_id: Option<String>,
-    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -237,22 +229,6 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 additional_payout_method_data,
             } => Self {
                 additional_payout_method_data,
-                ..Default::default()
-            },
-            PayoutAttemptUpdate::ManualUpdate {
-                status,
-                error_code,
-                error_message,
-                unified_code,
-                unified_message,
-                connector_payout_id,
-            } => Self {
-                status,
-                error_code,
-                error_message,
-                unified_code,
-                unified_message,
-                connector_payout_id,
                 ..Default::default()
             },
         }
