@@ -1045,6 +1045,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
+paysafe = { long_lived_token = false, payment_method = "card,wallet" }
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }

@@ -722,6 +722,7 @@ gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
+paysafe = { long_lived_token = false, payment_method = "card,wallet" }
 
 [connector_customer]
 payout_connector_list = "nomupay,wise"
