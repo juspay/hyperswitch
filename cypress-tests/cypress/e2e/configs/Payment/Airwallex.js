@@ -83,14 +83,14 @@ const payment_method_data_no3ds = {
 
 export const connectorDetails = {
   card_pm: {
-    PaymentWithBilling :{
+    PaymentWithBilling: {
       Request: {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing:{
-          country:"US"
-        }
+        billing: {
+          country: "US",
+        },
       },
       Response: {
         status: 200,
