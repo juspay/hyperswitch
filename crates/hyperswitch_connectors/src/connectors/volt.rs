@@ -783,7 +783,7 @@ static VOLT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
 
     volt_supported_payment_methods.add(
         enums::PaymentMethod::BankRedirect,
-        enums::PaymentMethodType::OpenBankingEu,
+        enums::PaymentMethodType::OpenBanking,
         PaymentMethodDetails {
             mandates: common_enums::FeatureStatus::NotSupported,
             refunds: common_enums::FeatureStatus::Supported,

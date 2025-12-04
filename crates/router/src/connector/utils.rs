@@ -2646,7 +2646,6 @@ pub enum PaymentMethodDataType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
-    OpenBankingEu,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2755,7 +2754,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::LocalBankRedirect { } => {
                         Self::LocalBankRedirect
                     }
-                    domain::payments::BankRedirectData::OpenBankingEu { .. } => Self::OpenBankingEu,
+                    domain::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 }
             }
             domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {

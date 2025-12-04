@@ -327,7 +327,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac
-            | api_enums::PaymentMethodType::OpenBankingEu => Self::BankRedirect,
+            | api_enums::PaymentMethodType::OpenBanking => Self::BankRedirect,
             api_enums::PaymentMethodType::UpiCollect
             | api_enums::PaymentMethodType::UpiIntent
             | api_enums::PaymentMethodType::UpiQr => Self::Upi,

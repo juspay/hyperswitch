@@ -178,7 +178,7 @@ impl
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::OpenBankingEu { .. } => {
+                | BankRedirectData::OpenBanking { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("iatapay"),
                     ))?

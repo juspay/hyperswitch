@@ -2221,7 +2221,7 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
-    OpenBankingEu,
+    OpenBanking,
 }
 
 impl PaymentMethodType {
@@ -2347,7 +2347,7 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
-            Self::OpenBankingEu => "Open Banking EU",
+            Self::OpenBanking => "Open Banking",
         };
         display_name.to_string()
     }

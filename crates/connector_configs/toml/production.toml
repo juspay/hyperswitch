@@ -4212,7 +4212,7 @@ merchant_secret = "Source verification key"
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
 [[volt.bank_redirect]]
-  payment_method_type = "open_banking_eu"
+  payment_method_type = "open_banking"
 [volt.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"

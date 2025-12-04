@@ -622,11 +622,9 @@ fn get_payment_details_and_product(
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBankingEu { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nexinets"),
-                ))?
-            }
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nexinets"),
+            ))?,
         },
         PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::PayLater(_)

@@ -406,8 +406,8 @@ credit = { currency = "USD,CAD" }
 card_redirect = { country = "US", currency = "USD" }
 
 [pm_filters.volt]
+open_banking = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "GBP,EUR,DKK,NOK,PLN,SEK" }
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "GBP" }
-open_banking_eu = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,DKK,NOK,PLN,SEK" }
 
 [pm_filters.trustpay]
 instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }

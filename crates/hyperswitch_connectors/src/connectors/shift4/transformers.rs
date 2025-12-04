@@ -722,12 +722,10 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBankingEu { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }

@@ -11954,10 +11954,10 @@
           {
             "type": "object",
             "required": [
-              "open_banking_eu"
+              "open_banking"
             ],
             "properties": {
-              "open_banking_eu": {
+              "open_banking": {
                 "type": "object"
               }
             }
@@ -26137,7 +26137,7 @@
           "instant_bank_transfer_poland",
           "revolut_pay",
           "indonesian_bank_transfer",
-          "open_banking_eu"
+          "open_banking"
         ]
       },
       "PaymentMethodUpdate": {

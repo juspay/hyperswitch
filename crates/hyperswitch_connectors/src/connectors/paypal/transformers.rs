@@ -811,7 +811,7 @@ fn get_payment_source(
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
-        | BankRedirectData::OpenBankingEu { .. } => Err(errors::ConnectorError::NotImplemented(
+        | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
         ))?,
     }
@@ -1303,7 +1303,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Breadpay
                     | enums::PaymentMethodType::UpiQr
                     | enums::PaymentMethodType::Payjustnow
-                    | enums::PaymentMethodType::OpenBankingEu => {
+                    | enums::PaymentMethodType::OpenBanking => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))

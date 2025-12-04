@@ -125,6 +125,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankRedirect(ref bank_redirect) => {
                 let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
+                let currency = item.router_data.request.currency;
 
                 let (payment_system, open_banking_u_k, open_banking_e_u) = match bank_redirect {
                     BankRedirectData::OpenBankingUk { .. } => Ok((
@@ -132,11 +133,21 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         Some(OpenBankingUk { transaction_type }),
                         None,
                     )),
-                    BankRedirectData::OpenBankingEu {} => Ok((
-                        PaymentSystem::OpenBankingEu,
-                        None,
-                        Some(OpenBankingEu { transaction_type }),
-                    )),
+                    BankRedirectData::OpenBanking {} => {
+                        if matches!(currency, common_enums::Currency::GBP) {
+                            Ok((
+                                PaymentSystem::OpenBankingUk,
+                                Some(OpenBankingUk { transaction_type }),
+                                None,
+                            ))
+                        } else {
+                            Ok((
+                                PaymentSystem::OpenBankingEu,
+                                None,
+                                Some(OpenBankingEu { transaction_type }),
+                            ))
+                        }
+                    }
                     BankRedirectData::BancontactCard { .. }
                     | BankRedirectData::Bizum {}
                     | BankRedirectData::Blik { .. }
@@ -162,7 +173,6 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 }?;
 
                 let amount = item.amount;
-                let currency = item.router_data.request.currency;
                 let internal_reference = item.router_data.connector_request_reference_id.clone();
                 let communication = CommunicationDetails {
                     return_urls: ReturnUrls {

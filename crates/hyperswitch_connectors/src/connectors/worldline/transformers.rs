@@ -404,7 +404,7 @@ fn make_bank_redirect_request(
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
-        | BankRedirectData::OpenBankingEu { .. } => {
+        | BankRedirectData::OpenBanking { .. } => {
             return Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
             )

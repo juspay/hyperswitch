@@ -352,9 +352,9 @@ impl
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
-            | BankRedirectData::OpenBankingEu { .. } => Err(
-                errors::ConnectorError::NotImplemented("Payment method".to_string()),
-            )?,
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
         };
         Ok(payment_data)
     }
