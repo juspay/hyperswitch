@@ -525,7 +525,6 @@ async fn get_tracker_for_sync<
         pm_token: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
-        ephemeral_key: None,
         multiple_capture_data,
         redirect_response: None,
         payment_link_data,

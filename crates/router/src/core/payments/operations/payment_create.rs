@@ -14,10 +14,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::{
-    ephemeral_key,
-    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
-};
+use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
@@ -82,8 +79,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let ephemeral_key = Self::get_ephemeral_key(request, state, platform.get_provider()).await;
-
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
         let payment_id = payment_id
@@ -187,9 +182,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             request.shipping.as_ref(),
             None,
+            platform.get_processor().get_account().get_id(),
             customer_details.customer_id.as_ref(),
+            platform.get_processor().get_key_store(),
             &payment_id,
-            platform.get_provider(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -197,9 +194,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             request.billing.as_ref(),
             None,
+            platform.get_processor().get_account().get_id(),
             customer_details.customer_id.as_ref(),
+            platform.get_processor().get_key_store(),
             &payment_id,
-            platform.get_provider(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -211,9 +210,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .as_ref()
                     .and_then(|pmd| pmd.billing.as_ref()),
                 None,
+                platform.get_processor().get_account().get_id(),
                 customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
                 &payment_id,
-                platform.get_provider(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await?;
 
@@ -317,7 +318,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent = platform_wrapper::payment_intent::insert_payment_intent(
             db,
-            platform.get_provider(),
+            platform.get_processor(),
             payment_intent_new,
         )
         .await
@@ -336,7 +337,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "v1")]
         let mut payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
             db,
-            platform.get_provider(),
+            platform.get_processor(),
             payment_attempt_new,
         )
         .await
@@ -347,7 +348,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "v2")]
         let payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
             db,
-            platform.get_provider(),
+            platform.get_processor(),
             payment_attempt_new,
         )
         .await
@@ -374,11 +375,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 })
         })
             .async_and_then(|mandate_id| async {
-                let mandate = platform_wrapper::mandate::find_by_merchant_id_and_mandate_id(
-                        db,
-                        platform.get_provider(),
-                        mandate_id,
-                    )
+                let mandate = db
+                    .find_mandate_by_merchant_id_mandate_id(platform.get_processor().get_account().get_id(), mandate_id, platform.get_processor().get_account().storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -595,7 +593,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
-            ephemeral_key,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details,
@@ -1289,12 +1286,14 @@ impl PaymentCreate {
                         state,
                         Some(addr.get_inner()),
                         None,
+                        platform.get_processor().get_account().get_id(),
                         payment_method_info
                             .as_ref()
                             .map(|pmd_info| pmd_info.customer_id.clone())
                             .as_ref(),
+                        platform.get_processor().get_key_store(),
                         payment_id,
-                        platform.get_provider(),
+                        platform.get_processor().get_account().storage_scheme,
                     )
                     .await
                 })
@@ -1498,14 +1497,14 @@ impl PaymentCreate {
         );
 
         let key = platform
-            .get_provider()
+            .get_processor()
             .get_key_store()
             .key
             .get_inner()
             .peek();
 
         let identifier =
-            Identifier::Merchant(platform.get_provider().get_key_store().merchant_id.clone());
+            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone());
         let key_manager_state: KeyManagerState = state.into();
 
         let shipping_details_encoded = request
@@ -1657,31 +1656,6 @@ impl PaymentCreate {
                 .partner_merchant_identifier_details
                 .clone(),
         })
-    }
-
-    #[instrument(skip_all)]
-    pub async fn get_ephemeral_key(
-        request: &api::PaymentsRequest,
-        state: &SessionState,
-        provider: &domain::Provider,
-    ) -> Option<ephemeral_key::EphemeralKey> {
-        match request.get_customer_id() {
-            Some(customer_id) => helpers::make_ephemeral_key(
-                state.clone(),
-                customer_id.clone(),
-                provider.get_account().get_id().to_owned().clone(),
-            )
-            .await
-            .ok()
-            .and_then(|ek| {
-                if let services::ApplicationResponse::Json(ek) = ek {
-                    Some(ek)
-                } else {
-                    None
-                }
-            }),
-            None => None,
-        }
     }
 }
 

@@ -1566,9 +1566,11 @@ pub async fn resolve_billing_address_for_payout(
                 state,
                 req_billing,
                 None,
+                platform.get_processor().get_account().get_id(),
                 customer_id,
+                platform.get_processor().get_key_store(),
                 &payout_id_as_payment_id,
-                platform.get_provider(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await?;
             let address_id = billing_address.as_ref().map(|a| a.address_id.clone());
@@ -1583,9 +1585,11 @@ pub async fn resolve_billing_address_for_payout(
                 state,
                 None,
                 Some(address_id),
+                platform.get_processor().get_account().get_id(),
                 customer_id,
+                platform.get_processor().get_key_store(),
                 &payout_id_as_payment_id,
-                platform.get_provider(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await?;
             let hyperswitch_address = billing_address

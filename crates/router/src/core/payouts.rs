@@ -785,9 +785,11 @@ pub async fn payouts_list_core(
                     &state,
                     None,
                     payout.address_id.as_deref(),
+                    merchant_id,
                     payout.customer_id.as_ref(),
+                    platform.get_processor().get_key_store(),
                     &payout_id_as_payment_id_type,
-                    platform.get_provider(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .transpose()
@@ -3041,9 +3043,11 @@ pub async fn make_payout_data(
         state,
         None,
         payouts.address_id.as_deref(),
+        merchant_id,
         customer_id,
+        platform.get_processor().get_key_store(),
         &payout_id_as_payment_id_type,
-        platform.get_provider(),
+        platform.get_processor().get_account().storage_scheme,
     )
     .await?
     .map(|addr| domain_models::address::Address::from(&addr));

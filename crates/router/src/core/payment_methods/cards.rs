@@ -4736,6 +4736,28 @@ pub async fn get_lookup_key_from_locker(
     Ok(resp)
 }
 
+#[cfg(feature = "v1")]
+// Mandates are not supported for platform flows, this function is only for processor-level handling.
+pub async fn get_lookup_key_from_locker_for_mandate(
+    state: &routes::SessionState,
+    payment_token: &str,
+    pm: &domain::PaymentMethod,
+    processor: &domain::Processor,
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_detail = get_card_details_from_locker(state, pm).await?;
+    let card = card_detail.clone();
+
+    let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker_for_mandate(
+        state,
+        payment_token,
+        card,
+        pm,
+        processor,
+    )
+    .await?;
+    Ok(resp)
+}
+
 pub async fn get_masked_bank_details(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
@@ -4988,6 +5010,87 @@ impl TempLockerCardSupport {
             Some(value2),
             payment_token.to_string(),
             provider.get_key_store().key.get_inner(),
+        )
+        .await?;
+        vault::add_delete_tokenized_data_task(
+            &*state.store,
+            &lookup_key,
+            enums::PaymentMethod::Card,
+        )
+        .await?;
+        metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
+        metrics::TASKS_ADDED_COUNT.add(
+            1,
+            router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
+        );
+        Ok(card)
+    }
+
+    async fn create_payment_method_data_in_temp_locker_for_mandate(
+        state: &routes::SessionState,
+        payment_token: &str,
+        card: api::CardDetailFromLocker,
+        pm: &domain::PaymentMethod,
+        processor: &domain::Processor,
+    ) -> errors::RouterResult<api::CardDetailFromLocker> {
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
+        let card_exp_month = card
+            .expiry_month
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_month")?;
+        let card_exp_year = card
+            .expiry_year
+            .clone()
+            .expose_option()
+            .get_required_value("expiry_year")?;
+        let card_holder_name = card
+            .card_holder_name
+            .clone()
+            .expose_option()
+            .unwrap_or_default();
+        let card_network = card.card_network.clone();
+        let value1 = payment_methods::mk_card_value1(
+            card_number,
+            card_exp_year,
+            card_exp_month,
+            Some(card_holder_name),
+            None,
+            None,
+            None,
+            card_network,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value1 for locker")?;
+        let value2 = payment_methods::mk_card_value2(
+            None,
+            None,
+            None,
+            Some(pm.customer_id.clone()),
+            Some(pm.get_id().to_string()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Value2 for locker")?;
+
+        let value1 = vault::VaultPaymentMethod::Card(value1);
+        let value2 = vault::VaultPaymentMethod::Card(value2);
+
+        let value1 = value1
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
+
+        let value2 = value2
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
+
+        let lookup_key = vault::create_tokenize(
+            state,
+            value1,
+            Some(value2),
+            payment_token.to_string(),
+            processor.get_key_store().key.get_inner(),
         )
         .await?;
         vault::add_delete_tokenized_data_task(

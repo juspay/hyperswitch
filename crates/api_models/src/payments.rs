@@ -84,7 +84,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+use crate::{disputes, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -1190,6 +1190,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<CustomerDetails>")]
     pub customer: Option<CustomerDetails>,
 
+    /// The identifier for the customer
     /// The identifier for the customer
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     #[smithy(value_type = "Option<String>")]
@@ -7121,10 +7122,6 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
-
-    /// ephemeral_key for the customer_id mentioned
-    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
-    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
     #[smithy(value_type = "Option<bool>")]
