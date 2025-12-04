@@ -26624,7 +26624,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThe identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -27133,7 +27133,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThe identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -27903,14 +27903,6 @@
             "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
-            "nullable": true
-          },
           "manual_retry_allowed": {
             "type": "boolean",
             "description": "If true the payment can be retried with same or different payment method which means the confirm call can be made again.",
@@ -28635,7 +28627,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThe identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -29496,14 +29488,6 @@
             "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
-            "nullable": true
-          },
           "manual_retry_allowed": {
             "type": "boolean",
             "description": "If true the payment can be retried with same or different payment method which means the confirm call can be made again.",
@@ -30096,7 +30080,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThe identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
