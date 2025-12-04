@@ -1453,7 +1453,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     locale: &Option<String>,
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connectors: Vec<
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connectors: Vec<
         RoutableConnectorChoice,
     >,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
