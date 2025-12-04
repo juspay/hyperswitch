@@ -939,6 +939,7 @@ pub enum FiservOrderStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum FiservPaymentsResponse {
     Charges(FiservChargesResponse),
     Checkout(FiservCheckoutResponse),
