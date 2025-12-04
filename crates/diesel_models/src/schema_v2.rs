@@ -1167,7 +1167,6 @@ diesel::table! {
         active_attempts_group_id -> Nullable<Varchar>,
         #[max_length = 16]
         active_attempt_id_type -> Nullable<Varchar>,
-        state -> Nullable<DisputeStatus>,
     }
 }
 
