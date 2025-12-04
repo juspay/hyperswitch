@@ -190,6 +190,7 @@ impl
             customer_id: None,
             address: None,
             metadata: HashMap::new(),
+            return_url: router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -845,8 +846,15 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
+            .unwrap_or_default();
+
         Ok(Self {
-            merchant_reference_payment_id: None,
+            merchant_account_metadata,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -3487,6 +3495,13 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .transpose()?
                 .unwrap_or_default(),
             state: None,
+            merchant_account_metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
+                .unwrap_or_default(),
         })
     }
 }
