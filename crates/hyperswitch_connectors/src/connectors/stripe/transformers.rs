@@ -4801,7 +4801,10 @@ fn get_transaction_metadata(
                     meta_data.insert(format!("metadata[{key}]"), Value::String(string_value));
                 }
                 value_data => {
-                    meta_data.insert(format!("metadata[{key}]"), Value::String(value_data.to_string()));
+                    meta_data.insert(
+                        format!("metadata[{key}]"),
+                        Value::String(value_data.to_string()),
+                    );
                 }
             }
         }
