@@ -2033,6 +2033,7 @@ pub trait CustomerData {
     fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CustomerData for ConnectorCustomerData {
@@ -2044,6 +2045,9 @@ impl CustomerData for ConnectorCustomerData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
     }
     fn is_mandate_payment(&self) -> bool {
         // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
