@@ -3024,7 +3024,8 @@ impl MerchantCategoryCode {
     }
 
     pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
-        match self.get_code()? {
+        let code = self.get_code()?;
+        match code {
             // specific mapping needs to be depricated
             5411 => Ok("Grocery Stores, Supermarkets (5411)"),
             7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
@@ -3034,20 +3035,8 @@ impl MerchantCategoryCode {
             4816 => Ok("Computer Network/Information Services (4816)"),
             5661 => Ok("Shoe Stores (5661)"),
 
-            // general mapping
-            1..=1499 => Ok("Agricultural Services"),
-            1500..=2999 => Ok("Contracted Services"),
-            3000..=3999 => Ok("Travel and Entertainment"),
-            4000..=4799 => Ok("Transportation Services"),
-            4800..=4999 => Ok("Utility Services"),
-            5000..=5599 => Ok("Retail Outlet Services"),
-            5600..=5699 => Ok("Clothing Stores"),
-            5700..=7299 => Ok("Miscellaneous Stores"),
-            7300..=7999 => Ok("Business Services"),
-            8000..=8999 => Ok("Professional Services and Membership Organizations"),
-            9000..=9999 => Ok("Government Services"),
             _ => Err(InvalidMccError {
-                message: "Invalid MCC range found . Required 0001-9999".to_string(),
+                message: format!("Category name not found for {}", code),
             }),
         }
     }
