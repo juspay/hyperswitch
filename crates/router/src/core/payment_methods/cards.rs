@@ -2654,10 +2654,10 @@ pub async fn list_payment_methods(
             helpers::get_address_by_id(
                 &state,
                 pi.shipping_address_id.clone(),
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_key_store(),
                 &pi.payment_id,
-                platform.get_provider().get_account().get_id(),
-                platform.get_provider().get_account().storage_scheme,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
         })
@@ -2671,10 +2671,10 @@ pub async fn list_payment_methods(
             helpers::get_address_by_id(
                 &state,
                 pi.billing_address_id.clone(),
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_key_store(),
                 &pi.payment_id,
-                platform.get_provider().get_account().get_id(),
-                platform.get_provider().get_account().storage_scheme,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
         })

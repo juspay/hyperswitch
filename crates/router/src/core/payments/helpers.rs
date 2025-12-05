@@ -3978,9 +3978,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_id,
-                    platform.get_provider().get_account().get_id(),
-                    platform.get_provider().get_key_store(),
-                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
