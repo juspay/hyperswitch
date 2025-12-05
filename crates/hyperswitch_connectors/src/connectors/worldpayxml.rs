@@ -5,12 +5,11 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-#[cfg(not(feature = "payouts"))]
-use error_stack::report;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -270,6 +269,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -356,6 +356,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayxml::worldpayxml_constants::XML_VERSION,
@@ -390,8 +391,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayxml::WorldpayxmlSyncResponse = match utils::deserialize_xml_to_struct::<
+            worldpayxml::PaymentService,
+        >(&res.response)
+        {
+            Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
+            Err(_) => res
+                .response
+                .parse_struct("worldpayxml WorldpayxmlSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -443,6 +453,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -527,6 +538,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -614,6 +626,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
 
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayxml::worldpayxml_constants::XML_VERSION,
@@ -696,6 +709,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
         let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -731,8 +745,17 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayxml::WorldpayxmlSyncResponse = match utils::deserialize_xml_to_struct::<
+            worldpayxml::PaymentService,
+        >(&res.response)
+        {
+            Ok(parsed_xml) => worldpayxml::WorldpayxmlSyncResponse::Payment(Box::new(parsed_xml)),
+            Err(_) => res
+                .response
+                .parse_struct("worldpayxml WorldpayxmlSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -1047,7 +1070,6 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Worldp
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Worldpayxml {
-    #[cfg(feature = "payouts")]
     async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1064,59 +1086,60 @@ impl webhooks::IncomingWebhook for Worldpayxml {
 
     fn get_webhook_object_reference_id(
         &self,
-        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
+        let order_code = body.notify.order_status_event.order_code.clone();
+        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event)
+            && !order_code.starts_with("payout_")
+        {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
+            ));
+        }
+        if worldpayxml::is_transaction_event(body.notify.order_status_event.payment.last_event) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(order_code),
+            ));
+        }
         #[cfg(feature = "payouts")]
-        {
-            let body: worldpayxml::WorldpayXmlWebhookBody =
-                utils::deserialize_xml_to_struct(request.body)?;
-            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
-                    body.notify.order_status_event.order_code,
-                ),
-            ))
+        if order_code.starts_with("payout_") {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
+            ));
         }
-        #[cfg(not(feature = "payouts"))]
-        {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-        }
+        Err(report!(errors::ConnectorError::WebhookReferenceIdNotFound))
     }
 
     fn get_webhook_event_type(
         &self,
-        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
         #[cfg(feature = "payouts")]
         {
-            let body: worldpayxml::WorldpayXmlWebhookBody =
-                utils::deserialize_xml_to_struct(request.body)?;
-            Ok(worldpayxml::get_payout_webhook_event(
-                body.notify.order_status_event.payment.last_event,
-            ))
+            let order_code = body.notify.order_status_event.order_code.clone();
+            if order_code.starts_with("payout_") {
+                return Ok(worldpayxml::get_payout_webhook_event(
+                    body.notify.order_status_event.payment.last_event,
+                ));
+            }
         }
-        #[cfg(not(feature = "payouts"))]
-        {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-        }
+
+        Ok(worldpayxml::get_payment_webhook_event(
+            body.notify.order_status_event.payment.last_event,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        #[cfg(feature = "payouts")] request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        #[cfg(not(feature = "payouts"))] _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        #[cfg(feature = "payouts")]
-        {
-            let body: worldpayxml::WorldpayXmlWebhookBody =
-                utils::deserialize_xml_to_struct(request.body)?;
-            Ok(Box::new(body))
-        }
-        #[cfg(not(feature = "payouts"))]
-        {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-        }
+        let body: worldpayxml::WorldpayXmlWebhookBody =
+            utils::deserialize_xml_to_struct(request.body)?;
+        Ok(Box::new(body))
     }
 }
 
@@ -1177,6 +1200,17 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
                 ),
             },
         );
+
+        worldpayxml_supported_payment_methods.add(
+            common_enums::PaymentMethod::Wallet,
+            common_enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
         worldpayxml_supported_payment_methods
     });
 
@@ -1187,7 +1221,12 @@ static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
 
-static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
+    common_enums::EventClass::Payments,
+    common_enums::EventClass::Refunds,
+    #[cfg(feature = "payouts")]
+    common_enums::EventClass::Payouts,
+];
 
 impl ConnectorSpecifications for Worldpayxml {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -1199,6 +1238,24 @@ impl ConnectorSpecifications for Worldpayxml {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+        Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            let max_payment_reference_id_length =
+                worldpayxml::worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
+        }
     }
 }

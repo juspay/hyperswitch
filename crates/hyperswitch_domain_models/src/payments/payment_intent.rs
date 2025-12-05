@@ -1970,11 +1970,12 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization,
+            enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
             tokenization: None,
+            partner_merchant_identifier_details: None,
         })
     }
     async fn convert_back(
@@ -2125,7 +2126,9 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
-                enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_partial_authorization: storage_model
+                    .enable_partial_authorization
+                    .unwrap_or(false.into()),
             })
         }
         .await
@@ -2231,7 +2234,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization: self.enable_partial_authorization,
+            enable_partial_authorization: Some(self.enable_partial_authorization),
             tokenization: None,
         })
     }
@@ -2319,6 +2322,7 @@ impl behaviour::Conversion for PaymentIntent {
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 
@@ -2431,6 +2435,8 @@ impl behaviour::Conversion for PaymentIntent {
                 mit_category: storage_model.mit_category,
                 billing_descriptor: storage_model.billing_descriptor,
                 tokenization: storage_model.tokenization,
+                partner_merchant_identifier_details: storage_model
+                    .partner_merchant_identifier_details,
             })
         }
         .await
@@ -2515,6 +2521,7 @@ impl behaviour::Conversion for PaymentIntent {
             mit_category: self.mit_category,
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
         })
     }
 }

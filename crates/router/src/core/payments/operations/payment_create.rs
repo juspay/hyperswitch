@@ -354,7 +354,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v1")]
         let mut payment_attempt = db
-            .insert_payment_attempt(payment_attempt_new, storage_scheme)
+            .insert_payment_attempt(
+                payment_attempt_new,
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
@@ -899,6 +903,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     is_stored_credential,
                 },
                 storage_scheme,
+                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -960,7 +965,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
@@ -982,11 +987,8 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         ))?;
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
@@ -1081,9 +1083,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id,
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)
@@ -1140,7 +1142,7 @@ impl PaymentCreate {
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        storage::PaymentAttemptNew,
+        PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
         let payment_method_data =
@@ -1151,7 +1153,7 @@ impl PaymentCreate {
                     payment_method_data_request.payment_method_data.as_ref()
                 });
 
-        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
+        let created_at @ modified_at @ last_synced = common_utils::date_time::now();
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
@@ -1166,6 +1168,7 @@ impl PaymentCreate {
                     &payment_method_data.into(),
                     &*state.store,
                     &profile_id,
+                    None,
                 )
                 .await
             })
@@ -1329,7 +1332,7 @@ impl PaymentCreate {
             request.is_stored_credential,
         );
         Ok((
-            storage::PaymentAttemptNew {
+            PaymentAttempt {
                 payment_id: payment_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 attempt_id,
@@ -1341,7 +1344,7 @@ impl PaymentCreate {
                 confirm: request.confirm.unwrap_or(false),
                 created_at,
                 modified_at,
-                last_synced,
+                last_synced: Some(last_synced),
                 authentication_type: request.authentication_type,
                 browser_info,
                 payment_experience: request.payment_experience,
@@ -1413,7 +1416,15 @@ impl PaymentCreate {
                 network_details:None,
                 is_stored_credential,
                 authorized_amount: None,
-                tokenization:request.tokenization
+                tokenization:request.tokenization,
+                connector_transaction_id: None,
+                charge_id: None,
+                charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                debit_routing_savings: None,
+                is_overcapture_enabled: None,
+                encrypted_payment_method_data: None,
             },
             additional_pm_data,
 
@@ -1660,6 +1671,9 @@ impl PaymentCreate {
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
             tokenization: request.tokenization,
+            partner_merchant_identifier_details: request
+                .partner_merchant_identifier_details
+                .clone(),
         })
     }
 

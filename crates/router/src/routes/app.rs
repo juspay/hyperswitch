@@ -770,6 +770,10 @@ impl Payments {
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
+                web::resource("/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
@@ -813,6 +817,10 @@ impl Payments {
                 .service(
                     web::resource("/get-intent")
                         .route(web::get().to(payments::payments_get_intent)),
+                )
+                .service(
+                    web::resource("/get-revenue-recovery-intent")
+                        .route(web::get().to(payments::revenue_recovery_get_intent)),
                 )
                 .service(
                     web::resource("/update-intent")
@@ -1297,8 +1305,9 @@ impl Subscription {
             ))
             .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
-                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+                web::resource("/items").route(web::get().to(subscription::get_subscription_items)),
             )
+            .service(web::resource("/list").route(web::get().to(subscription::list_subscriptions)))
             .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {

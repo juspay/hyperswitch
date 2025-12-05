@@ -2,13 +2,13 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications};
 
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     routes::{metrics, SessionState},
     services::{self, logger},
@@ -37,8 +37,13 @@ pub async fn get_cached_access_token_for_ucs(
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
+
         let cached_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -115,6 +120,7 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -136,8 +142,17 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = connector
+            .connector
+            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to get access token key for connector: {:?}",
+                connector.connector_name
+            ))?;
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -196,46 +211,47 @@ pub async fn add_access_token<
                     refresh_token_request_data,
                     refresh_token_response_data,
                 );
-                refresh_connector_auth(state, connector, &refresh_token_router_data)
-                    .await?
-                    .async_map(|access_token| async move {
-                        let store = &*state.store;
+                refresh_connector_auth(
+                    state,
+                    connector,
+                    &refresh_token_router_data,
+                    gateway_context,
+                )
+                .await?
+                .async_map(|access_token| async move {
+                    let store = &*state.store;
 
-                        // The expiry should be adjusted for network delays from the connector
-                        // The access token might not have been expired when request is sent
-                        // But once it reaches the connector, it might expire because of the network delay
-                        // Subtract few seconds from the expiry in order to account for these network delays
-                        // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
-                        let modified_access_token_with_expiry = types::AccessToken {
-                            expires: access_token
-                                .expires
-                                .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
-                            ..access_token
-                        };
+                    // The expiry should be adjusted for network delays from the connector
+                    // The access token might not have been expired when request is sent
+                    // But once it reaches the connector, it might expire because of the network delay
+                    // Subtract few seconds from the expiry in order to account for these network delays
+                    // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
+                    let modified_access_token_with_expiry = types::AccessToken {
+                        expires: access_token
+                            .expires
+                            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+                        ..access_token
+                    };
 
-                        logger::debug!(
-                            access_token_expiry_after_modification =
-                                modified_access_token_with_expiry.expires
-                        );
+                    logger::debug!(
+                        access_token_expiry_after_modification =
+                            modified_access_token_with_expiry.expires
+                    );
 
-                        if let Err(access_token_set_error) = store
-                            .set_access_token(
-                                merchant_id,
-                                &merchant_connector_id_or_connector_name,
-                                modified_access_token_with_expiry.clone(),
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("DB error when setting the access token")
-                        {
-                            // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
-                            // Payments should not fail, once the access token is successfully created
-                            // The next request will create new access token, if required
-                            logger::error!(access_token_set_error=?access_token_set_error);
-                        }
-                        Some(modified_access_token_with_expiry)
-                    })
-                    .await
+                    if let Err(access_token_set_error) = store
+                        .set_access_token(key.clone(), modified_access_token_with_expiry.clone())
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("DB error when setting the access token")
+                    {
+                        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+                        // Payments should not fail, once the access token is successfully created
+                        // The next request will create new access token, if required
+                        logger::error!(access_token_set_error=?access_token_set_error);
+                    }
+                    Some(modified_access_token_with_expiry)
+                })
+                .await
             }
         };
 
@@ -259,6 +275,7 @@ pub async fn refresh_connector_auth(
         types::AccessTokenRequestData,
         types::AccessToken,
     >,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
@@ -266,13 +283,14 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data_result = services::execute_connector_processing_step(
+    let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await;
 

@@ -4659,6 +4659,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8833,7 +8841,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -8862,7 +8869,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -10321,6 +10329,14 @@
             "minimum": 0
           }
         }
+      },
+      "CustomTermsByPaymentMethodTypes": {
+        "type": "object",
+        "description": "Custom T&C Message to be shown per payment method type",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "nullable": true
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -11960,6 +11976,12 @@
           {
             "type": "string",
             "enum": [
+              "user_gift_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_card_expiry_month"
             ]
           },
@@ -11973,6 +11995,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_gift_card_pin"
             ]
           },
           {
@@ -13783,6 +13811,7 @@
           "partially_captured",
           "partially_captured_and_capturable",
           "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
           "conflicted",
           "expired"
         ]
@@ -15797,11 +15826,6 @@
         "type": "object",
         "required": [
           "status",
-          "token_expiry_month",
-          "token_expiry_year",
-          "card_last_four",
-          "token_last_four",
-          "card_expiry",
           "payment_method_id",
           "customer_id"
         ],
@@ -15811,23 +15835,33 @@
           },
           "token_expiry_month": {
             "type": "string",
-            "description": "The expiry month of the network token if active"
+            "description": "The expiry month of the network token if active",
+            "nullable": true
           },
           "token_expiry_year": {
             "type": "string",
-            "description": "The expiry year of the network token if active"
+            "description": "The expiry year of the network token if active",
+            "nullable": true
           },
           "card_last_four": {
             "type": "string",
-            "description": "The last four digits of the card"
+            "description": "The last four digits of the card if active",
+            "nullable": true
           },
           "token_last_four": {
             "type": "string",
-            "description": "The last four digits of the network token"
+            "description": "The last four digits of the network token if active",
+            "nullable": true
           },
-          "card_expiry": {
+          "card_expiry_month": {
             "type": "string",
-            "description": "The expiry date of the card in MM/YY format"
+            "description": "The expiry month of the card if active",
+            "nullable": true
+          },
+          "card_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the card if active",
+            "nullable": true
           },
           "payment_method_id": {
             "type": "string",
@@ -16120,19 +16154,68 @@
           },
           {
             "type": "object",
-            "description": "Contains the SDK UPI intent URI for payment processing",
             "required": [
               "sdk_uri",
+              "display_from_timestamp",
               "type"
             ],
             "properties": {
               "sdk_uri": {
                 "type": "string"
               },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
-                  "sdk_upi_intent_information"
+                  "invoke_upi_intent_sdk"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "qr_code_url",
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "qr_code_url": {
+                "type": "string"
+              },
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_upi_qr_flow"
                 ]
               }
             }
@@ -16277,7 +16360,9 @@
           "display_bank_transfer_information",
           "display_wait_screen",
           "collect_otp",
-          "redirect_inside_popup"
+          "redirect_inside_popup",
+          "invoke_upi_intent_sdk",
+          "invoke_upi_qr_flow"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -17332,6 +17417,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17787,6 +17880,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -17959,6 +18060,14 @@
             "description": "Text for customizing message for card terms",
             "nullable": true
           },
+          "custom_message_for_payment_method_types": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+              }
+            ],
+            "nullable": true
+          },
           "payment_button_colour": {
             "type": "string",
             "description": "Custom background colour for payment link's handle confirm button",
@@ -18035,6 +18144,11 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "payment_test_mode": {
+            "type": "boolean",
+            "description": "Indicates whether the merchant is testing or live",
             "nullable": true
           }
         }
@@ -19206,14 +19320,12 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -19263,7 +19375,6 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id",
           "expires_at",
           "client_secret"
         ],
@@ -19275,7 +19386,8 @@
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -24981,7 +25093,13 @@
           "zen",
           "zift",
           "plaid",
-          "zsl"
+          "zsl",
+          "juspaythreedsserver",
+          "ctp_mastercard",
+          "ctp_visa",
+          "netcetera",
+          "cardinal",
+          "threedsecureio"
         ]
       },
       "RoutingAlgorithmId": {
@@ -26651,6 +26769,19 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "three_ds_connector": {
+            "type": "string",
+            "description": "Prefered 3ds Connector",
+            "nullable": true
           }
         }
       },
@@ -26805,8 +26936,10 @@
         "type": "string",
         "enum": [
           "ACTIVE",
+          "INACTIVE",
           "SUSPENDED",
-          "DEACTIVATED"
+          "EXPIRED",
+          "DELETED"
         ]
       },
       "TokenType": {
