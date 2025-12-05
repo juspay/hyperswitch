@@ -38,6 +38,7 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable

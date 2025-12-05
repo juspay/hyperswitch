@@ -253,9 +253,11 @@ pub struct UnresolvedResponseReason {
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     UserCardNumber,
+    UserGiftCardNumber,
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserGiftCardPin,
     UserCardNetwork,
     UserFullName,
     UserEmailAddress,

@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::{
-    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
-};
+use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
@@ -17,12 +15,16 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_method_data::{
+    get_applepay_wallet_info, get_googlepay_wallet_info,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     callback_mapper::CallbackMapper,
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
 };
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -41,7 +43,7 @@ use crate::{
             cards::{create_encrypted_data, PmCards},
             network_tokenization,
         },
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     logger,
     routes::{metrics, SessionState},
@@ -129,6 +131,7 @@ pub async fn save_payment_method<FData>(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
+    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -296,14 +299,15 @@ where
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
-                    ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(applepay),
-                    )),
+                    ) => Some(PaymentMethodsData::WalletDetails(get_applepay_wallet_info(
+                        applepay,
+                        payment_method_token.clone(),
+                    ))),
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(googlepay),
+                        get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
                     _ => None,
                 };
@@ -1399,6 +1403,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
     should_continue_payment: bool,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     if should_continue_payment {
         match tokenization_action {
@@ -1425,13 +1430,14 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let mut resp = services::execute_connector_processing_step(
+                let mut resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &pm_token_router_data,
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
+                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;

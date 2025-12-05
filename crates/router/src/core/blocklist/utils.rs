@@ -429,6 +429,7 @@ where
             payment_data.payment_attempt.clone(),
             attempt_update,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

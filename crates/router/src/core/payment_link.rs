@@ -216,6 +216,7 @@ pub async fn form_payment_link_data(
             &merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -249,6 +250,7 @@ pub async fn form_payment_link_data(
                 &merchant_id,
                 &attempt_id.clone(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -848,6 +850,7 @@ pub async fn get_payment_link_status(
             &merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
