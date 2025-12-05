@@ -10,7 +10,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "5555555555554444",
   card_exp_month: "01",
   card_exp_year: "28",
   card_holder_name: "Joseph",
@@ -116,22 +116,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "3DS flow is not supported by Mollie",
-            type: "invalid_request",
-          },
+          status: "requires_customer_action"
         },
       },
     },
     // 3DS automatic capture
     "3DSAutoCapture": {
-      config: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -143,14 +135,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "3DS flow is not supported by Mollie",
-            type: "invalid_request",
-          },
+          status: "requires_customer_action",
         },
       },
     },
