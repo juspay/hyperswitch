@@ -29,20 +29,76 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
+use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
 };
-use url::Url;
 
 use crate::{
-    core::{errors, unified_connector_service},
+    core::{errors, mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
     },
 };
+
+const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
+const UPI_POLL_DELAY_IN_SECS: u16 = 5;
+const UPI_POLL_FREQUENCY: u16 = 60;
+
+pub fn build_upi_wait_screen_data(
+) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
+    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+
+    let wait_screen_data = api_models::payments::WaitScreenInstructions {
+        display_from_timestamp: current_time,
+        display_to_timestamp: Some(
+            current_time
+                + Duration::minutes(UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES).whole_nanoseconds(),
+        ),
+        poll_config: Some(api_models::payments::PollConfig {
+            delay_in_secs: UPI_POLL_DELAY_IN_SECS,
+            frequency: UPI_POLL_FREQUENCY,
+        }),
+    };
+
+    serde_json::to_value(wait_screen_data)
+        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
+}
+
+/// Utility function to convert serde_json::Value map to HashMap<String, String>
+/// Propagates serialization errors instead of using defaults
+fn convert_value_map_to_hashmap(
+    value: &serde_json::Value,
+) -> Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>> {
+    match value.as_object() {
+        Some(map) => map
+            .iter()
+            .map(|(k, v)| {
+                let string_value = v
+                    .as_str()
+                    .map(|s| s.to_string())
+                    .or_else(|| {
+                        serde_json::to_string(v)
+                            .ok()
+                    })
+                    .ok_or_else(|| {
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                                "Failed to serialize metadata value for key: {}",
+                                k
+                            ))
+                        )
+                    })?;
+                Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>((k.clone(), string_value))
+            })
+            .collect::<Result<HashMap<String, String>, error_stack::Report<UnifiedConnectorServiceError>>>(),
+        None => Ok(HashMap::new()),
+    }
+}
 
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
@@ -224,6 +280,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            order_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -242,7 +299,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             browser_info,
 
-            session_token: None,
+            session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
@@ -289,7 +346,6 @@ impl
                 .as_ref()
                 .and_then(|pmt| pmt.get_payment_method_token())
                 .map(ExposeInterface::expose),
-            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -369,7 +425,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
-
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
@@ -390,7 +446,7 @@ impl
                 .phone
                 .as_ref()
                 .map(|phone| phone.peek().to_string()),
-            address: None,
+            address: Some(address),
             metadata: HashMap::new(),
         })
     }
@@ -552,12 +608,8 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -641,12 +693,8 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -725,23 +773,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -806,6 +846,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .transpose()?;
 
         Ok(Self {
+            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -826,12 +867,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             browser_info,
             multiple_capture_data: router_data.request.multiple_capture_data.as_ref().map(
@@ -898,23 +935,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
         let authentication_data = router_data
             .request
@@ -1029,23 +1058,15 @@ impl
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
         let metadata = router_data
             .request
             .metadata
             .as_ref()
-            .and_then(|val| val.as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
         let setup_future_usage = router_data
             .request
@@ -1276,22 +1297,14 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
             connector_customer_id: router_data.connector_customer.clone(),
@@ -1340,12 +1353,22 @@ impl
             .setup_future_usage
             .map(payments_grpc::FutureUsage::foreign_try_from)
             .transpose()?;
-        let customer_acceptance = router_data
-            .request
-            .customer_acceptance
-            .clone()
-            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
-            .transpose()?;
+
+        // If this is the deprecated mandate_id flow, take customer_acceptance
+        // from setup_mandate_details. Otherwise, take it from request.customer_acceptance.
+        let customer_acceptance = match router_data.request.get_setup_mandate_details() {
+            Some(mandate_data) => mandate_data
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+            None => router_data
+                .request
+                .customer_acceptance
+                .clone()
+                .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+                .transpose(),
+        }?;
 
         let state = router_data
             .access_token
@@ -1353,6 +1376,14 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
+                match payment_method_token {
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
+                }
+            }),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1384,13 +1415,8 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .map(|secret| secret.peek())
-                .and_then(|val| val.as_object()) //secret
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|secret| convert_value_map_to_hashmap(secret.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1412,16 +1438,13 @@ impl
             request_extended_authorization: None,
             customer_acceptance,
             browser_info,
+            order_id: None,
             payment_experience: None,
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
@@ -1497,22 +1520,14 @@ impl
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             merchant_account_metadata: router_data
                 .connector_meta_data
                 .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(|meta| convert_value_map_to_hashmap(meta.peek()))
+                .transpose()?
                 .unwrap_or_default(),
             webhook_url: router_data.request.webhook_url.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
@@ -1662,15 +1677,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -1684,7 +1702,46 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             None => (None, None),
         };
 
-        // Extract connector_metadata from response if present and not already set by UPI intent handling
+        connector_metadata = if response
+            .connector_metadata
+            .get("nextActionData")
+            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+            .is_some()
+        {
+            let wait_screen_metadata = build_upi_wait_screen_data()?;
+
+            let mut metadata_map = connector_metadata
+                .as_ref()
+                .and_then(|meta| meta.as_object())
+                .cloned()
+                .unwrap_or_else(serde_json::Map::new);
+
+            metadata_map.insert("WaitScreenInstructions".to_string(), wait_screen_metadata);
+
+            // For UPI Intent/QR, also preserve URI information from redirection data
+            if let Some(redirection_data) = response.redirection_data.as_ref() {
+                if let Some(payments_grpc::redirect_form::FormType::Uri(uri)) =
+                    &redirection_data.form_type
+                {
+                    let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                        sdk_uri: uri.uri.clone(),
+                    };
+                    let uri_data = sdk_uri_info
+                        .encode_to_value()
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable(
+                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                        )?;
+                    metadata_map.insert("SdkUpiUriInformation".to_string(), uri_data);
+                }
+            }
+
+            Some(serde_json::Value::Object(metadata_map))
+        } else {
+            connector_metadata
+        };
+
+        // Extract connector_metadata from response if present and not already set
         if connector_metadata.is_none() && !response.connector_metadata.is_empty() {
             connector_metadata = serde_json::to_value(&response.connector_metadata)
                 .map_err(|e| {
@@ -2624,15 +2681,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -2777,7 +2837,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2814,10 +2874,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::PaymentsCreateOrderResponse { order_id },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id })
         };
 
         Ok(response)
@@ -2825,7 +2882,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2848,14 +2905,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
                 connector_metadata: None,
             })
         } else {
-            // For connector PM token creation, we typically return a successful response with the connector payment method
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::TokenizationResponse {
-                    token: response.payment_method_token,
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::TokenizationResponse {
+                token: response.payment_method_token,
+            })
         };
 
         Ok(response)
@@ -2903,15 +2955,18 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
-                            sdk_uri: Url::parse(&uri.uri)
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                            sdk_uri: uri.uri.clone(),
                         };
                         (
-                            Some(sdk_uri_info.encode_to_value())
-                                .transpose()
-                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
+                            Some(
+                                sdk_uri_info
+                                    .encode_to_value()
+                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                    .attach_printable(
+                                        "Failed to serialize SdkUpiUriInformation to JSON value",
+                                    )?,
+                            ),
                             None,
                         )
                     }
@@ -3018,7 +3073,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
 }
 
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -3041,14 +3096,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionToke
                 connector_metadata: None,
             })
         } else {
-            // For session token creation, we typically return a successful response with the session token
-            // Since this is not a standard payment response, we'll create a simple success response
-            Ok((
-                PaymentsResponseData::SessionTokenResponse {
-                    session_token: response.session_token.clone(),
-                },
-                AttemptStatus::Charged, // Assuming successful creation
-            ))
+            Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: response.session_token.clone(),
+            })
         };
 
         Ok(response)
@@ -3153,7 +3203,7 @@ pub fn build_webhook_transform_request(
                 "{}_{}_{}",
                 merchant_id,
                 connector_id,
-                time::OffsetDateTime::now_utc().unix_timestamp()
+                OffsetDateTime::now_utc().unix_timestamp()
             ))),
         }),
         request_details: Some(request_details_grpc),
@@ -3194,16 +3244,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .request
             .connector_metadata
             .as_ref()
-            .map(|metadata| {
-                metadata
-                    .as_object()
-                    .map(|obj| {
-                        obj.iter()
-                            .map(|(k, v)| (k.clone(), v.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            })
+            .map(convert_value_map_to_hashmap)
+            .transpose()?
             .unwrap_or_default();
 
         // Convert refund_connector_metadata to gRPC format
@@ -3211,18 +3253,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .request
             .refund_connector_metadata
             .as_ref()
-            .map(|metadata| {
-                metadata
-                    .clone()
-                    .expose()
-                    .as_object()
-                    .map(|obj| {
-                        obj.iter()
-                            .map(|(k, v)| (k.clone(), v.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            })
+            .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
+            .transpose()?
             .unwrap_or_default();
 
         let state = router_data
@@ -3350,18 +3382,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .request
                 .refund_connector_metadata
                 .as_ref()
-                .map(|metadata| {
-                    metadata
-                        .clone()
-                        .expose()
-                        .as_object()
-                        .map(|obj| {
-                            obj.iter()
-                                .map(|(k, v)| (k.clone(), v.to_string()))
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                })
+                .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
+                .transpose()?
                 .unwrap_or_default(),
         })
     }
@@ -3461,12 +3483,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .request
                 .metadata
                 .as_ref()
-                .and_then(|val| val.as_object())
-                .map(|map| {
-                    map.iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                        .collect::<HashMap<String, String>>()
-                })
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
                 .unwrap_or_default(),
             state: None,
         })

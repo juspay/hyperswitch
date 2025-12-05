@@ -100,9 +100,9 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemPricesData, Req, Res>;
 pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedSubscriptionPauseInterface<T, Req, Res> =
@@ -1674,19 +1674,21 @@ pub fn build_redirection_form(
                 }
             }
         },
-        RedirectForm::WorldpayxmlRedirectForm { jwt } => maud::html! {
-            (maud::DOCTYPE)
-            html {
-                head {
-                    meta name="viewport" content="width=device-width, initial-scale=1";
-                }
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+        RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
-                    (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
-                    (PreEscaped(r#"
+                        (PreEscaped(r#"
                     <script>
                     var anime = bodymovin.loadAnimation({
                         container: document.getElementById('loader1'),
@@ -1699,18 +1701,17 @@ pub fn build_redirection_form(
                     </script>
                 "#))
 
-                    h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
 
-                    // (PreEscaped(r#"
-                    //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
-                    // "#))
+                        // (PreEscaped(r#"
+                        //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
+                        // "#))
 
-                    // Form submits to iframe instead of directly navigating
-                    (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="https://secure-test.worldpay.com/shopper/3ds/challenge.html">
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action={base_url}>
                     <input type="hidden" name="JWT" value="{jwt}">
                 </form>"#)))
 
-                    (PreEscaped(format!("<script>
+                        (PreEscaped(format!("<script>
                     {logging_template}
                     window.onload = function() {{
                         var challengeFormSetup = document.querySelector('#challengeForm');
@@ -1719,9 +1720,10 @@ pub fn build_redirection_form(
                         }}
                     }}
                 </script>")))
+                    }
                 }
             }
-        },
+        }
     }
 }
 
