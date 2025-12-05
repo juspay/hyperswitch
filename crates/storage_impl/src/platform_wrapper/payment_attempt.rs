@@ -30,6 +30,6 @@ where
     S: PaymentAttemptInterface<Error = StorageError> + ?Sized,
 {
     store
-        .insert_payment_attempt(processor.get_key_store(), payment_attempt, processor.get_account())
+        .insert_payment_attempt(processor.get_key_store(), payment_attempt, processor.get_account().storage_scheme)
         .await
 }
