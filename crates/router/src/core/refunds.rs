@@ -87,28 +87,50 @@ pub async fn refund_create_core(
         },
     )?;
 
-    // Block refund if amount exceeds total disputed amount
+    // Block refund if amount exceeds total disputed amount or total captured amount
     if let Some(state_metadata_value) = &payment_intent.state_metadata {
         let state_metadata: diesel_models::types::PaymentIntentStateMetadata =
             serde_json::from_value(state_metadata_value.clone())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse payment_intent.state_metadata")?;
 
-        if let Some(total_disputed_amount) = state_metadata.total_disputed_amount {
+        let current_total_disputed_amount = state_metadata
+            .total_disputed_amount
+            .unwrap_or(MinorUnit::zero());
+        let total_refunded_amount = state_metadata
+            .total_refunded_amount
+            .unwrap_or(MinorUnit::zero());
+        let requested_amount = req.amount.unwrap_or(MinorUnit::zero());
+
+        // Block refund if requested amount exceeds total disputed amount
+        utils::when(requested_amount.ge(&current_total_disputed_amount), || {
+            Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "amount".to_string(),
+                    expected_format: format!(
+                        "refund amount must be less than disputed amount ({})",
+                        current_total_disputed_amount.get_amount_as_i64()
+                    ),
+                })
+                .attach_printable(
+                    "refund not allowed because amount is greater than or equal to total disputed amount",
+                ))
+        })?;
+
+        // Block refund if total disputed amount + total refunded amount + requested refund amount >= amount captured
+        if let Some(amount_captured) = payment_intent.amount_captured {
             utils::when(
-                req.amount
-                    .unwrap_or(MinorUnit::zero())
-                    .ge(&total_disputed_amount),
+                (current_total_disputed_amount + total_refunded_amount + requested_amount)
+                    > (amount_captured),
                 || {
                     Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
                         field_name: "amount".to_string(),
                         expected_format: format!(
-                            "refund amount must be less than disputed amount ({})",
-                            total_disputed_amount.get_amount_as_i64()
+                            "refund amount must be less than total amount captured ({}) after considering disputed and refunded amounts",
+                            amount_captured.get_amount_as_i64()
                         ),
                     })
                     .attach_printable(
-                        "refund not allowed because amount is greater than or equal to total disputed amount",
+                        "refund not allowed because total disputed amount + total refunded amount + requested refund amount is greater than or equal to total amount captured",
                     ))
                 },
             )?;
