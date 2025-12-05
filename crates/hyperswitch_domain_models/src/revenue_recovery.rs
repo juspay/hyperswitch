@@ -250,6 +250,7 @@ impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDet
             amount_capturable: data.amount,
             shipping_cost: None,
             order_tax_amount: None,
+            amount_captured: None,
         }
     }
 }
