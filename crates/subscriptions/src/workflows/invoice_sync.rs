@@ -411,7 +411,7 @@ pub async fn create_invoice_sync_job(
         Some(0),
         common_utils::date_time::now(),
         common_types::consts::API_VERSION,
-        common_enums::ApplicationSource::Main,
+        state.conf.application_source,
     )
     .change_context(router_errors::ApiErrorResponse::InternalServerError)
     .attach_printable("subscriptions: unable to form process_tracker type")?;
