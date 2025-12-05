@@ -343,7 +343,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
-            | Flow::HypersenseSignoutToken => Self::Hypersense,
+            | Flow::HypersenseSignoutToken
+            | Flow::HypersenseFeeEstimate => Self::Hypersense,
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
             | Flow::PaymentMethodSessionConfirm
