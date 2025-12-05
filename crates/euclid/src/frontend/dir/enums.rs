@@ -228,6 +228,7 @@ pub enum BankTransferType {
     InstantBankTransferFinland,
     InstantBankTransferPoland,
     IndonesianBankTransfer,
+    PayToBank,
 }
 
 #[derive(

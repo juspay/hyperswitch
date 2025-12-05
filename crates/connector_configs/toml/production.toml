@@ -6486,9 +6486,12 @@ key1 = "Merchant Account Id"
   payment_method_type = "payjustnow"
 
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "pay_to_bank"
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Username"
