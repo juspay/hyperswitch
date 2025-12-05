@@ -826,11 +826,11 @@ pub async fn get_token_for_recurring_mandate(
 
     if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
         if state.conf.locker.locker_enabled {
-            let _ = cards::get_lookup_key_from_locker_for_mandate(
+            let _ = cards::get_lookup_key_from_locker(
                 state,
                 &token,
                 &payment_method,
-                platform.get_processor(),
+                platform.get_processor().get_key_store(),
             )
             .await?;
         }
