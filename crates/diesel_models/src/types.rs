@@ -114,6 +114,16 @@ pub struct FeatureMetadata {
     pub gateway_system: Option<common_enums::GatewaySystem>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PaymentIntentStateMetadata {
+    /// Shows up the total refunded amount for a payment
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    pub total_disputed_amount: Option<MinorUnit>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct ApplePayRecurringDetails {

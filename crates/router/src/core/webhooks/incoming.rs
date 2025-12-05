@@ -12,7 +12,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
-    types::{AmountConvertor, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
@@ -1912,8 +1912,8 @@ async fn refunds_incoming_webhook_flow(
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
-            state,
-            platform,
+            state.clone(),
+            platform.clone(),
             business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
@@ -1924,6 +1924,81 @@ async fn refunds_incoming_webhook_flow(
         ))
         .await?;
     }
+
+    // Update payment_intent for the refund's payment_id
+    // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
+    let all_refunds_for_payment = db
+        .find_refund_by_payment_id_merchant_id(
+            &updated_refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch refunds for payment_id: {:?}",
+                updated_refund.payment_id
+            )
+        })?;
+
+    let total_refunded_amount: i64 = all_refunds_for_payment
+        .iter()
+        .filter(|r| r.refund_status == common_enums::RefundStatus::Success)
+        .map(|r| r.refund_amount.get_amount_as_i64())
+        .sum();
+
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &updated_refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to find payment intent for payment_id: {:?}",
+                updated_refund.payment_id
+            )
+        })?;
+
+    let mut current_state: diesel_models::types::PaymentIntentStateMetadata = payment_intent
+        .state_metadata
+        .clone()
+        .map(|metadata| {
+            serde_json::from_value(metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize payment intent state metadata")
+        })
+        .transpose()?
+        .unwrap_or_default();
+
+    current_state.total_refunded_amount = Some(MinorUnit::new(total_refunded_amount));
+
+    let domain_update =
+        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+            state_metadata: serde_json::to_value(current_state)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize payment intent state")?,
+            updated_by: platform
+                .get_processor()
+                .get_account()
+                .storage_scheme
+                .clone()
+                .to_string(),
+        };
+
+    db.update_payment_intent(
+        payment_intent,
+        domain_update,
+        &platform.get_processor().get_key_store().clone(),
+        platform.get_processor().get_account().storage_scheme,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update payment intent with total_refunded_amount")?;
 
     Ok(WebhookResponseTracker::Refund {
         payment_id: updated_refund.payment_id,
@@ -2506,6 +2581,7 @@ async fn disputes_incoming_webhook_flow(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+        let option_dispute_clone = option_dispute.clone();
         let dispute_status = common_enums::DisputeStatus::foreign_try_from(event_type)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("event type to dispute status mapping failed")?;
@@ -2522,6 +2598,61 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+        if option_dispute_clone.clone().is_none()
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            let payment_intent = db
+                .find_payment_intent_by_payment_id_merchant_id(
+                    &payment_attempt.payment_id,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(subscriptions::errors::ApiErrorResponse::InternalServerError)?;
+
+            let mut current_state: diesel_models::types::PaymentIntentStateMetadata =
+                payment_intent
+                    .state_metadata
+                    .clone()
+                    .map(|metadata| {
+                        serde_json::from_value(metadata)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to deserialize payment intent state metadata")
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+
+            current_state.total_disputed_amount = current_state
+                .total_disputed_amount
+                .map(|amount| amount + dispute_object.dispute_amount)
+                .or(Some(dispute_object.dispute_amount));
+
+            let domain_update =
+                hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+                    state_metadata: serde_json::to_value(current_state)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize payment intent state")?,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .clone()
+                        .to_string(),
+                };
+
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    domain_update,
+                    &platform.get_processor().get_key_store().clone(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(subscriptions::errors::ApiErrorResponse::InternalServerError)?;
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
