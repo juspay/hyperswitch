@@ -454,6 +454,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::InvalidBasicAuth
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
@@ -710,6 +711,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             },
             errors::ApiErrorResponse::SubscriptionError { operation } => {
                 Self::SubscriptionError { operation }
+            }
+            errors::ApiErrorResponse::OidcAuthorizationError { error, description } => {
+                Self::InvalidRequestData {
+                    message: format!("{}: {}", error, description),
+                }
+            }
+            errors::ApiErrorResponse::OidcTokenError { error, description } => {
+                Self::InvalidRequestData {
+                    message: format!("{}: {}", error, description),
+                }
             }
         }
     }

@@ -1,3 +1,4 @@
+pub mod oidc;
 pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;

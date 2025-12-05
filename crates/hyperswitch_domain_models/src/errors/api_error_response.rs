@@ -1,4 +1,7 @@
-use api_models::errors::types::Extra;
+use api_models::{
+    errors::types::Extra,
+    oidc::{OidcAuthorizationError, OidcTokenError},
+};
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
@@ -225,6 +228,11 @@ pub enum ApiErrorResponse {
     )]
     InvalidJwtToken,
     #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_17_1",
+        message = "Access forbidden, invalid Basic authentication credentials"
+    )]
+    InvalidBasicAuth,
+    #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_18",
         message = "{message}",
     )]
@@ -307,6 +315,16 @@ pub enum ApiErrorResponse {
     ConnectedAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_50", message = "Invalid connected account operation")]
     InvalidConnectedOperation,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "{error}: {description}")]
+    OidcAuthorizationError {
+        error: OidcAuthorizationError,
+        description: String,
+    },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_49", message = "{error}: {description}")]
+    OidcTokenError {
+        error: OidcTokenError,
+        description: String,
+    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -598,6 +616,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
+            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 171, "Access forbidden, invalid Basic authentication credentials", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
@@ -729,6 +748,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
+            }
+            Self::OidcAuthorizationError { error, description } => {
+                AER::BadRequest(ApiError::new("IR", 48, format!("{}: {}", error, description), None))
+            }
+            Self::OidcTokenError { error, description } => {
+                AER::BadRequest(ApiError::new("IR", 49, format!("{}: {}", error, description), None))
             }
         }
     }

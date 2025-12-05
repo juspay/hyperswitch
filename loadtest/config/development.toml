@@ -38,6 +38,17 @@ totp_issuer_name = "Hyperswitch"
 force_two_factor_auth = false
 force_cookies = true
 
+[oidc]
+
+[[oidc.keys]]
+kid = ""
+private_key = ""
+
+[[oidc.clients]]
+client_id = ""
+client_secret = ""
+redirect_uri = ""
+
 [locker]
 host = ""
 host_rs = ""

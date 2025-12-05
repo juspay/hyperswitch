@@ -524,6 +524,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "email")]
         email: conf.email,
         user: conf.user,
+        oidc: conf.oidc,
         mandates: conf.mandates,
         zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
