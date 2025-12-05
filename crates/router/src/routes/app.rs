@@ -150,6 +150,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
     }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
+    }
 }
 impl SessionState {
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {

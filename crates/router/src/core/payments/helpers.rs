@@ -1437,10 +1437,15 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while adding task to process tracker")
+                    super::add_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        state.conf.application_source,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(
