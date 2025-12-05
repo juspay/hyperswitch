@@ -21465,15 +21465,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountId": {
         "type": "string",
