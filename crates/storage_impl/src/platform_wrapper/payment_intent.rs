@@ -15,6 +15,10 @@ where
     S: PaymentIntentInterface<Error = StorageError> + ?Sized,
 {
     store
-        .insert_payment_intent(payment_intent, processor.get_key_store(), processor.get_account().storage_scheme)
+        .insert_payment_intent(
+            payment_intent,
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
+        )
         .await
 }
