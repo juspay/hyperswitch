@@ -11,7 +11,6 @@ use api_models::{
     enums as api_model_enums, routing::ConnectorSelection,
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
-use common_enums::RoutableConnectors;
 use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
@@ -23,6 +22,7 @@ use currency_conversion::{
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{self, analyzer, graph::CgraphExt, state_machine},
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},

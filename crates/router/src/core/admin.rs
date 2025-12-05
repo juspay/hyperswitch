@@ -2817,7 +2817,7 @@ pub async fn update_connector(
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2887,7 +2887,7 @@ pub async fn delete_connector(
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2963,7 +2963,7 @@ pub async fn delete_connector(
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 },
