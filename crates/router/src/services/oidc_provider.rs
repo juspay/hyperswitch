@@ -69,6 +69,20 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
     Ok(ApplicationResponse::Json(jwks.clone()))
 }
 
+fn validate_client_id_match(registered_client_id: &str, provided_client_id: &str) -> bool {
+    registered_client_id.trim() == provided_client_id.trim()
+}
+
+fn validate_redirect_uri_match(registered_uri: &str, provided_uri: &str) -> bool {
+    match (
+        Url::parse(registered_uri.trim()),
+        Url::parse(provided_uri.trim()),
+    ) {
+        (Ok(registered_url), Ok(provided_url)) => registered_url == provided_url,
+        _ => registered_uri.trim() == provided_uri.trim(),
+    }
+}
+
 pub fn validate_authorize_params(
     payload: &OidcAuthorizeQuery,
     state: &SessionState,
@@ -90,7 +104,7 @@ pub fn validate_authorize_params(
             })
         })?;
 
-    if client.redirect_uri.trim() != payload.redirect_uri.trim() {
+    if !validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
             error: OidcAuthorizationError::InvalidRequest,
             description: "redirect_uri mismatch".into(),
@@ -205,16 +219,14 @@ fn validate_token_request(
     request_client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<(), ApiErrorResponse> {
-    let redirect_uri_trimmed = redirect_uri.trim();
-
-    if redirect_uri_trimmed.is_empty() {
+    if redirect_uri.trim().is_empty() {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidRequest,
             description: "redirect_uri is required".into(),
         }));
     }
 
-    if authenticated_client_id != request_client_id {
+    if !validate_client_id_match(authenticated_client_id, request_client_id) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidRequest,
             description: "client_id mismatch".into(),
@@ -232,7 +244,7 @@ fn validate_token_request(
             })
         })?;
 
-    if registered_client.redirect_uri.trim() != redirect_uri_trimmed {
+    if !validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidRequest,
             description: "redirect_uri mismatch".into(),
@@ -270,14 +282,14 @@ async fn validate_and_consume_authorization_code(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to deserialize authorization code data")?;
 
-    if auth_code_data.client_id != client_id {
+    if !validate_client_id_match(&auth_code_data.client_id, client_id) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidGrant,
             description: "client_id mismatch".into(),
         }));
     }
 
-    if auth_code_data.redirect_uri.trim() != redirect_uri.trim() {
+    if !validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidGrant,
             description: "redirect_uri mismatch".into(),
