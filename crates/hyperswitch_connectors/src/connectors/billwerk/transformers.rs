@@ -1,4 +1,4 @@
-use common_enums::enums;
+use common_enums::{enums, Currency};
 use common_utils::{
     id_type,
     pii::{Email, SecretSerdeValue},
@@ -164,7 +164,7 @@ impl<T>
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BillwerkCustomerObject {
     handle: Option<id_type::CustomerId>,
     email: Option<Email>,
@@ -176,12 +176,12 @@ pub struct BillwerkCustomerObject {
     last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BillwerkPaymentsRequest {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     handle: String,
-    amount: MinorUnit,
     source: Secret<String>,
-    currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
     metadata: Option<SecretSerdeValue>,
     settle: bool,
@@ -250,6 +250,8 @@ impl From<BillwerkPaymentState> for enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillwerkPaymentsResponse {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     state: BillwerkPaymentState,
     handle: String,
     error: Option<String>,
@@ -343,7 +345,7 @@ impl<F> TryFrom<&BillwerkRouterData<&types::RefundsRouterData<F>>> for BillwerkR
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
@@ -361,8 +363,10 @@ impl From<RefundState> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
+    pub amount: MinorUnit,
+    pub currency: Currency,
     id: String,
     state: RefundState,
 }
