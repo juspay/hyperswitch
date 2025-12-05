@@ -29,7 +29,6 @@ impl Default for super::settings::ConsumerSettings {
         Self {
             disabled: false,
             consumer_group: "SCHEDULER_GROUP".into(),
-            application_source: diesel_models::enums::ApplicationSource::Main,
         }
     }
 }

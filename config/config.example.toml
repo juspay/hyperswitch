@@ -2,7 +2,9 @@
 # all the available configuration options, and is intended to be used
 # solely as a reference. Please copy this file to create a config.
 
-# Application source used to identify the running application instance
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
 application_source = "main"
 
 # Server configuration
@@ -424,7 +426,6 @@ loop_interval = 5000               # Specifies how much time to wait before star
 [scheduler.consumer]
 consumer_group = "SCHEDULER_GROUP"
 disabled = false                   # This flag decides if the consumer should actively consume task
-application_source = "main"        # Application source to filter tasks for consumer
 
 [scheduler.producer]
 upper_fetch_limit = 0             # Upper limit for fetching entries from the redis queue (in seconds)

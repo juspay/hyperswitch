@@ -1,4 +1,3 @@
-use diesel_models::enums;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
 
@@ -38,5 +37,4 @@ pub struct ProducerSettings {
 pub struct ConsumerSettings {
     pub disabled: bool,
     pub consumer_group: String,
-    pub application_source: enums::ApplicationSource,
 }
