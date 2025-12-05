@@ -4128,7 +4128,7 @@ where
             create_order_response.create_order_result.ok().is_some()
         }
         // If create order is not required, then we can proceed with further processing
-        None => true,
+        None => should_continue_further,
     };
 
     let updated_customer = call_create_connector_customer_if_required(
