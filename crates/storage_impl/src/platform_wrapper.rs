@@ -16,7 +16,5 @@
 ///
 // TODO: Remove wrappers and migrate to DB interface with typed parameters (ProviderMerchantId, ProcessorMerchantId, etc.) once the platform stabilizes
 pub mod business_profile;
-pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
-pub mod payment_method;

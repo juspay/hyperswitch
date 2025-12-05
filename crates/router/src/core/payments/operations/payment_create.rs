@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
+use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -41,7 +42,6 @@ use crate::{
     },
     db::StorageInterface,
     events::audit_events::{AuditEvent, AuditEventType},
-    platform_wrapper,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -125,7 +125,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile
         } else {
             platform_wrapper::business_profile::find_business_profile_by_profile_id(
-                db,
+                state.store.as_ref(),
                 platform.get_processor(),
                 &profile_id,
             )
@@ -317,9 +317,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .await?;
 
         let payment_intent = platform_wrapper::payment_intent::insert_payment_intent(
-            db,
+            state.store.as_ref(),
             platform.get_processor(),
             payment_intent_new,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -336,9 +337,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v1")]
         let mut payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
-            db,
+            state.store.as_ref(),
             platform.get_processor(),
             payment_attempt_new,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -347,9 +349,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         #[cfg(feature = "v2")]
         let payment_attempt = platform_wrapper::payment_attempt::insert_payment_attempt(
-            db,
+            state.store.as_ref(),
             platform.get_processor(),
             payment_attempt_new,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
