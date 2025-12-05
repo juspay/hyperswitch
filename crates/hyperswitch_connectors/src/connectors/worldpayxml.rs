@@ -34,7 +34,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::payouts::{PoCancel, PoFulfill},
+    router_flow_types::{
+        payouts::{PoCancel, PoFulfill},
+        PoSync,
+    },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
@@ -53,7 +56,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as worldpayxml;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self},
+};
 
 #[derive(Clone)]
 pub struct Worldpayxml {
@@ -772,6 +779,8 @@ impl api::Payouts for Worldpayxml {}
 impl api::PayoutFulfill for Worldpayxml {}
 #[cfg(feature = "payouts")]
 impl api::PayoutCancel for Worldpayxml {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Worldpayxml {}
 
 #[async_trait::async_trait]
 #[cfg(feature = "payouts")]
@@ -847,6 +856,97 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
         let response: worldpayxml::PayoutResponse =
+            utils::deserialize_xml_to_struct(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Worldpayxml {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_owned())
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+            &connector_req_object,
+            worldpayxml::worldpayxml_constants::XML_VERSION,
+            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            None,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+        )?;
+        Ok(RequestContent::RawBytes(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
+            .set_body(types::PayoutSyncType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: worldpayxml::PaymentService =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
