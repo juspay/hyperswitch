@@ -5682,6 +5682,30 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
+pub fn is_predecrypted_flow_supported_googlepay(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
+        .unwrap_or(false)
+}
+pub fn is_predecrypted_flow_supported_applepay(
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> bool {
+    connector_metadata
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .ok()
+        .map(|apple_pay_metadata| {
+            apple_pay_metadata
+                .apple_pay_combined
+                .is_predecrypted_token_supported()
+        })
+        .unwrap_or(false)
+}
 pub fn get_applepay_metadata(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<api_models::payments::ApplepaySessionTokenMetadata> {
@@ -5690,16 +5714,23 @@ pub fn get_applepay_metadata(
         .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
             "ApplepayCombinedSessionTokenData",
         )
-        .map(|combined_metadata| {
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                combined_metadata.apple_pay_combined,
-            )
-        })
+        .change_context(errors::ConnectorError::ParsingFailed)
+        .and_then(
+            |combined_metadata| match combined_metadata.apple_pay_combined.data {
+                Some(combined_metadata) => Ok(
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        combined_metadata,
+                    ),
+                ),
+                None => Err(errors::ConnectorError::ParsingFailed.into()),
+            },
+        )
         .or_else(|_| {
             connector_metadata
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                     "ApplepaySessionTokenData",
                 )
+                .change_context(errors::ConnectorError::ParsingFailed)
                 .map(|old_metadata| {
                     api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
                         old_metadata.apple_pay,

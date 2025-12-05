@@ -16,7 +16,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
+            self, access_token, customers,
+            gateway::context as gateway_context,
+            helpers::{self, is_predecrypted_flow_supported_applepay},
             transformers, PaymentData,
         },
     },
@@ -279,12 +281,27 @@ async fn create_applepay_session_token(
             header_payload,
         )
     } else {
+        let is_pre_decrypt_flow_supported =
+            is_predecrypted_flow_supported_applepay(router_data.connector_meta_data.clone());
         // Get the apple pay metadata
         let apple_pay_metadata =
-            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
-                .attach_printable(
-                    "Failed to to fetch apple pay certificates during session call",
-                )?;
+            match helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
+                .attach_printable("Failed to to fetch apple pay certificates during session call")
+            {
+                Ok(metadata) => metadata,
+                Err(err) => {
+                    if is_pre_decrypt_flow_supported {
+                        return Ok(types::PaymentsSessionRouterData {
+                            response: Ok(types::PaymentsResponseData::SessionResponse {
+                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                            }),
+                            ..router_data.clone()
+                        });
+                    } else {
+                        return Err(err);
+                    }
+                }
+            };
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -1023,11 +1040,15 @@ fn create_gpay_session_token(
                     expected_format: "gpay_connector_wallets_details_format".to_string(),
                 })?;
 
+            let (provider_details, cards) = (
+                gpay_data.google_pay.provider_details,
+                gpay_data.google_pay.cards,
+            );
             let payment_types::GooglePayProviderDetails::GooglePayMerchantDetails(gpay_info) =
-                gpay_data.google_pay.provider_details.clone();
+                provider_details.clone();
 
             let gpay_allowed_payment_methods = get_allowed_payment_methods_from_cards(
-                gpay_data,
+                cards,
                 &gpay_info.merchant_info.tokenization_specification,
                 is_billing_details_required,
             )?;
@@ -1084,9 +1105,25 @@ fn create_gpay_session_token(
                     field_name: "connector_metadata".to_string(),
                     expected_format: "gpay_metadata_format".to_string(),
                 })?;
-
+            let gpay_data = match gpay_data.google_pay.data {
+                Some(data) => data,
+                None => {
+                    if gpay_data.google_pay.is_predecrypted_token_supported() {
+                        return Ok(types::PaymentsSessionRouterData {
+                            response: Ok(types::PaymentsResponseData::SessionResponse {
+                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                            }),
+                            ..router_data.clone()
+                        });
+                    }
+                    return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "connector_metadata".to_string(),
+                        expected_format: "GpayMetadata".to_string(),
+                    }
+                    .into());
+                }
+            };
             let gpay_allowed_payment_methods = gpay_data
-                .data
                 .allowed_payment_methods
                 .into_iter()
                 .map(
@@ -1121,7 +1158,7 @@ fn create_gpay_session_token(
                     session_token: payment_types::SessionToken::GooglePay(Box::new(
                         payment_types::GpaySessionTokenResponse::GooglePaySession(
                             payment_types::GooglePaySessionResponse {
-                                merchant_info: gpay_data.data.merchant_info,
+                                merchant_info: gpay_data.merchant_info,
                                 allowed_payment_methods: gpay_allowed_payment_methods,
                                 transaction_info,
                                 connector: connector.connector_name.to_string(),
@@ -1154,7 +1191,7 @@ fn create_gpay_session_token(
 pub(crate) const CARD: &str = "CARD";
 
 fn get_allowed_payment_methods_from_cards(
-    gpay_info: payment_types::GooglePayWalletDetails,
+    gpay_cards: payment_types::GpayAllowedMethodsParameters,
     gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
     is_billing_details_required: bool,
 ) -> RouterResult<payment_types::GpayAllowedPaymentMethods> {
@@ -1174,7 +1211,7 @@ fn get_allowed_payment_methods_from_cards(
         parameters: payment_types::GpayAllowedMethodsParameters {
             billing_address_required: Some(is_billing_details_required),
             billing_address_parameters: billing_address_parameters.clone(),
-            ..gpay_info.google_pay.cards
+            ..gpay_cards
         },
         payment_method_type: CARD.to_string(),
         tokenization_specification: payment_types::GpayTokenizationSpecification {

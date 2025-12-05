@@ -9309,9 +9309,20 @@ pub struct GpayMetaData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GooglePayDetailsWrapper {
+    #[serde(flatten)]
+    pub data: Option<GpayMetaData>,
+    support_predecrypted_token: Option<bool>,
+}
+impl GooglePayDetailsWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "google_pay")]
-    pub data: GpayMetaData,
+    pub google_pay: GooglePayDetailsWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9477,8 +9488,20 @@ pub struct ApplepaySessionTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayCombinedWrapper {
+    #[serde(flatten)]
+    pub data: Option<ApplePayCombinedMetadata>,
+    support_predecrypted_token: Option<bool>,
+}
+impl ApplePayCombinedWrapper {
+    pub fn is_predecrypted_token_supported(&self) -> bool {
+        self.support_predecrypted_token.unwrap_or(false)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepayCombinedSessionTokenData {
-    pub apple_pay_combined: ApplePayCombinedMetadata,
+    pub apple_pay_combined: ApplePayCombinedWrapper,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
