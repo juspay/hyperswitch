@@ -254,16 +254,15 @@ async fn determine_connector_integration_type(
     }
 }
 
-pub async fn should_call_unified_connector_service<F: Clone, T, R, D>(
+pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     state: &SessionState,
     platform: &Platform,
     router_data: &RouterData<F, T, R>,
-    payment_data: Option<&D>,
+    previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
 ) -> RouterResult<(ExecutionPath, SessionState)>
 where
-    D: OperationSessionGetters<F>,
     R: Send + Sync + Clone,
 {
     // Extract context information
@@ -293,9 +292,6 @@ where
     // Determine connector integration type
     let connector_integration_type =
         determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
-
-    // Extract previous gateway from payment data
-    let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
 
     // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
@@ -594,7 +590,7 @@ fn build_rollout_keys(
 
 /// Extracts the gateway system from the payment intent's feature metadata
 /// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system
-fn extract_gateway_system_from_payment_intent<F: Clone, D>(
+pub fn extract_gateway_system_from_payment_intent<F: Clone, D>(
     payment_data: &D,
 ) -> Option<GatewaySystem>
 where
@@ -1194,6 +1190,18 @@ pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
 
 pub fn handle_unified_connector_service_response_for_payment_method_token_create(
     response: payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_sdk_session_token(
+    response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;

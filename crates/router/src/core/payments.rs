@@ -96,8 +96,12 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
-    unified_connector_service::should_call_unified_connector_service,
+    errors::StorageErrorExt,
+    payment_methods::surcharge_decision_configs,
+    routing::TransactionData,
+    unified_connector_service::{
+        extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
@@ -4457,11 +4461,14 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    // Extract previous gateway from payment data
+    let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
+
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         platform,
         &router_data,
-        Some(payment_data),
+        previous_gateway,
         call_connector_action.clone(),
         shadow_ucs_call_connector_action.clone(),
     )
@@ -6481,7 +6488,8 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
 ) -> RouterResult<D>
 where
     Op: Debug,
-    F: Send + Clone,
+    F: Send + Clone + Sync,
+    Req: Send + Sync + Clone,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -6534,24 +6542,47 @@ where
             )
             .await?;
 
-        let gateway_context = gateway_context::RouterGatewayContext::direct(
-            platform.clone(),
-            merchant_connector_account.clone(),
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-            payment_data.get_creds_identifier().map(|id| id.to_string()),
-        );
+        let res = match session_connector_data.connector.get_token {
+            api::GetToken::Connector => Box::pin(
+                decide_unified_connector_service_call_for_multiple_connectors_service(
+                    state,
+                    &session_connector_data.connector,
+                    platform,
+                    CallConnectorAction::Trigger,
+                    business_profile,
+                    header_payload.clone(),
+                    return_raw_connector_response,
+                    merchant_connector_account.clone(),
+                    router_data,
+                    payment_data.get_creds_identifier().map(|id| id.to_string()),
+                ),
+            ),
+            api::GetToken::AmazonPayMetadata
+            | api::GetToken::ApplePayMetadata
+            | api::GetToken::GpayMetadata
+            | api::GetToken::PaypalSdkMetadata
+            | api::GetToken::PazeMetadata
+            | api::GetToken::SamsungPayMetadata => {
+                let gateway_context = gateway_context::RouterGatewayContext::direct(
+                    platform.clone(),
+                    merchant_connector_account.clone(),
+                    business_profile.merchant_id.clone(),
+                    business_profile.get_id().clone(),
+                    payment_data.get_creds_identifier().map(|id| id.to_string()),
+                );
 
-        let res = router_data.decide_flows(
-            state,
-            &session_connector_data.connector,
-            CallConnectorAction::Trigger,
-            None,
-            business_profile,
-            header_payload.clone(),
-            return_raw_connector_response,
-            gateway_context,
-        );
+                router_data.decide_flows(
+                    state,
+                    &session_connector_data.connector,
+                    CallConnectorAction::Trigger,
+                    None,
+                    business_profile,
+                    header_payload.clone(),
+                    return_raw_connector_response,
+                    gateway_context,
+                )
+            }
+        };
 
         join_handlers.push(res);
     }
@@ -6612,6 +6643,73 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+#[cfg(feature = "v1")]
+pub async fn decide_unified_connector_service_call_for_multiple_connectors_service<F, RouterDReq>(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    platform: &domain::Platform,
+    call_connector_action: CallConnectorAction,
+    business_profile: &domain::Profile,
+    header_payload: HeaderPayload,
+    return_raw_connector_response: Option<bool>,
+    merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    creds_identifier: Option<String>,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
+        Feature<F, RouterDReq> + Send + Clone,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        platform,
+        &router_data,
+        None, // No previous gateway information required for session flow
+        CallConnectorAction::Trigger,
+        None,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier,
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+
+    router_data
+        .decide_flows(
+            &updated_state,
+            connector,
+            call_connector_action,
+            None,
+            business_profile,
+            header_payload.clone(),
+            return_raw_connector_response,
+            gateway_context,
+        )
+        .await
 }
 
 #[cfg(feature = "v1")]

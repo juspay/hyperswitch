@@ -1,7 +1,20 @@
 use std::{collections::HashMap, str::FromStr};
 
+use api_models::payments::{
+    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
+    ApplepaySessionTokenResponse, GooglePaySessionResponse, GpayAllowedMethodsParameters,
+    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
+    PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
+    SessionToken, ThirdPartySdkSessionResponse,
+};
 use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
-use common_utils::{ext_traits::Encode, request::Method, types};
+use common_utils::{
+    ext_traits::Encode,
+    request::Method,
+    types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -11,12 +24,12 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
-        unified_authentication_service as uas_flows, ExternalVaultProxy,
+        unified_authentication_service as uas_flows, ExternalVaultProxy, Session,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
@@ -32,9 +45,10 @@ use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, ConnectorState, Identifier, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse,
+    self as payments_grpc, session_token, ConnectorState, Identifier,
+    PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
@@ -846,7 +860,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .transpose()?;
 
         Ok(Self {
-            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -877,6 +890,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     capture_reference: multiple_capture_request_data.capture_reference.clone(),
                 },
             ),
+            merchant_account_metadata: HashMap::new(),
             state: None,
         })
     }
@@ -1538,7 +1552,12 @@ impl
                 .map(|e| e.expose().expose().into()),
             browser_info,
             test_mode: router_data.test_mode,
-            payment_method_type: None,
+            payment_method_type: router_data
+                .request
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|payment_method_type| payment_method_type.into()),
             state,
             return_url: router_data.request.router_return_url.clone(),
             description: router_data.description.clone(),
@@ -1546,6 +1565,64 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceSdkSessionTokenRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Session, PaymentsSessionData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let country = router_data
+            .request
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|country| country.into());
+
+        let merchant_account_metadata = serde_json::to_string(&router_data.connector_meta_data)
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            amount: router_data.request.amount,
+            currency: currency.into(),
+            minor_amount: router_data.request.amount,
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|e| e.expose().expose().into()),
+            merchant_account_metadata: Some(merchant_account_metadata.into()),
+            order_tax_amount: router_data
+                .request
+                .order_tax_amount
+                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
+            customer_name: router_data
+                .request
+                .customer_name
+                .clone()
+                .map(|customer_name| customer_name.expose().into()),
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            country_alpha2_code: country,
+            payment_method_type: router_data
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }
@@ -2198,6 +2275,145 @@ impl transformers::ForeignTryFrom<common_enums::Currency> for payments_grpc::Cur
             )
             .into()
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::Currency> for common_enums::Currency {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(currency: payments_grpc::Currency) -> Result<Self, Self::Error> {
+        let currency_str = currency.as_str_name();
+        Self::from_str(currency_str).change_context(UnifiedConnectorServiceError::ParsingFailed)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::CountryAlpha2> for common_enums::CountryAlpha2 {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(country: payments_grpc::CountryAlpha2) -> Result<Self, Self::Error> {
+        let country_str = country.as_str_name();
+        Self::from_str(country_str).change_context(UnifiedConnectorServiceError::ParsingFailed)
+    }
+}
+
+impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
+    for payments_grpc::PaymentMethodType
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: common_enums::PaymentMethodType) -> Result<Self, Self::Error> {
+        match value {
+            common_enums::PaymentMethodType::Ach => Ok(Self::Ach),
+            common_enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
+            common_enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
+            common_enums::PaymentMethodType::Alfamart => Ok(Self::Alfamart),
+            common_enums::PaymentMethodType::AliPay => Ok(Self::AliPay),
+            common_enums::PaymentMethodType::AliPayHk => Ok(Self::AliPayHk),
+            common_enums::PaymentMethodType::Alma => Ok(Self::Alma),
+            common_enums::PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
+            common_enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+            common_enums::PaymentMethodType::Atome => Ok(Self::Atome),
+            common_enums::PaymentMethodType::Bacs => Ok(Self::Bacs),
+            common_enums::PaymentMethodType::BancontactCard => Ok(Self::BancontactCard),
+            common_enums::PaymentMethodType::Becs => Ok(Self::Becs),
+            common_enums::PaymentMethodType::Benefit => Ok(Self::Benefit),
+            common_enums::PaymentMethodType::Bizum => Ok(Self::Bizum),
+            common_enums::PaymentMethodType::Blik => Ok(Self::Blik),
+            common_enums::PaymentMethodType::Boleto => Ok(Self::Boleto),
+            common_enums::PaymentMethodType::BcaBankTransfer => Ok(Self::BcaBankTransfer),
+            common_enums::PaymentMethodType::BniVa => Ok(Self::BniVa),
+            common_enums::PaymentMethodType::BriVa => Ok(Self::BriVa),
+            common_enums::PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
+            common_enums::PaymentMethodType::CimbVa => Ok(Self::CimbVa),
+            common_enums::PaymentMethodType::ClassicReward => Ok(Self::ClassicReward),
+            common_enums::PaymentMethodType::Credit => Ok(Self::Credit),
+            common_enums::PaymentMethodType::CryptoCurrency => Ok(Self::CryptoCurrency),
+            common_enums::PaymentMethodType::Cashapp => Ok(Self::Cashapp),
+            common_enums::PaymentMethodType::Dana => Ok(Self::Dana),
+            common_enums::PaymentMethodType::DanamonVa => Ok(Self::DanamonVa),
+            common_enums::PaymentMethodType::Debit => Ok(Self::Debit),
+            common_enums::PaymentMethodType::DuitNow => Ok(Self::DuitNow),
+            common_enums::PaymentMethodType::Efecty => Ok(Self::Efecty),
+            common_enums::PaymentMethodType::Eft => Ok(Self::Eft),
+            common_enums::PaymentMethodType::Eps => Ok(Self::Eps),
+            common_enums::PaymentMethodType::Fps => Ok(Self::Fps),
+            common_enums::PaymentMethodType::Evoucher => Ok(Self::Evoucher),
+            common_enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
+            common_enums::PaymentMethodType::Givex => Ok(Self::Givex),
+            common_enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
+            common_enums::PaymentMethodType::GoPay => Ok(Self::GoPay),
+            common_enums::PaymentMethodType::Gcash => Ok(Self::Gcash),
+            common_enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
+            common_enums::PaymentMethodType::Interac => Ok(Self::Interac),
+            common_enums::PaymentMethodType::Indomaret => Ok(Self::Indomaret),
+            common_enums::PaymentMethodType::KakaoPay => Ok(Self::KakaoPay),
+            common_enums::PaymentMethodType::LocalBankRedirect => Ok(Self::LocalBankRedirect),
+            common_enums::PaymentMethodType::MandiriVa => Ok(Self::MandiriVa),
+            common_enums::PaymentMethodType::Knet => Ok(Self::Knet),
+            common_enums::PaymentMethodType::MbWay => Ok(Self::MbWay),
+            common_enums::PaymentMethodType::MobilePay => Ok(Self::MobilePay),
+            common_enums::PaymentMethodType::Momo => Ok(Self::Momo),
+            common_enums::PaymentMethodType::MomoAtm => Ok(Self::MomoAtm),
+            common_enums::PaymentMethodType::Multibanco => Ok(Self::Multibanco),
+            common_enums::PaymentMethodType::OnlineBankingThailand => {
+                Ok(Self::OnlineBankingThailand)
+            }
+            common_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
+                Ok(Self::OnlineBankingCzechRepublic)
+            }
+            common_enums::PaymentMethodType::OnlineBankingFinland => Ok(Self::OnlineBankingFinland),
+            common_enums::PaymentMethodType::OnlineBankingFpx => Ok(Self::OnlineBankingFpx),
+            common_enums::PaymentMethodType::OnlineBankingPoland => Ok(Self::OnlineBankingPoland),
+            common_enums::PaymentMethodType::OnlineBankingSlovakia => {
+                Ok(Self::OnlineBankingSlovakia)
+            }
+            common_enums::PaymentMethodType::Oxxo => Ok(Self::Oxxo),
+            common_enums::PaymentMethodType::PagoEfectivo => Ok(Self::PagoEfectivo),
+            common_enums::PaymentMethodType::PermataBankTransfer => Ok(Self::PermataBankTransfer),
+            common_enums::PaymentMethodType::OpenBankingUk => Ok(Self::OpenBankingUk),
+            common_enums::PaymentMethodType::PayBright => Ok(Self::PayBright),
+            common_enums::PaymentMethodType::Paze => Ok(Self::Paze),
+            common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
+            common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
+            common_enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
+            common_enums::PaymentMethodType::PromptPay => Ok(Self::PromptPay),
+            common_enums::PaymentMethodType::Pse => Ok(Self::Pse),
+            common_enums::PaymentMethodType::RedCompra => Ok(Self::RedCompra),
+            common_enums::PaymentMethodType::RedPagos => Ok(Self::RedPagos),
+            common_enums::PaymentMethodType::SamsungPay => Ok(Self::SamsungPay),
+            common_enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
+            common_enums::PaymentMethodType::SepaBankTransfer => Ok(Self::SepaBankTransfer),
+            common_enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
+            common_enums::PaymentMethodType::Swish => Ok(Self::Swish),
+            common_enums::PaymentMethodType::TouchNGo => Ok(Self::TouchNGo),
+            common_enums::PaymentMethodType::Trustly => Ok(Self::Trustly),
+            common_enums::PaymentMethodType::Twint => Ok(Self::Twint),
+            common_enums::PaymentMethodType::UpiCollect => Ok(Self::UpiCollect),
+            common_enums::PaymentMethodType::UpiIntent => Ok(Self::UpiIntent),
+            common_enums::PaymentMethodType::UpiQr => Ok(Self::UpiQr),
+            common_enums::PaymentMethodType::Vipps => Ok(Self::Vipps),
+            common_enums::PaymentMethodType::VietQr => Ok(Self::VietQr),
+            common_enums::PaymentMethodType::Venmo => Ok(Self::Venmo),
+            common_enums::PaymentMethodType::Walley => Ok(Self::Walley),
+            common_enums::PaymentMethodType::WeChatPay => Ok(Self::WeChatPay),
+            common_enums::PaymentMethodType::SevenEleven => Ok(Self::SevenEleven),
+            common_enums::PaymentMethodType::Lawson => Ok(Self::Lawson),
+            common_enums::PaymentMethodType::MiniStop => Ok(Self::MiniStop),
+            common_enums::PaymentMethodType::FamilyMart => Ok(Self::FamilyMart),
+            common_enums::PaymentMethodType::Seicomart => Ok(Self::Seicomart),
+            common_enums::PaymentMethodType::PayEasy => Ok(Self::PayEasy),
+            common_enums::PaymentMethodType::LocalBankTransfer => Ok(Self::LocalBankTransfer),
+            common_enums::PaymentMethodType::OpenBankingPIS => Ok(Self::OpenBankingPis),
+            common_enums::PaymentMethodType::DirectCarrierBilling => Ok(Self::DirectCarrierBilling),
+            common_enums::PaymentMethodType::InstantBankTransfer => Ok(Self::InstantBankTransfer),
+            common_enums::PaymentMethodType::Paypal => Ok(Self::PayPal),
+            common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
+            _ => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Payment Method Type not yet supported".to_string(),
+                ),
+            )?,
+        }
     }
 }
 
@@ -2914,6 +3130,491 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceSdkSessionTokenResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: response.error_reason,
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let session_token = match response.session_token {
+                Some(session_token) => SessionToken::foreign_try_from(session_token),
+                None => {
+                    router_env::logger::info!(
+                        "Missing session_token in UCS Sdk Session Token Response"
+                    );
+                    Ok(SessionToken::NoSessionTokenReceived)
+                }
+            }?;
+
+            Ok(PaymentsResponseData::SessionResponse { session_token })
+        };
+
+        Ok(response)
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::SdkNextAction> for SdkNextAction {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::SdkNextAction) -> Result<Self, Self::Error> {
+        let next_action = match value {
+            payments_grpc::SdkNextAction::Confirm
+            | payments_grpc::SdkNextAction::NextActionUnspecified => NextActionCall::Confirm,
+            payments_grpc::SdkNextAction::PostSessionTokens => NextActionCall::PostSessionTokens,
+        };
+
+        Ok(Self { next_action })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaypalTransactionInfo> for PaypalTransactionInfo {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::PaypalTransactionInfo) -> Result<Self, Self::Error> {
+        let flow = match value.flow() {
+            payments_grpc::PaypalFlow::Unspecified => PaypalFlow::Checkout,
+            payments_grpc::PaypalFlow::Checkout => PaypalFlow::Checkout,
+        };
+
+        let currency_code = common_enums::Currency::foreign_try_from(value.currency_code())?;
+        let minor_total_price = MinorUnit::new(value.total_price);
+        let required_amount_type = StringMajorUnitForConnector;
+
+        let total_price = required_amount_type
+            .convert(minor_total_price, currency_code)
+            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)?;
+
+        Ok(Self {
+            total_price,
+            currency_code,
+            flow,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::SessionToken) -> Result<Self, Self::Error> {
+        match value.wallet_name {
+            Some(session_token::WalletName::GooglePay(gpay_session_token_response)) => {
+                let gpay_session = gpay_session_token_response
+                    .google_pay_session
+                    .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                    .attach_printable(
+                        "Missing Google Pay Session Token Response in UCS SdkSessionToken Response",
+                    )?;
+
+                let gpay_response = GooglePaySessionResponse::foreign_try_from(gpay_session)?;
+
+                Ok(Self::GooglePay(Box::new(
+                    GpaySessionTokenResponse::GooglePaySession(gpay_response),
+                )))
+            }
+            Some(session_token::WalletName::ApplePay(apay_session_token_response)) => {
+                let apay_response = ApplepaySessionTokenResponse {
+                    session_token_data: apay_session_token_response
+                        .session_token_data
+                        .as_ref()
+                        .map(ApplePaySessionResponse::foreign_try_from)
+                        .transpose()?,
+                    payment_request_data: apay_session_token_response
+                        .payment_request_data
+                        .as_ref()
+                        .map(ApplePayPaymentRequest::foreign_try_from)
+                        .transpose()?,
+                    connector: apay_session_token_response.connector.clone(),
+                    sdk_next_action: SdkNextAction::foreign_try_from(
+                        apay_session_token_response.sdk_next_action(),
+                    )?,
+                    delayed_session_token: apay_session_token_response.delayed_session_token,
+                    connector_merchant_id: apay_session_token_response.connector_merchant_id,
+                    connector_reference_id: apay_session_token_response.connector_reference_id,
+                    connector_sdk_public_key: apay_session_token_response.connector_sdk_public_key,
+                };
+
+                Ok(Self::ApplePay(Box::new(apay_response)))
+            }
+            Some(session_token::WalletName::Paypal(paypal_session_token_response)) => {
+                let paypal_session_token_response = PaypalSessionTokenResponse {
+                    session_token: paypal_session_token_response.session_token.clone(),
+                    connector: paypal_session_token_response.connector.clone(),
+                    sdk_next_action: SdkNextAction::foreign_try_from(
+                        paypal_session_token_response.sdk_next_action(),
+                    )?,
+                    client_token: paypal_session_token_response.client_token,
+                    transaction_info: paypal_session_token_response
+                        .transaction_info
+                        .map(PaypalTransactionInfo::foreign_try_from)
+                        .transpose()?,
+                };
+
+                Ok(Self::Paypal(Box::new(paypal_session_token_response)))
+            }
+            _ => Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing session_token in UCS Sdk Session Token Response")?,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::ApplePayAddressParameters>
+    for ApplePayAddressParameters
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::ApplePayAddressParameters,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::ApplePayAddressParameters::PostalAddress => Ok(Self::PostalAddress),
+            payments_grpc::ApplePayAddressParameters::Phone => Ok(Self::Phone),
+            payments_grpc::ApplePayAddressParameters::Email => Ok(Self::Email),
+            payments_grpc::ApplePayAddressParameters::Unspecified => {
+                Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                    .attach_printable("Unspecified ApplePayAddressParameters")?
+            }
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<(&payments_grpc::AmountInfo, common_enums::Currency)>
+    for AmountInfo
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        (value, currency_code): (&payments_grpc::AmountInfo, common_enums::Currency),
+    ) -> Result<Self, Self::Error> {
+        let minor_amount = MinorUnit::new(value.amount);
+        let required_amount_type = StringMajorUnitForConnector;
+
+        let amount = required_amount_type
+            .convert(minor_amount, currency_code)
+            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .attach_printable("Response amount conversion failed")?;
+
+        Ok(Self {
+            label: value.label.clone(),
+            total_type: value.total_type.clone(),
+            amount,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::ThirdPartySdkSessionResponse>
+    for ThirdPartySdkSessionResponse
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: &payments_grpc::ThirdPartySdkSessionResponse,
+    ) -> Result<Self, Self::Error> {
+        let secrets = value
+            .secrets
+            .as_ref()
+            .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+
+        Ok(Self {
+            secrets: SecretInfoToInitiateSdk::foreign_try_from(&secrets)?,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::ApplePaySessionResponse>
+    for ApplePaySessionResponse
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: &payments_grpc::ApplePaySessionResponse,
+    ) -> Result<Self, Self::Error> {
+        let third_party_sdk = value
+            .third_party_sdk
+            .as_ref()
+            .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+            .attach_printable("Missing third_party_sdk in ApplePaySessionResponse")?;
+
+        let session_token_data = ThirdPartySdkSessionResponse::foreign_try_from(third_party_sdk)?;
+
+        Ok(Self::ThirdPartySdk(session_token_data))
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::ApplePayPaymentRequest>
+    for ApplePayPaymentRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: &payments_grpc::ApplePayPaymentRequest,
+    ) -> Result<Self, Self::Error> {
+        let total = value
+            .total
+            .as_ref()
+            .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+            .attach_printable("Missing total in ApplePayPaymentRequest")?;
+
+        let currency_code = common_enums::Currency::foreign_try_from(value.currency_code())?;
+        let country_code = common_enums::CountryAlpha2::foreign_try_from(value.country_code())?;
+
+        Ok(Self {
+            country_code,
+            currency_code,
+            total: AmountInfo::foreign_try_from((total, currency_code))?,
+            merchant_capabilities: if value.merchant_capabilities.is_empty() {
+                None
+            } else {
+                Some(value.merchant_capabilities.clone())
+            },
+            supported_networks: if value.supported_networks.is_empty() {
+                None
+            } else {
+                Some(value.supported_networks.clone())
+            },
+            merchant_identifier: value.merchant_identifier.clone(),
+            required_billing_contact_fields: None,
+            required_shipping_contact_fields: None,
+            recurring_payment_request: None,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GooglePaySessionResponse>
+    for GooglePaySessionResponse
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GooglePaySessionResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_info: value
+                .merchant_info
+                .clone()
+                .map(GpayMerchantInfo::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing merchant_info in GooglePaySessionResponse")?,
+            shipping_address_required: value.shipping_address_required,
+            email_required: value.email_required,
+            shipping_address_parameters: value
+                .shipping_address_parameters
+                .map(GpayShippingAddressParameters::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable(
+                    "Missing shipping_address_parameters in GooglePaySessionResponse",
+                )?,
+            allowed_payment_methods: value
+                .allowed_payment_methods
+                .clone()
+                .into_iter()
+                .map(GpayAllowedPaymentMethods::foreign_try_from)
+                .collect::<Result<Vec<GpayAllowedPaymentMethods>, _>>()?,
+            transaction_info: value
+                .transaction_info
+                .clone()
+                .map(GpayTransactionInfo::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing transaction_info in GooglePaySessionResponse")?,
+            delayed_session_token: value.delayed_session_token,
+            connector: value.connector.clone(),
+            sdk_next_action: SdkNextAction::foreign_try_from(value.sdk_next_action())?,
+            secrets: value
+                .secrets
+                .as_ref()
+                .map(SecretInfoToInitiateSdk::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::SecretInfoToInitiateSdk>
+    for SecretInfoToInitiateSdk
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: &payments_grpc::SecretInfoToInitiateSdk,
+    ) -> Result<Self, Self::Error> {
+        let display = value
+            .display
+            .clone()
+            .map(|display| display.expose().into())
+            .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .attach_printable("Missing display in SecretInfoToInitiateSdk")?;
+        let payment = value.payment.clone().map(|payment| payment.expose().into());
+
+        Ok(Self { display, payment })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayBillingAddressFormat>
+    for GpayBillingAddressFormat
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayBillingAddressFormat,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::GpayBillingAddressFormat::Min => Ok(Self::MIN),
+            payments_grpc::GpayBillingAddressFormat::Full => Ok(Self::FULL),
+            payments_grpc::GpayBillingAddressFormat::BillingAddressFormatUnspecified => {
+                Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                    .attach_printable("Unspecified GpayBillingAddressFormat")?
+            }
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayMerchantInfo> for GpayMerchantInfo {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::GpayMerchantInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_id: value.merchant_id,
+            merchant_name: value.merchant_name,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayShippingAddressParameters>
+    for GpayShippingAddressParameters
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayShippingAddressParameters,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            phone_number_required: value.phone_number_required,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedPaymentMethods>
+    for GpayAllowedPaymentMethods
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayAllowedPaymentMethods,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_type: value.payment_method_type,
+            parameters: value
+                .parameters
+                .map(GpayAllowedMethodsParameters::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing GpayAllowedPaymentMethods parameters")?,
+            tokenization_specification: value
+                .tokenization_specification
+                .map(GpayTokenizationSpecification::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing GpayAllowedPaymentMethods tokenization_specification")?,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedMethodsParameters>
+    for GpayAllowedMethodsParameters
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayAllowedMethodsParameters,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            allowed_auth_methods: value.allowed_auth_methods,
+            allowed_card_networks: value.allowed_card_networks,
+            billing_address_required: value.billing_address_required,
+            billing_address_parameters: value
+                .billing_address_parameters
+                .map(GpayBillingAddressParameters::foreign_try_from)
+                .transpose()?,
+            assurance_details_required: value.assurance_details_required,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayBillingAddressParameters>
+    for GpayBillingAddressParameters
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayBillingAddressParameters,
+    ) -> Result<Self, Self::Error> {
+        let format = GpayBillingAddressFormat::foreign_try_from(value.format())?;
+        Ok(Self {
+            phone_number_required: value.phone_number_required,
+            format,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayTokenizationSpecification>
+    for GpayTokenizationSpecification
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        value: payments_grpc::GpayTokenizationSpecification,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token_specification_type: value.token_specification_type,
+            parameters: value
+                .parameters
+                .map(GpayTokenParameters::foreign_try_from)
+                .transpose()?
+                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .attach_printable("Missing GpayTokenizationSpecification parameters")?,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayTokenParameters> for GpayTokenParameters {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::GpayTokenParameters) -> Result<Self, Self::Error> {
+        Ok(Self {
+            gateway: value.gateway,
+            gateway_merchant_id: value.gateway_merchant_id,
+            stripe_version: None,
+            stripe_publishable_key: None,
+            protocol_version: value.protocol_version,
+            public_key: value.public_key.map(|pk| pk.expose().into()),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTransactionInfo {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::GpayTransactionInfo) -> Result<Self, Self::Error> {
+        let currency_code = common_enums::Currency::foreign_try_from(value.currency_code())?;
+        let country_code = common_enums::CountryAlpha2::foreign_try_from(value.country_code())?;
+        let minor_total_price = MinorUnit::new(value.total_price);
+        let required_amount_type = StringMajorUnitForConnector;
+
+        let total_price = required_amount_type
+            .convert(minor_total_price, currency_code)
+            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .attach_printable("Response amount conversion failed")?;
+
+        Ok(Self {
+            country_code,
+            currency_code,
+            total_price_status: value.total_price_status,
+            total_price,
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -3486,6 +4187,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
+            merchant_account_metadata: HashMap::new(),
             state: None,
         })
     }
