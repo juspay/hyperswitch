@@ -625,7 +625,6 @@ where
                                         payment_method_create_request,
                                         &card,
                                         &customer_id,
-                                        api::enums::LockerChoice::HyperswitchCardVault,
                                         Some(
                                             existing_pm
                                                 .locker_id

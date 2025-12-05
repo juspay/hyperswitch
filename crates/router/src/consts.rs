@@ -112,6 +112,9 @@ pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
 pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+pub const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+pub const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+pub const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 

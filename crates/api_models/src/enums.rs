@@ -443,11 +443,6 @@ pub enum RetryAction {
     Requeue,
 }
 
-#[derive(Clone, Copy)]
-pub enum LockerChoice {
-    HyperswitchCardVault,
-}
-
 #[derive(
     Clone,
     Copy,
