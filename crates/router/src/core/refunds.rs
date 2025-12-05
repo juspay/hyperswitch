@@ -102,21 +102,21 @@ pub async fn refund_create_core(
             .unwrap_or(MinorUnit::zero());
         let requested_amount = req.amount.unwrap_or(MinorUnit::zero());
 
-        // Block refund if requested amount exceeds total disputed amount
-        utils::when(requested_amount.ge(&current_total_disputed_amount), || {
+        // Block refund if requested refund amount exceeds total disputed amount
+        utils::when(requested_amount > current_total_disputed_amount, || {
             Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: "amount".to_string(),
-                    expected_format: format!(
-                        "refund amount must be less than disputed amount ({})",
-                        current_total_disputed_amount.get_amount_as_i64()
-                    ),
-                })
-                .attach_printable(
-                    "refund not allowed because amount is greater than or equal to total disputed amount",
-                ))
+                field_name: "amount".to_string(),
+                expected_format: format!(
+                    "refund amount must be less than or equal to disputed amount ({})",
+                    current_total_disputed_amount.get_amount_as_i64()
+                ),
+            })
+            .attach_printable(
+                "refund not allowed because amount is greater than or equal to total disputed amount",
+            ))
         })?;
 
-        // Block refund if total disputed amount + total refunded amount + requested refund amount >= amount captured
+        // Block refund if total disputed amount + total refunded amount + requested refund amount > amount captured
         if let Some(amount_captured) = payment_intent.amount_captured {
             utils::when(
                 (current_total_disputed_amount + total_refunded_amount + requested_amount)
@@ -1381,10 +1381,12 @@ pub async fn validate_and_create_refund(
                         .transpose()?
                         .unwrap_or_default();
 
-                current_state.total_refunded_amount = current_state
-                    .total_refunded_amount
-                    .map(|amount| amount + updated_refund_data.refund_amount)
-                    .or(Some(updated_refund_data.refund_amount));
+                if updated_refund_data.refund_status == enums::RefundStatus::Success {
+                    current_state.total_refunded_amount = current_state
+                        .total_refunded_amount
+                        .map(|amount| amount + updated_refund_data.refund_amount)
+                        .or(Some(updated_refund_data.refund_amount));
+                }
 
                 let domain_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
                     state_metadata: serde_json::to_value(current_state)

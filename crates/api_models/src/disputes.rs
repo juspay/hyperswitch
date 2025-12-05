@@ -249,7 +249,7 @@ pub struct DisputeRetrieveRequest {
     pub dispute_id: String,
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
-    /// If enabled provides list of refunds linked to payment intent
+    /// If enabled provides refunded_amount and disputed_amount linked to the payment intent
     pub expand_all: Option<bool>,
 }
 
@@ -263,7 +263,7 @@ pub struct DisputesAggregateResponse {
 pub struct DisputeRetrieveBody {
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
-    /// If enabled provides list of refunds linked to payment intent
+    /// If enabled provides refunded_amount and disputed_amount linked to the payment intent
     pub expand_all: Option<bool>,
 }
 
