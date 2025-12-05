@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.05.0
+
+### Features
+
+- **connector:**
+  - [WorldpayWPG] Add google pay - connector decryption flow ([#10460](https://github.com/juspay/hyperswitch/pull/10460)) ([`b52ef44`](https://github.com/juspay/hyperswitch/commit/b52ef44525deb0e7600594756d32b2e64731fd78))
+  - [WorldpayXML] Implement webhooks for payments and refunds ([#10496](https://github.com/juspay/hyperswitch/pull/10496)) ([`4a078ee`](https://github.com/juspay/hyperswitch/commit/4a078ee545117c5a655db900fa727b919db16c12))
+  - Introduce Connector Customer Flow and Optional Billing Address Support ([#10499](https://github.com/juspay/hyperswitch/pull/10499)) ([`0582129`](https://github.com/juspay/hyperswitch/commit/0582129b0b34008fe66cd07ba02ef7360eff83dc))
+- **router:** Add modified_at field to Payments List Response ([#10492](https://github.com/juspay/hyperswitch/pull/10492)) ([`e367fc0`](https://github.com/juspay/hyperswitch/commit/e367fc0b5cb9c6ab0b160f1084bb914a4e492415))
+
+### Bug Fixes
+
+- **UCS:** Bugs related to UCS granular flow ([#10525](https://github.com/juspay/hyperswitch/pull/10525)) ([`dfa4954`](https://github.com/juspay/hyperswitch/commit/dfa4954cd9e816ecd3c10ab462ed38d807944d31))
+- **authentication:** Made mcc optional for session call in click to pay flow ([#10507](https://github.com/juspay/hyperswitch/pull/10507)) ([`a49e6b2`](https://github.com/juspay/hyperswitch/commit/a49e6b286f6e6b97e26f50f9115167f4e3961184))
+- **connector:** Fix Dwolla Error Handling ([#10344](https://github.com/juspay/hyperswitch/pull/10344)) ([`22a9357`](https://github.com/juspay/hyperswitch/commit/22a935789b39bd8919f381cc452e788a390c5c02))
+- **connectors:** [stripe] correct metadata serialization to avoid duplicate quoting ([#10537](https://github.com/juspay/hyperswitch/pull/10537)) ([`a4b55b4`](https://github.com/juspay/hyperswitch/commit/a4b55b4ddf811a742958c254c9dc03648862044c))
+- **diesel_models:** Enforce default for custom_serde fields also fix drainer session_id threading ([#10480](https://github.com/juspay/hyperswitch/pull/10480)) ([`6db0995`](https://github.com/juspay/hyperswitch/commit/6db099580cfd0b536d4cf451f866c8f272bfa4ad))
+
+### Refactors
+
+- **connector:** Rename field in required field for Loonio and Gigadat ([#10516](https://github.com/juspay/hyperswitch/pull/10516)) ([`51705b7`](https://github.com/juspay/hyperswitch/commit/51705b7b5836774e4926b91e19207a98c9df6137))
+
+**Full Changelog:** [`2025.12.04.0...2025.12.05.0`](https://github.com/juspay/hyperswitch/compare/2025.12.04.0...2025.12.05.0)
+
+- - -
+
 ## 2025.12.04.0
 
 ### Features
