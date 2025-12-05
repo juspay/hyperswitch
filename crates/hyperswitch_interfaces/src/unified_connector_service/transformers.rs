@@ -149,6 +149,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Cancel from gRPC Server
     #[error("Failed to perform Cancel from gRPC Server")]
     PaymentCancelFailure,
+
+    /// Failed to perform Sdk Session Token from gRPC Server
+    #[error("Failed to perform Sdk Session Token from gRPC Server")]
+    SdkSessionTokenFailure,
 }
 
 /// UCS Webhook transformation status

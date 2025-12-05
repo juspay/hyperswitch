@@ -5,6 +5,7 @@ pub mod create_customer_gateway;
 pub mod create_order_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod psync_gateway;
+pub mod session_gateway;
 pub mod session_token_gateway;
 pub mod setup_mandate;
 use std::sync;

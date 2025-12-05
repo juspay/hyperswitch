@@ -247,7 +247,7 @@ pub async fn trigger_refund_to_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -870,7 +870,7 @@ pub async fn sync_refund_with_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
