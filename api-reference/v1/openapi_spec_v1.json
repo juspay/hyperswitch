@@ -26624,7 +26624,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer\nThe identifier for the customer",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -27133,7 +27133,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer\nThe identifier for the customer",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -28627,7 +28627,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer\nThe identifier for the customer",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -30080,7 +30080,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer\nThe identifier for the customer",
+            "description": "The identifier for the customer",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
