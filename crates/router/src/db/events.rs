@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
+use futures::future::try_join_all;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -221,9 +222,8 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
+            let domain_events = try_join_all(
+                events.into_iter().map(|event| async move {
                     event
                         .convert(
                             self.get_keymanager_state()
@@ -232,9 +232,9 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
-            }
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+            ).await?;
             Ok(domain_events)
         })
         .await
@@ -256,9 +256,8 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
+            let domain_events = try_join_all(
+                events.into_iter().map(|event| async move {
                     event
                         .convert(
                             self.get_keymanager_state()
@@ -267,9 +266,9 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
-            }
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+            ).await?;
             Ok(domain_events)
         })
         .await
@@ -291,9 +290,8 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
+            let domain_events = try_join_all(
+                events.into_iter().map(|event| async move {
                     event
                         .convert(
                             self.get_keymanager_state()
@@ -302,9 +300,9 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
-            }
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+            ).await?;
             Ok(domain_events)
         })
         .await
@@ -371,9 +369,8 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
+            let domain_events = try_join_all(
+                events.into_iter().map(|event| async move {
                     event
                         .convert(
                             self.get_keymanager_state()
@@ -384,9 +381,9 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
-            }
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+            ).await?;
             Ok(domain_events)
         })
         .await
@@ -408,22 +405,19 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let mut domain_events = Vec::with_capacity(events.len());
-            for event in events.into_iter() {
-                domain_events.push(
+            let domain_events = try_join_all(
+                events.into_iter().map(|event| async move {
                     event
                         .convert(
                             self.get_keymanager_state()
                                 .attach_printable("Missing KeyManagerState")?,
                             merchant_key_store.key.get_inner(),
-                            common_utils::types::keymanager::Identifier::Merchant(
-                                merchant_key_store.merchant_id.clone(),
-                            ),
+                            merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
-                );
-            }
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+            ).await?;
             Ok(domain_events)
         })
         .await

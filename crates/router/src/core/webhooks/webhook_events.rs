@@ -95,10 +95,7 @@ pub async fn list_initial_delivery_attempts(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to find event with specified event_id")?;
 
-            let (events, total_count) = match event_opt {
-                Some(event) => (vec![event], 1),
-                None => (vec![], 0),
-            };
+            let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));
             (events, total_count)
         }
         api_models::webhook_events::EventListConstraintsInternal::GenericFilter {
