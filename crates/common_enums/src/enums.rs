@@ -207,6 +207,39 @@ impl AttemptStatus {
         }
     }
 
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
@@ -1886,6 +1919,9 @@ pub enum RecoveryStatus {
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
+    /// The payment has been partially recovered through retry mechanisms,
+    /// and the remaining amount is still being processed by the payment gateway.
+    PartiallyCapturedAndProcessing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
@@ -10100,9 +10136,9 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::RequiresCapture
             | IntentStatus::PartiallyCaptured
             | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
-            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
