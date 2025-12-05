@@ -4,11 +4,14 @@ use diesel::{
     associations::HasTable, BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
 };
 
+use error_stack::ResultExt;
+
 use super::generics;
 use crate::{
     events::{Event, EventNew, EventUpdateInternal},
     schema::events::dsl,
     PgPooledConn, StorageResult,
+    errors::DatabaseError,
 };
 
 impl EventNew {
@@ -70,11 +73,6 @@ impl Event {
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
     ) -> StorageResult<Option<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods};
-        use error_stack::ResultExt;
-
-        use super::generics;
-        use crate::errors::DatabaseError;
 
         let predicate = dsl::merchant_id
             .eq(merchant_id.to_owned())
@@ -180,11 +178,6 @@ impl Event {
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
     ) -> StorageResult<Option<Self>> {
-        use diesel::{BoolExpressionMethods, ExpressionMethods};
-        use error_stack::ResultExt;
-
-        use super::generics;
-        use crate::errors::DatabaseError;
 
         let predicate = dsl::business_profile_id
             .eq(profile_id.to_owned())
