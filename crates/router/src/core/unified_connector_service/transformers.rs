@@ -387,6 +387,13 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        // Populate state with access token if available (same pattern as Authorize flow)
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -395,9 +402,9 @@ impl
             }),
             amount: router_data.request.minor_amount.get_amount_as_i64(),
             currency: currency.into(),
-
             metadata: HashMap::new(),
             webhook_url: None,
+            state,
         })
     }
 }
@@ -846,7 +853,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .transpose()?;
 
         Ok(Self {
-            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
