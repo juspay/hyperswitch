@@ -851,6 +851,19 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .capture_method
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
+        
+
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(Self {
             transaction_id: Some(Identifier {
@@ -883,7 +896,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     capture_reference: multiple_capture_request_data.capture_reference.clone(),
                 },
             ),
-            state: None,
+            merchant_account_metadata,
+            state,
         })
     }
 }
@@ -3464,6 +3478,17 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .currency
             .map(payments_grpc::Currency::foreign_try_from)
             .transpose()?;
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -3492,7 +3517,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
-            state: None,
+            merchant_account_metadata,
+            state,
         })
     }
 }
