@@ -320,7 +320,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state.store.as_ref(),
             platform.get_processor(),
             payment_intent_new,
-            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -340,7 +339,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state.store.as_ref(),
             platform.get_processor(),
             payment_attempt_new,
-            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -352,7 +350,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state.store.as_ref(),
             platform.get_processor(),
             payment_attempt_new,
-            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {

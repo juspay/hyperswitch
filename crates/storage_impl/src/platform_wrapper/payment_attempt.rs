@@ -11,13 +11,12 @@ pub async fn insert_payment_attempt<S>(
     store: &S,
     processor: &Processor,
     payment_attempt: PaymentAttempt,
-    storage_scheme: common_enums::MerchantStorageScheme,
 ) -> CustomResult<PaymentAttempt, StorageError>
 where
     S: PaymentAttemptInterface<Error = StorageError> + ?Sized,
 {
     store
-        .insert_payment_attempt(payment_attempt, storage_scheme, processor.get_key_store())
+        .insert_payment_attempt(payment_attempt, processor.get_account().storage_scheme, processor.get_key_store())
         .await
 }
 
@@ -26,12 +25,11 @@ pub async fn insert_payment_attempt<S>(
     store: &S,
     processor: &Processor,
     payment_attempt: PaymentAttempt,
-    storage_scheme: common_enums::MerchantStorageScheme,
 ) -> CustomResult<PaymentAttempt, StorageError>
 where
     S: PaymentAttemptInterface<Error = StorageError> + ?Sized,
 {
     store
-        .insert_payment_attempt(processor.get_key_store(), payment_attempt, storage_scheme)
+        .insert_payment_attempt(processor.get_key_store(), payment_attempt, processor.get_account())
         .await
 }
