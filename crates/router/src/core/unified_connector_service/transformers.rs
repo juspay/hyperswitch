@@ -3328,7 +3328,7 @@ impl transformers::ForeignTryFrom<&payments_grpc::ThirdPartySdkSessionResponse>
             .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
 
         Ok(Self {
-            secrets: SecretInfoToInitiateSdk::foreign_try_from(&secrets)?,
+            secrets: SecretInfoToInitiateSdk::foreign_try_from(secrets)?,
         })
     }
 }

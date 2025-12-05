@@ -5074,12 +5074,15 @@ where
         )
         .await?;
 
+    // Extract previous gateway from payment data
+    let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
+
     // do order creation
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         platform,
         &router_data,
-        Some(payment_data),
+        previous_gateway,
         call_connector_action.clone(),
         None,
     )
@@ -5235,11 +5238,14 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
+        // Extract previous gateway from payment data
+        let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
+
         let (execution, updated_state) = should_call_unified_connector_service(
             state,
             platform,
             &router_data,
-            Some(payment_data),
+            previous_gateway,
             call_connector_action.clone(),
             None,
         )
@@ -6646,6 +6652,7 @@ where
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn decide_unified_connector_service_call_for_multiple_connectors_service<F, RouterDReq>(
     state: &SessionState,
     connector: &api::ConnectorData,

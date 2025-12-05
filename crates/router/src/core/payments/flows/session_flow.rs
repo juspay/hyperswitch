@@ -1259,6 +1259,7 @@ pub trait RouterDataSession
 where
     Self: Sized,
 {
+    #[allow(clippy::too_many_arguments)]
     async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::SessionState,
