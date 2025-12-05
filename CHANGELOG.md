@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix4
+
+### Features
+
+- **euclid:** Add configs to disable pre-routing for certain specific PMs and PMTs ([#10538](https://github.com/juspay/hyperswitch/pull/10538)) ([`2031919`](https://github.com/juspay/hyperswitch/commit/2031919e65211f4c0943f73d96e853afc7b3c5f4))
+- **router:** Add `encrypted_payment_method_data` to payment_attempt to conditionally persist sensitive additional payment_method_data ([#10524](https://github.com/juspay/hyperswitch/pull/10524)) ([`7e4f4b7`](https://github.com/juspay/hyperswitch/commit/7e4f4b791f997fb8a30df7934a08d8bb0e92612a))
+
+**Full Changelog:** [`2025.11.26.0-hotfix3...2025.11.26.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix3...2025.11.26.0-hotfix4)
+
+- - -
+
 ## 2025.11.26.0-hotfix3
 
 ### Features
