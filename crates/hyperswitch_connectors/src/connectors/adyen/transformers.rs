@@ -2995,7 +2995,11 @@ impl
             .map(AdyenTestingData::try_from)
             .transpose()?;
         let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
-        let holder_name = Some(item.router_data.request.get_card_holder_name_from_additional_payment_method_data()?);
+        let holder_name = Some(
+            item.router_data
+                .request
+                .get_card_holder_name_from_additional_payment_method_data()?,
+        );
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
