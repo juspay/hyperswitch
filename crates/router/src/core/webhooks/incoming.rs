@@ -12,7 +12,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
-    types::{AmountConvertor, StringMinorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
@@ -1911,18 +1911,18 @@ async fn refunds_incoming_webhook_flow(
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
-            Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                state.clone(),
-                platform.clone(),
-                business_profile,
-                outgoing_event_type,
-                enums::EventClass::Refunds,
-                refund_id,
-                enums::EventObjectType::RefundDetails,
-                api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
-                Some(updated_refund.created_at),
-            ))
-            .await?;
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state.clone(),
+            platform.clone(),
+            business_profile,
+            outgoing_event_type,
+            enums::EventClass::Refunds,
+            refund_id,
+            enums::EventObjectType::RefundDetails,
+            api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
+            Some(updated_refund.created_at),
+        ))
+        .await?;
     }
 
     // Update payment_intent for the refund's payment_id
