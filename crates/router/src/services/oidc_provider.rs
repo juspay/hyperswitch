@@ -20,6 +20,7 @@ use url::Url;
 use crate::{
     consts::oidc::{
         AUTH_CODE_LENGTH, AUTH_CODE_TTL_IN_SECS, ID_TOKEN_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX,
+        TOKEN_TYPE_BEARER,
     },
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
@@ -41,9 +42,9 @@ pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcD
 static CACHED_JWKS: OnceCell<JwksResponse> = OnceCell::new();
 /// Build JWKS response with public keys (all keys for token validation)
 pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
-    let jwks = CACHED_JWKS.get_or_try_init(|| {
+    let jwks_response = CACHED_JWKS.get_or_try_init(|| {
         let oidc_keys = state.conf.oidc.get_all_keys();
-        let mut jwks = Vec::new();
+        let mut keys = Vec::new();
 
         for key_config in oidc_keys {
             let (n, e) =
@@ -60,13 +61,13 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
                 e,
             };
 
-            jwks.push(jwk);
+            keys.push(jwk);
         }
 
-        Ok::<_, error_stack::Report<ApiErrorResponse>>(JwksResponse { keys: jwks })
+        Ok::<_, error_stack::Report<ApiErrorResponse>>(JwksResponse { keys })
     })?;
 
-    Ok(ApplicationResponse::Json(jwks.clone()))
+    Ok(ApplicationResponse::Json(jwks_response.clone()))
 }
 
 fn validate_client_id_match(registered_client_id: &str, provided_client_id: &str) -> bool {
@@ -149,7 +150,7 @@ async fn generate_and_store_authorization_code(
     let redis_key = format!("{}{}", REDIS_AUTH_CODE_PREFIX, auth_code);
     redis_conn
         .serialize_and_set_key_with_expiry(
-            &redis_key.into(),
+            &redis_key.as_str().into(),
             &auth_code_data,
             AUTH_CODE_TTL_IN_SECS,
         )
@@ -356,11 +357,11 @@ async fn generate_id_token(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize ID token claims")?;
 
-    let alg = jws::RS256;
+    let signing_algorithm = jws::RS256;
     let mut header = jws::JwsHeader::new();
     header.set_key_id(&signing_key.kid);
 
-    let signer = alg
+    let signer = signing_algorithm
         .signer_from_pem(signing_key.private_key.peek().as_bytes())
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to create JWT signer from private key")?;
@@ -396,7 +397,7 @@ pub async fn process_token_request(
 
     Ok(ApplicationResponse::Json(OidcTokenResponse {
         id_token,
-        token_type: "Bearer".into(),
+        token_type: TOKEN_TYPE_BEARER.to_string(),
         expires_in: ID_TOKEN_TTL_IN_SECS,
     }))
 }
