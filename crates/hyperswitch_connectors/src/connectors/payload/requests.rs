@@ -1,4 +1,4 @@
-use common_utils::types::StringMajorUnit;
+use common_utils::{pii::Email, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -26,15 +26,15 @@ pub enum TransactionTypes {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillingAddress {
     #[serde(rename = "payment_method[billing_address][city]")]
-    pub city: String,
+    pub city: Option<String>,
     #[serde(rename = "payment_method[billing_address][country_code]")]
-    pub country: common_enums::CountryAlpha2,
+    pub country: Option<common_enums::CountryAlpha2>,
     #[serde(rename = "payment_method[billing_address][postal_code]")]
     pub postal_code: Secret<String>,
     #[serde(rename = "payment_method[billing_address][state_province]")]
-    pub state_province: Secret<String>,
+    pub state_province: Option<Secret<String>>,
     #[serde(rename = "payment_method[billing_address][street_address]")]
-    pub street_address: Secret<String>,
+    pub street_address: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -55,6 +55,15 @@ pub struct PayloadPaymentRequestData {
     /// This is true by default
     #[serde(rename = "payment_method[keep_active]")]
     pub keep_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CustomerRequest {
+    pub keep_active: bool,
+    pub email: Email,
+    pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
