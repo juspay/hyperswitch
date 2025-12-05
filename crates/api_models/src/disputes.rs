@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::types::{StringMinorUnit, TimeRange};
+use common_utils::types::{MinorUnit, StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
 use smithy::SmithyModel;
@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{Currency, DisputeStage, DisputeStatus};
-use crate::{admin::MerchantConnectorInfo, files, refunds::RefundResponse};
+use crate::{admin::MerchantConnectorInfo, files};
 
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
@@ -56,9 +56,12 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    /// The list of refunds associated with the dispute
+    /// Shows up the total refunded amount for a payment
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub refunds: Option<Vec<RefundResponse>>,
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_disputed_amount: Option<MinorUnit>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
@@ -247,7 +250,7 @@ pub struct DisputeRetrieveRequest {
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
     /// If enabled provides list of refunds linked to payment intent
-    pub expand_refunds: Option<bool>,
+    pub expand_all: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -261,7 +264,7 @@ pub struct DisputeRetrieveBody {
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
     /// If enabled provides list of refunds linked to payment intent
-    pub expand_refunds: Option<bool>,
+    pub expand_all: Option<bool>,
 }
 
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

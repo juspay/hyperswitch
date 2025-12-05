@@ -2536,9 +2536,28 @@ async fn disputes_incoming_webhook_flow(
                 .await
                 .change_context(subscriptions::errors::ApiErrorResponse::InternalServerError)?;
 
+            let mut current_state: diesel_models::types::PaymentIntentStateMetadata =
+                payment_intent
+                    .state_metadata
+                    .clone()
+                    .map(|metadata| {
+                        serde_json::from_value(metadata)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to deserialize payment intent state metadata")
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+
+            current_state.total_disputed_amount = current_state
+                .total_disputed_amount
+                .map(|amount| amount + dispute_object.dispute_amount)
+                .or(Some(dispute_object.dispute_amount));
+
             let domain_update =
                 hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
-                    state: dispute_object.dispute_status,
+                    state_metadata: serde_json::to_value(current_state)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize payment intent state")?,
                     updated_by: platform
                         .get_processor()
                         .get_account()

@@ -1674,7 +1674,7 @@ impl PaymentCreate {
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
-            state: None,
+            state_metadata: None,
         })
     }
 

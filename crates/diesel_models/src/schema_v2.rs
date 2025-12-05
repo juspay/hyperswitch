@@ -1142,6 +1142,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
+        state_metadata -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1169,7 +1170,6 @@ diesel::table! {
         active_attempts_group_id -> Nullable<Varchar>,
         #[max_length = 16]
         active_attempt_id_type -> Nullable<Varchar>,
-        state -> Nullable<DisputeStatus>
     }
 }
 

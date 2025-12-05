@@ -65,22 +65,23 @@ pub async fn retrieve_dispute(
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
-    let should_expand_refunds = req.expand_refunds.unwrap_or(false);
+    let should_expand_all = req.expand_all.unwrap_or(false);
+    let db = &state.store;
+    #[cfg(feature = "v1")]
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &dispute.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     #[cfg(feature = "v1")]
     let mut dispute_response =
         if should_call_connector_for_dispute_sync(req.force_sync, dispute.dispute_status) {
-            let db = &state.store;
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
-            let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
-                    &dispute.payment_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let payment_attempt = db
                 .find_payment_attempt_by_attempt_id_merchant_id(
@@ -159,23 +160,21 @@ pub async fn retrieve_dispute(
         } else {
             api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
-
     #[cfg(feature = "v1")]
-    if should_expand_refunds {
-        let db = &state.store;
-        let refunds = db
-            .find_refund_by_payment_id_merchant_id(
-                &dispute.payment_id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        dispute_response.refunds =
-            Some(refunds.into_iter().map(ForeignInto::foreign_into).collect());
+    if should_expand_all {
+        let current_state: diesel_models::types::PaymentIntentStateMetadata = payment_intent
+            .state_metadata
+            .clone()
+            .map(|metadata| {
+                serde_json::from_value(metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to deserialize payment intent state metadata")
+            })
+            .transpose()?
+            .unwrap_or_default();
+        dispute_response.total_disputed_amount = current_state.total_disputed_amount;
+        dispute_response.total_refunded_amount = current_state.total_refunded_amount;
     }
-
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
 

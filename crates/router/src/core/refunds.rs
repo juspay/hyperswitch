@@ -87,21 +87,33 @@ pub async fn refund_create_core(
         },
     )?;
 
-    // Block refund when already refunded via chargeback
-    utils::when(
-        payment_intent.state == Some(enums::DisputeStatus::DisputeLost),
-        || {
-            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
-                current_flow: "refund".into(),
-                field_name: "state".into(),
-                current_value: enums::DisputeStatus::DisputeLost.to_string(),
-                states: "refund not allowed due to chargeback".to_string(),
-            })
-            .attach_printable(
-                "refund not possible because customer already got refund via chargeback",
-            ))
-        },
-    )?;
+    // Block refund if amount exceeds total disputed amount
+    if let Some(state_metadata_value) = &payment_intent.state_metadata {
+        let state_metadata: diesel_models::types::PaymentIntentStateMetadata =
+            serde_json::from_value(state_metadata_value.clone())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment_intent.state_metadata")?;
+
+        if let Some(total_disputed_amount) = state_metadata.total_disputed_amount {
+            utils::when(
+                req.amount
+                    .unwrap_or(MinorUnit::zero())
+                    .ge(&total_disputed_amount),
+                || {
+                    Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "amount".to_string(),
+                        expected_format: format!(
+                            "refund amount must be less than disputed amount ({})",
+                            total_disputed_amount.get_amount_as_i64()
+                        ),
+                    })
+                    .attach_printable(
+                        "refund not allowed because amount is greater than or equal to total disputed amount",
+                    ))
+                },
+            )?;
+        }
+    }
 
     // Amount is not passed in request refer from payment intent.
     amount = req
@@ -1309,37 +1321,82 @@ pub async fn validate_and_create_refund(
         processor_refund_data: None,
     };
 
-    let (refund, raw_connector_response) = match db
-        .insert_refund(
-            refund_create_req,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-    {
-        Ok(refund) => {
-            Box::pin(schedule_refund_execution(
-                state,
-                refund.clone(),
-                refund_type,
-                platform,
-                payment_attempt,
-                payment_intent,
-                creds_identifier,
-                split_refunds,
-                req.all_keys_required,
-            ))
-            .await?
-        }
-        Err(err) => {
-            if err.current_context().is_db_unique_violation() {
-                Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
-            } else {
-                return Err(err)
-                    .change_context(errors::ApiErrorResponse::RefundNotFound)
-                    .attach_printable("Inserting Refund failed");
+    let (refund, raw_connector_response) = {
+        let insert_result = db
+            .insert_refund(
+                refund_create_req,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await;
+
+        match insert_result {
+            Ok(initial_refund) => {
+                let (updated_refund_data, raw_connector_response) =
+                    Box::pin(schedule_refund_execution(
+                        state,
+                        initial_refund.clone(),
+                        refund_type,
+                        platform,
+                        payment_attempt,
+                        payment_intent,
+                        creds_identifier,
+                        split_refunds,
+                        req.all_keys_required,
+                    ))
+                    .await?;
+
+                let mut current_state: diesel_models::types::PaymentIntentStateMetadata =
+                    payment_intent
+                        .state_metadata
+                        .clone()
+                        .map(|metadata| {
+                            serde_json::from_value(metadata)
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "Failed to deserialize payment intent state metadata",
+                                )
+                        })
+                        .transpose()?
+                        .unwrap_or_default();
+
+                current_state.total_refunded_amount = current_state
+                    .total_refunded_amount
+                    .map(|amount| amount + updated_refund_data.refund_amount)
+                    .or(Some(updated_refund_data.refund_amount));
+
+                let domain_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+                    state_metadata: serde_json::to_value(current_state)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize payment intent state")?,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .clone()
+                        .to_string(),
+                };
+                db.update_payment_intent(
+                    payment_intent.clone(),
+                    domain_update,
+                    &platform.get_processor().get_key_store().clone(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                Ok((updated_refund_data, raw_connector_response))
+            }
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
+                    Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
+                } else {
+                    Err(err)
+                        .change_context(errors::ApiErrorResponse::RefundNotFound)
+                        .attach_printable("Inserting Refund failed")
+                }
             }
         }
-    };
+    }?;
     let unified_translated_message = if let (Some(unified_code), Some(unified_message)) =
         (refund.unified_code.clone(), refund.unified_message.clone())
     {
