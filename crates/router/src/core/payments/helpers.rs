@@ -39,7 +39,7 @@ pub use hyperswitch_domain_models::customer;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::{GetPaymentMethodType, PazeWalletData},
+    payment_method_data::{GetPaymentMethodType, NetworkTokenData, PazeWalletData},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
@@ -579,6 +579,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 Some(payment_method_info),
                             )
                         }
+                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
                     }
                 }
                 None => {
@@ -989,25 +998,34 @@ pub fn validate_amount_to_capture_and_capture_method(
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    if let Some(api::PaymentMethodData::Card(card)) = payment_method_data {
-        let cvc = card.card_cvc.peek().to_string();
-        if cvc.len() < 3 || cvc.len() > 4 {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid card_cvc length".to_string()
-            }))?
-        }
-        let card_cvc =
-            cvc.parse::<u16>()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card_cvc",
-                })?;
-        ::cards::CardSecurityCode::try_from(card_cvc).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Card CVC".to_string(),
-            },
-        )?;
+    match payment_method_data {
+        Some(api::PaymentMethodData::Card(card)) => {
+            let cvc = card.card_cvc.peek().to_string();
+            if cvc.len() < 3 || cvc.len() > 4 {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid card_cvc length".to_string()
+                }))?
+            }
+            let card_cvc =
+                cvc.parse::<u16>()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "card_cvc",
+                    })?;
+            ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid Card CVC".to_string(),
+                },
+            )?;
 
-        validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+            validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+        }
+        Some(api::PaymentMethodData::NetworkToken(network_token)) => {
+            validate_card_expiry(
+                &network_token.token_exp_month,
+                &network_token.token_exp_year,
+            )?;
+        }
+        _ => (),
     }
     Ok(())
 }
@@ -1305,7 +1323,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
     match recurring_details {
         RecurringDetails::ProcessorPaymentToken(_)
-        | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
@@ -2663,7 +2682,7 @@ pub async fn fetch_network_token_details_from_locker(
     merchant_id: &id_type::MerchantId,
     network_token_locker_id: &str,
     network_transaction_data: api_models::payments::NetworkTokenWithNTIRef,
-) -> RouterResult<domain::NetworkTokenData> {
+) -> RouterResult<NetworkTokenData> {
     let mut token_data =
         cards::get_card_from_locker(state, customer_id, merchant_id, network_token_locker_id)
             .await
@@ -2689,8 +2708,8 @@ pub async fn fetch_network_token_details_from_locker(
         .ok()
         .flatten();
 
-    let network_token_data = domain::NetworkTokenData {
-        token_number: token_data.card_number,
+    let network_token_data = NetworkTokenData {
+        token_number: token_data.card_number.into(),
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
@@ -5514,7 +5533,18 @@ pub async fn get_additional_payment_data(
                 details: Some(mobile_payment.to_owned().into()),
             },
         )),
-        domain::PaymentMethodData::NetworkToken(_) => Ok(None),
+        domain::PaymentMethodData::NetworkToken(network_token_data) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                network_token_data.to_owned().into(),
+            )),
+        )),
+        domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+            network_token_with_ntid,
+        ) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                network_token_with_ntid.to_owned().into(),
+            )),
+        )),
     }
 }
 
@@ -6737,7 +6767,8 @@ pub fn get_key_params_for_surcharge_details(
         )),
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
-        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
+        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
 
