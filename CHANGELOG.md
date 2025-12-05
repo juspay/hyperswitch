@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix1
+
+### Refactors
+
+- **connector:** Rename field in required field for Loonio and Gigadat ([#10535](https://github.com/juspay/hyperswitch/pull/10535)) ([`d07d958`](https://github.com/juspay/hyperswitch/commit/d07d958bd8819dc3f9d0093002bbdb3a2a5a4bc4))
+
+**Full Changelog:** [`2025.12.03.0...2025.12.03.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0...2025.12.03.0-hotfix1)
+
+- - -
+
 ## 2025.12.03.0
 
 ### Features
