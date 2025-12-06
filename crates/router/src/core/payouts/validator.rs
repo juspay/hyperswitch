@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use actix_web::http::header;
+use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::{
@@ -24,7 +25,10 @@ use crate::{
     db::StorageInterface,
     errors::StorageError,
     routes::SessionState,
-    types::{api::payouts, domain, storage},
+    types::{
+        api::{payouts, routing::api_enums},
+        domain, storage,
+    },
     utils,
     utils::OptionExt,
 };
@@ -60,12 +64,37 @@ pub async fn validate_create_request(
     _req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
     String,
-    Option<payouts::PayoutMethodData>,
+    Option<PayoutMethodData>,
     String,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
     todo!()
+}
+
+/// Validates if the payout_type and payout_method_data belong to the same type
+/// - payout_type: Type of the payout (Card, Bank, Wallet, BankRedirect)
+/// - payout_method_data: Data related to the payout method
+///   Bypass happens if the payout_type is None or payout_method_data is `Passthrough`
+#[cfg(feature = "v1")]
+async fn validate_payout_type_and_method(
+    payout_type: Option<api_enums::PayoutType>,
+    payout_method_data: &Option<PayoutMethodData>,
+) -> RouterResult<()> {
+    match (payout_type, payout_method_data) {
+        (Some(api_enums::PayoutType::Card), Some(PayoutMethodData::Card(_))) => Ok(()),
+        (Some(api_enums::PayoutType::Bank), Some(PayoutMethodData::Bank(_))) => Ok(()),
+        (Some(api_enums::PayoutType::Wallet), Some(PayoutMethodData::Wallet(_))) => Ok(()),
+        (Some(api_enums::PayoutType::BankRedirect), Some(PayoutMethodData::BankRedirect(_))) => {
+            Ok(())
+        }
+        (_, Some(PayoutMethodData::Passthrough(_))) => Ok(()),
+        (None, _) => Ok(()),
+        _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payout method data and payout type do not belong to the same type"
+                .to_string(),
+        })),
+    }
 }
 
 /// Validates the request on below checks
@@ -79,7 +108,7 @@ pub async fn validate_create_request(
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
     id_type::PayoutId,
-    Option<payouts::PayoutMethodData>,
+    Option<PayoutMethodData>,
     id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
@@ -113,6 +142,14 @@ pub async fn validate_create_request(
         Some(provided_payout_id) => provided_payout_id.clone(),
         None => id_type::PayoutId::generate(),
     };
+
+    // validating the payout type and method data here.
+    #[cfg(feature = "v1")]
+    validate_payout_type_and_method(req.payout_type, &req.payout_method_data)
+        .await
+        .attach_printable_lazy(|| {
+            "Validation failed: Payout type and Payout method data mismatch".to_string()
+        })?;
 
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
@@ -252,7 +289,7 @@ pub async fn validate_create_request(
                 .await?
                 {
                     Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        (Some(card), _) => Ok(Some(PayoutMethodData::Card(
                             api_models::payouts::CardPayout {
                                 card_number: card.card_number.get_required_value("card_number")?,
                                 card_holder_name: card.card_holder_name,
@@ -263,7 +300,7 @@ pub async fn validate_create_request(
                                 card_network: card.card_network.clone(),
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        (_, Some(bank)) => Ok(Some(PayoutMethodData::Bank(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),
