@@ -177,6 +177,7 @@ pub struct PaymentAttemptBatchNew {
     pub payment_experience: Option<PaymentExperience>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub payment_method_data: Option<serde_json::Value>,
+    pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
@@ -211,6 +212,7 @@ pub struct PaymentAttemptBatchNew {
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub tokenization: Option<common_enums::Tokenization>,
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
@@ -271,6 +273,7 @@ impl PaymentAttemptBatchNew {
                 .and_then(|network| network.as_str())
                 .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
+            encrypted_payment_method_data: self.encrypted_payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
@@ -315,6 +318,7 @@ impl PaymentAttemptBatchNew {
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
+            tokenization: self.tokenization,
         }
     }
 }

@@ -21,8 +21,8 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            self, GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionInvoiceData, SubscriptionLineItem, SubscriptionPauseResponse,
             SubscriptionResumeResponse, SubscriptionStatus,
         },
@@ -1018,20 +1018,20 @@ convert_connector_response_to_domain_response!(
 
 convert_connector_response_to_domain_response!(
     ChargebeeListPlansResponse,
-    GetSubscriptionPlansResponse,
+    GetSubscriptionItemsResponse,
     |item: ResponseRouterData<_, ChargebeeListPlansResponse, _, _>| {
         let plans = item
             .response
             .list
             .into_iter()
-            .map(|plan| subscriptions::SubscriptionPlans {
-                subscription_provider_plan_id: plan.item.id,
+            .map(|plan| subscriptions::SubscriptionItems {
+                subscription_provider_item_id: plan.item.id,
                 name: plan.item.name,
                 description: plan.item.description,
             })
             .collect();
         Ok(Self {
-            response: Ok(GetSubscriptionPlansResponse { list: plans }),
+            response: Ok(GetSubscriptionItemsResponse { list: plans }),
             ..item.data
         })
     }
@@ -1221,15 +1221,15 @@ pub enum ChargebeeTrialPeriodUnit {
 
 convert_connector_response_to_domain_response!(
     ChargebeeGetPlanPricesResponse,
-    GetSubscriptionPlanPricesResponse,
+    GetSubscriptionItemPricesResponse,
     |item: ResponseRouterData<_, ChargebeeGetPlanPricesResponse, _, _>| {
         let plan_prices = item
             .response
             .list
             .into_iter()
-            .map(|prices| subscriptions::SubscriptionPlanPrices {
+            .map(|prices| subscriptions::SubscriptionItemPrices {
                 price_id: prices.item_price.id,
-                plan_id: prices.item_price.item_id,
+                item_id: prices.item_price.item_id,
                 amount: prices.item_price.price,
                 currency: prices.item_price.currency_code,
                 interval: match prices.item_price.period_unit {
@@ -1248,7 +1248,7 @@ convert_connector_response_to_domain_response!(
             })
             .collect();
         Ok(Self {
-            response: Ok(GetSubscriptionPlanPricesResponse { list: plan_prices }),
+            response: Ok(GetSubscriptionItemPricesResponse { list: plan_prices }),
             ..item.data
         })
     }
