@@ -149,7 +149,7 @@ pub async fn validate_create_request(
     let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        platform,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         &*state.store,
         false,

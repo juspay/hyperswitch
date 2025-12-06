@@ -1353,7 +1353,6 @@ mod tests {
             business_label: None,
             business_sub_label: None,
             allowed_payment_method_types: None,
-            ephemeral_key: None,
             manual_retry_allowed: None,
             connector_transaction_id: None,
             frm_message: None,

@@ -4281,9 +4281,8 @@ pub async fn list_customer_payment_method(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         profile_id.as_ref(),
-        platform.get_processor().get_account().get_id(),
     )
     .await?;
 

@@ -76,7 +76,7 @@ pub async fn generate_sample_data(
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
             business_country_default,
             business_label_default.as_ref(),
-            &platform,
+            platform.get_processor(),
             req.profile_id.as_ref(),
             &*state.store,
             false,
