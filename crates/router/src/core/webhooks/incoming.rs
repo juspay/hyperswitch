@@ -108,6 +108,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     let api_event = ApiEventsType::Webhooks {
         connector: connector_name_or_mca_id.to_string(),
         payment_id: webhooks_response_tracker.get_payment_id(),
+        refund_id: webhooks_response_tracker.get_refund_id(),
     };
     let response_value = serde_json::to_value(&webhooks_response_tracker)
         .change_context(errors::ApiErrorResponse::InternalServerError)

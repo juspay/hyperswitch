@@ -53,6 +53,9 @@ where
                         Flow::AttachDisputeEvidence,
                         Flow::RetrieveDisputeEvidence,
                         Flow::IncomingWebhookReceive,
+                        Flow::PaymentMethodsList,
+                        Flow::CustomerPaymentMethodsList,
+                        Flow::PaymentsSessionToken,
                     ],
                 )
                 .switch()?;
@@ -68,7 +71,14 @@ where
                 .add_filter_clause("refund_id", refund_id)
                 .switch()?;
             query_builder
-                .add_filter_in_range_clause("api_flow", &[Flow::RefundsCreate, Flow::RefundsUpdate])
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::RefundsCreate,
+                        Flow::RefundsUpdate,
+                        Flow::IncomingWebhookReceive,
+                    ],
+                )
                 .switch()?;
         }
         QueryType::Dispute {
