@@ -1910,7 +1910,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             retrieve_payment_method_from_vault_external(
                 state,
-                platform.get_processor().get_account(),
+                platform.get_provider().get_account(),
                 pm,
                 merchant_connector_account,
             )
@@ -2092,7 +2092,7 @@ pub async fn delete_payment_method_data_from_vault(
 
             delete_payment_method_data_from_vault_external(
                 state,
-                platform.get_processor().get_account(),
+                platform.get_provider().get_account(),
                 merchant_connector_account,
                 vault_id.clone(),
                 &pm.customer_id,

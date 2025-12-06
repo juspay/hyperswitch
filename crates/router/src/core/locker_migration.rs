@@ -165,7 +165,7 @@ pub async fn call_to_locker(
 
         let add_card_result = cards::PmCards{
             state,
-            platform,
+            provider: platform.get_provider(),
         }.add_card_hs(
                 pm_create,
                 &card_details,

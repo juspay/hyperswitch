@@ -573,14 +573,15 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
+        let platform = domain::Platform::new(
+            self.merchant_account.clone(),
+            self.key_store.clone(),
+            self.merchant_account.clone(),
+            self.key_store.clone(),
+        );
         PmCards {
             state: self.state,
-            platform: &domain::Platform::new(
-                self.merchant_account.clone(),
-                self.key_store.clone(),
-                self.merchant_account.clone(),
-                self.key_store.clone(),
-            ),
+            provider: platform.get_provider(),
         }
         .create_payment_method(
             &payment_method_create,

@@ -2884,7 +2884,7 @@ async fn update_additional_payment_method_data(
 
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
-        platform.clone(),
+        platform.get_provider().clone(),
         payment_method_update,
         &payment_method_id,
         Some(pm),
