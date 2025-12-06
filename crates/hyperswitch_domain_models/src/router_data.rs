@@ -85,6 +85,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+    pub payout_id: Option<String>,
 
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
