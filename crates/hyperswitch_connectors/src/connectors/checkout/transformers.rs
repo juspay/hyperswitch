@@ -366,8 +366,8 @@ pub struct CheckoutLineItem {
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutBillingDescriptor {
-    pub name: Option<Secret<String>>,
-    pub city: Option<Secret<String>>,
+    pub name: Secret<String>,
+    pub city: Secret<String>,
     pub reference: Option<String>,
 }
 
@@ -864,15 +864,31 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
         let billing_descriptor =
-            item.router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(|descriptor| CheckoutBillingDescriptor {
-                    name: descriptor.name.clone(),
-                    city: descriptor.city.clone(),
+            if let Some(descriptor) = item.router_data.request.billing_descriptor.as_ref() {
+                if descriptor.name.is_none() && descriptor.city.is_none() {
+                    return Err(errors::ConnectorError::MissingRequiredFields {
+                        field_names: vec!["billing_descriptor.name", "billing_descriptor.city"],
+                    }
+                    .into());
+                }
+                let name = descriptor.name.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_descriptor.name",
+                    },
+                )?;
+                let city = descriptor.city.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_descriptor.city",
+                    },
+                )?;
+                Some(CheckoutBillingDescriptor {
+                    name,
+                    city,
                     reference: descriptor.reference.clone(),
-                });
+                })
+            } else {
+                None
+            };
 
         let request = Self {
             source: source_var,
