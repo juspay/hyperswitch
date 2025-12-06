@@ -3616,6 +3616,7 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -4175,6 +4176,7 @@ pub enum BankRedirectData {
         #[smithy(value_type = "String")]
         provider: String,
     },
+    OpenBanking {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -4291,7 +4293,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
             | Self::Blik { .. }
-            | Self::Eft { .. } => None,
+            | Self::Eft { .. }
+            | Self::OpenBanking { .. } => None,
         }
     }
 }

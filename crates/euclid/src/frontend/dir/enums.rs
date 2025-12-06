@@ -173,6 +173,7 @@ pub enum BankRedirectType {
     OpenBankingUk,
     Przelewy24,
     Trustly,
+    OpenBanking,
 }
 
 #[derive(
