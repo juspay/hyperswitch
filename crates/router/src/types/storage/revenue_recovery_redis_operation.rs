@@ -579,6 +579,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         token_data: PaymentProcessorTokenStatus,
+        is_account_updater: bool
     ) -> CustomResult<bool, errors::StorageError> {
         let mut token_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
@@ -614,7 +615,9 @@ impl RedisTokenManager {
                 }
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
-                existing_token.is_active = token_data.is_active;
+                if is_account_updater {
+                    existing_token.is_active = token_data.is_active;
+                }
 
                 existing_token
                     .modified_at
@@ -1329,6 +1332,7 @@ impl AccountUpdaterAction {
                     state,
                     customer_id,
                     updated_token,
+                    true
                 )
                 .await?;
 
@@ -1375,7 +1379,7 @@ impl AccountUpdaterAction {
                     decision_threshold: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
+                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token, true)
                     .await?;
                 logger::info!("Successfully updated token with new token information.")
             }
@@ -1426,6 +1430,7 @@ impl AccountUpdaterAction {
                     state,
                     customer_id,
                     updated_token,
+                    true
                 )
                 .await?;
 
