@@ -974,7 +974,7 @@ impl RevenueRecoveryAttempt {
             state,
             &connector_customer_id,
             token_unit,
-            false
+            false,
         )
         .await
         .change_context(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed)
