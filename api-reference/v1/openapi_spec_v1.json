@@ -7755,14 +7755,14 @@
         ]
       }
     },
-    "/subscriptions/plans": {
+    "/subscriptions/items": {
       "get": {
         "tags": [
           "Subscriptions"
         ],
-        "summary": "Subscription - Get Plans",
-        "description": "Retrieves available subscription plans.",
-        "operationId": "Get Subscription Plans",
+        "summary": "Subscription - Get Items",
+        "description": "Retrieves available subscription items.",
+        "operationId": "Get Subscription Items",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -7776,7 +7776,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Number of plans to retrieve",
+            "description": "Number of items to retrieve",
             "required": false,
             "schema": {
               "type": "integer",
@@ -7788,7 +7788,7 @@
           {
             "name": "offset",
             "in": "query",
-            "description": "Number of plans to skip",
+            "description": "Number of items to skip",
             "required": false,
             "schema": {
               "type": "integer",
@@ -7806,17 +7806,26 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "item_type",
+            "in": "query",
+            "description": "Filter by subscription item type plan or addon",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SubscriptionItemType"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "List of available subscription plans",
+            "description": "List of available subscription items",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/GetPlansResponse"
+                    "$ref": "#/components/schemas/GetSubscriptionItemsResponse"
                   }
                 }
               }
@@ -14285,7 +14294,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -14314,7 +14322,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -18986,8 +18995,11 @@
           }
         }
       },
-      "GetPlansQuery": {
+      "GetSubscriptionItemsQuery": {
         "type": "object",
+        "required": [
+          "item_type"
+        ],
         "properties": {
           "client_secret": {
             "type": "string",
@@ -19005,18 +19017,21 @@
             "format": "int32",
             "nullable": true,
             "minimum": 0
+          },
+          "item_type": {
+            "$ref": "#/components/schemas/SubscriptionItemType"
           }
         }
       },
-      "GetPlansResponse": {
+      "GetSubscriptionItemsResponse": {
         "type": "object",
         "required": [
-          "plan_id",
+          "item_id",
           "name",
           "price_id"
         ],
         "properties": {
-          "plan_id": {
+          "item_id": {
             "type": "string"
           },
           "name": {
@@ -19029,7 +19044,7 @@
           "price_id": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SubscriptionPlanPrices"
+              "$ref": "#/components/schemas/SubscriptionItemPrices"
             }
           }
         }
@@ -20135,6 +20150,7 @@
           "partially_captured",
           "partially_captured_and_capturable",
           "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
           "conflicted",
           "expired"
         ]
@@ -21460,15 +21476,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountId": {
         "type": "string",
@@ -27637,6 +27646,13 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -29195,6 +29211,13 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp indicating when this payment intent was created, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
@@ -36175,6 +36198,58 @@
         "type": "string",
         "description": "A type for subscription_id that can be used for subscription ids"
       },
+      "SubscriptionItemPrices": {
+        "type": "object",
+        "required": [
+          "price_id",
+          "amount",
+          "currency",
+          "interval",
+          "interval_count"
+        ],
+        "properties": {
+          "price_id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/PeriodUnit"
+          },
+          "interval_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trial_period": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "trial_period_unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeriodUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SubscriptionItemType": {
+        "type": "string",
+        "enum": [
+          "plan",
+          "addon"
+        ]
+      },
       "SubscriptionLineItem": {
         "type": "object",
         "required": [
@@ -36208,51 +36283,6 @@
             "type": "integer",
             "format": "int64",
             "description": "Quantity of the line item."
-          }
-        }
-      },
-      "SubscriptionPlanPrices": {
-        "type": "object",
-        "required": [
-          "price_id",
-          "amount",
-          "currency",
-          "interval",
-          "interval_count"
-        ],
-        "properties": {
-          "price_id": {
-            "type": "string"
-          },
-          "plan_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "interval": {
-            "$ref": "#/components/schemas/PeriodUnit"
-          },
-          "interval_count": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "trial_period": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "trial_period_unit": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PeriodUnit"
-              }
-            ],
-            "nullable": true
           }
         }
       },

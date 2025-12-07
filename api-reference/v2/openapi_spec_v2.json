@@ -4659,6 +4659,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8844,7 +8852,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -8873,7 +8880,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -13814,6 +13822,7 @@
           "partially_captured",
           "partially_captured_and_capturable",
           "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
           "conflicted",
           "expired"
         ]
@@ -14745,15 +14754,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
@@ -17419,6 +17421,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19314,14 +19324,12 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -19371,7 +19379,6 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id",
           "expires_at",
           "client_secret"
         ],
@@ -19383,7 +19390,8 @@
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "billing": {
             "allOf": [

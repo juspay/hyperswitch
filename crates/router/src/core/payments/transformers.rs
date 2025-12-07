@@ -460,7 +460,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         mit_category: None,
         tokenization: None,
         payment_channel: None,
-        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(
+            payment_data.payment_intent.enable_partial_authorization,
+        ),
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
@@ -2238,7 +2240,7 @@ where
         frm_metadata: payment_intent.frm_metadata.clone(),
         request_external_three_ds_authentication: payment_intent
             .request_external_three_ds_authentication,
-        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         card_attached,
     }
 }
@@ -2639,7 +2641,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
-                enable_partial_authorization: payment_intent.enable_partial_authorization,
+                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
             },
             vec![],
         )))
@@ -3310,8 +3312,7 @@ where
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data
                 .get_payment_attempt()
-                .payment_method_data
-                .clone()
+                .check_and_get_payment_method_data_based_on_encryption_strategy()
                 .map(|data| data.parse_value("payment_method_data"))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -3477,8 +3478,7 @@ where
         .unwrap_or("".to_owned());
     let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
         payment_attempt
-            .payment_method_data
-            .clone()
+            .check_and_get_payment_method_data_based_on_encryption_strategy()
             .and_then(|data| match data {
                 serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
                 _ => Some(data.parse_value("AdditionalPaymentData")),
@@ -3886,6 +3886,7 @@ where
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
+            modified_at: Some(payment_intent.modified_at),
             currency: currency.to_string(),
             customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),
             customer: customer_details_response,
@@ -4178,6 +4179,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             amount_capturable: pa.amount_capturable,
             client_secret: pi.client_secret.map(|s| s.into()),
             created: Some(pi.created_at),
+            modified_at: Some(pi.modified_at),
             currency: pi.currency.map(|c| c.to_string()).unwrap_or_default(),
             description: pi.description,
             metadata: pi.metadata,
@@ -6396,6 +6398,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
             amount_capturable: amount.get_amount_capturable(),
             shipping_cost: amount.get_shipping_cost(),
             order_tax_amount: amount.get_order_tax_amount(),
+            amount_captured: amount.get_amount_captured(),
         }
     }
 }
@@ -6543,6 +6546,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             surcharge_calculation: amount_details.skip_surcharge_calculation,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
+            amount_captured: amount_details.amount_captured,
         }
     }
 }
