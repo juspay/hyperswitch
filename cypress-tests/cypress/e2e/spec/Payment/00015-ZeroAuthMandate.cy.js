@@ -227,17 +227,13 @@ describe("Card - SingleUse Mandates flow test", () => {
         globalState
       );
 
-      console.log("hello");
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-      console.log(shouldContinue);
     });
 
     it("Confirm Recurring Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SaveCardConfirmAutoCaptureOffSession"];
-
-      console.log(data);
 
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,
