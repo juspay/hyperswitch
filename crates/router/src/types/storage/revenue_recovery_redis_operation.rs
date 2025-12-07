@@ -1375,12 +1375,8 @@ impl AccountUpdaterAction {
                     decision_threshold: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(
-                    state,
-                    customer_id,
-                    new_token,
-                )
-                .await?;
+                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
+                    .await?;
                 logger::info!("Successfully updated token with new token information.")
             }
             Self::ExpiryUpdate(updated_mandate_details) => {
