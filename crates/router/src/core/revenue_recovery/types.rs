@@ -582,7 +582,7 @@ impl Action {
                             state,
                             &connector_customer_id,
                             &error_code,
-                            &is_expiry_update.map(|_| true).or(is_hard_decline),
+                            &is_expiry_update.map(|is_expiry| is_expiry.then(|| false)).or(is_hard_decline).flatten(),
                             Some(&scheduled_token
                                 .payment_processor_token_details
                                 .payment_processor_token)
