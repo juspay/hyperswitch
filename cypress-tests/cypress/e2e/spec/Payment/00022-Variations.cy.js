@@ -669,8 +669,13 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.captureCallTest(fixtures.captureBody, data, globalState);
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.captureCallTest(fixtures.captureBody, newData, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
     });
 
     it("Retrieve payment", () => {
