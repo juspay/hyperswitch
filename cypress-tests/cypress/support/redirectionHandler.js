@@ -1199,6 +1199,27 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
           break;
+        case "mollie":
+          cy.get('body').then(($body) => {
+            const paidSelector = 'input[type="radio"][value="paid"]';
+
+            if ($body.find(paidSelector).length) {
+              cy.get(paidSelector, { timeout: 500 }) // Short timeout as we already checked existence
+                .click()
+                .log('Selected: Paid');
+            } else {
+              const authorizedSelector = 'input[type="radio"][value="authorized"]';
+              
+              cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                .should("exist")
+                .click()
+                .log('Selected: Authorized');
+            }
+          });
+          cy.contains('button', 'Continue', { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
