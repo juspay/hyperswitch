@@ -121,12 +121,12 @@ pub async fn create_subscription(
     Ok(ApplicationResponse::Json(response))
 }
 
-pub async fn get_subscription_plans(
+pub async fn get_subscription_items(
     state: SessionState,
     platform: Platform,
     profile_id: common_utils::id_type::ProfileId,
-    query: subscription_types::GetPlansQuery,
-) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
+    query: subscription_types::GetSubscriptionItemsQuery,
+) -> RouterResponse<Vec<subscription_types::GetSubscriptionItemsResponse>> {
     let profile = SubscriptionHandler::find_business_profile(&state, &platform, &profile_id)
         .await
         .attach_printable("subscriptions: failed to find business profile")?;
@@ -147,25 +147,25 @@ pub async fn get_subscription_plans(
     )
     .await?;
 
-    let get_plans_response = billing_handler
-        .get_subscription_plans(&state, query.limit, query.offset)
+    let get_items_response = billing_handler
+        .get_subscription_items(&state, query.limit, query.offset, query.item_type)
         .await?;
 
     let mut response = Vec::new();
 
-    for plan in &get_plans_response.list {
-        let plan_price_response = billing_handler
-            .get_subscription_plan_prices(&state, plan.subscription_provider_plan_id.clone())
+    for item in &get_items_response.list {
+        let item_price_response = billing_handler
+            .get_subscription_item_prices(&state, item.subscription_provider_item_id.clone())
             .await?;
 
-        response.push(subscription_types::GetPlansResponse {
-            plan_id: plan.subscription_provider_plan_id.clone(),
-            name: plan.name.clone(),
-            description: plan.description.clone(),
-            price_id: plan_price_response
+        response.push(subscription_types::GetSubscriptionItemsResponse {
+            item_id: item.subscription_provider_item_id.clone(),
+            name: item.name.clone(),
+            description: item.description.clone(),
+            price_id: item_price_response
                 .list
                 .into_iter()
-                .map(subscription_types::SubscriptionPlanPrices::from)
+                .map(subscription_types::SubscriptionItemPrices::from)
                 .collect::<Vec<_>>(),
         });
     }

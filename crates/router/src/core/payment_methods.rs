@@ -1622,9 +1622,12 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
-    let customer_payment_methods =
-        list_customer_payment_methods_core(&state, &platform, &payment_method_session.customer_id)
-            .await?;
+    let customer_payment_methods = match payment_method_session.customer_id {
+        Some(customer_id) => {
+            list_customer_payment_methods_core(&state, &platform, &customer_id).await?
+        }
+        None => Vec::new(),
+    };
 
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
@@ -3213,13 +3216,15 @@ pub async fn payment_methods_session_create(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    db.find_customer_by_global_id(
-        &request.customer_id,
-        platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    if let (Some(customer_id)) = &request.customer_id {
+        db.find_customer_by_global_id(
+            customer_id,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    }
 
     let payment_methods_session_id =
         id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)
@@ -3470,7 +3475,7 @@ fn construct_zero_auth_payments_request(
         payment_method_data: confirm_request.payment_method_data.clone(),
         payment_method_type: confirm_request.payment_method_type,
         payment_method_subtype: confirm_request.payment_method_subtype,
-        customer_id: Some(payment_method_session.customer_id.clone()),
+        customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),
         payment_method_id: Some(payment_method.id.clone()),
@@ -3572,7 +3577,10 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let customer_id = payment_method_session.customer_id.clone();
+    let customer_id = payment_method_session
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
 
     let create_payment_method_request = get_payment_method_create_request(
         request

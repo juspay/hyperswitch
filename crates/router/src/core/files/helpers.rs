@@ -334,6 +334,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                         &dispute.attempt_id,
                         platform.get_processor().get_account().get_id(),
                         platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_key_store(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

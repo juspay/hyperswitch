@@ -434,7 +434,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
-            browser_info: None,
+            browser_info: data.browser_info,
             currency: data.currency,
             amount: data.amount,
             split_payments: None,
@@ -1191,7 +1191,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationReques
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
@@ -1416,6 +1416,7 @@ pub struct PaymentsSessionData {
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub payment_method: Option<common_enums::PaymentMethod>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 #[derive(Debug, Clone, Default)]

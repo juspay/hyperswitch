@@ -732,6 +732,7 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
@@ -748,6 +749,7 @@ impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
