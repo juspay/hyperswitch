@@ -4310,6 +4310,9 @@ where
     payment_data
         .set_connector_request_reference_id_in_payment_attempt(connector_request_reference_id);
 
+    let merchant_order_reference_id = router_data.merchant_order_reference_id.clone();
+    payment_data.set_merchant_order_reference_id_in_payment_intent(merchant_order_reference_id);
+
     Ok((merchant_connector_account, router_data, tokenization_action))
 }
 
@@ -11302,6 +11305,18 @@ pub trait OperationSessionSetters<F> {
     );
     #[cfg(feature = "v2")]
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>);
+
+    #[cfg(feature = "v1")]
+    fn set_merchant_order_reference_id_in_payment_intent(
+        &mut self,
+        merchant_order_reference_id: Option<String>,
+    );
+
+    #[cfg(feature = "v2")]
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    );
 }
 
 #[cfg(feature = "v1")]
@@ -11650,6 +11665,20 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         self.payment_attempt.connector_request_reference_id = Some(connector_request_reference_id);
     }
+
+    fn set_merchant_order_reference_id_in_payment_intent(
+        &mut self,
+        merchant_order_reference_id: Option<String>,
+    ) {
+        self.payment_intent.merchant_order_reference_id = merchant_order_reference_id;
+    }
+    #[cfg(feature = "v2")]
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
+        self.payment_intent.merchant_reference_id = merchant_reference_id;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -11956,6 +11985,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     }
 
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        todo!()
+    }
+
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
         todo!()
     }
 }
@@ -12269,6 +12305,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
         todo!()
     }
+
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
+        self.payment_intent.merchant_reference_id = merchant_reference_id;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -12573,6 +12616,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        todo!()
+    }
+
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
         todo!()
     }
 }
@@ -12882,6 +12932,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        todo!()
+    }
+
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
         todo!()
     }
 }
@@ -13357,5 +13414,12 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
         self.payment_attempt.cancellation_reason = cancellation_reason;
+    }
+
+    fn set_merchant_reference_id_in_payment_intent(
+        &mut self,
+        merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
+    ) {
+        todo!()
     }
 }

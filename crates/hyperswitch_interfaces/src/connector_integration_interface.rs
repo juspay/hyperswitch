@@ -691,6 +691,30 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
+
+    #[cfg(feature = "v1")]
+    /// Generate merchant order reference id
+    fn generate_merchant_order_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<String> {
+        match self {
+            Self::Old(connector) => connector.generate_merchant_order_reference_id(payment_intent),
+            Self::New(connector) => connector.generate_merchant_order_reference_id(payment_intent),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate merchant order reference id
+    fn generate_merchant_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<common_utils::id_type::PaymentReferenceId> {
+        match self {
+            Self::Old(connector) => connector.generate_merchant_reference_id(payment_intent),
+            Self::New(connector) => connector.generate_merchant_reference_id(payment_intent),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {

@@ -7144,6 +7144,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        merchant_order_reference_id: data.merchant_order_reference_id.clone(),
     }
 }
 

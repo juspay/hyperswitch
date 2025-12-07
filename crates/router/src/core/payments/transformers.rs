@@ -199,6 +199,12 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: core_utils::get_merchant_order_reference_id(
+            &state.conf,
+            &payment_data.payment_intent,
+            &payment_data.payment_attempt,
+            connector_id,
+        )?,
     };
     Ok(router_data)
 }
@@ -443,6 +449,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_order_reference_id: payment_data
             .payment_intent
             .merchant_reference_id
+            .clone()
             .map(|reference_id| reference_id.get_string_repr().to_owned()),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
@@ -544,6 +551,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string()),
     };
 
     Ok(router_data)
@@ -891,6 +903,11 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string()),
     };
 
     Ok(router_data)
@@ -918,7 +935,7 @@ pub async fn construct_router_data_for_psync<'a>(
     // TODO: Take Globalid / CustomerReferenceId and convert to connector reference id
     let customer_id = None;
 
-    let payment_intent = payment_data.payment_intent;
+    let payment_intent = payment_data.payment_intent.clone();
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -1024,6 +1041,11 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string()),
     };
 
     Ok(router_data)
@@ -1389,6 +1411,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: None,
     };
 
     Ok(router_data)
@@ -1617,6 +1640,11 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string()),
     };
 
     Ok(router_data)
@@ -1881,7 +1909,7 @@ where
             &payment_data.payment_attempt,
             connector_id,
         )?,
-        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id.clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1911,6 +1939,12 @@ where
         l2_l3_data,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: core_utils::get_merchant_order_reference_id(
+            &state.conf,
+            &payment_data.payment_intent,
+            &payment_data.payment_attempt,
+            connector_id,
+        )?,
     };
 
     Ok(router_data)
@@ -2079,7 +2113,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             &payment_data.payment_attempt,
             connector_id,
         )?,
-        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id.clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -2109,6 +2143,12 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: core_utils::get_merchant_order_reference_id(
+            &state.conf,
+            &payment_data.payment_intent,
+            &payment_data.payment_attempt,
+            connector_id,
+        )?,
     };
 
     Ok(router_data)

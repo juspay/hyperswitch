@@ -145,6 +145,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            merchant_order_reference_id: None,
         };
 
         Ok(router_data)

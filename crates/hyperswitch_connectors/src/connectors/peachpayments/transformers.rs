@@ -59,7 +59,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
 const COF_DATA_TYPE: &str = "adhoc";
 const COF_DATA_SOURCE: &str = "cit";
 const COF_DATA_MODE: &str = "initial";
-const MAX_ID_LENGTH: usize = 12;
 
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
@@ -463,8 +462,6 @@ impl
             display_amount: None,
         };
 
-        let rrn = compute_rrn(item.router_data.request.merchant_order_reference_id.clone());
-
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
@@ -476,7 +473,7 @@ impl
                     source: COF_DATA_SOURCE.to_string(),
                     mode: COF_DATA_MODE.to_string(),
                 },
-                rrn,
+                rrn: item.router_data.merchant_order_reference_id.clone(),
             },
         );
 
@@ -492,22 +489,6 @@ impl
             send_date_time: send_date_time.clone(),
         }))
     }
-}
-
-fn compute_rrn(merchant_order_reference_id: Option<String>) -> Option<String> {
-    merchant_order_reference_id.and_then(|id| {
-        let alphanumeric_id: String = id.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
-
-        if alphanumeric_id.is_empty() {
-            return None;
-        }
-
-        if alphanumeric_id.len() < MAX_ID_LENGTH {
-            Some(format!("{:0>12}", alphanumeric_id))
-        } else {
-            Some(alphanumeric_id[alphanumeric_id.len() - MAX_ID_LENGTH..].to_string())
-        }
-    })
 }
 
 impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
@@ -545,15 +526,13 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             display_amount: None,
         };
 
-        let rrn = compute_rrn(item.router_data.request.merchant_order_reference_id.clone());
-
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
                 routing_reference,
                 card,
                 amount,
-                rrn,
+                rrn: item.router_data.merchant_order_reference_id.clone(),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)

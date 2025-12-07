@@ -26,6 +26,8 @@ pub const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
+pub const IRRELEVANT_MERCHANT_ORDER_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
+    "irrelevant_merchant_order_reference_id_in_authentication_flow";
 
 pub struct ClickToPay;
 

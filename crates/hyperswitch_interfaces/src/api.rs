@@ -543,6 +543,24 @@ pub trait ConnectorSpecifications {
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
     }
+
+    #[cfg(not(feature = "v2"))]
+    /// Generate merchant order reference id
+    fn generate_merchant_order_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<String> {
+        payment_intent.merchant_order_reference_id.clone()
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate merchant order reference id
+    fn generate_merchant_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<common_utils::id_type::PaymentReferenceId> {
+        payment_intent.merchant_reference_id.clone()
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type
