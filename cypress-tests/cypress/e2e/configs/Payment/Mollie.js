@@ -145,7 +145,8 @@ export const connectorDetails = {
         body: {
           error: {
             code: "IR_14",
-            message: "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            message:
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             type: "invalid_request",
           },
         },
@@ -608,7 +609,7 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {
         currency: "USD",
-        description: "Test Payment"
+        description: "Test Payment",
       },
       Response: {
         status: 200,

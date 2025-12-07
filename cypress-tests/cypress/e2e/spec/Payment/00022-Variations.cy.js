@@ -675,7 +675,8 @@ describe("Corner cases", () => {
       };
 
       cy.captureCallTest(fixtures.captureBody, newData, globalState);
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
 
     it("Retrieve payment", () => {
