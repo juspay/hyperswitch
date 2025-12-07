@@ -7747,7 +7747,7 @@ key1 = "Merchant Account Id"
 api_key = "API Key"
 [vgs]
 [vgs.connector_auth.SignatureKey]
-  api_key="Username"
-  key1="Password"
+  api_key="Client Id"
+  key1="Client Secret"
   api_secret="Vault Id"
 
