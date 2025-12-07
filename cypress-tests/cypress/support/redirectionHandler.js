@@ -1117,6 +1117,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
           break;
+
+        case "worldpayxml":
+          cy.get('#challengeForm input[type="submit"]').click();
+          break;
+
         default:
           cy.wait(constants.WAIT_TIME);
       }
