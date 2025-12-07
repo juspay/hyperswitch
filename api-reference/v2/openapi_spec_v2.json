@@ -11139,20 +11139,9 @@
             "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
             "nullable": true
           },
-          "total_refunded_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "total_disputed_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
+          "is_already_refunded": {
+            "type": "boolean",
+            "description": "Shows if the disputed amount is already refunded in the payment",
             "nullable": true
           }
         }

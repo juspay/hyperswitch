@@ -329,7 +329,7 @@ pub enum PaymentIntentUpdate {
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
     StateUpdate {
-        state_metadata: serde_json::Value,
+        state_metadata: diesel_models::types::PaymentIntentStateMetadata,
         updated_by: String,
     },
 }
@@ -460,7 +460,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<diesel_models::types::PaymentIntentStateMetadata>,
 }
 
 // This conversion is used in the `update_payment_intent` function

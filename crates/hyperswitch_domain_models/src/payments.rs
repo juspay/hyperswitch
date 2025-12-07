@@ -135,7 +135,7 @@ pub struct PaymentIntent {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub state_metadata: Option<Value>,
+    pub state_metadata: Option<diesel_models::types::PaymentIntentStateMetadata>,
 }
 
 impl PaymentIntent {

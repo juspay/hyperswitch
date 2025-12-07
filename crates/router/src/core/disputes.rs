@@ -3,7 +3,10 @@ use std::{collections::HashMap, ops::Deref, str::FromStr};
 use api_models::{
     admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
 };
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::{
+    ext_traits::{Encode, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -65,7 +68,6 @@ pub async fn retrieve_dispute(
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
-    let should_expand_all = req.expand_all.unwrap_or(false);
     let db = &state.store;
     #[cfg(feature = "v1")]
     let payment_intent = db
@@ -161,19 +163,23 @@ pub async fn retrieve_dispute(
             api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
     #[cfg(feature = "v1")]
-    if should_expand_all {
-        let current_state: diesel_models::types::PaymentIntentStateMetadata = payment_intent
-            .state_metadata
-            .clone()
-            .map(|metadata| {
-                serde_json::from_value(metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to deserialize payment intent state metadata")
-            })
-            .transpose()?
-            .unwrap_or_default();
-        dispute_response.total_disputed_amount = current_state.total_disputed_amount;
-        dispute_response.total_refunded_amount = current_state.total_refunded_amount;
+    {
+        let current_state = payment_intent.state_metadata.unwrap_or_default();
+
+        dispute_response.is_already_refunded = Some(
+            payment_intent
+                .amount_captured
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64()
+                - current_state
+                    .total_refunded_amount
+                    .unwrap_or(MinorUnit::zero())
+                    .get_amount_as_i64()
+                <= current_state
+                    .total_disputed_amount
+                    .unwrap_or(MinorUnit::zero())
+                    .get_amount_as_i64(),
+        );
     }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);

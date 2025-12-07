@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::types::{MinorUnit, StringMinorUnit, TimeRange};
+use common_utils::types::{StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
 use smithy::SmithyModel;
@@ -56,12 +56,9 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    /// Shows up the total refunded amount for a payment
+    /// Shows if the disputed amount is already refunded in the payment
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_refunded_amount: Option<MinorUnit>,
-    /// Shows up the total disputed amount across all disputes for a particular payment
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_disputed_amount: Option<MinorUnit>,
+    pub is_already_refunded: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
@@ -249,8 +246,6 @@ pub struct DisputeRetrieveRequest {
     pub dispute_id: String,
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
-    /// If enabled provides refunded_amount and disputed_amount linked to the payment intent
-    pub expand_all: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -263,8 +258,6 @@ pub struct DisputesAggregateResponse {
 pub struct DisputeRetrieveBody {
     /// Decider to enable or disable the connector call for dispute retrieve request
     pub force_sync: Option<bool>,
-    /// If enabled provides refunded_amount and disputed_amount linked to the payment intent
-    pub expand_all: Option<bool>,
 }
 
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

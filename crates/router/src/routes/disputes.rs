@@ -40,7 +40,6 @@ pub async fn retrieve_dispute(
     let payload = dispute_models::DisputeRetrieveRequest {
         dispute_id: path.into_inner(),
         force_sync: json_payload.force_sync,
-        expand_all: json_payload.expand_all,
     };
 
     Box::pin(api::server_wrap(

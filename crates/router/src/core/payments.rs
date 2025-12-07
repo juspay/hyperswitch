@@ -13683,3 +13683,191 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         self.payment_attempt.cancellation_reason = cancellation_reason;
     }
 }
+
+#[cfg(feature = "v1")]
+pub trait PaymentIntentStateMetadataExt {
+    fn validate_refund_against_intent_state_metadata(
+        self,
+        refund: &api::RefundRequest,
+        payment_intent: &payments::PaymentIntent,
+    ) -> CustomResult<(), errors::ApiErrorResponse>;
+    fn update_intent_state_metadata_for_refund(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>>
+    where
+        Self: Sized;
+
+    fn update_intent_state_metadata_for_dispute(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+        dispute: &diesel_models::dispute::Dispute,
+    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>>
+    where
+        Self: Sized;
+}
+
+#[cfg(feature = "v1")]
+impl PaymentIntentStateMetadataExt for diesel_models::types::PaymentIntentStateMetadata {
+    fn validate_refund_against_intent_state_metadata(
+        self,
+        refund: &api::RefundRequest,
+        payment_intent: &payments::PaymentIntent,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let requested_amount = refund.amount.unwrap_or(MinorUnit::zero());
+
+        // Block refund if requested refund amount exceeds total disputed amount
+        utils::when(
+            requested_amount > self.total_disputed_amount.unwrap_or(MinorUnit::zero()),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "amount".to_string(),
+                expected_format: format!(
+                    "refund amount must be less than or equal to disputed amount ({})",
+                    self.total_disputed_amount.unwrap_or(MinorUnit::zero()).get_amount_as_i64()
+                ),
+            })
+            .attach_printable(
+                "refund not allowed because amount is greater than or equal to total disputed amount",
+            ))
+            },
+        )?;
+
+        // Block refund if total disputed amount + total refunded amount + requested refund amount > amount captured
+        if let Some(amount_captured) = payment_intent.amount_captured {
+            utils::when(
+                (self
+                    .total_disputed_amount
+                    .unwrap_or(MinorUnit::zero())
+                    .get_amount_as_i64()
+                    + self
+                        .total_refunded_amount
+                        .unwrap_or(MinorUnit::zero())
+                        .get_amount_as_i64()
+                    + requested_amount.get_amount_as_i64())
+                    > (amount_captured.get_amount_as_i64()),
+                || {
+                    Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "amount".to_string(),
+                        expected_format: format!(
+                            "refund amount must be less than total amount captured ({}) after considering disputed and refunded amounts",
+                            amount_captured.get_amount_as_i64()
+                        ),
+                    })
+                    .attach_printable(
+                        "refund not allowed because total disputed amount + total refunded amount + requested refund amount is greater than or equal to total amount captured",
+                    ))
+                },
+            )?;
+        }
+        Ok(())
+    }
+
+    fn update_intent_state_metadata_for_refund(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>> {
+        let db = state.store.clone();
+        let key_store = platform.get_processor().get_key_store().clone();
+        let merchant_account = platform.get_processor().get_account().clone();
+        Box::pin(async move {
+            // Update payment_intent for the refund's payment_id
+            // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
+            let all_refunds_for_payment = db
+                .find_refund_by_payment_id_merchant_id(
+                    &payment_intent.payment_id,
+                    merchant_account.get_id(),
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to fetch refunds for payment_id: {:?}",
+                        payment_intent.payment_id
+                    )
+                })?;
+
+            let total_refunded_amount: i64 = all_refunds_for_payment
+                .iter()
+                .filter(|r| r.refund_status == common_enums::RefundStatus::Success)
+                .map(|r| r.refund_amount.get_amount_as_i64())
+                .sum();
+
+            let current_state = payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .with_total_refunded_amount(MinorUnit::new(total_refunded_amount));
+
+            let domain_update = payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+                state_metadata: current_state.clone(),
+                updated_by: merchant_account.storage_scheme.to_string(),
+            };
+
+            db.update_payment_intent(
+                payment_intent.clone(),
+                domain_update,
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment intent with total_refunded_amount")?;
+
+            Ok(())
+        })
+    }
+
+    fn update_intent_state_metadata_for_dispute(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: payments::PaymentIntent,
+        dispute: &diesel_models::dispute::Dispute,
+    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>> {
+        let db = state.store.clone();
+        let key_store = platform.get_processor().get_key_store().clone();
+        let merchant_account = platform.get_processor().get_account().clone();
+        let dispute_clone = dispute.clone();
+        Box::pin(async move {
+            let total_disputed_amount = payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .total_disputed_amount
+                .map(|amount| amount + dispute_clone.dispute_amount)
+                .or(Some(dispute_clone.dispute_amount));
+
+            if let Some(disputed_amount) = total_disputed_amount {
+                let current_state = payment_intent
+                    .state_metadata
+                    .clone()
+                    .unwrap_or_default()
+                    .with_total_disputed_amount(disputed_amount);
+
+                let domain_update = payments::payment_intent::PaymentIntentUpdate::StateUpdate {
+                    state_metadata: current_state,
+                    updated_by: merchant_account.storage_scheme.to_string(),
+                };
+
+                db.update_payment_intent(
+                    payment_intent,
+                    domain_update,
+                    &key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment_intent.state metadata")?;
+            }
+            Ok(())
+        })
+    }
+}

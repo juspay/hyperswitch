@@ -16,7 +16,10 @@ use crate::schema_v2::payment_intent;
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
-use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
+use crate::{
+    business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums,
+    types::PaymentIntentStateMetadata,
+};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -85,7 +88,7 @@ pub struct PaymentIntent {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -195,7 +198,7 @@ pub struct PaymentIntent {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -407,7 +410,7 @@ pub struct PaymentIntentNew {
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub tokenization: Option<common_enums::Tokenization>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -497,7 +500,7 @@ pub struct PaymentIntentNew {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -534,7 +537,7 @@ pub enum PaymentIntentUpdate {
     },
     Update(Box<PaymentIntentUpdateFields>),
     StateUpdate {
-        state_metadata: serde_json::Value,
+        state_metadata: PaymentIntentStateMetadata,
         updated_by: String,
     },
     PaymentCreateUpdate {
@@ -720,7 +723,7 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -912,7 +915,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
-    pub state_metadata: Option<serde_json::Value>,
+    pub state_metadata: Option<PaymentIntentStateMetadata>,
 }
 
 #[cfg(feature = "v1")]
