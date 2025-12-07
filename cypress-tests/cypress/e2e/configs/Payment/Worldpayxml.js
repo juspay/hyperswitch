@@ -14,11 +14,18 @@ const successfulNo3DSCardDetails = {
 };
 
 const successful3DSTestCardDetails = {
-  ...successfulNo3DSCardDetails,
-  card_number: "4242424242424242",
+  card_number: "5518207720770101",
+  card_exp_month: "01",
+  card_exp_year: "27",
+  card_holder_name: "3DS_V2_CHALLENGE_IDENTIFIED",
+  card_cvc: "123",
 };
 
 export const connectorDetails = {
+  multi_credential_config: {
+    specName: ["nothreeDS"],
+    value: "connector_2",
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -78,9 +85,17 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        authentication_type: "three_ds",
+        description: "Test description",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
-    "3DSAutoCapture": getCustomExchange({
+    "3DSAutoCapture": {
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -89,9 +104,16 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        authentication_type: "three_ds",
+        description: "Test description",
       },
-    }),
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      }
+    },
     No3DSManualCapture: {
       Request: {
         description: "Test description",
@@ -183,17 +205,17 @@ export const connectorDetails = {
     },
     Void: getCustomExchange({
       Response: {
-        status: 200,
-        body: {
-          status: "cancelled",
-        },
-      },
-      ResponseCustom: {
         body: {
           type: "invalid_request",
           message:
             "You cannot cancel this payment because it has status processing",
           code: "IR_16",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "cancelled",
         },
       },
     }),
@@ -354,6 +376,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -440,6 +465,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -462,7 +490,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successful3DSTestCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -505,6 +533,48 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
