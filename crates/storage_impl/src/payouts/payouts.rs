@@ -383,6 +383,18 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_payout_intent_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
+        self.router_store
+            .get_payout_intent_status_with_count(merchant_id, profile_id_list, time_range)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -892,6 +904,50 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<common_utils::id_type::PayoutId>, StorageError> {
         todo!()
+    }
+
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn get_payout_intent_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        time_range: &common_utils::types::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+
+        let mut query = <DieselPayouts as HasTable>::table()
+            .group_by(po_dsl::status)
+            .select((po_dsl::status, diesel::dsl::count_star()))
+            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(profile_id) = profile_id_list {
+            query = query.filter(po_dsl::profile_id.eq_any(profile_id));
+        }
+
+        query = query.filter(po_dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(po_dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
+            query.get_results_async::<(common_enums::PayoutStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
+            .into()
+        })
     }
 }
 

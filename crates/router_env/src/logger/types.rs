@@ -698,6 +698,8 @@ pub enum Flow {
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
+    /// Payouts aggregates flow
+    PayoutsAggregate,
 }
 
 /// Trait for providing generic behaviour to flow metric

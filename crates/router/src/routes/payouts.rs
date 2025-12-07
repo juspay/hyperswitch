@@ -563,3 +563,29 @@ pub fn populate_browser_info_for_payouts(
 
     Ok(())
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payouts_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
+            get_aggregates_for_payouts(state, platform, None, req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

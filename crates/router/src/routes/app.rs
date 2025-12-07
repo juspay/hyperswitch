@@ -1514,6 +1514,7 @@ impl Payouts {
                         .route(web::get().to(payouts_list))
                         .route(web::post().to(payouts_list_by_filter)),
                 )
+                .service(web::resource("/aggregate").route(web::get().to(get_payouts_aggregates)))
                 .service(
                     web::resource("/profile/list")
                         .route(web::get().to(payouts_list_profile))

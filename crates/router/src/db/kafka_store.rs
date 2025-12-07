@@ -2476,6 +2476,18 @@ impl PayoutsInterface for KafkaStore {
             .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_payout_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        constraints: &common_utils::types::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, Self::Error> {
+        self.diesel_store
+            .get_payout_intent_status_with_count(merchant_id, profile_id_list, constraints)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
