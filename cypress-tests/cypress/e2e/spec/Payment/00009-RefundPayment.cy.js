@@ -485,7 +485,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -514,7 +515,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
     it("list-refund-call-test", () => {
       cy.listRefundCallTest(fixtures.listRefundCall, globalState);
@@ -689,7 +691,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
 
     it("sync-refund-call-test", () => {
@@ -942,7 +945,8 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
 
     it("refund-call-test", () => {
@@ -1303,7 +1307,8 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
 
     it("sync-refund-call-test", () => {
@@ -1318,7 +1323,8 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(newData, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(newData);
     });
   });
 
