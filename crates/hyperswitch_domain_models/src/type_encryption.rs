@@ -1151,6 +1151,23 @@ where
 }
 
 #[inline]
+async fn encrypt_locally<E: Clone, S>(
+    inner: Secret<E, S>,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
+where
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    record_operation_time(
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
+        &metrics::ENCRYPTION_TIME,
+        &[],
+    )
+    .await
+}
+
+#[inline]
 async fn batch_encrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Secret<E, S>>,
@@ -1232,6 +1249,22 @@ where
 }
 
 #[inline]
+async fn decrypt_locally<T: Clone, S: masking::Strategy<T>>(
+    inner: Encryption,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<T, S>>, CryptoError>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
+    record_operation_time(
+        crypto::Encryptable::decrypt(inner, key, crypto::GcmAes256),
+        &metrics::DECRYPTION_TIME,
+        &[],
+    )
+    .await
+}
+
+#[inline]
 async fn batch_decrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Encryption>,
@@ -1263,8 +1296,10 @@ where
 pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
     Encrypt(Secret<T, S>),
     EncryptOptional(Option<Secret<T, S>>),
+    EncryptLocally(Secret<T, S>),
     Decrypt(Encryption),
     DecryptOptional(Option<Encryption>),
+    DecryptLocally(Encryption),
     BatchEncrypt(FxHashMap<String, Secret<T, S>>),
     BatchDecrypt(FxHashMap<String, Encryption>),
 }
@@ -1299,6 +1334,10 @@ where
             let data = encrypt_optional(state, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
         }
+        CryptoOperation::EncryptLocally(data) => {
+            let data = encrypt_locally(data, key).await?;
+            Ok(CryptoOutput::Operation(data))
+        }
         CryptoOperation::Decrypt(data) => {
             let data = decrypt(state, data, identifier, key).await?;
             Ok(CryptoOutput::Operation(data))
@@ -1306,6 +1345,10 @@ where
         CryptoOperation::DecryptOptional(data) => {
             let data = decrypt_optional(state, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
+        }
+        CryptoOperation::DecryptLocally(data) => {
+            let data = decrypt_locally(data, key).await?;
+            Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::BatchEncrypt(data) => {
             let data = batch_encrypt(state, data, identifier, key).await?;
