@@ -11057,7 +11057,8 @@
           "connector",
           "connector_status",
           "connector_dispute_id",
-          "created_at"
+          "created_at",
+          "is_already_refunded"
         ],
         "properties": {
           "dispute_id": {
@@ -11141,8 +11142,7 @@
           },
           "is_already_refunded": {
             "type": "boolean",
-            "description": "Shows if the disputed amount is already refunded in the payment",
-            "nullable": true
+            "description": "Shows if the disputed amount is already refunded in the payment"
           }
         }
       },
