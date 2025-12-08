@@ -4,6 +4,7 @@
 pub mod authentication;
 /// authentication_v2 module
 pub mod authentication_v2;
+pub mod configure_connector_webhook;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;

@@ -1070,3 +1070,50 @@ pub async fn merchant_account_enable_platform_account(
     ))
     .await
 }
+
+/// Configure Connector Webhook - Register
+///
+/// To setup webhook configuration for an existing Merchant at the connector.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorWebhookCreate))]
+pub async fn connector_webhook_register(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+    json_payload: web::Json<api_models::admin::ConnectorWebhookRegisterRequest>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorWebhookCreate;
+    let (merchant_id, merchant_connector_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            register_connector_webhook(
+                state,
+                &merchant_id,
+                auth.profile_id,
+                &merchant_connector_id,
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::ProfileConnectorWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+
+

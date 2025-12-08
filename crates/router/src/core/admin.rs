@@ -4717,3 +4717,212 @@ impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest
         }
     }
 }
+
+
+pub async fn register_connector_webhook(
+    state: SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: Option<id_type::ProfileId>,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    req: api_models::admin::ConnectorWebhookRegisterRequest,
+) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let key_store =  db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mca = req
+        .clone()
+        .get_merchant_connector_account_from_id(db, &merchant_id, merchant_connector_id, &key_store)
+        .await?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
+
+        // validate request
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &mca.connector_name,
+        api::GetToken::Connector,
+        mca.merchant_connector_id.clone(),
+    )?;
+
+    let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
+        api::WebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    > = connector_data.connector.get_connector_integration();
+
+    let flow_specific_request_data = configure_connector_webhook::construct_webhook_register_request_data(
+        &state,
+        &mca,
+        &req,
+    )?;
+
+    Ok(types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_connector_id.merchant_id.clone(),
+        customer_id: None,
+        connector_customer: None,
+        connector: merchant_connector_account.connector_name.clone(),
+        payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: common_enums::PaymentMethod::default(),
+        payment_method_type: None,
+        connector_auth_type: auth_type,
+        description: None,
+        address: PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: merchant_connector_account.get_metadata().clone(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request: flow_specific_request_data,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id:consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID.to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+    });
+
+    // Call connector to perform the operation
+
+    // Handle the operation result and update db
+
+    // generate and return the response the response
+    let response  = RegisterConnectorWebhookResponse {
+    };
+
+    Ok(service_api::ApplicationResponse::Json(response)) 
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn authorize_verify_select<Op>(
+    operation: Op,
+    state: app::SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    header_payload: HeaderPayload,
+    req: api_models::payments::PaymentsRequest,
+    auth_flow: api::AuthFlow,
+) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
+where
+    Op: Sync
+        + Clone
+        + std::fmt::Debug
+        + payments::operations::Operation<
+            api_types::Authorize,
+            api_models::payments::PaymentsRequest,
+            Data = payments::PaymentData<api_types::Authorize>,
+        > + payments::operations::Operation<
+            api_types::SetupMandate,
+            api_models::payments::PaymentsRequest,
+            Data = payments::PaymentData<api_types::SetupMandate>,
+        >,
+{
+    
+}
+
+#[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
+#[async_trait::async_trait]
+trait MerchantConnectorWebhookRegisterBridge {
+        async fn get_merchant_connector_account_from_id(
+        self,
+        db: &dyn StorageInterface,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::MerchantConnectorAccount>;
+
+    fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        mca: &domain::MerchantConnectorAccount,
+    ) -> RouterResult<domain::ConnectorWebhookRegisterData>;
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+#[async_trait::async_trait]
+impl MerchantConnectorWebhookRegisterBridge for api_models::admin::ConnectorWebhookRegisterRequest {
+
+    async fn get_merchant_connector_account_from_id(
+        self,
+        db: &dyn StorageInterface,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::MerchantConnectorAccount> {
+        let mca = db
+            .find_merchant_connector_account_by_merchant_connector_id(
+                merchant_id,
+                merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_owned(),
+            })?;
+
+        Ok(mca)
+    }
+
+    fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+    ) -> RouterResult<domain::ConnectorWebhookRegisterData> {
+        let merchant_id = merchant_connector_account.merchant_id.clone();
+        let merchant_connector_id = merchant_connector_account.merchant_connector_id.clone();
+        let router_base_url = &state.base_url;
+        let webhook_url = format!(
+            "{}/webhooks/{}/{}/",
+            router_base_url,
+            merchant_id.get_string_repr(),
+            merchant_connector_id.get_string_repr()
+        );
+
+        Ok(domain::ConnectorWebhookRegisterData {
+            event_type: self.event_type,
+            webhook_url,
+        })
+    }
+}

@@ -10,6 +10,7 @@ use crate::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
+        configure_connector_webhook::ConnectorWebhookRegister,
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
@@ -28,6 +29,7 @@ use crate::{
             GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -55,6 +57,7 @@ use crate::{
             GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
         VerifyWebhookSourceResponseData,
@@ -225,5 +228,5 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     PaymentsResponseData,
 >;
 
-pub type SubscriptionCreateRouterData =
-    RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
+pub type WebhookRegisterRouterData =
+    RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;
