@@ -20,12 +20,36 @@ pub async fn profile_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
     if let Err(api_error) = payload
-        .webhook_details
+        .payment_link_config
         .as_ref()
-        .map(|details| {
-            details
-                .validate()
-                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        .map(|cfg| {
+            if let Some(default_cfg) = cfg.default_config.as_ref() {
+                if let Some(custom_message) =
+                    default_cfg.custom_message_for_payment_method_types.as_ref()
+                {
+                    custom_message.validate().map_err(|message| {
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: message.to_string(),
+                        }
+                    })?;
+                }
+            }
+
+            if let Some(biz_cfgs) = cfg.business_specific_configs.as_ref() {
+                for config in biz_cfgs.values() {
+                    if let Some(custom_message) =
+                        config.custom_message_for_payment_method_types.as_ref()
+                    {
+                        custom_message.validate().map_err(|message| {
+                            errors::ApiErrorResponse::InvalidRequestData {
+                                message: message.to_string(),
+                            }
+                        })?;
+                    }
+                }
+            }
+
+            Ok::<_, errors::ApiErrorResponse>(())
         })
         .transpose()
     {
@@ -203,12 +227,36 @@ pub async fn profile_update(
     let (merchant_id, profile_id) = path.into_inner();
     let payload = json_payload.into_inner();
     if let Err(api_error) = payload
-        .webhook_details
+        .payment_link_config
         .as_ref()
-        .map(|details| {
-            details
-                .validate()
-                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        .map(|cfg| {
+            if let Some(default_cfg) = cfg.default_config.as_ref() {
+                if let Some(custom_message) =
+                    default_cfg.custom_message_for_payment_method_types.as_ref()
+                {
+                    custom_message.validate().map_err(|message| {
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: message.to_string(),
+                        }
+                    })?;
+                }
+            }
+
+            if let Some(biz_cfgs) = cfg.business_specific_configs.as_ref() {
+                for config in biz_cfgs.values() {
+                    if let Some(custom_message) =
+                        config.custom_message_for_payment_method_types.as_ref()
+                    {
+                        custom_message.validate().map_err(|message| {
+                            errors::ApiErrorResponse::InvalidRequestData {
+                                message: message.to_string(),
+                            }
+                        })?;
+                    }
+                }
+            }
+
+            Ok::<_, errors::ApiErrorResponse>(())
         })
         .transpose()
     {

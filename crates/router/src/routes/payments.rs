@@ -41,12 +41,25 @@ pub async fn payments_create(
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
     let mut payload = json_payload.into_inner();
-    if let Err(err) = payload
-        .validate()
-        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    if let Err(api_error) = payload
+        .payment_link_config
+        .as_ref()
+        .and_then(|cfg| {
+            cfg.theme_config
+                .custom_message_for_payment_method_types
+                .as_ref()
+        })
+        .map(|custom_terms| {
+            custom_terms.validate().map_err(|message| {
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: message.to_string(),
+                }
+            })
+        })
+        .transpose()
     {
-        return api::log_and_return_error_response(err.into());
-    };
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();

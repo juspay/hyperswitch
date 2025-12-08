@@ -2077,9 +2077,33 @@ pub enum SamsungPayCardBrand {
 /// Custom T&C Message to be shown per payment method type
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<String, Option<String>>)]
-    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
+    #[schema(value_type = HashMap<PaymentMethod, HashMap<PaymentMethodType, String>>)]
+    pub  Option<
+        std::collections::HashMap<
+            PaymentMethod,
+            std::collections::HashMap<PaymentMethodType, String>,
+        >,
+    >,
 );
+
+impl CustomTermsByPaymentMethodTypes {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        if let Some(ref map) = self.0 {
+            for (pm, pm_types_map) in map.iter() {
+                for pm_type in pm_types_map.keys() {
+                    if pm_type.to_payment_method() != *pm {
+                        return Err(ApplicationError::ApiClientError(
+                            ApiClientError::RequestNotSent(format!(
+                                "Payment Method Type '{pm_type}' does not belong to Payment Method '{pm}'"
+                            )),
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
@@ -2348,6 +2372,115 @@ impl PaymentMethodType {
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
         };
         display_name.to_string()
+    }
+
+    pub fn to_payment_method(self) -> PaymentMethod {
+        match self {
+            Self::Ach | Self::Bacs | Self::Becs | Self::Sepa | Self::SepaGuarenteedDebit => {
+                PaymentMethod::BankDebit
+            }
+            Self::BancontactCard
+            | Self::Bizum
+            | Self::Blik
+            | Self::Eft
+            | Self::Eps
+            | Self::Giropay
+            | Self::Ideal
+            | Self::Interac
+            | Self::OnlineBankingCzechRepublic
+            | Self::OnlineBankingFinland
+            | Self::OnlineBankingPoland
+            | Self::OnlineBankingSlovakia
+            | Self::OpenBankingUk
+            | Self::Przelewy24
+            | Self::Sofort
+            | Self::Trustly
+            | Self::OnlineBankingFpx
+            | Self::OnlineBankingThailand
+            | Self::LocalBankRedirect => PaymentMethod::BankRedirect,
+            Self::Alfamart
+            | Self::Boleto
+            | Self::Efecty
+            | Self::FamilyMart
+            | Self::Indomaret
+            | Self::Lawson
+            | Self::MiniStop
+            | Self::Oxxo
+            | Self::PagoEfectivo
+            | Self::PayEasy
+            | Self::RedCompra
+            | Self::RedPagos
+            | Self::Seicomart
+            | Self::SevenEleven => PaymentMethod::Voucher,
+            Self::AliPay
+            | Self::AliPayHk
+            | Self::AmazonPay
+            | Self::ApplePay
+            | Self::Bluecode
+            | Self::Cashapp
+            | Self::Dana
+            | Self::Gcash
+            | Self::GooglePay
+            | Self::GoPay
+            | Self::KakaoPay
+            | Self::MbWay
+            | Self::Mifinity
+            | Self::MobilePay
+            | Self::Momo
+            | Self::Paze
+            | Self::Paypal
+            | Self::Paysera
+            | Self::RevolutPay
+            | Self::SamsungPay
+            | Self::Skrill
+            | Self::Swish
+            | Self::TouchNGo
+            | Self::Twint
+            | Self::UpiCollect
+            | Self::UpiIntent
+            | Self::UpiQr
+            | Self::Vipps
+            | Self::Venmo
+            | Self::Walley
+            | Self::WeChatPay
+             => PaymentMethod::Wallet,
+            Self::Breadpay
+            | Self::Flexiti
+            | Self::Klarna
+            | Self::PayBright
+            | Self::Payjustnow
+            | Self::Affirm
+            | Self::Alma
+            | Self::AfterpayClearpay
+            | Self::Atome => PaymentMethod::PayLater,
+            Self::BhnCardNetwork | Self::Givex | Self::PaySafeCard => PaymentMethod::GiftCard,
+            Self::Credit | Self::Debit => PaymentMethod::Card,
+            Self::CardRedirect | Self::Knet | Self::MomoAtm | Self::Benefit => PaymentMethod::CardRedirect,
+            Self::CryptoCurrency => PaymentMethod::Crypto,
+            Self::DirectCarrierBilling => PaymentMethod::MobilePayment,
+            Self::Evoucher | Self::ClassicReward => PaymentMethod::Reward,
+            Self::Fps | Self::DuitNow | Self::PromptPay | Self::VietQr | Self::Pix => {
+                PaymentMethod::RealTimePayment
+            }
+            Self::OpenBankingPIS => PaymentMethod::OpenBanking,
+            Self::InstantBankTransfer
+            | Self::InstantBankTransferFinland
+            | Self::InstantBankTransferPoland
+            | Self::IndonesianBankTransfer
+            | Self::SepaBankTransfer
+            | Self::BcaBankTransfer
+            | Self::BniVa
+            | Self::BriVa
+            | Self::CimbVa
+            | Self::DanamonVa
+            | Self::MandiriVa
+            | Self::LocalBankTransfer
+            | Self::PermataBankTransfer 
+            | Self::Pse 
+            | Self::Multibanco => PaymentMethod::BankTransfer,
+            #[cfg(feature = "v2")]
+            Self::Card => PaymentMethod::Card,
+        }
     }
 }
 
