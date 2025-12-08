@@ -11,6 +11,8 @@ use common_types::{
         AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
     },
 };
+#[cfg(feature = "v2")]
+use common_utils::fp_utils;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -418,6 +420,21 @@ impl AmountDetails {
         })
     }
 
+    pub fn get_order_amount_for_recovery_data(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        // Validate that amount_captured doesn't exceed order_amount
+        let captured_amount = self.amount_captured.unwrap_or(MinorUnit::zero());
+        fp_utils::when(captured_amount > self.order_amount, || {
+            Err(
+                errors::api_error_response::ApiErrorResponse::InvalidRequestData {
+                    message: "Amount captured cannot exceed the order amount".into(),
+                },
+            )
+        })?;
+        Ok(self.order_amount - captured_amount)
+    }
+
     pub fn create_split_attempt_amount_details(
         &self,
         confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
@@ -722,6 +739,7 @@ impl PaymentIntent {
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
+        cell_id: id_type::CellId,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
@@ -741,6 +759,19 @@ impl PaymentIntent {
                 .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
                 .collect()
         });
+        let active_attempt_id_type = request
+            .enable_partial_authorization
+            .and_then(|enable_partial_authorization| {
+                enable_partial_authorization.then_some(common_enums::ActiveAttemptIDType::GroupID)
+            })
+            .unwrap_or(common_enums::ActiveAttemptIDType::AttemptID);
+        let active_attempts_group_id =
+            request
+                .enable_partial_authorization
+                .and_then(|enable_partial_authorization| {
+                    enable_partial_authorization
+                        .then_some(id_type::GlobalAttemptGroupId::generate(&cell_id))
+                });
 
         Ok(Self {
             id: payment_id.clone(),
@@ -759,8 +790,8 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
-            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
-            active_attempts_group_id: None,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata: request.connector_metadata,
@@ -846,6 +877,12 @@ impl PaymentIntent {
         self.feature_metadata.clone()
     }
 
+    pub fn get_recovery_order_amount(
+        &self,
+    ) -> CustomResult<MinorUnit, errors::api_error_response::ApiErrorResponse> {
+        self.amount_details.get_order_amount_for_recovery_data()
+    }
+
     pub fn create_revenue_recovery_attempt_data(
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
@@ -876,8 +913,9 @@ impl PaymentIntent {
                 )
             })?;
 
+        let amount = self.amount_details.get_order_amount_for_recovery_data()?;
         Ok(revenue_recovery::RevenueRecoveryAttemptData {
-            amount: self.amount_details.order_amount,
+            amount,
             currency: self.amount_details.currency,
             merchant_reference_id,
             connector_transaction_id: None, // No connector id
@@ -947,6 +985,7 @@ impl PaymentIntent {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Conflicted => false,
         }
     }
@@ -975,7 +1014,7 @@ pub struct ClickToPayMetaData {
     pub locale: String,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
-    pub merchant_category_code: String,
+    pub merchant_category_code: Option<String>,
     pub merchant_country_code: String,
     pub dpa_client_id: Option<String>,
 }
