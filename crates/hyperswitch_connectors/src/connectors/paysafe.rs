@@ -19,9 +19,10 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, CompleteAuthorize, CreateConnectorCustomer, PSync,
-            PaymentMethodToken, PreProcessing, Session, SetupMandate, Void,
+            PaymentMethodToken, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        PreProcessing,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -35,8 +36,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -57,7 +59,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, PaymentMethodDataType, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
+        self, PaymentMethodDataType, PaymentMethodTokenizationRequestData,
+        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
@@ -93,6 +96,108 @@ impl api::PaymentsPreProcessing for Paysafe {}
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Paysafe
 {
+    fn get_headers(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = self.base_url(connectors);
+        if req.request.is_customer_initiated_mandate_payment() {
+            let customer_id = req.get_connector_customer_id()?.to_string();
+            Ok(format!(
+                "{base_url}v1/customers/{customer_id}/paymenthandles"
+            ))
+        } else {
+            Ok(format!("{}v1/paymenthandles", self.base_url(connectors)))
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+
+        let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
+        let connector_req = paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: paysafe::PaysafePaymentHandleResponse = res
+            .response
+            .parse_struct("PaysafePaymentHandleResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -112,10 +217,18 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_url(
         &self,
-        _req: &TokenizationRouterData,
+        req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/paymenthandles", self.base_url(connectors)))
+        let base_url = self.base_url(connectors);
+        if req.request.is_customer_initiated_mandate_payment() {
+            let customer_id = req.get_connector_customer_id()?.to_string();
+            Ok(format!(
+                "{base_url}v1/customers/{customer_id}/paymenthandles"
+            ))
+        } else {
+            Ok(format!("{}v1/paymenthandles", self.base_url(connectors)))
+        }
     }
 
     fn get_request_body(
@@ -383,7 +496,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     {
         let response: paysafe::PaysafeCustomerResponse = res
             .response
-            .parse_struct("Paysafe PaysafeCustomerResponse")
+            .parse_struct("PaysafeCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -504,7 +617,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             enums::PaymentMethod::Card if !data.is_three_ds() => {
                 let response: paysafe::PaysafePaymentsResponse = res
                     .response
-                    .parse_struct("Paysafe PaymentsAuthorizeResponse")
+                    .parse_struct("PaysafePaymentsAuthorizeResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
