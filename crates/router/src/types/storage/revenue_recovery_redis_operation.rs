@@ -616,7 +616,7 @@ impl RedisTokenManager {
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
                 is_account_updater.then(|| existing_token.is_active = token_data.is_active);
-                
+
                 existing_token
                     .modified_at
                     .zip(last_external_attempt_at)
@@ -1336,11 +1336,13 @@ impl AccountUpdaterAction {
 
                 logger::info!("Successfully deactivated old token.");
 
-                let is_existing_token = RedisTokenManager::get_payment_processor_token_using_token_id(
-                    state,
-                    customer_id,
-                    new_token.to_owned().as_str(),
-                ).await?;
+                let is_existing_token =
+                    RedisTokenManager::get_payment_processor_token_using_token_id(
+                        state,
+                        customer_id,
+                        new_token.to_owned().as_str(),
+                    )
+                    .await?;
 
                 let new_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: PaymentProcessorTokenDetails {
