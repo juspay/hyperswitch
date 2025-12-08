@@ -328,7 +328,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )),
                 None => Ok(None),
             }
@@ -440,7 +440,7 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )),
                 None => Ok(None),
             }
