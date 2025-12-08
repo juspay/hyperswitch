@@ -175,7 +175,7 @@ pub async fn retrieve_dispute(
                     .total_refunded_amount
                     .unwrap_or(MinorUnit::zero())
                     .get_amount_as_i64()
-                <= current_state
+                < current_state
                     .total_disputed_amount
                     .unwrap_or(MinorUnit::zero())
                     .get_amount_as_i64(),

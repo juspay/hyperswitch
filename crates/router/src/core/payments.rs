@@ -13720,47 +13720,41 @@ impl PaymentIntentStateMetadataExt for diesel_models::types::PaymentIntentStateM
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let requested_amount = refund.amount.unwrap_or(MinorUnit::zero());
 
-        // Block refund if requested refund amount exceeds total disputed amount
-        utils::when(
-            requested_amount > self.total_disputed_amount.unwrap_or(MinorUnit::zero()),
-            || {
-                Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "amount".to_string(),
-                expected_format: format!(
-                    "refund amount must be less than or equal to disputed amount ({})",
-                    self.total_disputed_amount.unwrap_or(MinorUnit::zero()).get_amount_as_i64()
-                ),
-            })
-            .attach_printable(
-                "refund not allowed because amount is greater than or equal to total disputed amount",
-            ))
-            },
-        )?;
-
         // Block refund if total disputed amount + total refunded amount + requested refund amount > amount captured
         if let Some(amount_captured) = payment_intent.amount_captured {
+            let captured = amount_captured.get_amount_as_i64();
+            let total_disputed = self
+                .total_disputed_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+            let total_refunded = self
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+            let requested = requested_amount.get_amount_as_i64();
+
+            let available_refund = captured - (total_refunded + total_disputed);
+
             utils::when(
-                (self
-                    .total_disputed_amount
-                    .unwrap_or(MinorUnit::zero())
-                    .get_amount_as_i64()
-                    + self
-                        .total_refunded_amount
-                        .unwrap_or(MinorUnit::zero())
-                        .get_amount_as_i64()
-                    + requested_amount.get_amount_as_i64())
-                    > (amount_captured.get_amount_as_i64()),
+                total_disputed + total_refunded + requested > captured,
                 || {
                     Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
                         field_name: "amount".to_string(),
                         expected_format: format!(
-                            "refund amount must be less than total amount captured ({}) after considering disputed and refunded amounts",
-                            amount_captured.get_amount_as_i64()
+                            "Refund amount exceeds. Available refund amount is {}.",
+                            available_refund.max(0)
                         ),
                     })
-                    .attach_printable(
-                        "refund not allowed because total disputed amount + total refunded amount + requested refund amount is greater than or equal to total amount captured",
-                    ))
+                    .attach_printable(format!(
+                        "Refund not allowed because total_disputed_amount ({}) \
+                 + total_refunded_amount ({}) + requested_amount ({}) \
+                 exceeds amount_captured ({}). Available refund amount: {}",
+                        total_disputed,
+                        total_refunded,
+                        requested,
+                        captured,
+                        available_refund.max(0)
+                    )))
                 },
             )?;
         }
