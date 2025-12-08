@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     encryption::Encryption,
-    errors::{self, CustomResult},
+    errors::{CryptoError, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
     types::keymanager::{Identifier, KeyManagerState},
@@ -33,7 +33,7 @@ mod encrypt {
     use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
 
-    use super::{metrics, EncryptedJsonType};
+    use super::{metrics, obtain_data_to_decrypt_locally, EncryptedJsonType};
 
     #[async_trait]
     pub trait TypeEncryption<
@@ -215,7 +215,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: String = std::str::from_utf8(&data)
@@ -336,7 +336,8 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
+                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
+                    let data = crypt_algo.decode_message(key, encrypted)?;
                     let value: String = std::str::from_utf8(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?
                         .to_string();
@@ -453,7 +454,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: serde_json::Value = serde_json::from_slice(&data)
@@ -571,7 +572,8 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
+                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
+                    let data = crypt_algo.decode_message(key, encrypted)?;
 
                     let value: serde_json::Value = serde_json::from_slice(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?;
@@ -922,7 +924,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
             Ok(Self::new(data.into(), encrypted))
         }
@@ -1039,7 +1041,10 @@ mod encrypt {
                         k,
                         Self::new(
                             crypt_algo
-                                .decode_message(key, v.clone().into_inner().clone())?
+                                .decode_message(
+                                    key,
+                                    obtain_data_to_decrypt_locally(v.clone().into_inner())?,
+                                )?
                                 .into(),
                             v.into_inner(),
                         ),
@@ -1264,8 +1269,6 @@ pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
     BatchDecrypt(FxHashMap<String, Encryption>),
 }
 
-use errors::CryptoError;
-
 #[derive(router_derive::TryGetEnumVariant)]
 #[error(CryptoError::EncodingFailed)]
 pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
@@ -1313,6 +1316,71 @@ where
             Ok(CryptoOutput::BatchOperation(data))
         }
     }
+}
+
+#[inline]
+fn obtain_data_to_decrypt_locally<S>(
+    encrypted_data: Secret<Vec<u8>, S>,
+) -> CustomResult<Secret<Vec<u8>, S>, CryptoError>
+where
+    S: masking::Strategy<Vec<u8>>,
+{
+    use base64::Engine;
+    use common_utils::consts::BASE64_ENGINE;
+    use error_stack::ResultExt;
+    use masking::PeekInterface;
+
+    if let Some((_version, base64_encoded_data)) = split_version_prefix(encrypted_data.peek()) {
+        // Data encrypted by encryption service.
+        // Split data at colon (to remove version prefix), base64 decode and then proceed with decryption.
+        router_env::logger::debug!("Attempting to decrypt data encrypted by encryption service");
+        BASE64_ENGINE
+            .decode(base64_encoded_data)
+            .change_context(CryptoError::DecodingFailed)
+            .attach_printable("base64 decoding encrypted data failed")
+            .map(Secret::new)
+    } else {
+        // Data encrypted by hyperswitch locally, proceed with decryption directly.
+        router_env::logger::debug!("Attempting to decrypt data encrypted locally");
+        Ok(encrypted_data)
+    }
+}
+
+#[inline]
+/// Attempt to split a version prefix (e.g., "v1:", "v2:") from encrypted bytes.
+/// Only checks the first few bytes to avoid false positives from ':' appearing in encrypted data.
+/// Returns (version_prefix, data_after_colon) if a valid version prefix is found, `None` otherwise.
+fn split_version_prefix(encrypted_bytes: &[u8]) -> Option<(&[u8], &[u8])> {
+    // Only check first 5 bytes for version pattern
+    const MAX_PREFIX_LEN: usize = 5;
+
+    // A valid version prefix must start with 'v'
+    if encrypted_bytes.first() != Some(&b'v') {
+        return None;
+    }
+
+    // Search limit to find the ':' is bounded by input length,
+    // so all get() calls with indices < search_limit should succeed
+    let search_limit = MAX_PREFIX_LEN.min(encrypted_bytes.len());
+
+    for index in 1..search_limit {
+        match encrypted_bytes.get(index) {
+            // Checking for index > 1 to ensure at least one digit exists between 'v' and ':'
+            Some(&b':') if index > 1 => {
+                let prefix = encrypted_bytes.get(..index)?;
+                let rest = encrypted_bytes.get(index + 1..)?;
+                return Some((prefix, rest));
+            }
+
+            Some(&b) if b.is_ascii_digit() => continue,
+
+            // Invalid character in version prefix
+            _ => return None,
+        }
+    }
+
+    // No colon found within the search limit
+    None
 }
 
 pub(crate) mod metrics {
