@@ -4678,12 +4678,9 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "createDirectBridgeConfig",
-  (globalState, flow = null) => {
-    return createUcsConfigs(globalState, flow, "direct_bridge");
-  }
-);
+Cypress.Commands.add("createDirectBridgeConfig", (globalState, flow = null) => {
+  return createUcsConfigs(globalState, flow, "direct_bridge");
+});
 
 Cypress.Commands.add("createUcsConfigsByMode", (globalState, flow = null) => {
   const ucsMode = globalState.get("ucsMode");
@@ -4701,7 +4698,9 @@ Cypress.Commands.add("createUcsConfigsByMode", (globalState, flow = null) => {
     return cy.createDirectBridgeConfig(globalState, flow);
   }
 
-  throw new Error(`Invalid UCS_MODE: ${ucsMode}. Expected: shadow or direct_bridge`);
+  throw new Error(
+    `Invalid UCS_MODE: ${ucsMode}. Expected: shadow or direct_bridge`
+  );
 });
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
