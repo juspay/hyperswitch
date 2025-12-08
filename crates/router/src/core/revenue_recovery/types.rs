@@ -717,7 +717,7 @@ impl Action {
                             state,
                             &connector_customer_id,
                             &error_code,
-                            &is_expiry_update.map(|is_expiry| is_expiry.then(|| false)).or(is_hard_decline).flatten(),
+                            &is_expiry_update.and_then(|is_expiry| is_expiry.then_some(false)).or(is_hard_decline),
                             Some(&scheduled_token
                                 .payment_processor_token_details
                                 .payment_processor_token)
