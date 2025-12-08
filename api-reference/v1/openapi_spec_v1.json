@@ -16273,7 +16273,10 @@
         "type": "object",
         "description": "Custom T&C Message to be shown per payment method type",
         "additionalProperties": {
-          "type": "string"
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "nullable": true
       },
