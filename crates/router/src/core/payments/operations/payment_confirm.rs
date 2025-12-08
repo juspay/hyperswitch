@@ -182,6 +182,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let m_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = merchant_id.clone();
+        let merchant_key_store = platform.get_processor().get_key_store().clone();
 
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -191,6 +192,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         &m_merchant_id,
                         attempt_id.as_str(),
                         storage_scheme,
+                        &merchant_key_store,
                     )
                     .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                     .await
@@ -489,6 +491,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data.into(),
                             store.as_ref(),
                             &profile_id,
+                            None,
                         )
                         .await
                     })
@@ -1460,7 +1463,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                merchant_category_code: business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
@@ -1826,8 +1829,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
-                    .await
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    profile_id,
+                    payment_data.payment_method_token.as_ref(),
+                )
+                .await
             })
             .await
             .transpose()?
@@ -1942,6 +1950,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
+        let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -2006,6 +2015,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                     },
                     storage_scheme,
+                    &cloned_key_store,
                 )
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
@@ -2181,7 +2191,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        platform: &'a domain::Platform,
+        processor: &'a domain::Processor,
     ) -> RouterResult<(PaymentConfirmOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
@@ -2190,14 +2200,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         }
 
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         helpers::validate_payment_method_fields_present(request)?;
 
@@ -2234,9 +2241,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id,
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)
