@@ -969,7 +969,7 @@ pub async fn payouts_list_available_filters_core(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
@@ -980,7 +980,7 @@ pub async fn payouts_list_available_filters_core(
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         api::PayoutListFilters {

@@ -944,7 +944,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         .map_err(|er| {
             StorageError::DatabaseError(
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
+                    .attach_printable("Error filtering payout records"),
             )
             .into()
         })
