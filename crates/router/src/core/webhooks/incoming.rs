@@ -16,6 +16,8 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
@@ -1657,7 +1659,7 @@ async fn payout_incoming_webhook_update_status(
         .update_payout(
             &payout_data.payouts,
             payouts_update,
-            &payout_attempt,
+            payout_attempt,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
