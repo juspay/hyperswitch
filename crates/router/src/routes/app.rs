@@ -213,9 +213,26 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
-
-        // Extract proxy configuration from session state
-        let proxy_config = self.build_proxy_config_override();
+        let proxy_config = match shadow_mode {
+            Some(true) => {
+                router_env::logger::info!(
+                    "UCS in shadow mode building the proxy config override header"
+                );
+                self.build_proxy_config_override()
+            }
+            Some(false) => {
+                router_env::logger::info!(
+                    "UCS in primary mode not building proxy config override header"
+                );
+                None
+            }
+            None => {
+                router_env::logger::info!(
+                    "UCS in not applicable mode not building proxy config override header"
+                );
+                None
+            }
+        };
 
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
