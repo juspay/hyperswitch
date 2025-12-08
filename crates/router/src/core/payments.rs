@@ -6548,47 +6548,18 @@ where
             )
             .await?;
 
-        let res = match session_connector_data.connector.get_token {
-            api::GetToken::Connector => Box::pin(
-                decide_unified_connector_service_call_for_multiple_connectors_service(
-                    state,
-                    &session_connector_data.connector,
-                    platform,
-                    CallConnectorAction::Trigger,
-                    business_profile,
-                    header_payload.clone(),
-                    return_raw_connector_response,
-                    merchant_connector_account.clone(),
-                    router_data,
-                    payment_data.get_creds_identifier().map(|id| id.to_string()),
-                ),
-            ),
-            api::GetToken::AmazonPayMetadata
-            | api::GetToken::ApplePayMetadata
-            | api::GetToken::GpayMetadata
-            | api::GetToken::PaypalSdkMetadata
-            | api::GetToken::PazeMetadata
-            | api::GetToken::SamsungPayMetadata => {
-                let gateway_context = gateway_context::RouterGatewayContext::direct(
-                    platform.clone(),
-                    merchant_connector_account.clone(),
-                    business_profile.merchant_id.clone(),
-                    business_profile.get_id().clone(),
-                    payment_data.get_creds_identifier().map(|id| id.to_string()),
-                );
-
-                router_data.decide_flows(
-                    state,
-                    &session_connector_data.connector,
-                    CallConnectorAction::Trigger,
-                    None,
-                    business_profile,
-                    header_payload.clone(),
-                    return_raw_connector_response,
-                    gateway_context,
-                )
-            }
-        };
+        let res = decide_unified_connector_service_call_for_multiple_connectors_service(
+            state,
+            &session_connector_data.connector,
+            platform,
+            CallConnectorAction::Trigger,
+            business_profile,
+            header_payload.clone(),
+            return_raw_connector_response,
+            merchant_connector_account.clone(),
+            router_data,
+            payment_data.get_creds_identifier().map(|id| id.to_string()),
+        );
 
         join_handlers.push(res);
     }
@@ -6678,7 +6649,7 @@ where
         platform,
         &router_data,
         None, // No previous gateway information required for session flow
-        CallConnectorAction::Trigger,
+        call_connector_action.clone(),
         None,
     )
     .await?;
