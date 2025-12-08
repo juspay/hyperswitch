@@ -173,6 +173,10 @@ diesel::table! {
         issuer_country -> Nullable<Varchar>,
         #[max_length = 8]
         merchant_country_code -> Nullable<Varchar>,
+        #[max_length = 16]
+        billing_country -> Nullable<Varchar>,
+        #[max_length = 16]
+        shipping_country -> Nullable<Varchar>,
     }
 }
 

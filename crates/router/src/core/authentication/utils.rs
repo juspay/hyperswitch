@@ -13,8 +13,8 @@ use crate::{
     routes::SessionState,
     services::{self, execute_connector_processing_step},
     types::{
-        api, authentication::AuthenticationResponseData, domain, storage,
-        transformers::ForeignFrom, RouterData,
+        api, authentication::AuthenticationResponseData, domain, transformers::ForeignFrom,
+        RouterData,
     },
     utils::OptionExt,
 };
@@ -60,6 +60,9 @@ pub async fn update_trackers<F: Clone, Req>(
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    merchant_country_code: Option<common_enums::CountryAlpha2>,
+    billing_country_code: Option<common_enums::CountryAlpha2>,
+    shipping_country_code: Option<common_enums::CountryAlpha2>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_manager_state = state.into();
     let authentication_update = match router_data.response {
@@ -74,9 +77,9 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 directory_server_id,
                 scheme_id,
-            } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
+            } => hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
-                maximum_supported_3ds_version,
+                maximum_supported_3ds_version:maximum_supported_3ds_version.clone(),
                 connector_authentication_id,
                 three_ds_method_data,
                 three_ds_method_url,
@@ -98,6 +101,11 @@ pub async fn update_trackers<F: Clone, Req>(
                 email: None,
                 scheme_id,
                 merchant_category_code,
+                merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.to_string()),
+                billing_country: billing_country_code.map(|billing_country_code| billing_country_code.to_string()),
+                shipping_country: shipping_country_code.map(|shipping_country_code| shipping_country_code.to_string()),
+                earliest_supported_version:Some(maximum_supported_3ds_version.clone()),
+                latest_supported_version: Some(maximum_supported_3ds_version.clone()),
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
@@ -130,7 +138,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
 
-                storage::AuthenticationUpdate::AuthenticationUpdate {
+                hyperswitch_domain_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
@@ -183,7 +191,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     })
                     .await
                     .transpose()?;
-                storage::AuthenticationUpdate::PostAuthenticationUpdate {
+                hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                     authentication_status: common_enums::AuthenticationStatus::foreign_from(
                         trans_status.clone(),
                     ),
@@ -195,7 +203,7 @@ pub async fn update_trackers<F: Clone, Req>(
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
                 maximum_supported_3ds_version,
-            } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+            } => hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 message_version: maximum_supported_3ds_version.clone(),
                 maximum_supported_3ds_version,
             },
@@ -204,7 +212,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 three_ds_method_data,
                 three_ds_method_url,
                 connector_metadata,
-            } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+            } => hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
@@ -216,7 +224,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
             },
         },
-        Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
+        Err(error) => hyperswitch_domain_models::authentication::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
             error_message: error

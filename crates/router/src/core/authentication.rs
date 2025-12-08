@@ -86,6 +86,9 @@ pub async fn perform_authentication(
         merchant_key_store,
         sdk_information.and_then(|sdk_information| sdk_information.device_details),
         None,
+        None,
+        None,
+        None,
     )
     .await?;
     response
@@ -159,6 +162,9 @@ pub async fn perform_post_authentication(
             key_store,
             None,
             None,
+            None,
+            None,
+            None,
         )
         .await?
     } else {
@@ -199,6 +205,8 @@ pub async fn perform_pre_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -249,6 +257,13 @@ pub async fn perform_pre_authentication(
             key_store,
             None,
             None,
+            None,
+            billing_address
+                .clone()
+                .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
+            shipping_address
+                .clone()
+                .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
         )
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -284,6 +299,11 @@ pub async fn perform_pre_authentication(
         key_store,
         None,
         None,
+        None,
+        billing_address
+            .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
+        shipping_address
+            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
     )
     .await?;
 

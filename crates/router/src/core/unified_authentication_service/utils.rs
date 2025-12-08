@@ -1,7 +1,11 @@
 use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ValueExt},
+    pii,
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     business_profile,
@@ -14,7 +18,7 @@ use hyperswitch_domain_models::{
         PostAuthenticationDetails, UasAuthenticationResponseData,
     },
 };
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -151,20 +155,26 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-    billing_address: Option<common_utils::encryption::Encryption>,
-    shipping_address: Option<common_utils::encryption::Encryption>,
-    email: Option<common_utils::encryption::Encryption>,
+    billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
     browser_info: Option<serde_json::Value>,
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    billing_country_code: Option<common_enums::CountryAlpha2>,
+    shipping_country_code: Option<common_enums::CountryAlpha2>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             UasAuthenticationResponseData::PreAuthentication {
                 authentication_details,
-            } => Ok(
-                diesel_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+            } =>
+            Ok(
+                hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+                    earliest_supported_version:authentication_details.maximum_supported_3ds_version.clone(),
+                    latest_supported_version: authentication_details.maximum_supported_3ds_version.clone(),
                     threeds_server_transaction_id: authentication_details
                         .threeds_server_transaction_id
                         .ok_or(ApiErrorResponse::InternalServerError)
@@ -173,6 +183,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         )?,
                     maximum_supported_3ds_version: authentication_details
                         .maximum_supported_3ds_version
+                        .clone()
                         .ok_or(ApiErrorResponse::InternalServerError)
                         .attach_printable(
                             "missing maximum_supported_3ds_version in PreAuthentication Details",
@@ -189,7 +200,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         .message_version
                         .ok_or(ApiErrorResponse::InternalServerError)
                         .attach_printable("missing message_version in PreAuthentication Details")?,
-                    connector_metadata: authentication_details.connector_metadata,
+                    connector_metadata: authentication_details.connector_metadata.clone(),
                     authentication_status: common_enums::AuthenticationStatus::Pending,
                     acquirer_bin: acquirer_details
                         .as_ref()
@@ -199,13 +210,16 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
                     acquirer_country_code: acquirer_details
                         .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
-                    directory_server_id: authentication_details.directory_server_id,
+                    directory_server_id: authentication_details.directory_server_id.clone(),
                     browser_info: Box::new(browser_info),
                     email,
                     billing_address,
                     shipping_address,
-                    scheme_id: authentication_details.scheme_id,
+                    scheme_id: authentication_details.scheme_id.clone(),
                     merchant_category_code,
+                    merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.get_country_code()),
+                    billing_country: billing_country_code.map(|billing_country_code| billing_country_code.to_string()),
+                    shipping_country: shipping_country_code.map(|shipping_country_code| shipping_country_code.to_string()),
                 },
             ),
             UasAuthenticationResponseData::Authentication {
@@ -231,7 +245,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .await
                     .transpose()?;
                 Ok(
-                    diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
                         trans_status: authentication_details.trans_status,
                         acs_url: authentication_details.authn_flow_type.get_acs_url(),
                         challenge_request: authentication_details
@@ -300,7 +314,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .await
                     .transpose()?;
                 Ok(
-                    diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                         authentication_status: common_enums::AuthenticationStatus::foreign_from(
                             trans_status.clone(),
                         ),
@@ -318,7 +332,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             .attach_printable("unexpected api confirmation in external authentication flow."),
         },
         Err(error) => Ok(
-            diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {
+            hyperswitch_domain_models::authentication::AuthenticationUpdate::ErrorUpdate {
                 connector_authentication_id: error.connector_transaction_id,
                 authentication_status: common_enums::AuthenticationStatus::Failed,
                 error_message: error

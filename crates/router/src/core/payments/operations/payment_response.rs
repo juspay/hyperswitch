@@ -2142,7 +2142,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let key_manager_state: KeyManagerState = state.into();
     payment_data.authentication = match payment_data.authentication {
         Some(mut authentication_store) => {
-            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state

@@ -2019,7 +2019,7 @@ async fn external_authentication_incoming_webhook_flow(
             .get_external_authentication_details(request_details)
             .switch()?;
         let trans_status = authentication_details.trans_status;
-        let authentication_update = storage::AuthenticationUpdate::PostAuthenticationUpdate {
+        let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
             authentication_status: common_enums::AuthenticationStatus::foreign_from(
                 trans_status.clone(),
             ),

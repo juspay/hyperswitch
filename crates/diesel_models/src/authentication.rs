@@ -82,6 +82,8 @@ pub struct Authentication {
     pub issuer_id: Option<String>,
     pub issuer_country: Option<String>,
     pub merchant_country_code: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
@@ -158,6 +160,8 @@ pub struct AuthenticationNew {
     pub merchant_country_code: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
 }
 
 #[derive(Debug)]
@@ -193,6 +197,11 @@ pub enum AuthenticationUpdate {
         email: Option<Encryption>,
         scheme_id: Option<String>,
         merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+        merchant_country_code: Option<String>,
+        billing_country: Option<String>,
+        shipping_country: Option<String>,
+        earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+        latest_supported_version: Option<common_utils::types::SemanticVersion>,
     },
     AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -298,6 +307,8 @@ impl Default for AuthenticationUpdateInternal {
             issuer_id: Default::default(),
             issuer_country: Default::default(),
             merchant_country_code: Default::default(),
+            billing_country: Default::default(),
+            shipping_country: Default::default(),
         }
     }
 }
@@ -363,6 +374,8 @@ pub struct AuthenticationUpdateInternal {
     pub issuer_id: Option<String>,
     pub issuer_country: Option<String>,
     pub merchant_country_code: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
 }
 
 impl AuthenticationUpdateInternal {
@@ -425,6 +438,8 @@ impl AuthenticationUpdateInternal {
             issuer_id,
             issuer_country,
             merchant_country_code,
+            billing_country,
+            shipping_country,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -503,6 +518,8 @@ impl AuthenticationUpdateInternal {
             return_url: source.return_url,
             amount: source.amount,
             currency: source.currency,
+            billing_country: billing_country.or(source.billing_country),
+            shipping_country: shipping_country.or(source.shipping_country),
         }
     }
 }
@@ -561,6 +578,11 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 email,
                 scheme_id,
                 merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
@@ -580,6 +602,11 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 email,
                 scheme_name: scheme_id,
                 mcc: merchant_category_code,
+                merchant_country_code,
+                billing_country: billing_country,
+                shipping_country: shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {

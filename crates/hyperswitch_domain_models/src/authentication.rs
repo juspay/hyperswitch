@@ -7,12 +7,11 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::ValueExt,
     pii,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
@@ -63,8 +62,8 @@ pub struct Authentication {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub mcc: Option<MerchantCategoryCode>,
     pub currency: Option<common_enums::Currency>,
-    pub billing_country: Option<common_enums::CountryAlpha2>,
-    pub shipping_country: Option<common_enums::CountryAlpha2>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
     pub issuer_country: Option<String>,
     pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
     pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
@@ -212,6 +211,8 @@ impl behaviour::Conversion for Authentication {
             issuer_id: self.issuer_id,
             issuer_country: self.issuer_country,
             merchant_country_code: self.merchant_country_code,
+            billing_country: self.billing_country,
+            shipping_country: self.shipping_country,
         })
     }
 
@@ -263,35 +264,35 @@ impl behaviour::Conversion for Authentication {
                 message: "Failed while decrypting authentication email".to_string(),
             })?;
 
-        let billing = decrypted_data
-            .billing_address
-            .as_ref()
-            .map(|billing| {
-                billing
-                    .to_owned()
-                    .into_inner()
-                    .expose()
-                    .parse_value::<api_models::payments::Address>("Address")
-            })
-            .transpose()
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed to parse billing address".to_string(),
-            })?;
+        // let billing = decrypted_data
+        //     .billing_address
+        //     .as_ref()
+        //     .map(|billing| {
+        //         billing
+        //             .to_owned()
+        //             .into_inner()
+        //             .expose()
+        //             .parse_value::<api_models::payments::Address>("Address")
+        //     })
+        //     .transpose()
+        //     .change_context(ValidationError::InvalidValue {
+        //         message: "Failed to parse billing address".to_string(),
+        //     })?;
 
-        let shipping = decrypted_data
-            .shipping_address
-            .as_ref()
-            .map(|shipping| {
-                shipping
-                    .to_owned()
-                    .into_inner()
-                    .expose()
-                    .parse_value::<api_models::payments::Address>("Address")
-            })
-            .transpose()
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed to parse shipping address".to_string(),
-            })?;
+        // let shipping = decrypted_data
+        //     .shipping_address
+        //     .as_ref()
+        //     .map(|shipping| {
+        //         shipping
+        //             .to_owned()
+        //             .into_inner()
+        //             .expose()
+        //             .parse_value::<api_models::payments::Address>("Address")
+        //     })
+        //     .transpose()
+        //     .change_context(ValidationError::InvalidValue {
+        //         message: "Failed to parse shipping address".to_string(),
+        //     })?;
 
         Ok(Self {
             authentication_id: other.authentication_id,
@@ -374,10 +375,8 @@ impl behaviour::Conversion for Authentication {
             message_extension: other.message_extension,
             challenge_request_key: other.challenge_request_key,
             customer_details: other.customer_details,
-            billing_country: billing
-                .and_then(|address| address.address.and_then(|address| address.country)),
-            shipping_country: shipping
-                .and_then(|address| address.address.and_then(|address| address.country)),
+            billing_country: other.billing_country,
+            shipping_country: other.shipping_country,
             merchant_country_code: other.merchant_country_code,
         })
     }
@@ -455,6 +454,248 @@ impl behaviour::Conversion for Authentication {
             created_at: __self.created_at,
             modified_at: __self.modified_at,
             authentication_data: __self.authentication_data,
+            billing_country: __self.billing_country,
+            shipping_country: __self.shipping_country,
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum AuthenticationUpdate {
+    PreAuthenticationVersionCallUpdate {
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
+        message_version: common_utils::types::SemanticVersion,
+    },
+    PreAuthenticationThreeDsMethodCall {
+        threeds_server_transaction_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        connector_metadata: Option<Value>,
+    },
+    PreAuthenticationUpdate {
+        threeds_server_transaction_id: String,
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
+        connector_authentication_id: String,
+        three_ds_method_data: Option<String>,
+        three_ds_method_url: Option<String>,
+        message_version: common_utils::types::SemanticVersion,
+        connector_metadata: Option<Value>,
+        authentication_status: common_enums::AuthenticationStatus,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        directory_server_id: Option<String>,
+        acquirer_country_code: Option<String>,
+        billing_address: Option<Encryptable<Secret<Value>>>,
+        shipping_address: Option<Encryptable<Secret<Value>>>,
+        browser_info: Box<Option<Value>>,
+        email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+        scheme_id: Option<String>,
+        merchant_category_code: Option<MerchantCategoryCode>,
+        merchant_country_code: Option<String>,
+        billing_country: Option<String>,
+        shipping_country: Option<String>,
+        earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+        latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    },
+    AuthenticationUpdate {
+        trans_status: common_enums::TransactionStatus,
+        authentication_type: common_enums::DecoupledAuthenticationType,
+        acs_url: Option<String>,
+        challenge_request: Option<String>,
+        acs_reference_number: Option<String>,
+        acs_trans_id: Option<String>,
+        acs_signed_content: Option<String>,
+        connector_metadata: Option<Value>,
+        authentication_status: common_enums::AuthenticationStatus,
+        ds_trans_id: Option<String>,
+        eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<pii::SecretSerdeValue>,
+        challenge_request_key: Option<String>,
+        device_type: Option<String>,
+        device_brand: Option<String>,
+        device_os: Option<String>,
+        device_display: Option<String>,
+    },
+    PostAuthenticationUpdate {
+        trans_status: common_enums::TransactionStatus,
+        eci: Option<String>,
+        authentication_status: common_enums::AuthenticationStatus,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+    },
+    ErrorUpdate {
+        error_message: Option<String>,
+        error_code: Option<String>,
+        authentication_status: common_enums::AuthenticationStatus,
+        connector_authentication_id: Option<String>,
+    },
+    PostAuthorizationUpdate {
+        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
+    },
+    AuthenticationStatusUpdate {
+        trans_status: common_enums::TransactionStatus,
+        authentication_status: common_enums::AuthenticationStatus,
+    },
+}
+
+impl From<AuthenticationUpdate> for diesel_models::authentication::AuthenticationUpdate {
+    fn from(authentication_update: AuthenticationUpdate) -> Self {
+        match authentication_update {
+            AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            } => Self::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            },
+            AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
+            } => Self::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
+            },
+            AuthenticationUpdate::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status,
+                acquirer_bin,
+                acquirer_merchant_id,
+                directory_server_id,
+                acquirer_country_code,
+                billing_address,
+                shipping_address,
+                browser_info,
+                email,
+                scheme_id,
+                merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+            } => Self::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status,
+                acquirer_bin,
+                acquirer_merchant_id,
+                directory_server_id,
+                acquirer_country_code,
+                billing_address: billing_address.map(|billing_address| billing_address.into()),
+                shipping_address: shipping_address.map(|shipping_address| shipping_address.into()),
+                browser_info,
+                email: email.map(|email| email.into()),
+                scheme_id,
+                merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+            },
+            AuthenticationUpdate::AuthenticationUpdate {
+                trans_status,
+                authentication_type,
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                acs_signed_content,
+                connector_metadata,
+                authentication_status,
+                ds_trans_id,
+                eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+            } => Self::AuthenticationUpdate {
+                trans_status,
+                authentication_type,
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                acs_signed_content,
+                connector_metadata,
+                authentication_status,
+                ds_trans_id,
+                eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+            },
+            AuthenticationUpdate::PostAuthenticationUpdate {
+                trans_status,
+                eci,
+                authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
+            } => Self::PostAuthenticationUpdate {
+                trans_status,
+                eci,
+                authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
+            },
+            AuthenticationUpdate::ErrorUpdate {
+                error_message,
+                error_code,
+                authentication_status,
+                connector_authentication_id,
+            } => Self::ErrorUpdate {
+                error_message,
+                error_code,
+                authentication_status,
+                connector_authentication_id,
+            },
+            AuthenticationUpdate::PostAuthorizationUpdate {
+                authentication_lifecycle_status,
+            } => Self::PostAuthorizationUpdate {
+                authentication_lifecycle_status,
+            },
+            AuthenticationUpdate::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            } => Self::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            },
+        }
     }
 }

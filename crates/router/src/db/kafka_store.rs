@@ -3928,7 +3928,7 @@ impl AuthenticationInterface for KafkaStore {
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: hyperswitch_domain_models::authentication::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
+        authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>

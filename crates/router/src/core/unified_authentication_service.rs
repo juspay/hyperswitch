@@ -1157,7 +1157,7 @@ pub async fn authentication_eligibility_core(
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-        merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
         notification_url,
     });
 
@@ -1275,18 +1275,21 @@ pub async fn authentication_eligibility_core(
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
-        encrypted_data
-            .billing_address
-            .map(common_utils::encryption::Encryption::from),
-        encrypted_data
-            .shipping_address
-            .map(common_utils::encryption::Encryption::from),
-        email_encrypted
-            .clone()
-            .map(common_utils::encryption::Encryption::from),
+        encrypted_data.billing_address,
+        encrypted_data.shipping_address,
+        email_encrypted.clone(),
         browser_info,
         None,
         merchant_category_code,
+        merchant_country_code
+            .clone()
+            .map(common_types::payments::MerchantCountryCode::new),
+        req.billing
+            .clone()
+            .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
+        req.shipping
+            .clone()
+            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
     )
     .await?;
 
@@ -1430,6 +1433,9 @@ pub async fn authentication_authenticate_core(
         None,
         req.sdk_information
             .and_then(|sdk_information| sdk_information.device_details),
+        None,
+        None,
+        None,
         None,
     )
     .await?;
@@ -1968,6 +1974,9 @@ pub async fn authentication_sync_core(
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
             )
             .await?;
 
@@ -2161,6 +2170,9 @@ pub async fn authentication_post_sync_core(
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
+        None,
+        None,
+        None,
         None,
         None,
         None,

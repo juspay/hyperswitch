@@ -10491,6 +10491,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             req.sdk_information
                 .and_then(|sdk_information| sdk_information.device_details),
             None,
+            None,
+            None,
+            None,
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
