@@ -139,7 +139,12 @@ pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
 pub type BoxedConnectorWebhookConfigurationInterface<T, Req, Resp> =
-    BoxedConnectorIntegrationInterface<T, common_types::ConnectorWebhookConfigurationFlowData, Req, Resp>;
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::ConnectorWebhookConfigurationFlowData,
+        Req,
+        Resp,
+    >;
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {

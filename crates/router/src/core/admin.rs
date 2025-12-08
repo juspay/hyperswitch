@@ -4718,7 +4718,6 @@ impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest
     }
 }
 
-
 pub async fn register_connector_webhook(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
@@ -4728,7 +4727,7 @@ pub async fn register_connector_webhook(
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let key_store =  db
+    let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -4744,7 +4743,7 @@ pub async fn register_connector_webhook(
         .await?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
-        // validate request
+    // validate request
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -4759,11 +4758,8 @@ pub async fn register_connector_webhook(
         ConnectorWebhookRegisterResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let flow_specific_request_data = configure_connector_webhook::construct_webhook_register_request_data(
-        &state,
-        &mca,
-        &req,
-    )?;
+    let flow_specific_request_data =
+        configure_connector_webhook::construct_webhook_register_request_data(&state, &mca, &req)?;
 
     Ok(types::RouterData {
         flow: PhantomData,
@@ -4795,7 +4791,8 @@ pub async fn register_connector_webhook(
         connector_api_version: None,
         request: flow_specific_request_data,
         response: Err(ErrorResponse::default()),
-        connector_request_reference_id:consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID.to_owned(),
+        connector_request_reference_id: consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID
+            .to_owned(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -4827,10 +4824,9 @@ pub async fn register_connector_webhook(
     // Handle the operation result and update db
 
     // generate and return the response the response
-    let response  = RegisterConnectorWebhookResponse {
-    };
+    let response = RegisterConnectorWebhookResponse {};
 
-    Ok(service_api::ApplicationResponse::Json(response)) 
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v1")]
@@ -4859,13 +4855,12 @@ where
             Data = payments::PaymentData<api_types::SetupMandate>,
         >,
 {
-    
 }
 
 #[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 trait MerchantConnectorWebhookRegisterBridge {
-        async fn get_merchant_connector_account_from_id(
+    async fn get_merchant_connector_account_from_id(
         self,
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
@@ -4883,7 +4878,6 @@ trait MerchantConnectorWebhookRegisterBridge {
 #[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorWebhookRegisterBridge for api_models::admin::ConnectorWebhookRegisterRequest {
-
     async fn get_merchant_connector_account_from_id(
         self,
         db: &dyn StorageInterface,

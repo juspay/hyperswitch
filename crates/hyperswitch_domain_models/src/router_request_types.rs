@@ -1,9 +1,9 @@
 pub mod authentication;
+pub mod configure_connector_webhook;
 pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
-pub mod configure_connector_webhook;
 use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{

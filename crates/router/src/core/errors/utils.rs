@@ -93,7 +93,9 @@ pub trait ConnectorErrorExt<T> {
     #[track_caller]
     fn to_vault_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
     #[track_caller]
-    fn to_webhook_configuration_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    fn to_webhook_configuration_failed_response(
+        self,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse>;
 
     // Validates if the result, is Ok(..) or WebhookEventTypeNotFound all the other error variants
     // are cascaded while these two event types are handled via `Option`
@@ -557,7 +559,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         })
     }
 
-     fn to_webhook_configuration_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
+    fn to_webhook_configuration_failed_response(
+        self,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let error = match err.current_context() {
                 errors::ConnectorError::ProcessingStepFailed(_) => {

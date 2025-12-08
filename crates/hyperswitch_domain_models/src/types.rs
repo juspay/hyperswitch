@@ -4,13 +4,13 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
+        configure_connector_webhook::ConnectorWebhookRegister,
         mandate_revoke::MandateRevoke,
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
-        configure_connector_webhook::ConnectorWebhookRegister,
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
@@ -20,6 +20,7 @@ use crate::{
         RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -29,7 +30,6 @@ use crate::{
             GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -48,6 +48,7 @@ use crate::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -57,7 +58,6 @@ use crate::{
             GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
         VerifyWebhookSourceResponseData,
@@ -228,5 +228,8 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     PaymentsResponseData,
 >;
 
-pub type WebhookRegisterRouterData =
-    RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;
+pub type WebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;

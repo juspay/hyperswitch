@@ -10154,7 +10154,6 @@ pub enum VaultTokenType {
     NetworkTokenCryptogram,
 }
 
-
 #[derive(
     Clone,
     Copy,
@@ -10171,5 +10170,5 @@ pub enum VaultTokenType {
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorWebhookEventType {
     Standard,
-    SpecificEvent(EventType)
+    SpecificEvent(EventType),
 }

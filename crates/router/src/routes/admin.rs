@@ -1114,6 +1114,3 @@ pub async fn connector_webhook_register(
     ))
     .await
 }
-
-
-

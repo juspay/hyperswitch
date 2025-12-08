@@ -1,8 +1,8 @@
+pub mod configure_connector_webhook;
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod subscriptions;
-pub mod configure_connector_webhook;
 use std::collections::HashMap;
 
 use api_models::payments::AddressDetails;
