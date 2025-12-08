@@ -146,10 +146,24 @@ pub trait Feature<F, T> {
         })
     }
 
-    async fn preprocessing_steps<'a>(
+    // This is introduced to have a separate preprocessing step for granular gateway flows
+    async fn granular_preprocessing_steps<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn preprocessing_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector_data: &api::ConnectorData,
     ) -> RouterResult<Self>
     where
         F: Clone,

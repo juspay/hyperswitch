@@ -236,6 +236,48 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
+    async fn granular_preprocessing_steps<'a>(
+        self,
+        state: &SessionState,
+        connector_data: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)> {
+        let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
+            request_data: &self.request,
+        };
+        let optional_preprocessing_flow = connector_data
+            .connector
+            .get_preprocessing_flow_if_needed(current_flow);
+        match optional_preprocessing_flow {
+            Some(preprocessing_flow) => {
+                let updated_router_data = Box::pin(handle_preprocessing(
+                    self,
+                    state,
+                    connector_data,
+                    preprocessing_flow,
+                    gateway_context,
+                ))
+                .await?;
+                let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
+                    response: &updated_router_data.response,
+                    attempt_status: updated_router_data.status,
+                };
+                let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
+                    request_data: &updated_router_data.request,
+                };
+                let should_continue = connector_data
+                    .connector
+                    .decide_should_continue_after_preprocessing(
+                        current_flow,
+                        preprocessing_flow,
+                        pre_processing_flow_response,
+                    );
+                Ok((updated_router_data, should_continue))
+            }
+            None => Ok((self, true)),
+        }
+    }
+
     async fn call_preprocessing_through_unified_connector_service<'a>(
         self,
         state: &SessionState,
@@ -433,6 +475,170 @@ async fn handle_preprocessing_through_unified_connector_service(
             Ok(router_data)
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn handle_preprocessing(
+    router_data: types::RouterData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    preprocessing_flow_name: api_interface::PreProcessingFlowName,
+    gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+> {
+    match preprocessing_flow_name {
+        api_interface::PreProcessingFlowName::Authenticate => {
+            // Convert CompleteAuthorize to Authenticate for UCS call
+            let complete_authorize_request_data = router_data.request.clone();
+            let authenticate_request_data =
+                types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
+            let authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::Authenticate, _, _, _, _>(
+                    router_data.clone(),
+                    authenticate_request_data,
+                    authenticate_response_data,
+                );
+
+            // Call UCS for Authenticate flow and store authentication result for next step
+            let authenticate_router_data = Box::pin(handle_authenticate_connector_call(
+                state,
+                authenticate_router_data,
+                connector_data,
+                gateway_context,
+            ))
+            .await?;
+
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let authenticate_response = authenticate_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    authenticate_router_data,
+                    complete_authorize_request_data,
+                    authenticate_response,
+                );
+
+            Ok(complete_authorize_router_data)
+        }
+        api_interface::PreProcessingFlowName::PostAuthenticate => {
+            // Convert CompleteAuthorize to PostAuthenticate for UCS call
+            let complete_authorize_request_data = router_data.request.clone();
+            let post_authenticate_request_data =
+                types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
+            let post_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let post_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+                    router_data.clone(),
+                    post_authenticate_request_data,
+                    post_authenticate_response_data,
+                );
+
+            let post_authenticate_router_data = Box::pin(handle_post_authenticate_connector_call(
+                state,
+                post_authenticate_router_data,
+                connector_data,
+                gateway_context,
+            ))
+            .await?;
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let post_authenticate_response = post_authenticate_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    post_authenticate_router_data,
+                    complete_authorize_request_data,
+                    post_authenticate_response,
+                );
+            Ok(complete_authorize_router_data)
+        }
+    }
+}
+
+pub async fn handle_authenticate_connector_call(
+    state: &SessionState,
+    router_data: types::RouterData<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+    connector: &api::ConnectorData,
+    _gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+
+    // TODO: Handle gateway_context later
+    let resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        // gateway_context.clone(),
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(resp)
+}
+
+pub async fn handle_post_authenticate_connector_call(
+    state: &SessionState,
+    router_data: types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+    connector: &api::ConnectorData,
+    _gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+    // TODO: Handle gateway_context later
+    let resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        // gateway_context.clone(),
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(resp)
 }
 
 fn transform_redirection_response_for_authenticate_flow(
