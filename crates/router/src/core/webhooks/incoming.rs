@@ -1651,6 +1651,25 @@ async fn payout_incoming_webhook_update_status(
         .switch()
         .attach_printable("Failed to get error object for payouts")?;
 
+    let payouts_update = PayoutsUpdate::StatusUpdate { status };
+
+    let updated_payouts = db
+        .update_payout(
+            &payout_data.payouts,
+            payouts_update,
+            &payout_attempt,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating payouts: payout_id: {}",
+                payout_data.payouts.payout_id.get_string_repr()
+            )
+        })?;
+    payout_data.payouts = updated_payouts;
+
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
@@ -1684,7 +1703,7 @@ async fn payout_incoming_webhook_update_status(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payout attempt: payout_attempt_id: {}",
