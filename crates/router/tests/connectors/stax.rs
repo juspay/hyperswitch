@@ -79,6 +79,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         setup_mandate_details: None,
         payment_method_type: None,
         router_return_url: None,
+        capture_method: None,
     })
 }
 
@@ -496,6 +497,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 setup_mandate_details: None,
                 payment_method_type: None,
                 router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -541,6 +543,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 setup_mandate_details: None,
                 payment_method_type: None,
                 router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -586,6 +589,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 setup_mandate_details: None,
                 payment_method_type: None,
                 router_return_url: None,
+                capture_method: None,
             }),
             get_default_payment_info(connector_customer_id, None),
         )

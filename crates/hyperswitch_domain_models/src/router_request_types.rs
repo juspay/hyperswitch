@@ -427,6 +427,7 @@ pub struct PaymentMethodTokenizationData {
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub router_return_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -445,6 +446,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -466,6 +468,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             mandate_id: data.request.mandate_id.clone(),
             payment_method_type: data.payment_method_type,
             router_return_url: None,
+            capture_method: None,
         }
     }
 }
@@ -486,6 +489,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -511,6 +515,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
