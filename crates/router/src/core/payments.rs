@@ -10492,8 +10492,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .and_then(|sdk_information| sdk_information.device_details),
             None,
             None,
-            None,
-            None,
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
@@ -10549,6 +10547,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             acs_signed_content: authentication_response.acs_signed_content,
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
             three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
+            error_message: authentication_response.error_message,
         },
     ))
 }

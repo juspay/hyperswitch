@@ -1,7 +1,9 @@
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
-use masking::ExposeInterface;
+use hyperswitch_domain_models::{
+    router_data_v2::ExternalAuthenticationFlowData, type_encryption::AsyncLift,
+};
+use masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     consts,
@@ -52,6 +54,7 @@ pub fn get_connector_data_if_separate_authn_supported(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
@@ -61,8 +64,10 @@ pub async fn update_trackers<F: Clone, Req>(
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     merchant_country_code: Option<common_enums::CountryAlpha2>,
-    billing_country_code: Option<common_enums::CountryAlpha2>,
-    shipping_country_code: Option<common_enums::CountryAlpha2>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    browser_info: Option<hyperswitch_domain_models::router_request_types::BrowserInformation>,
+    email: Option<common_utils::pii::Email>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_manager_state = state.into();
     let authentication_update = match router_data.response {
@@ -77,7 +82,85 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 directory_server_id,
                 scheme_id,
-            } => hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+            } => {
+                let billing_details_encoded = billing_address
+        .clone()
+        .map(|billing| {
+            common_utils::ext_traits::Encode::encode_to_value(&billing)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+    let shipping_details_encoded = shipping_address
+        .clone()
+        .map(|shipping| {
+            common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+    let encrypted_data = domain::types::crypto_operation(
+        &key_manager_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchEncrypt(
+            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
+                    billing_address: billing_details_encoded,
+                    shipping_address: shipping_details_encoded,
+                },
+            ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_key_store
+                .merchant_id
+                .clone(),
+        ),
+        merchant_key_store.key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+        let browser_info = browser_info
+        .as_ref()
+        .map(common_utils::ext_traits::Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_information",
+        })?;
+
+        let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to get encrypted data for authentication after encryption")?;
+
+        let email_encrypted = email
+            .clone()
+            .async_lift(|inner| async {
+                domain::types::crypto_operation(
+                    &key_manager_state,
+                    common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+                    domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        merchant_key_store
+                            .merchant_id
+                            .clone(),
+                    ),
+                    merchant_key_store.key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt email")?;
+
+
+            hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version:maximum_supported_3ds_version.clone(),
                 connector_authentication_id,
@@ -95,17 +178,18 @@ pub async fn update_trackers<F: Clone, Req>(
                 acquirer_country_code: acquirer_details
                     .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
-                billing_address: None,
-                shipping_address: None,
-                browser_info: Box::new(None),
-                email: None,
+                billing_address: Box::new(encrypted_data.billing_address),
+                shipping_address: Box::new(encrypted_data.shipping_address),
+                browser_info: Box::new(browser_info),
+                email: email_encrypted,
                 scheme_id,
                 merchant_category_code,
                 merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.to_string()),
-                billing_country: billing_country_code.map(|billing_country_code| billing_country_code.to_string()),
-                shipping_country: shipping_country_code.map(|shipping_country_code| shipping_country_code.to_string()),
+                billing_country: billing_address.and_then(|billing_address| billing_address.address.and_then(|address| address.country.map(|country| country.to_string()))),
+                shipping_country: shipping_address.and_then(|shipping_address| shipping_address.address.and_then(|address| address.country.map(|country| country.to_string()))),
                 earliest_supported_version:Some(maximum_supported_3ds_version.clone()),
                 latest_supported_version: Some(maximum_supported_3ds_version.clone()),
+            }
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,

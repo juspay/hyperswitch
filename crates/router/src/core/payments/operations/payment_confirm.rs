@@ -1487,6 +1487,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             });
             let domain_address  = payment_data.address.get_payment_method_billing();
             let shipping = payment_data.address.get_shipping();
+            let browser_info = payment_data.payment_attempt.browser_info
+                .clone()
+                .parse_value("BrowserInfo")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse browser_info")?;
+            let email = payment_data.email.clone();
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
@@ -1509,22 +1515,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication.acquirer_merchant_id.clone(),
                     )
                     .await?;
-                let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
+                let updated_authentication = Box::pin(uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
                     key_store,
-                    None,
-                    None,
-                    None,
-                    None,
+                    domain_address.cloned(),
+                    shipping.cloned(),
+                    email,
+                    browser_info,
                     None,
                     merchant_category_code,
                     merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
-                    domain_address.clone().and_then(|billing| billing.address.clone().and_then(|address| address.country)),
-                    shipping.clone().and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
-                ).await?;
+                )).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
                     authentication: updated_authentication.clone(),
@@ -1612,8 +1616,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         None,
                         None,
                         None,
-                        None,
-                        None
+                        // None,
+                        // None
                     ).await?
                 } else {
                     authentication

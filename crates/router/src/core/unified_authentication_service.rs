@@ -23,8 +23,7 @@ use api_models::{
 };
 #[cfg(feature = "v1")]
 use common_utils::{
-    date_time, errors::CustomResult, ext_traits::ValueExt, types::keymanager::ToEncryptable,
-    types::AmountConvertor,
+    crypto::Encryptable, errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor,
 };
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
@@ -237,7 +236,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             field_name: "currency",
         })?;
 
-        let current_time = date_time::date_as_yyyymmddthhmmssmmmz()
+        let current_time = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get current time")?;
 
@@ -585,7 +584,7 @@ pub async fn create_new_authentication(
 
     let key_manager_state = (state).into();
 
-    let current_time = date_time::now();
+    let current_time = common_utils::date_time::now();
 
     let new_authentication = hyperswitch_domain_models::authentication::Authentication {
         authentication_id: authentication_id.clone(),
@@ -642,7 +641,7 @@ pub async fn create_new_authentication(
         browser_version: None,
         issuer_id: None,
         scheme_name: None,
-        exemption_requested: None,
+        exemption_requested: Some(psd2_sca_exemption_type.is_some()),
         exemption_accepted: None,
         service_details: service_details_value,
         authentication_client_secret,
@@ -964,7 +963,7 @@ impl
         Option<payments::Address>,
         Option<payments::Address>,
         Option<payments::BrowserInformation>,
-        common_utils::crypto::OptionalEncryptableEmail,
+        Option<Encryptable<masking::Secret<String, common_utils::pii::EmailStrategy>>>,
     )> for AuthenticationEligibilityResponse
 {
     type Error = error_stack::Report<ApiErrorResponse>;
@@ -976,7 +975,7 @@ impl
             Option<payments::Address>,
             Option<payments::Address>,
             Option<payments::BrowserInformation>,
-            common_utils::crypto::OptionalEncryptableEmail,
+            Option<Encryptable<masking::Secret<String, common_utils::pii::EmailStrategy>>>,
         ),
     ) -> Result<Self, Self::Error> {
         let authentication_connector = authentication
@@ -1187,114 +1186,34 @@ pub async fn authentication_eligibility_core(
         )
         .await?;
 
-    let billing_details_encoded = req
+    let domain_billing_address = req
         .billing
         .clone()
-        .map(|billing| {
-            common_utils::ext_traits::Encode::encode_to_value(&billing)
-                .map(masking::Secret::<serde_json::Value>::new)
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encode billing details to serde_json::Value")?;
-
-    let shipping_details_encoded = req
+        .map(hyperswitch_domain_models::address::Address::from);
+    let domain_shipping_address = req
         .shipping
         .clone()
-        .map(|shipping| {
-            common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                .map(masking::Secret::<serde_json::Value>::new)
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encode shipping details to serde_json::Value")?;
-
-    let encrypted_data = domain::types::crypto_operation(
-        &key_manager_state,
-        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
-        domain::types::CryptoOperation::BatchEncrypt(
-            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
-                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
-                    billing_address: billing_details_encoded,
-                    shipping_address: shipping_details_encoded,
-                },
-            ),
-        ),
-        common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
-                .merchant_id
-                .clone(),
-        ),
-        merchant_context.get_merchant_key_store().key.peek(),
-    )
-    .await
-    .and_then(|val| val.try_into_batchoperation())
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to encrypt authentication data".to_string())?;
-
-    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
-
-    let email_encrypted = req
-        .email
-        .clone()
-        .async_lift(|inner| async {
-            domain::types::crypto_operation(
-                &key_manager_state,
-                common_utils::type_name!(Authentication),
-                domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    merchant_context
-                        .get_merchant_key_store()
-                        .merchant_id
-                        .clone(),
-                ),
-                merchant_context.get_merchant_key_store().key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_optionaloperation())
-        })
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt email")?;
-
-    let browser_info = req
-        .browser_information
-        .as_ref()
-        .map(common_utils::ext_traits::Encode::encode_to_value)
-        .transpose()
-        .change_context(ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_information",
-        })?;
-
-    let updated_authentication = utils::external_authentication_update_trackers(
+        .map(hyperswitch_domain_models::address::Address::from);
+    let updated_authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         pre_auth_response,
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
-        encrypted_data.billing_address,
-        encrypted_data.shipping_address,
-        email_encrypted.clone(),
-        browser_info,
+        domain_billing_address,
+        domain_shipping_address,
+        req.email.clone(),
+        req.browser_information.clone(),
         None,
         merchant_category_code,
         merchant_country_code
             .clone()
             .map(common_types::payments::MerchantCountryCode::new),
-        req.billing
-            .clone()
-            .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
-        req.shipping
-            .clone()
-            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
-    )
+    ))
     .await?;
 
     let response = AuthenticationEligibilityResponse::foreign_try_from((
-        updated_authentication,
+        updated_authentication.clone(),
         req.get_next_action_api(
             state.base_url,
             authentication_id.get_string_repr().to_string(),
@@ -1305,7 +1224,7 @@ pub async fn authentication_eligibility_core(
         req.get_billing_address(),
         req.get_shipping_address(),
         req.get_browser_information(),
-        email_encrypted,
+        updated_authentication.email,
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -1433,8 +1352,6 @@ pub async fn authentication_authenticate_core(
         None,
         req.sdk_information
             .and_then(|sdk_information| sdk_information.device_details),
-        None,
-        None,
         None,
         None,
     )
@@ -1975,8 +1892,6 @@ pub async fn authentication_sync_core(
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await?;
 
@@ -2170,8 +2085,6 @@ pub async fn authentication_post_sync_core(
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
-        None,
-        None,
         None,
         None,
         None,

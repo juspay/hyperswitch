@@ -603,8 +603,8 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 scheme_name: scheme_id,
                 mcc: merchant_category_code,
                 merchant_country_code,
-                billing_country: billing_country,
-                shipping_country: shipping_country,
+                billing_country,
+                shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
                 ..Default::default()

@@ -53,9 +53,9 @@ pub async fn perform_authentication(
         authentication_connector.clone(),
         payment_method_data,
         payment_method,
-        billing_address,
-        shipping_address,
-        browser_details,
+        billing_address.clone(),
+        shipping_address.clone(),
+        browser_details.clone(),
         amount,
         currency,
         message_category,
@@ -65,7 +65,7 @@ pub async fn perform_authentication(
         return_url,
         sdk_information.clone(),
         threeds_method_comp_ind,
-        email,
+        email.clone(),
         webhook_url,
         three_ds_requestor_url,
         psd2_sca_exemption_type,
@@ -78,7 +78,7 @@ pub async fn perform_authentication(
         router_data,
     ))
     .await?;
-    let authentication = utils::update_trackers(
+    let authentication = Box::pin(utils::update_trackers(
         state,
         response.clone(),
         authentication_data,
@@ -87,9 +87,11 @@ pub async fn perform_authentication(
         sdk_information.and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
-        None,
-        None,
-    )
+        Some(billing_address),
+        shipping_address,
+        browser_details,
+        email,
+    ))
     .await?;
     response
         .response
@@ -160,6 +162,8 @@ pub async fn perform_post_authentication(
             authentication,
             None,
             key_store,
+            None,
+            None,
             None,
             None,
             None,
@@ -258,12 +262,10 @@ pub async fn perform_pre_authentication(
             None,
             None,
             None,
-            billing_address
-                .clone()
-                .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
-            shipping_address
-                .clone()
-                .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
+            billing_address.clone(),
+            shipping_address.clone(),
+            None,
+            None,
         )
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -300,10 +302,10 @@ pub async fn perform_pre_authentication(
         None,
         None,
         None,
-        billing_address
-            .and_then(|billing| billing.address.clone().and_then(|address| address.country)),
-        shipping_address
-            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country)),
+        billing_address,
+        shipping_address,
+        None,
+        None,
     )
     .await?;
 

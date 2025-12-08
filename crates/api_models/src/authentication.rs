@@ -1,6 +1,9 @@
 use common_enums::{enums, AuthenticationConnectors};
 #[cfg(feature = "v1")]
-use common_utils::errors::{self, CustomResult};
+use common_utils::{
+    crypto::Encryptable,
+    errors::{self, CustomResult},
+};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
@@ -321,7 +324,7 @@ pub struct AuthenticationEligibilityResponse {
     pub browser_information: Option<BrowserInformation>,
     /// Email
     #[schema(value_type = Option<String>)]
-    pub email: common_utils::crypto::OptionalEncryptableEmail,
+    pub email: Option<Encryptable<masking::Secret<String, common_utils::pii::EmailStrategy>>>,
     /// Acquirer details information.
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,

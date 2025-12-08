@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-#[cfg(feature = "v1")]
 use common_enums::MerchantCategoryCode;
 use common_utils::{
     crypto::Encryptable,
@@ -18,7 +17,7 @@ use serde_json::Value;
 use super::behaviour;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
 pub struct Authentication {
     pub authentication_id: common_utils::id_type::AuthenticationId,
@@ -100,6 +99,7 @@ pub struct Authentication {
     pub merchant_country_code: Option<String>,
 }
 
+// #[cfg(feature = "v1")]
 impl Authentication {
     pub fn is_separate_authn_required(&self) -> bool {
         self.maximum_supported_version
@@ -263,36 +263,6 @@ impl behaviour::Conversion for Authentication {
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting authentication email".to_string(),
             })?;
-
-        // let billing = decrypted_data
-        //     .billing_address
-        //     .as_ref()
-        //     .map(|billing| {
-        //         billing
-        //             .to_owned()
-        //             .into_inner()
-        //             .expose()
-        //             .parse_value::<api_models::payments::Address>("Address")
-        //     })
-        //     .transpose()
-        //     .change_context(ValidationError::InvalidValue {
-        //         message: "Failed to parse billing address".to_string(),
-        //     })?;
-
-        // let shipping = decrypted_data
-        //     .shipping_address
-        //     .as_ref()
-        //     .map(|shipping| {
-        //         shipping
-        //             .to_owned()
-        //             .into_inner()
-        //             .expose()
-        //             .parse_value::<api_models::payments::Address>("Address")
-        //     })
-        //     .transpose()
-        //     .change_context(ValidationError::InvalidValue {
-        //         message: "Failed to parse shipping address".to_string(),
-        //     })?;
 
         Ok(Self {
             authentication_id: other.authentication_id,
@@ -487,8 +457,8 @@ pub enum AuthenticationUpdate {
         acquirer_merchant_id: Option<String>,
         directory_server_id: Option<String>,
         acquirer_country_code: Option<String>,
-        billing_address: Option<Encryptable<Secret<Value>>>,
-        shipping_address: Option<Encryptable<Secret<Value>>>,
+        billing_address: Box<Option<Encryptable<Secret<Value>>>>,
+        shipping_address: Box<Option<Encryptable<Secret<Value>>>>,
         browser_info: Box<Option<Value>>,
         email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
         scheme_id: Option<String>,

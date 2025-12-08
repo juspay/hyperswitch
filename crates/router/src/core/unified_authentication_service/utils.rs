@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
+#[cfg(feature = "v1")]
+use api_models::payments::BrowserInformation;
 use common_enums::enums::PaymentMethod;
 use common_utils::{
-    crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
-    pii,
+    types::keymanager::ToEncryptable,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -17,8 +18,9 @@ use hyperswitch_domain_models::{
     router_request_types::unified_authentication_service::{
         PostAuthenticationDetails, UasAuthenticationResponseData,
     },
+    type_encryption::AsyncLift,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -147,6 +149,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, UasAuthenticationResponseData>,
@@ -155,73 +158,153 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-    billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
-    browser_info: Option<serde_json::Value>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    email: Option<common_utils::pii::Email>,
+    browser_info: Option<BrowserInformation>,
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
-    billing_country_code: Option<common_enums::CountryAlpha2>,
-    shipping_country_code: Option<common_enums::CountryAlpha2>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             UasAuthenticationResponseData::PreAuthentication {
                 authentication_details,
-            } =>
-            Ok(
-                hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
-                    earliest_supported_version:authentication_details.maximum_supported_3ds_version.clone(),
-                    latest_supported_version: authentication_details.maximum_supported_3ds_version.clone(),
-                    threeds_server_transaction_id: authentication_details
-                        .threeds_server_transaction_id
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing threeds_server_transaction_id in PreAuthentication Details",
-                        )?,
-                    maximum_supported_3ds_version: authentication_details
-                        .maximum_supported_3ds_version
-                        .clone()
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing maximum_supported_3ds_version in PreAuthentication Details",
-                        )?,
-                    connector_authentication_id: authentication_details
-                        .connector_authentication_id
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "missing connector_authentication_id in PreAuthentication Details",
-                        )?,
-                    three_ds_method_data: authentication_details.three_ds_method_data,
-                    three_ds_method_url: authentication_details.three_ds_method_url,
-                    message_version: authentication_details
-                        .message_version
-                        .ok_or(ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing message_version in PreAuthentication Details")?,
-                    connector_metadata: authentication_details.connector_metadata.clone(),
-                    authentication_status: common_enums::AuthenticationStatus::Pending,
-                    acquirer_bin: acquirer_details
-                        .as_ref()
-                        .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-                    acquirer_merchant_id: acquirer_details
-                        .as_ref()
-                        .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
-                    acquirer_country_code: acquirer_details
-                        .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
-                    directory_server_id: authentication_details.directory_server_id.clone(),
-                    browser_info: Box::new(browser_info),
-                    email,
-                    billing_address,
-                    shipping_address,
-                    scheme_id: authentication_details.scheme_id.clone(),
-                    merchant_category_code,
-                    merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.get_country_code()),
-                    billing_country: billing_country_code.map(|billing_country_code| billing_country_code.to_string()),
-                    shipping_country: shipping_country_code.map(|shipping_country_code| shipping_country_code.to_string()),
+            } => {
+                let billing_details_encoded = billing_address
+                    .clone()
+                    .map(|billing| {
+                        common_utils::ext_traits::Encode::encode_to_value(&billing)
+                            .map(masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+                let shipping_details_encoded = shipping_address
+                    .clone()
+                    .map(|shipping| {
+                        common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                            .map(masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+                let encrypted_data = domain::types::crypto_operation(
+        &key_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchEncrypt(
+            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
+                    billing_address: billing_details_encoded,
+                    shipping_address: shipping_details_encoded,
                 },
             ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_key_store
+                .merchant_id
+                .clone(),
+        ),
+        merchant_key_store.key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+                let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
+
+                let email_encrypted = email
+                    .clone()
+                    .async_lift(|inner| async {
+                        domain::types::crypto_operation(
+                            &key_state,
+                            common_utils::type_name!(
+                                hyperswitch_domain_models::authentication::Authentication
+                            ),
+                            domain::types::CryptoOperation::EncryptOptional(
+                                inner.map(|inner| inner.expose()),
+                            ),
+                            common_utils::types::keymanager::Identifier::Merchant(
+                                merchant_key_store.merchant_id.clone(),
+                            ),
+                            merchant_key_store.key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt email")?;
+
+                let browser_info = browser_info
+                    .as_ref()
+                    .map(common_utils::ext_traits::Encode::encode_to_value)
+                    .transpose()
+                    .change_context(ApiErrorResponse::InvalidDataValue {
+                        field_name: "browser_information",
+                    })?;
+                Ok(
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+                        earliest_supported_version:authentication_details.maximum_supported_3ds_version.clone(),
+                        latest_supported_version: authentication_details.maximum_supported_3ds_version.clone(),
+                        threeds_server_transaction_id: authentication_details
+                            .threeds_server_transaction_id
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing threeds_server_transaction_id in PreAuthentication Details",
+                            )?,
+                        maximum_supported_3ds_version: authentication_details
+                            .maximum_supported_3ds_version
+                            .clone()
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing maximum_supported_3ds_version in PreAuthentication Details",
+                            )?,
+                        connector_authentication_id: authentication_details
+                            .connector_authentication_id
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "missing connector_authentication_id in PreAuthentication Details",
+                            )?,
+                        three_ds_method_data: authentication_details.three_ds_method_data,
+                        three_ds_method_url: authentication_details.three_ds_method_url,
+                        message_version: authentication_details
+                            .message_version
+                            .ok_or(ApiErrorResponse::InternalServerError)
+                            .attach_printable("missing message_version in PreAuthentication Details")?,
+                        connector_metadata: authentication_details.connector_metadata.clone(),
+                        authentication_status: common_enums::AuthenticationStatus::Pending,
+                        acquirer_bin: acquirer_details
+                            .as_ref()
+                            .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                        acquirer_merchant_id: acquirer_details
+                            .as_ref()
+                            .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                        acquirer_country_code: acquirer_details
+                            .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
+                        directory_server_id: authentication_details.directory_server_id.clone(),
+                        browser_info: Box::new(browser_info),
+                        email:email_encrypted,
+                        billing_address: Box::new(encrypted_data.billing_address),
+                        shipping_address: Box::new(encrypted_data.shipping_address),
+                        scheme_id: authentication_details.scheme_id.clone(),
+                        merchant_category_code,
+                        merchant_country_code: merchant_country_code.map(|merchant_country_code| merchant_country_code.get_country_code()),
+                        billing_country: billing_address
+                            .clone()
+                            .and_then(|billing| billing.address.clone().and_then(|address| address.country.map(|country| country.to_string()))),
+                        shipping_country: shipping_address
+                            .clone()
+                            .and_then(|shipping| shipping.address.clone().and_then(|address| address.country.map(|country| country.to_string()))),
+                    },
+                )
+            }
             UasAuthenticationResponseData::Authentication {
                 authentication_details,
             } => {
