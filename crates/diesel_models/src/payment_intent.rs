@@ -405,6 +405,8 @@ pub struct PaymentIntentNew {
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
 #[cfg(feature = "v1")]
