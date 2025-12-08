@@ -782,13 +782,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        self.get_auth_header(&req.connector_auth_type)
     }
 
     fn get_url(
