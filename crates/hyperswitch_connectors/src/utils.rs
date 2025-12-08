@@ -2066,6 +2066,7 @@ pub trait CustomerData {
     fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CustomerData for ConnectorCustomerData {
@@ -2077,6 +2078,9 @@ impl CustomerData for ConnectorCustomerData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
     }
     fn is_mandate_payment(&self) -> bool {
         // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
@@ -2100,6 +2104,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2209,6 +2214,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -6751,7 +6759,9 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
 }
 
 #[cfg(feature = "payouts")]

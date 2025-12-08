@@ -12,7 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
+use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -44,7 +44,7 @@ use hyperswitch_domain_models::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
-    router_data::{InteracCustomerInfo, KlarnaSdkResponse},
+    router_data::{InteracCustomerInfo, KlarnaSdkResponse, PaymentMethodToken},
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -5028,6 +5028,7 @@ pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
+    payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
@@ -5268,16 +5269,15 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match apple_pay_wallet_data
-                    .payment_data
-                    .get_decrypted_apple_pay_payment_data_optional()
-                {
-                    Some(token) => (
+                let (card_exp_month, card_exp_year) = match payment_method_token {
+                    Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
                         Some(token.application_expiration_month.clone()),
                         Some(token.application_expiration_year.clone()),
                     ),
-                    None => (None, None),
+
+                    _ => (None, None),
                 };
+
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
@@ -5291,16 +5291,14 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match google_pay_pm_data
-                    .tokenization_data
-                    .get_decrypted_google_pay_payment_data_optional()
-                {
-                    Some(token) => (
+                let (card_exp_month, card_exp_year) = match payment_method_token {
+                    Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
                         Some(token.card_exp_month.clone()),
                         Some(token.card_exp_year.clone()),
                     ),
-                    None => (None, None),
+                    _ => (None, None),
                 };
+
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
                     google_pay: Some(Box::new(
@@ -8513,19 +8511,14 @@ where
 
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let lineage_ids = grpc_client::LineageIds::new(
+
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
+        payment_data.get_creds_identifier().map(str::to_owned),
     );
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: None,
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
 
     call_connector_service(
         state,
@@ -8633,19 +8626,16 @@ where
         business_profile.get_id().clone(),
     );
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+        creds_identifier,
+    );
+
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-    let execution_mode = ExecutionMode::NotApplicable;
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids: lineage_ids.clone(),
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode,
-    };
 
     // Call Direct connector service
     let result = call_connector_service(
