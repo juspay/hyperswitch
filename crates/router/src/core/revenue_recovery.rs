@@ -317,11 +317,17 @@ pub async fn perform_execute_payment(
                     ))
                     .await?;
                     // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
-                    matches!(payment_intent.status, IntentStatus::Failed)
-                        && {
-                            storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
-                            true
-                        };
+                    let _unlocked = match payment_intent.status {
+                        IntentStatus::Failed => {
+                            storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                                state,
+                                &connector_customer_id,
+                                &payment_intent.id,
+                            )
+                            .await?
+                        }
+                        _ => false,
+                    };
                 }
 
                 Some(payment_processor_token) => {

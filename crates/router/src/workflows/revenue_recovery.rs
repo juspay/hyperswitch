@@ -797,23 +797,14 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     ))?;
 
     match (locked_acquired, payment_intent.status) {
-        (true, _) => {
-            // Get existing tokens from Redis
-            get_payment_processor_token_by_calling_decider(
+        (true, _) | (false, common_enums::IntentStatus::PartiallyCaptured) => {
+            let payment_processor_token_response = get_payment_processor_token_by_calling_decider(
                 state,
                 payment_intent,
                 connector_customer_id,
             )
-            .await
-        }
-        (false, common_enums::IntentStatus::PartiallyCaptured) => {
-            // Get existing tokens from Redis
-            get_payment_processor_token_by_calling_decider(
-                state,
-                payment_intent,
-                connector_customer_id,
-            )
-            .await
+            .await?;
+            Ok(payment_processor_token_response)
         }
         (false, _) => {
             let token_details =
@@ -1083,18 +1074,22 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 .all(|token| token.token_status.is_hard_decline.unwrap_or(false))
                 && !processor_tokens.is_empty();
             // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
-            matches!(
-                payment_intent.status,
-                common_enums::enums::IntentStatus::Failed
-            ) && {
-                RedisTokenManager::unlock_connector_customer_status(
-                    state,
-                    connector_customer_id,
-                    &payment_intent.id,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-                true
+            let _unlocked = match payment_intent.status {
+                common_enums::enums::IntentStatus::Failed => {
+                    let lock_released = RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        connector_customer_id,
+                        &payment_intent.id,
+                    )
+                    .await
+                    .change_context(
+                        errors::ProcessTrackerError::ERedisError(
+                            errors::RedisError::RedisConnectionError.into(),
+                        ),
+                    )?;
+                    lock_released
+                }
+                _ => false,
             };
 
             tracing::debug!("No payment processor tokens available for scheduling");
