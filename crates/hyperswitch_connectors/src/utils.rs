@@ -6404,7 +6404,6 @@ pub enum PaymentMethodDataType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
-    // OpenBanking,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
