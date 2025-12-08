@@ -3464,7 +3464,7 @@ pub async fn get_aggregates_for_payouts(
             &time_range,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let mut status_map: HashMap<common_enums::PayoutStatus, i64> =
         intent_status_with_count.into_iter().collect();

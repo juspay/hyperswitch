@@ -614,7 +614,7 @@ pub async fn get_payouts_aggregates_profile(
             )
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantPayoutRead,
+            permission: Permission::ProfilePayoutRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
