@@ -1309,6 +1309,7 @@ mod tests {
             amount_received: None,
             client_secret: None,
             created: None,
+            modified_at: None,
             currency: "USD".to_string(),
             customer_id: None,
             description: Some("Its my first payment request".to_string()),
