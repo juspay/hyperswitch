@@ -224,7 +224,7 @@ impl behaviour::Conversion for Authentication {
     ) -> CustomResult<Self, ValidationError> {
         let encrypted_data = crypto_operation(
             state,
-            common_utils::type_name!(Authentication),
+            common_utils::type_name!(Self),
             CryptoOperation::BatchDecrypt(EncryptedAuthentication::to_encryptable(
                 EncryptedAuthentication {
                     billing_address: other.billing_address,

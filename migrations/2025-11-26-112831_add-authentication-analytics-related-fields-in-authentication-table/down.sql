@@ -15,6 +15,6 @@ DROP COLUMN IF EXISTS exemption_requested,
 DROP COLUMN IF EXISTS exemption_accepted,
 DROP COLUMN IF EXISTS issuer_id,
 DROP COLUMN IF EXISTS issuer_country,
-DROP COLUMN IF EXISTS merchant_country_code;
-DROP COLUMN IF EXISTS billing_country;
+DROP COLUMN IF EXISTS merchant_country_code,
+DROP COLUMN IF EXISTS billing_country,
 DROP COLUMN IF EXISTS shipping_country;

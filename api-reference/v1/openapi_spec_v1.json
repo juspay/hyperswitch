@@ -28433,6 +28433,11 @@
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
             "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
+            "nullable": true
           }
         }
       },
@@ -35375,6 +35380,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
