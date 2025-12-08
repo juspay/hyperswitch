@@ -55,6 +55,18 @@ pub async fn profile_create(
     {
         return api::log_and_return_error_response(api_error.into());
     }
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
 
     Box::pin(api::server_wrap(
         flow,
@@ -257,6 +269,19 @@ pub async fn profile_update(
             }
 
             Ok::<_, errors::ApiErrorResponse>(())
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
+
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
         })
         .transpose()
     {
