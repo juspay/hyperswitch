@@ -1229,7 +1229,7 @@ impl UserFromStorage {
                 key: domain_types::crypto_operation(
                     key_manager_state,
                     type_name!(UserKeyStore),
-                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+                    domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
