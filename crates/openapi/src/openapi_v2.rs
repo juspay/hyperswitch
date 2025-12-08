@@ -850,6 +850,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::tokenization::GenericTokenizationResponse,
         api_models::tokenization::DeleteTokenDataRequest,
         api_models::tokenization::DeleteTokenDataResponse,
+        api_models::payments::DeviceDetails
     )),
     modifiers(&SecurityAddon)
 )]
