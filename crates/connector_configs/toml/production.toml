@@ -5101,7 +5101,7 @@ type = "Text"
 name = "merchant_category_code"
 label = "Merchant Category Code"
 placeholder = "Enter Merchant Category Code"
-required = true
+required=false
 type = "Text"
 
 [ctp_visa.metadata.merchant_country_code]
@@ -5385,6 +5385,78 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[worldpayxml.debit]]
 payment_method_type = "UnionPay"
+[[worldpayxml.wallet]]
+  payment_method_type = "google_pay"
+
+[[worldpayxml.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
@@ -5623,6 +5695,8 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
+[[payload.bank_debit]]
+payment_method_type = "ach"
 
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
 processing_account_id = "processing_account_id"
@@ -6384,6 +6458,24 @@ options=["CRYPTOGRAM_3DS"]
 api_key="Username"
 api_secret="Password"
 key1="Account ID"
+[zift.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[zift.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[zift.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
@@ -6397,3 +6489,9 @@ key1 = "Merchant Account Id"
 [envoy]
 [envoy.connector_auth.HeaderKey]
 api_key = "API Key"
+[vgs]
+[vgs.connector_auth.SignatureKey]
+  api_key="Client Id"
+  key1="Client Secret"
+  api_secret="Vault Id"
+

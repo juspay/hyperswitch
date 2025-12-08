@@ -415,6 +415,10 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
         tax_registration_id -> Nullable<Bytea>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
     }
 }
 
@@ -1122,6 +1126,9 @@ diesel::table! {
         is_stored_credential -> Nullable<Bool>,
         authorized_amount -> Nullable<Int8>,
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
+        encrypted_payment_method_data -> Nullable<Bytea>,
     }
 }
 
@@ -1229,6 +1236,9 @@ diesel::table! {
         #[max_length = 64]
         mit_category -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        tokenization -> Nullable<Varchar>,
+        partner_merchant_identifier_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1324,6 +1334,10 @@ diesel::table! {
         external_vault_source -> Nullable<Varchar>,
         #[max_length = 64]
         vault_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 255]
+        last_modified_by -> Nullable<Varchar>,
     }
 }
 
