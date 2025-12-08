@@ -1741,7 +1741,7 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response
-            let grpc_response_body = serde_json::to_value(&grpc_response).unwrap_or_else(
+            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
                 |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
             );
 
