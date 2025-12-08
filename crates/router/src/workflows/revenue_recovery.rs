@@ -848,6 +848,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     }
 }
 
+#[cfg(feature = "v2")]
 async fn get_payment_processor_token_by_calling_decider(
     state: &SessionState,
     payment_intent: &PaymentIntent,
