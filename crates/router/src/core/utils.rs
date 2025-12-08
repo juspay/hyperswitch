@@ -401,6 +401,7 @@ pub async fn construct_refund_router_data<'a, F>(
         frm_metadata: None,
         refund_id: Some(refund.id.get_string_repr().to_string().clone()),
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
