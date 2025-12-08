@@ -257,7 +257,17 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .map(|(k, v)| {
+                        let string_value = v
+                            .as_str()
+                            .map(|s| s.to_string())
+                            .or_else(|| {
+                                serde_json::to_string(v)
+                                    .ok()
+                            });
+                        string_value.map(|s| (k.clone(), s))
+                    })
+                    .filter_map(|item| item)
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
