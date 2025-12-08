@@ -222,7 +222,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let domain_events = try_join_all(events.into_iter().map(|event| async move {
+            try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -233,8 +233,7 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await?;
-            Ok(domain_events)
+            .await
         })
         .await
     }
@@ -255,7 +254,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let domain_events = try_join_all(events.into_iter().map(|event| async move {
+            try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -266,8 +265,7 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await?;
-            Ok(domain_events)
+            .await
         })
         .await
     }
@@ -288,7 +286,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let domain_events = try_join_all(events.into_iter().map(|event| async move {
+            try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -299,8 +297,7 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await?;
-            Ok(domain_events)
+            .await
         })
         .await
     }
@@ -322,8 +319,8 @@ impl EventInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|event_opt| async {
             match event_opt {
-                Some(event) => {
-                    let domain_event = event
+                Some(event) => Ok(Some(
+                    event
                         .convert(
                             self.get_keymanager_state()
                                 .attach_printable("Missing KeyManagerState")?,
@@ -331,9 +328,8 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?;
-                    Ok(Some(domain_event))
-                }
+                        .change_context(errors::StorageError::DecryptionError)?
+                )),
                 None => Ok(None),
             }
         })
@@ -366,7 +362,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let domain_events = try_join_all(events.into_iter().map(|event| async move {
+            try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -379,8 +375,7 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await?;
-            Ok(domain_events)
+            .await
         })
         .await
     }
@@ -401,7 +396,7 @@ impl EventInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|events| async {
-            let domain_events = try_join_all(events.into_iter().map(|event| async move {
+            try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -412,8 +407,7 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await?;
-            Ok(domain_events)
+            .await
         })
         .await
     }
@@ -435,8 +429,8 @@ impl EventInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
         .async_and_then(|event_opt| async {
             match event_opt {
-                Some(event) => {
-                    let domain_event = event
+                Some(event) => Ok(Some(
+                    event
                         .convert(
                             self.get_keymanager_state()
                                 .attach_printable("Missing KeyManagerState")?,
@@ -446,9 +440,8 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?;
-                    Ok(Some(domain_event))
-                }
+                        .change_context(errors::StorageError::DecryptionError)?
+                )),
                 None => Ok(None),
             }
         })
