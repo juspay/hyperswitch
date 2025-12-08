@@ -221,7 +221,7 @@ impl EventInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
+        .async_and_then(|events| {
             try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
@@ -233,7 +233,6 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await
         })
         .await
     }
@@ -253,7 +252,7 @@ impl EventInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
+        .async_and_then(|events| {
             try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
@@ -265,7 +264,6 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await
         })
         .await
     }
@@ -285,7 +283,7 @@ impl EventInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
+        .async_and_then(|events| {
             try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
@@ -297,7 +295,6 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await
         })
         .await
     }
@@ -328,7 +325,7 @@ impl EventInterface for Store {
                             merchant_key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )),
                 None => Ok(None),
             }
@@ -361,7 +358,7 @@ impl EventInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
+        .async_and_then(|events| {
             try_join_all(events.into_iter().map(|event| async move {
                 event
                     .convert(
@@ -375,7 +372,6 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await
         })
         .await
     }
@@ -395,8 +391,8 @@ impl EventInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
-        .async_and_then(|events| async {
-            try_join_all(events.into_iter().map(|event| async move {
+        .async_and_then(|events| {
+            try_join_all(events.into_iter().map(|event| async {
                 event
                     .convert(
                         self.get_keymanager_state()
@@ -407,7 +403,6 @@ impl EventInterface for Store {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             }))
-            .await
         })
         .await
     }
@@ -440,7 +435,7 @@ impl EventInterface for Store {
                             ),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )),
                 None => Ok(None),
             }
