@@ -615,10 +615,8 @@ impl RedisTokenManager {
                 }
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
-                if is_account_updater {
-                    existing_token.is_active = token_data.is_active;
-                }
-
+                is_account_updater.then(|| existing_token.is_active = token_data.is_active);
+                
                 existing_token
                     .modified_at
                     .zip(last_external_attempt_at)
@@ -1338,6 +1336,12 @@ impl AccountUpdaterAction {
 
                 logger::info!("Successfully deactivated old token.");
 
+                let is_existing_token = RedisTokenManager::get_payment_processor_token_using_token_id(
+                    state,
+                    customer_id,
+                    new_token.to_owned().as_str(),
+                ).await?;
+
                 let new_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: PaymentProcessorTokenDetails {
                         payment_processor_token: new_token.to_owned(),
@@ -1379,14 +1383,19 @@ impl AccountUpdaterAction {
                     decision_threshold: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(
-                    state,
-                    customer_id,
-                    new_token,
-                    true,
-                )
-                .await?;
-                logger::info!("Successfully updated token with new token information.")
+                /// Check whether we got have the new token in redis or not. If we have it we dont have to anything. If it dosent we have to insert it inton Redis.
+                if is_existing_token.is_some() {
+                    logger::info!("New token already exists. Skipping the insertion into Redis.");
+                } else {
+                    RedisTokenManager::upsert_payment_processor_token(
+                        state,
+                        customer_id,
+                        new_token,
+                        true,
+                    )
+                    .await?;
+                    logger::info!("Successfully updated token with new token information.");
+                }
             }
             Self::ExpiryUpdate(updated_mandate_details) => {
                 logger::info!("Handling ExpiryUpdate action");
