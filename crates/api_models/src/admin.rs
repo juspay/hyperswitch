@@ -805,6 +805,16 @@ pub struct MerchantAccountDeleteResponse {
     pub deleted: bool,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ProfileDeleteResponse {
+    /// The identifier for the Profile
+    #[schema(max_length = 255, example = "pro_abcdefghijklmnopqrstuvwxyz", value_type = String)]
+    pub profile_id: id_type::ProfileId,
+    /// If the profile is deleted or not
+    #[schema(example = true)]
+    pub deleted: bool,
+}
+
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MerchantId {
     pub merchant_id: id_type::MerchantId,
