@@ -3296,6 +3296,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3363,6 +3364,7 @@ pub async fn payment_methods_session_update(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3390,6 +3392,7 @@ pub async fn payment_methods_session_retrieve(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
+        None,
         None,
     );
 
@@ -3717,6 +3720,7 @@ pub async fn payment_methods_session_confirm(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
         (tokenization_response.flatten()),
+        Some(payment_method.id.clone()),
     );
 
     Ok(services::ApplicationResponse::Json(
