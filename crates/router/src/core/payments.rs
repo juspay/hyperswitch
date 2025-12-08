@@ -10812,7 +10812,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?,
             platform.get_processor().get_key_store(),
-            &key_manager_state,
+            key_manager_state,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -10901,7 +10901,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication.psd2_sca_exemption_type,
             )
             .await?;
-        let authentication = external_authentication_update_trackers(
+        let authentication = Box::pin(external_authentication_update_trackers(
             &state,
             auth_response,
             authentication.clone(),
@@ -10915,7 +10915,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .and_then(|sdk_information| sdk_information.device_details),
             None,
             None,
-        )
+        ))
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
     } else {

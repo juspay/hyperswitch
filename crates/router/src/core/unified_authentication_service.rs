@@ -1330,7 +1330,7 @@ pub async fn authentication_authenticate_core(
     )
     .await?;
 
-    let authentication = utils::external_authentication_update_trackers(
+    let authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         auth_response,
         authentication.clone(),
@@ -1344,7 +1344,7 @@ pub async fn authentication_authenticate_core(
             .and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
-    )
+    ))
     .await?;
 
     let (authentication_value, eci) = match auth_flow {
