@@ -2442,8 +2442,7 @@ impl PaymentMethodType {
             | Self::Vipps
             | Self::Venmo
             | Self::Walley
-            | Self::WeChatPay
-             => PaymentMethod::Wallet,
+            | Self::WeChatPay => PaymentMethod::Wallet,
             Self::Breadpay
             | Self::Flexiti
             | Self::Klarna
@@ -2455,7 +2454,9 @@ impl PaymentMethodType {
             | Self::Atome => PaymentMethod::PayLater,
             Self::BhnCardNetwork | Self::Givex | Self::PaySafeCard => PaymentMethod::GiftCard,
             Self::Credit | Self::Debit => PaymentMethod::Card,
-            Self::CardRedirect | Self::Knet | Self::MomoAtm | Self::Benefit => PaymentMethod::CardRedirect,
+            Self::CardRedirect | Self::Knet | Self::MomoAtm | Self::Benefit => {
+                PaymentMethod::CardRedirect
+            }
             Self::CryptoCurrency => PaymentMethod::Crypto,
             Self::DirectCarrierBilling => PaymentMethod::MobilePayment,
             Self::Evoucher | Self::ClassicReward => PaymentMethod::Reward,
@@ -2475,8 +2476,8 @@ impl PaymentMethodType {
             | Self::DanamonVa
             | Self::MandiriVa
             | Self::LocalBankTransfer
-            | Self::PermataBankTransfer 
-            | Self::Pse 
+            | Self::PermataBankTransfer
+            | Self::Pse
             | Self::Multibanco => PaymentMethod::BankTransfer,
             #[cfg(feature = "v2")]
             Self::Card => PaymentMethod::Card,
