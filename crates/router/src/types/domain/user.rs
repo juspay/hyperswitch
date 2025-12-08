@@ -1217,7 +1217,7 @@ impl UserFromStorage {
                     key_manager_state,
                     EncryptionTransferRequest {
                         identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: consts::BASE64_ENGINE.encode(key),
+                        key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
                     },
                 )
                 .await
