@@ -41,6 +41,13 @@ pub async fn payments_create(
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
+
     if let Err(api_error) = payload
         .payment_link_config
         .as_ref()
