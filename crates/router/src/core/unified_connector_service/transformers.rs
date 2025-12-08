@@ -261,10 +261,7 @@ impl
                         let string_value = v
                             .as_str()
                             .map(|s| s.to_string())
-                            .or_else(|| {
-                                serde_json::to_string(v)
-                                    .ok()
-                            });
+                            .or_else(|| serde_json::to_string(v).ok());
                         string_value.map(|s| (k.clone(), s))
                     })
                     .filter_map(|item| item)
