@@ -4,7 +4,6 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     core::{api_locking, payment_link::*},
     services::{api, authentication as auth},
-    types::domain,
     AppState,
 };
 
@@ -61,12 +60,10 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             initiate_payment_link_flow(
                 state,
-                merchant_context,
+                platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -98,12 +95,10 @@ pub async fn initiate_secure_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             initiate_secure_payment_link_flow(
                 state,
-                merchant_context,
+                platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
                 headers,
@@ -164,12 +159,10 @@ pub async fn payment_link_status(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             get_payment_link_status(
                 state,
-                merchant_context,
+                platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )

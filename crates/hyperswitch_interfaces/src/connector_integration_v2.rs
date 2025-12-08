@@ -65,6 +65,8 @@ impl<
 /// Alias for Box<&'static (dyn ConnectorV2 + Sync)>
 pub type BoxedConnectorV2 = Box<&'static (dyn ConnectorV2 + Sync)>;
 
+impl api::ConnectorAccessTokenSuffix for BoxedConnectorV2 {}
+
 /// alias for Box of a type that implements trait ConnectorIntegrationV2
 pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
     Box<&'a (dyn ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync)>;

@@ -295,17 +295,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
             .into());
         };
 
-        let customer_id_reference = match router_data.get_connector_customer_id() {
-            Ok(connector_customer_id) => connector_customer_id,
-            Err(_) => {
-                let customer_id = router_data.get_customer_id()?;
-                format!(
-                    "{}_{}",
-                    router_data.merchant_id.get_string_repr(),
-                    customer_id.get_string_repr()
-                )
-            }
-        };
+        let customer_id_reference = router_data.get_connector_customer_id()?;
 
         Ok(Self {
             address: Some(address),
@@ -336,17 +326,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder 
 
         let full_name = router_data.get_billing_full_name()?;
 
-        let customer_id_reference = match router_data.get_connector_customer_id() {
-            Ok(connector_customer_id) => connector_customer_id,
-            Err(_) => {
-                let customer_id = router_data.get_customer_id()?;
-                format!(
-                    "{}_{}",
-                    router_data.merchant_id.get_string_repr(),
-                    customer_id.get_string_repr()
-                )
-            }
-        };
+        let customer_id_reference = router_data.get_connector_customer_id()?;
 
         Ok(Self {
             address: Some(address),
@@ -391,22 +371,10 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
                     })?
                     .try_into()?;
 
-                let customer_id_reference =
-                    match stored_payment.item.router_data.get_connector_customer_id() {
-                        Ok(connector_customer_id) => connector_customer_id,
-                        Err(_) => {
-                            let customer_id = stored_payment.item.router_data.get_customer_id()?;
-                            format!(
-                                "{}_{}",
-                                stored_payment
-                                    .item
-                                    .router_data
-                                    .merchant_id
-                                    .get_string_repr(),
-                                customer_id.get_string_repr()
-                            )
-                        }
-                    };
+                let customer_id_reference = stored_payment
+                    .item
+                    .router_data
+                    .get_connector_customer_id()?;
 
                 let card_holder = AdyenAccountHolder {
                     address: Some(address),
@@ -459,11 +427,11 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
         let request = &raw_payment.item.router_data.request;
 
         match raw_payment.raw_payout_method_data {
-            payouts::PayoutMethodData::Wallet(_) | payouts::PayoutMethodData::BankRedirect(_) => {
-                Err(ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
-                ))?
-            }
+            payouts::PayoutMethodData::Wallet(_)
+            | payouts::PayoutMethodData::BankRedirect(_)
+            | payouts::PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
+            ))?,
             payouts::PayoutMethodData::Card(c) => {
                 let card_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &c).try_into()?;
@@ -689,14 +657,16 @@ pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
     pub tracking: Option<AdyenplatformTrackingData>,
+    pub reason: Option<String>,
     pub category: Option<AdyenPayoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformTrackingData {
-    status: TrackingStatus,
-    estimated_arrival_time: Option<String>,
+    pub status: TrackingStatus,
+    pub reason: Option<String>,
+    pub estimated_arrival_time: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

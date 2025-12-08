@@ -1,14 +1,13 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
-use common_enums;
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::new_type::{
-    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
-    MaskedSortCode,
+    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
+    MaskedRoutingNumber, MaskedSortCode,
 };
 
 /// Masked payout method details for storing in db
@@ -25,6 +24,8 @@ pub enum AdditionalPayoutMethodData {
     Wallet(Box<WalletAdditionalData>),
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
+    /// Additional data for Passthrough payout method
+    Passthrough(Box<PassthroughAddtionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -282,4 +283,18 @@ pub struct InteracAdditionalData {
     /// Email linked with interac account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
     pub email: Option<MaskedEmail>,
+}
+
+/// additional payout method details for passthrough payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PassthroughAddtionalData {
+    /// Psp_token of the passthrough flow
+    #[schema(value_type = String, example = "token_12345")]
+    pub psp_token: MaskedPspToken,
+    /// token_type of the passthrough flow
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    pub token_type: common_enums::PaymentMethodType,
 }

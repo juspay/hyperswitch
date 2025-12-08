@@ -21,7 +21,6 @@ pub mod mandates;
 pub mod master_key;
 pub mod merchant_account;
 pub mod merchant_connector_account;
-pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -30,6 +29,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod platform;
 pub mod refunds;
 pub mod relay;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -519,6 +519,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             }),
             payment_button_text: item.payment_button_text,
             custom_message_for_card_terms: item.custom_message_for_card_terms,
+            custom_message_for_payment_method_types: item.custom_message_for_payment_method_types,
             payment_button_colour: item.payment_button_colour,
             skip_status_screen: item.skip_status_screen,
             background_colour: item.background_colour,
@@ -548,6 +549,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             details_layout,
             payment_button_text,
             custom_message_for_card_terms,
+            custom_message_for_payment_method_types,
             payment_button_colour,
             skip_status_screen,
             background_colour,
@@ -581,6 +583,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                 .map(|background_image| background_image.convert_back()),
             payment_button_text,
             custom_message_for_card_terms,
+            custom_message_for_payment_method_types,
             payment_button_colour,
             skip_status_screen,
             background_colour,
@@ -593,6 +596,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms,
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
+            payment_test_mode: None,
         }
     }
 }
@@ -728,6 +732,7 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
@@ -744,6 +749,7 @@ impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }

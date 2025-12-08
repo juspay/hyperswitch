@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, poll},
     services::{api, authentication as auth},
-    types::{api::PollId, domain},
+    types::api::PollId,
 };
 
 #[cfg(feature = "v1")]
@@ -40,12 +40,13 @@ pub async fn retrieve_poll_status(
         &req,
         poll_id,
         |state, auth, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            poll::retrieve_poll_status(state, req, merchant_context)
+            let platform = auth.into();
+            poll::retrieve_poll_status(state, req, platform)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
