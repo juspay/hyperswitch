@@ -1396,3 +1396,180 @@ pub(crate) mod metrics {
     counter_metric!(APPLICATION_ENCRYPTION_COUNT, GLOBAL_METER);
     counter_metric!(APPLICATION_DECRYPTION_COUNT, GLOBAL_METER);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_version_prefix_valid_minimal() {
+        let input = b"v1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_multiple_digits() {
+        let input = b"v12:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v12"[..], &b"data"[..])));
+
+        let input = b"v123:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v123"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_empty_data() {
+        let input = b"v1:";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b""[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_single_char_data() {
+        let input = b"v1:x";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"x"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_at_boundary() {
+        // "v99:" is 4 bytes total, within the 5-byte limit
+        let input = b"v99:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v99"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_long_data() {
+        let input = b"v1:this_is_a_very_long_piece_of_data";
+        let result = split_version_prefix(input);
+        assert_eq!(
+            result,
+            Some((&b"v1"[..], &b"this_is_a_very_long_piece_of_data"[..]))
+        );
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_no_digits() {
+        // "v:" has no digits between 'v' and ':'
+        let input = b"v:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_non_digit() {
+        let input = b"vx:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_digit_then_non_digit() {
+        let input = b"v1x:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_missing_colon() {
+        let input = b"v1";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+
+        let input = b"v123";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_no_v_prefix() {
+        let input = b"x1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+
+        let input = b"1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_uppercase_v() {
+        let input = b"V1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_empty_input() {
+        let input = b"";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_just_v() {
+        let input = b"v";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_exceeds_limit() {
+        // "v999:" is 5 bytes, which equals MAX_PREFIX_LEN
+        // The search_limit will be 5, so the loop goes from 1..5 (indices 1,2,3,4)
+        // Index 4 would be ':', but we need to check if this is found
+        let input = b"v999:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v999"[..], &b"data"[..])));
+
+        // "v9999:" is 6 bytes, exceeds MAX_PREFIX_LEN of 5
+        // The search_limit will be 5, loop from 1..5 (indices 1,2,3,4)
+        // Index 4 is '9', not ':', so no colon found within limit
+        let input = b"v9999:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_binary_data_after_colon() {
+        let input = b"v1:\x00\x01\x02\xff";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"\x00\x01\x02\xff"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_special_chars_in_data() {
+        let input = b"v2:data!@#$%^&*()";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v2"[..], &b"data!@#$%^&*()"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_colon_in_data() {
+        // Colon after the first colon should be part of data
+        let input = b"v1:data:more:colons";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"data:more:colons"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_zero_version() {
+        let input = b"v0:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v0"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_leading_zeros() {
+        let input = b"v01:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v01"[..], &b"data"[..])));
+
+        let input = b"v001:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v001"[..], &b"data"[..])));
+    }
+}
