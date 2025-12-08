@@ -180,7 +180,6 @@ pub fn build_oidc_redirect_url(
     Ok(url.to_string())
 }
 
-#[cfg(feature = "v1")]
 pub async fn process_authorize_request(
     state: SessionState,
     payload: OidcAuthorizeQuery,
@@ -203,15 +202,27 @@ pub async fn process_authorize_request(
 
     let redirect_url = build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)?;
 
-    Ok(ApplicationResponse::JsonForRedirection(
-        RedirectionResponse {
-            headers: Vec::with_capacity(0),
-            return_url: String::new(),
-            http_method: String::new(),
-            params: Vec::with_capacity(0),
-            return_url_with_query_params: redirect_url,
-        },
-    ))
+    #[cfg(feature = "v1")]
+    {
+        Ok(ApplicationResponse::JsonForRedirection(
+            RedirectionResponse {
+                headers: Vec::with_capacity(0),
+                return_url: String::new(),
+                http_method: String::new(),
+                params: Vec::with_capacity(0),
+                return_url_with_query_params: redirect_url,
+            },
+        ))
+    }
+
+    #[cfg(feature = "v2")]
+    {
+        Ok(ApplicationResponse::JsonForRedirection(
+            RedirectionResponse {
+                return_url_with_query_params: redirect_url,
+            },
+        ))
+    }
 }
 
 fn validate_token_request(
