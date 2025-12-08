@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix5
+
+### Features
+
+- **core:** Consume Card Holder Name in Payment Method Batch Migrations ([#10565](https://github.com/juspay/hyperswitch/pull/10565)) ([`86f3187`](https://github.com/juspay/hyperswitch/commit/86f3187d9cea781e0637e45f3af4c5d67e256132))
+
+**Full Changelog:** [`2025.11.26.0-hotfix4...2025.11.26.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix4...2025.11.26.0-hotfix5)
+
+- - -
+
 ## 2025.11.26.0-hotfix4
 
 ### Features
