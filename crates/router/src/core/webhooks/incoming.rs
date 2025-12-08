@@ -2545,11 +2545,7 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
-        if (option_dispute.is_none()
-            || option_dispute
-                .as_ref()
-                .map(|dispute| dispute.dispute_status != common_enums::DisputeStatus::DisputeLost)
-                == Some(true))
+        if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
             && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
         {
             let payment_intent = db

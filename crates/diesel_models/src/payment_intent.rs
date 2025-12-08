@@ -1,6 +1,7 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_types::primitive_wrappers::{
-    EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool,
+use common_types::{
+    payments::PaymentIntentStateMetadata,
+    primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
 };
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -16,10 +17,7 @@ use crate::schema_v2::payment_intent;
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v2")]
 use crate::RequiredFromNullable;
-use crate::{
-    business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums,
-    types::PaymentIntentStateMetadata,
-};
+use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]

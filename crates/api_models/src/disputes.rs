@@ -57,8 +57,7 @@ pub struct DisputeResponse {
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Shows if the disputed amount is already refunded in the payment
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_already_refunded: Option<bool>,
+    pub is_already_refunded: bool,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]

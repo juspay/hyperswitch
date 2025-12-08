@@ -13720,7 +13720,7 @@ pub trait PaymentIntentStateMetadataExt {
 }
 
 #[cfg(feature = "v1")]
-impl PaymentIntentStateMetadataExt for diesel_models::types::PaymentIntentStateMetadata {
+impl PaymentIntentStateMetadataExt for common_types::payments::PaymentIntentStateMetadata {
     fn validate_refund_against_intent_state_metadata(
         self,
         refund: &api::RefundRequest,
@@ -13746,12 +13746,8 @@ impl PaymentIntentStateMetadataExt for diesel_models::types::PaymentIntentStateM
             utils::when(
                 total_disputed + total_refunded + requested > captured,
                 || {
-                    Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "amount".to_string(),
-                        expected_format: format!(
-                            "Refund amount exceeds. Available refund amount is {}.",
-                            available_refund.max(0)
-                        ),
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Refund amount exceeds available refundable amount.".to_string(),
                     })
                     .attach_printable(format!(
                         "Refund not allowed because total_disputed_amount ({}) \

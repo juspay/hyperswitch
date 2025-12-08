@@ -166,20 +166,18 @@ pub async fn retrieve_dispute(
     {
         let current_state = payment_intent.state_metadata.unwrap_or_default();
 
-        dispute_response.is_already_refunded = Some(
-            payment_intent
-                .amount_captured
+        dispute_response.is_already_refunded = payment_intent
+            .amount_captured
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            - current_state
+                .total_refunded_amount
                 .unwrap_or(MinorUnit::zero())
                 .get_amount_as_i64()
-                - current_state
-                    .total_refunded_amount
-                    .unwrap_or(MinorUnit::zero())
-                    .get_amount_as_i64()
-                < current_state
-                    .total_disputed_amount
-                    .unwrap_or(MinorUnit::zero())
-                    .get_amount_as_i64(),
-        );
+            < current_state
+                .total_disputed_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
     }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
