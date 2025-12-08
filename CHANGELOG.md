@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.08.0
+
+### Features
+
+- **connector:**
+  - [Airwallex] Implemented Mandates ([#10431](https://github.com/juspay/hyperswitch/pull/10431)) ([`c0d13ed`](https://github.com/juspay/hyperswitch/commit/c0d13ed05fee0f6096f89787eb2bb453283420d2))
+  - [WorldpayWPG] Implement cards and apple pay decrypt payout ([#10545](https://github.com/juspay/hyperswitch/pull/10545)) ([`8ddc861`](https://github.com/juspay/hyperswitch/commit/8ddc8610715b74db568569744832d33807483e0b))
+- **psql:** Backfill payouts table where organization_id is null ([#10210](https://github.com/juspay/hyperswitch/pull/10210)) ([`3cbc98c`](https://github.com/juspay/hyperswitch/commit/3cbc98c050420dfa2d826a363f26e8f48ebed950))
+
+### Bug Fixes
+
+- **connectors:** [Adyen] Make shopper_reference optional for on_session payments ([#10520](https://github.com/juspay/hyperswitch/pull/10520)) ([`b8b5739`](https://github.com/juspay/hyperswitch/commit/b8b57395f229bb6a6bddc1fd0190d9970ef7ed4d))
+- **core:** Merchant Category Code Enum to strict Struct ([#10423](https://github.com/juspay/hyperswitch/pull/10423)) ([`2c9e630`](https://github.com/juspay/hyperswitch/commit/2c9e6307ff13a7726e9ebcc40d8765959450d96c))
+
+### Refactors
+
+- **euclid_wasm:** Change connector config for VGS vault connector ([#10540](https://github.com/juspay/hyperswitch/pull/10540)) ([`2964d04`](https://github.com/juspay/hyperswitch/commit/2964d043d8a0d48a266ce181be0e50a94fccf8bb))
+
+**Full Changelog:** [`2025.12.05.0...2025.12.08.0`](https://github.com/juspay/hyperswitch/compare/2025.12.05.0...2025.12.08.0)
+
+- - -
+
 ## 2025.12.05.0
 
 ### Features
