@@ -123,7 +123,7 @@ export const connectorDetails = {
       },
     },
     // 3DS automatic capture
-    "3DSAutoCapture": getCustomExchange({
+    "3DSAutoCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -140,18 +140,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            type: "invalid_request",
-          },
-        },
-      },
-    }),
+    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
