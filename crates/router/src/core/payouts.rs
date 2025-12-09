@@ -969,7 +969,7 @@ pub async fn payouts_list_available_filters_core(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
@@ -980,7 +980,7 @@ pub async fn payouts_list_available_filters_core(
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         api::PayoutListFilters {
@@ -3447,4 +3447,34 @@ pub async fn get_mca_from_profile_id(
     .await?;
 
     Ok(merchant_connector_account)
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_payouts(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<api_models::payouts::PayoutsAggregateResponse> {
+    let db = state.store.as_ref();
+    let intent_status_with_count = db
+        .get_payout_intent_status_with_count(
+            platform.get_processor().get_account().get_id(),
+            profile_id_list,
+            &time_range,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let mut status_map: HashMap<common_enums::PayoutStatus, i64> =
+        intent_status_with_count.into_iter().collect();
+    for status in common_enums::PayoutStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payouts::PayoutsAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
 }
