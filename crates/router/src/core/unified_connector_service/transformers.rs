@@ -258,11 +258,8 @@ impl
             .map(|map| {
                 map.iter()
                     .map(|(k, v)| {
-                        let string_value = v
-                            .as_str()
-                            .map(|s| s.to_string())
-                            .or_else(|| serde_json::to_string(v).ok());
-                        string_value.map(|s| (k.clone(), s))
+                        let string_value = v.to_string();
+                        Some((k.clone(), string_value))
                     })
                     .filter_map(|item| item)
                     .collect::<HashMap<String, String>>()
