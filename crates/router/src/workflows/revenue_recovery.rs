@@ -1133,7 +1133,8 @@ pub async fn check_hard_decline(
         error_code,
         error_message,
         connector_name,
-        REVENUE_RECOVERY.to_string(),
+        REVENUE_RECOVERY,
+        crate::consts::DEFAULT_SUBFLOW_STR,
     )
     .await;
 

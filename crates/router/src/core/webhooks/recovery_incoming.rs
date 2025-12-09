@@ -920,7 +920,8 @@ impl RevenueRecoveryAttempt {
             error_code.clone(),
             error_message,
             connector_name,
-            REVENUE_RECOVERY.to_string(),
+            REVENUE_RECOVERY,
+            crate::consts::DEFAULT_SUBFLOW_STR,
         )
         .await;
 

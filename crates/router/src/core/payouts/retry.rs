@@ -179,6 +179,7 @@ pub async fn get_gsm(
         error_message,
         connector_name,
         common_utils::consts::PAYOUT_FLOW_STR,
+        crate::consts::DEFAULT_SUBFLOW_STR,
     )
     .await)
 }

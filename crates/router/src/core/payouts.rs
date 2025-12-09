@@ -1389,6 +1389,7 @@ pub async fn create_recipient(
                     error_message.clone(),
                     payout_data.payout_attempt.connector.clone(),
                     consts::PAYOUT_FLOW_STR,
+                    crate::consts::DEFAULT_SUBFLOW_STR,
                 )
                 .await
                 .map_or(
@@ -1575,6 +1576,7 @@ pub async fn check_payout_eligibility(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -1798,6 +1800,7 @@ pub async fn create_payout(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2005,6 +2008,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     error_message.clone(),
                     payout_data.payout_attempt.connector.clone(),
                     consts::PAYOUT_FLOW_STR,
+                    crate::consts::DEFAULT_SUBFLOW_STR,
                 )
                 .await
                 .map_or(
@@ -2259,6 +2263,7 @@ pub async fn create_recipient_disburse_account(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2384,6 +2389,7 @@ pub async fn cancel_payout(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
@@ -2560,6 +2566,7 @@ pub async fn fulfill_payout(
                 error_message.clone(),
                 payout_data.payout_attempt.connector.clone(),
                 consts::PAYOUT_FLOW_STR,
+                crate::consts::DEFAULT_SUBFLOW_STR,
             )
             .await
             .map_or(
