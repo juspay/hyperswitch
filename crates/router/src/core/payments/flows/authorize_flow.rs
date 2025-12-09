@@ -316,6 +316,61 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+    async fn pre_authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_pre_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) {
+            logger::info!(
+                "Pre-authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let authorize_request_data = self.request.clone();
+            let pre_authenticate_request_data =
+                types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+            let pre_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let pre_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
+                    self.clone(),
+                    pre_authenticate_request_data,
+                    pre_authenticate_response_data,
+                );
+            let pre_authenticate_router_data = handle_pre_authenticate_connector_call(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                &gateway_context,
+            )
+            .await?;
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                    pre_authenticate_router_data,
+                    authorize_request_data,
+                    pre_authenticate_response,
+                );
+            // After doing pre_authentication, step, we should not proceed with authorize call.
+            // control must be returned to SDK.
+            Ok((complete_authorize_router_data, false))
+        } else {
+            Ok((self, true))
+        }
+    }
+
     async fn preprocessing_steps<'a>(
         self,
         state: &SessionState,
