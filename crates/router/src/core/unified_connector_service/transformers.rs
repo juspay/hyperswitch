@@ -257,11 +257,10 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .map(|(k, v)| {
+                    .filter_map(|(k, v)| {
                         let string_value = v.to_string();
                         Some((k.clone(), string_value))
                     })
-                    .flatten()
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
