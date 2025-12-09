@@ -14,6 +14,7 @@ CREATE TABLE connector_events_queue
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String)
+    `payout_id` Nullable(String)
 )
 ENGINE = Kafka
 SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-outgoing-connector-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
@@ -55,6 +56,7 @@ CREATE TABLE connector_events (
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
+    `payout_id` Nullable(String)
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -91,6 +93,28 @@ CREATE TABLE connector_events_audit (
 ) ENGINE = MergeTree PARTITION BY merchant_id
 ORDER BY
     (merchant_id, payment_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+
+CREATE TABLE connector_events_payout_audit (
+    `merchant_id` LowCardinality(String),
+    `payout_id` String,
+    `connector_name` LowCardinality(String),
+    `request_id` String,
+    `flow` LowCardinality(String),
+    `request` String,
+    `response` Nullable(String),
+    `masked_response` Nullable(String),
+    `error` Nullable(String),
+    `status_code` UInt32,
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `latency` UInt128,
+    `method` LowCardinality(String),
+    INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
+    INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
+    INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
+) ENGINE = MergeTree PARTITION BY merchant_id
+ORDER BY
+    (merchant_id, payout_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW connector_events_audit_mv TO connector_events_audit (
     `merchant_id` String,
@@ -132,6 +156,43 @@ FROM
 WHERE
     (length(_error) = 0)
     AND (payment_id IS NOT NULL);
+
+CREATE MATERIALIZED VIEW connector_events_payout_audit_mv TO connector_events_payout_audit (
+    `merchant_id` String,
+    `payout_id` Nullable(String),
+    `connector_name` LowCardinality(String),
+    `request_id` String,
+    `flow` LowCardinality(String),
+    `request` String,
+    `response` Nullable(String),
+    `masked_response` Nullable(String),
+    `error` Nullable(String),
+    `status_code` UInt32,
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `latency` UInt128,
+    `method` LowCardinality(String)
+) AS
+SELECT
+    merchant_id,
+    payout_id,
+    connector_name,
+    request_id,
+    flow,
+    request,
+    masked_response AS response,
+    masked_response,
+    error,
+    status_code,
+    created_at,
+    now64() AS inserted_at,
+    latency,
+    method
+FROM
+    connector_events_queue
+WHERE
+    (length(_error) = 0)
+    AND (payout_id IS NOT NULL);
 
 CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
     `merchant_id` String,
