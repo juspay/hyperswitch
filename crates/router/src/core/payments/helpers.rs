@@ -2138,6 +2138,16 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
 }
 
+impl Default for RolloutExecutionResult {
+    fn default() -> Self {
+        Self {
+            should_execute: false,
+            proxy_override: None,
+            execution_mode: ExecutionMode::NotApplicable,
+        }
+    }
+}
+
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
 fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
     url.and_then(|url_str| {
@@ -2218,26 +2228,32 @@ fn execute_rollout_decision(
                         execution_mode = ?config.execution_mode,
                         "Rollout will not be executed"
                     );
-                    RolloutExecutionResult {
-                        should_execute: false,
-                        proxy_override: None,
-                        execution_mode: ExecutionMode::NotApplicable,
-                    }
+                    RolloutExecutionResult::default()
                 }
             }
         }
-        // Any validation failure returns default
-        _ => {
-            logger::info!(
+        (true, false) => {
+            logger::warn!(
                 is_valid_percent = is_valid_percent,
                 is_valid_execution_mode = is_valid_execution_mode,
-                "Invalid rollout config values detected. Defaulting to not execute."
+                "Invalid execution mode in rollout config. Defaulting to NotApplicable and should execute false."
             );
-            RolloutExecutionResult {
-                should_execute: false,
-                proxy_override: None,
-                execution_mode: ExecutionMode::NotApplicable,
-            }
+            RolloutExecutionResult::default()
+        }
+        (false, true) => {
+            logger::warn!(
+                is_valid_percent = is_valid_percent,
+                "Invalid rollout percent in rollout config. Defaulting to should execute false."
+            );
+            RolloutExecutionResult::default()
+        }
+        (false, false) => {
+            logger::warn!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid rollout percent and execution mode in rollout config. Defaulting to should execute false and NotApplicable."
+            );
+            RolloutExecutionResult::default()
         }
     }
 }
@@ -2260,20 +2276,6 @@ pub async fn should_execute_based_on_rollout(
                     let is_valid_execution_mode =
                         !matches!(config.execution_mode, ExecutionMode::NotApplicable);
 
-                    if !is_valid_percent {
-                        logger::error!(
-                            rollout_percent = config.rollout_percent,
-                            "Rollout percent out of bounds. Must be between 0.0 and 1.0. Defaulting to not execute."
-                        );
-                    }
-
-                    if !is_valid_execution_mode {
-                        logger::error!(
-                            execution_mode = ?config.execution_mode,
-                            "Execution mode is NotApplicable in config. This is invalid. Defaulting to not execute."
-                        );
-                    }
-
                     Ok(execute_rollout_decision(
                         config,
                         is_valid_percent,
@@ -2284,25 +2286,15 @@ pub async fn should_execute_based_on_rollout(
                     logger::error!(
                         error = ?err,
                         config = %rollout_config.config,
-                        "Failed to parse rollout config as JSON. Defaulting to not execute."
+                        "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
-
-                    Ok(RolloutExecutionResult {
-                        should_execute: false,
-                        proxy_override: None,
-                        execution_mode: ExecutionMode::NotApplicable,
-                    })
+                    Ok(RolloutExecutionResult::default())
                 }
             }
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute.");
-
-            Ok(RolloutExecutionResult {
-                should_execute: false,
-                proxy_override: None,
-                execution_mode: ExecutionMode::NotApplicable,
-            })
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            Ok(RolloutExecutionResult::default())
         }
     }
 }

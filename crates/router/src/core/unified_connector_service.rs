@@ -347,7 +347,7 @@ where
                 }
             }
         }
-        _ => {
+        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => {
             // For Direct and UCS flows, use original state
             state.clone()
         }
