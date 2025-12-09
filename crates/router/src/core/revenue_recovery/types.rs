@@ -713,9 +713,10 @@ impl Action {
                         .await
                         .ok();
 
-
                         // when account updater is an expiry update we dont want to update the hard decline flag to give it a chance to do a retry
-                        let should_we_update_hard_decline_flag = is_expiry_update.and_then(|is_expiry| is_expiry.then_some(false)).or(is_hard_decline);
+                        let should_we_update_hard_decline_flag = is_expiry_update
+                            .and_then(|is_expiry| is_expiry.then_some(false))
+                            .or(is_hard_decline);
 
                         let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
