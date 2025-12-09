@@ -1644,20 +1644,6 @@ async fn process_payout_incoming_webhook(
     }
 }
 
-// only update if the payout is in non-terminal status
-// if source verified, update the payout attempt and trigger outgoing webhook
-// if not source verified, do a payout retrieve call and update the status
-#[cfg(feature = "payouts")]
-impl From<(bool, bool)> for PaoyoutWebhookAction {
-    fn from((is_non_terminal_status, is_source_verified): (bool, bool)) -> Self {
-        match (is_non_terminal_status, is_source_verified) {
-            (true, true) => Self::UpdateStatus,
-            (true, false) => Self::RetrieveStatus,
-            (false, true) | (false, false) => Self::NoAction,
-        }
-    }
-}
-
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
