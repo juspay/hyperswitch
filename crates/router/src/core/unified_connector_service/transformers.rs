@@ -1483,7 +1483,7 @@ impl
             .request
             .payment_method_type
             .map(payments_grpc::PaymentMethodType::foreign_from)
-            .map(|pmt| pmt as i32);
+            .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
