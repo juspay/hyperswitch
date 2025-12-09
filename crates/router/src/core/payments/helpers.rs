@@ -62,7 +62,7 @@ use openssl::{
 use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, tracing::Instrument};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -8663,34 +8663,37 @@ where
 
     // Spawn shadow UCS call in background
     let direct_router_data = result.0.clone();
-    tokio::spawn(async move {
-        execute_shadow_unified_connector_service_call(
-            unified_connector_service_state,
-            unified_connector_service_router_data,
-            direct_router_data,
-            unified_connector_service_header_payload,
-            lineage_ids,
-            unified_connector_service_merchant_connector_account,
-            &connector,
-            unified_connector_service_platform,
-            unified_connector_service_merchant_order_reference_id,
-            call_connector_action,
-            shadow_ucs_call_connector_action,
-            unified_connector_service_creds_identifier,
-            unified_connector_service_customer,
-            unified_connector_service_payment_attempt_data,
-            unified_connector_service_connector_label,
-            unified_connector_service_connector_payment_id,
-        )
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!(
-                "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
-                e
+    tokio::spawn(
+        async move {
+            execute_shadow_unified_connector_service_call(
+                unified_connector_service_state,
+                unified_connector_service_router_data,
+                direct_router_data,
+                unified_connector_service_header_payload,
+                lineage_ids,
+                unified_connector_service_merchant_connector_account,
+                &connector,
+                unified_connector_service_platform,
+                unified_connector_service_merchant_order_reference_id,
+                call_connector_action,
+                shadow_ucs_call_connector_action,
+                unified_connector_service_creds_identifier,
+                unified_connector_service_customer,
+                unified_connector_service_payment_attempt_data,
+                unified_connector_service_connector_label,
+                unified_connector_service_connector_payment_id,
             )
-        })
-        .ok()
-    });
+            .await
+            .map_err(|e| {
+                router_env::logger::debug!(
+                    "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
+                    e
+                )
+            })
+            .ok()
+        }
+        .instrument(tracing::Span::current()),
+    );
 
     Ok(result)
 }

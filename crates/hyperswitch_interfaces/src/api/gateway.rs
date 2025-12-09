@@ -12,7 +12,7 @@ use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::RouterData;
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
 use crate::{
     api_client::{self, ApiClientWrapper},
@@ -244,10 +244,10 @@ where
                         };
                     }
                     Err(e) => {
-                        logger::error!("UCS shadow execution failed: {:?}", e);
+                        logger::error!(error=?e, "UCS shadow execution failed");
                     }
                 }
-            });
+            }.instrument(router_env::tracing::Span::current()));
             Ok(direct_router_data)
         }
     }
