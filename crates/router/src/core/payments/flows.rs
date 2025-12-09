@@ -147,7 +147,7 @@ pub trait Feature<F, T> {
     }
 
     // This is introduced to have a separate preprocessing step for granular gateway flows
-    async fn granular_preprocessing_steps<'a>(
+    async fn execute_authentication_steps<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
