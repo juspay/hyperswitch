@@ -84,7 +84,7 @@ impl MandateResponseExt for MandateResponse {
                 );
                 payment_methods::cards::PmCards {
                     state,
-                    platform: &platform,
+                    provider: platform.get_provider(),
                 }
                 .get_card_details_without_locker_fallback(&payment_method)
                 .await?
