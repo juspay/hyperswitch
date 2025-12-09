@@ -4184,6 +4184,10 @@ where
                 .preprocessing_bloated_connectors
                 .contains(&connector.connector_name)
         }) {
+        logger::info!(
+            "Using granular preprocessing steps for connector: {}",
+            connector.connector_name
+        );
         router_data
             .granular_preprocessing_steps(state, &connector, &context)
             .await?
