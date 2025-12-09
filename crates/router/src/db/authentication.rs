@@ -280,21 +280,23 @@ impl AuthenticationInterface for MockDb {
         _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let authentications = self.authentications.lock().await;
-        
+
         authentications
             .iter()
             .find(|auth| {
                 auth.merchant_id == *merchant_id && auth.authentication_id == *authentication_id
             })
             .cloned()
-            .ok_or(StorageError::ValueNotFound(format!(
-                "Authentication not found for merchant_id: {} and authentication_id: {}",
-                merchant_id.get_string_repr(),
-                authentication_id.get_string_repr()
-            ))
-            .into())
+            .ok_or(
+                StorageError::ValueNotFound(format!(
+                    "Authentication not found for merchant_id: {} and authentication_id: {}",
+                    merchant_id.get_string_repr(),
+                    authentication_id.get_string_repr()
+                ))
+                .into(),
+            )
     }
-    
+
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
@@ -303,22 +305,25 @@ impl AuthenticationInterface for MockDb {
         _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let authentications = self.authentications.lock().await;
-        
+
         authentications
             .iter()
             .find(|auth| {
                 auth.merchant_id == merchant_id
-                    && auth.connector_authentication_id.as_ref() == Some(&connector_authentication_id)
+                    && auth.connector_authentication_id.as_ref()
+                        == Some(&connector_authentication_id)
             })
             .cloned()
-            .ok_or(StorageError::ValueNotFound(format!(
+            .ok_or(
+                StorageError::ValueNotFound(format!(
                 "Authentication not found for merchant_id: {} and connector_authentication_id: {}",
                 merchant_id.get_string_repr(),
                 connector_authentication_id
             ))
-            .into())
+                .into(),
+            )
     }
-    
+
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: hyperswitch_domain_models::authentication::Authentication,
@@ -327,7 +332,7 @@ impl AuthenticationInterface for MockDb {
         _state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, StorageError> {
         let mut authentications = self.authentications.lock().await;
-        
+
         let auth_to_update = authentications
             .iter_mut()
             .find(|auth| {
@@ -339,7 +344,7 @@ impl AuthenticationInterface for MockDb {
                 previous_state.merchant_id.get_string_repr(),
                 previous_state.authentication_id.get_string_repr()
             )))?;
-    
+
         // Apply the update based on the variant
         match authentication_update {
             hyperswitch_domain_models::authentication::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
@@ -493,10 +498,9 @@ impl AuthenticationInterface for MockDb {
                 auth_to_update.authentication_status = authentication_status;
             }
         }
-    
+
         auth_to_update.modified_at = common_utils::date_time::now();
-        
+
         Ok(auth_to_update.clone())
     }
-    
 }

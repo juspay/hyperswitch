@@ -1,8 +1,6 @@
 use common_enums::{enums, AuthenticationConnectors};
 #[cfg(feature = "v1")]
-use common_utils::{
-    errors::{self, CustomResult},
-};
+use common_utils::errors::{self, CustomResult};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
