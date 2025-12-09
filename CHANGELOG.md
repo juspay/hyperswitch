@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix6
+
+### Features
+
+- **connector:** Add transaction_code support across Zift payment flows ([#10587](https://github.com/juspay/hyperswitch/pull/10587)) ([`33ced97`](https://github.com/juspay/hyperswitch/commit/33ced97eaf18ad88c818e76e2958567cd88f9e9e))
+
+**Full Changelog:** [`2025.11.26.0-hotfix5...2025.11.26.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix5...2025.11.26.0-hotfix6)
+
+- - -
+
 ## 2025.11.26.0-hotfix5
 
 ### Features
