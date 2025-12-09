@@ -407,8 +407,8 @@ pub enum CurrentFlowInfo<'a> {
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
 pub enum AlternateFlow {
-    /// Authentication flow
-    AuthenticationFlow(AuthenticationFlowName),
+    /// Pre-authentication flow
+    PreAuthenticate,
 }
 
 /// The Preprocessing flow that must be made before the current flow.
@@ -417,15 +417,6 @@ pub enum AlternateFlow {
 /// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
 #[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
-    /// Authentication flow must be made before the actual flow
-    AuthenticationFlow(AuthenticationFlowName),
-}
-
-/// Type of authentication flow
-#[derive(Debug, Clone, Copy)]
-pub enum AuthenticationFlowName {
-    /// Pre-authentication flow
-    PreAuthenticate,
     /// Authentication flow
     Authenticate,
     /// Post-authentication flow
@@ -443,6 +434,18 @@ pub struct PreProcessingFlowResponse<'a> {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Check if pre-authentication flow is required
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if authentication flow is required
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if post-authentication flow is required
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,

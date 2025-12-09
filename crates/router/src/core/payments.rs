@@ -4185,12 +4185,31 @@ where
                 .contains(&connector.connector_name)
         }) {
         logger::info!(
-            "Using granular preprocessing steps for connector: {}",
+            "Using granular authentication steps for connector: {}",
             connector.connector_name
         );
-        router_data
-            .execute_authentication_steps(state, &connector, &context)
-            .await?
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .pre_authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .post_authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
             state,

@@ -146,8 +146,33 @@ pub trait Feature<F, T> {
         })
     }
 
-    // This is introduced to have a separate preprocessing step for granular gateway flows
-    async fn execute_authentication_steps<'a>(
+    async fn pre_authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn post_authentication_step<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
