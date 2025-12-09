@@ -480,13 +480,12 @@ describe("Card - Refund flow - No 3DS", () => {
 
       const newData = {
         ...data,
-        Response: data.Response || data.ResponseCustom,
+        Response: data.ResponseCustom || data.Response,
       };
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -508,15 +507,9 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["SyncRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
+      cy.syncRefundCallTest(data, globalState);
 
-      cy.syncRefundCallTest(newData, globalState);
-
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("list-refund-call-test", () => {
       cy.listRefundCallTest(fixtures.listRefundCall, globalState);
@@ -686,13 +679,12 @@ describe("Card - Refund flow - No 3DS", () => {
 
       const newData = {
         ...data,
-        Response: data.Response || data.ResponseCustom,
+        Response: data.ResponseCustom || data.Response,
       };
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -943,10 +935,9 @@ describe("Card - Refund flow - 3DS", () => {
         Response: data.Response || data.ResponseCustom,
       };
 
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("refund-call-test", () => {
@@ -954,12 +945,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -969,12 +955,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["SyncRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
-
-      cy.syncRefundCallTest(newData, globalState);
+      cy.syncRefundCallTest(data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -1096,15 +1077,10 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        const newData = {
-          ...data,
-          Response: data.ResponseCustom || data.Response,
-        };
-
-        cy.refundCallTest(fixtures.refundBody, newData, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
-          shouldContinue = utils.should_continue_further(newData);
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("sync-refund-call-test", () => {
@@ -1112,12 +1088,7 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["SyncRefund"];
 
-        const newData = {
-          ...data,
-          Response: data.ResponseCustom || data.Response,
-        };
-
-        cy.syncRefundCallTest(newData, globalState);
+        cy.syncRefundCallTest(data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -1300,15 +1271,9 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
-
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -1321,10 +1286,9 @@ describe("Card - Refund flow - 3DS", () => {
         Response: data.ResponseCustom || data.Response,
       };
 
-      cy.syncRefundCallTest(newData, globalState);
+      cy.syncRefundCallTest(data, globalState);
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(newData);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
