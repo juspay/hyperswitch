@@ -261,7 +261,7 @@ impl
                         let string_value = v.to_string();
                         Some((k.clone(), string_value))
                     })
-                    .filter_map(|item| item)
+                    .flatten()
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
