@@ -953,52 +953,6 @@ pub struct PartnerMerchantIdentifierDetails {
 
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
 
-// /// List of custom T&C messages grouped by payment method
-// #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-// pub struct PaymentMethodsConfig(pub Vec<PaymentMethodConfig>);
-
-// /// Custom T&C messages for a specific payment method
-// #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-// pub struct PaymentMethodConfig {
-//     /// Payment Method
-//     pub payment_method: common_enums::PaymentMethod,
-//     /// Payment Method Types
-//     pub payment_method_types: Vec<CustomTerms>,
-// }
-
-// /// Custom T&C message for a specific payment method type
-// #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-// pub struct CustomTerms {
-//     /// Payment Method Type
-//     pub payment_method_type: common_enums::PaymentMethodType,
-//     /// The message to be shown
-//     pub message: CustomMessage,
-// }
-
-// /// Custom T&C message content and display mode
-// #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-// pub struct CustomMessage {
-//     /// The text to be shown per payment method type
-//     pub value: String,
-//     /// The display mode for terms and conditions
-//     pub display_mode: SdkDisplayMode,
-// }
-
-// /// Display mode options for controlling how messages are shown.
-// #[derive(
-//     Default, Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
-// )]
-// #[serde(rename_all = "snake_case")]
-// pub enum SdkDisplayMode {
-//     /// Display the default terms and conditions in sdk
-//     DefaultSdkMessage,
-//     /// Display the custom configured by the merchant in either business profile configs or in payment link create request
-//     Custom,
-//     #[default]
-//     /// No terms and conditions to be shown
-//     None,
-// }
-
 /// List of custom T&C messages grouped by payment method
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PaymentMethodsConfig(

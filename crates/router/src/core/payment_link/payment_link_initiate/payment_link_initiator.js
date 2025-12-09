@@ -1,4 +1,32 @@
-// @ts-check
+// @ts-nocheck
+
+const toCamel = (s) => {
+  return s.replace(/([-_][a-z])/gi, ($1) => {
+    return $1.toUpperCase().replace("-", "").replace("_", "");
+  });
+};
+
+const iisObject = function (obj) {
+  return obj === Object(obj) && !Array.isArray(obj) && typeof obj !== "function";
+};
+
+const keysToCamel = function (obj) {
+  if (iisObject(obj)) {
+    const n = {};
+
+    Object.keys(obj).forEach((k) => {
+      n[toCamel(k)] = keysToCamel(obj[k]);
+    });
+
+    return n;
+  } else if (Array.isArray(obj)) {
+    return obj.map((i) => {
+      return keysToCamel(i);
+    });
+  }
+
+  return obj;
+};
 
 /**
  * Trigger - post downloading SDK
@@ -10,11 +38,12 @@
 function initializeSDK() {
   // @ts-ignore
   var encodedPaymentDetails = window.__PAYMENT_DETAILS;
-  var paymentDetails = decodeUri(encodedPaymentDetails);
-  var clientSecret = paymentDetails.client_secret;
-  var sdkUiRules = paymentDetails.sdk_ui_rules;
-  var labelType = paymentDetails.payment_form_label_type;
-  var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
+  var decoded = decodeURIComponent(encodedPaymentDetails);
+  var paymentDetails = keysToCamel(JSON.parse(decoded));
+  var clientSecret = paymentDetails.clientSecret;
+  var sdkUiRules = paymentDetails.sdkUiRules;
+  var labelType = paymentDetails.paymentFormLabelType;
+  var colorIconCardCvcError = paymentDetails.colorIconCardCvcError;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -54,45 +83,45 @@ function initializeSDK() {
     locale: paymentDetails.locale,
   });
   var type =
-    paymentDetails.sdk_layout === "spaced_accordion" ||
-      paymentDetails.sdk_layout === "accordion"
+    paymentDetails.sdkLayout === "spaced_accordion" ||
+    paymentDetails.sdkLayout === "accordion"
       ? "accordion"
-      : paymentDetails.sdk_layout;
-  var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
+      : paymentDetails.sdkLayout;
+  var hideCardNicknameField = paymentDetails.hideCardNicknameField;
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
     displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
-      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
+      spacedAccordionItems: paymentDetails.sdkLayout === "spaced_accordion",
     },
     branding: "never",
     wallets: {
-      walletReturnUrl: paymentDetails.return_url,
+      walletReturnUrl: paymentDetails.returnUrl,
       style: {
         theme: "dark",
         type: "default",
         height: 55,
       },
     },
-    showCardFormByDefault: paymentDetails.show_card_form_by_default,
+    showCardFormByDefault: paymentDetails.showCardFormByDefault,
     hideCardNicknameField: hideCardNicknameField,
-    customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
-    paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
+    customMessageForCardTerms: paymentDetails.customMessageForCardTerms,
+    paymentMethodsConfig: paymentDetails.customMessageForPaymentMethodTypes,
   };
-  var showCardTerms = paymentDetails.show_card_terms;
+  var showCardTerms = paymentDetails.showCardTerms;
   if (showCardTerms !== null && typeof showCardTerms === "string") {
     unifiedCheckoutOptions.terms = {
       card: showCardTerms
     };
   }
-  var paymentMethodsHeaderText = paymentDetails.payment_form_header_text;
+  var paymentMethodsHeaderText = paymentDetails.paymentFormHeaderText;
   if (paymentMethodsHeaderText !== null && typeof paymentMethodsHeaderText === "string") {
     unifiedCheckoutOptions.paymentMethodsHeaderText = paymentMethodsHeaderText;
   }
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
-  showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
+  showSDK(paymentDetails.displaySdkOnly, paymentDetails.enableButtonOnlyOnFormReady);
 
   let shimmer = document.getElementById("payment-details-shimmer");
   shimmer.classList.add("reduce-opacity");
