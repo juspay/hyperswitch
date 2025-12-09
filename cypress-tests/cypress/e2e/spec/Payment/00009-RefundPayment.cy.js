@@ -930,11 +930,6 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.Response || data.ResponseCustom,
-      };
-
       cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -1280,11 +1275,6 @@ describe("Card - Refund flow - 3DS", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SyncRefund"];
-
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
 
       cy.syncRefundCallTest(data, globalState);
 
