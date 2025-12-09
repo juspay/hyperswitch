@@ -212,49 +212,106 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let mut auth_router_data = gateway::execute_payment_gateway(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action.clone(),
-                connector_request,
-                return_raw_connector_response,
-                gateway_context.clone(),
-            )
-            .await
-            .to_payment_failed_response()?;
-
-            // Initiating Integrity check
-            let integrity_result = helpers::check_integrity_based_on_flow(
-                &auth_router_data.request,
-                &auth_router_data.response,
+            let alternate_flow = connector.connector.get_alternate_flow_if_needed(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: &self.auth_type,
+                    request_data: &self.request,
+                },
             );
-            auth_router_data.integrity_check = integrity_result;
-            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
-            match auth_router_data.response.clone() {
-                Err(_) => Ok(auth_router_data),
-                Ok(authorize_response) => {
-                    // Check if the Capture API should be called based on the connector and other parameters
-                    if super::should_initiate_capture_flow(
-                        &connector.connector_name,
-                        self.request.customer_acceptance,
-                        self.request.capture_method,
-                        self.request.setup_future_usage,
-                        auth_router_data.status,
-                    ) {
-                        auth_router_data = Box::pin(process_capture_flow(
-                            auth_router_data,
-                            authorize_response,
-                            state,
-                            connector,
-                            call_connector_action.clone(),
-                            business_profile,
-                            header_payload,
-                            gateway_context,
-                        ))
-                        .await?;
+            let is_preprocessing_bloated_connector = state
+                .conf
+                .preprocessing_flow_config
+                .as_ref()
+                .is_some_and(|config| {
+                    config
+                        .preprocessing_bloated_connectors
+                        .contains(&connector.connector_name)
+                });
+            match (is_preprocessing_bloated_connector, alternate_flow) {
+                (true, Some(api_interface::AlternateFlow::PreAuthenticate)) => {
+                    // Convert CompleteAuthorize to Authenticate for UCS call
+                    let authorize_request_data = self.request.clone();
+                    let pre_authenticate_request_data =
+                        types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+                    let pre_authenticate_response_data: Result<
+                        types::PaymentsResponseData,
+                        types::ErrorResponse,
+                    > = Err(types::ErrorResponse::default());
+                    let pre_authenticate_router_data = helpers::router_data_type_conversion::<
+                        _,
+                        api::PreAuthenticate,
+                        _,
+                        _,
+                        _,
+                        _,
+                    >(
+                        self.clone(),
+                        pre_authenticate_request_data,
+                        pre_authenticate_response_data,
+                    );
+                    let pre_authenticate_router_data = handle_pre_authenticate_connector_call(
+                        state,
+                        pre_authenticate_router_data,
+                        connector,
+                        &gateway_context,
+                    )
+                    .await?;
+                    // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+                    let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+                    let complete_authorize_router_data =
+                        helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                            pre_authenticate_router_data,
+                            authorize_request_data,
+                            pre_authenticate_response,
+                        );
+                    Ok(complete_authorize_router_data)
+                }
+                (true, None) | (false, Some(_)) | (false, None) => {
+                    let mut auth_router_data = gateway::execute_payment_gateway(
+                        state,
+                        connector_integration,
+                        &self,
+                        call_connector_action.clone(),
+                        connector_request,
+                        return_raw_connector_response,
+                        gateway_context.clone(),
+                    )
+                    .await
+                    .to_payment_failed_response()?;
+
+                    // Initiating Integrity check
+                    let integrity_result = helpers::check_integrity_based_on_flow(
+                        &auth_router_data.request,
+                        &auth_router_data.response,
+                    );
+                    auth_router_data.integrity_check = integrity_result;
+                    metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
+                    match auth_router_data.response.clone() {
+                        Err(_) => Ok(auth_router_data),
+                        Ok(authorize_response) => {
+                            // Check if the Capture API should be called based on the connector and other parameters
+                            if super::should_initiate_capture_flow(
+                                &connector.connector_name,
+                                self.request.customer_acceptance,
+                                self.request.capture_method,
+                                self.request.setup_future_usage,
+                                auth_router_data.status,
+                            ) {
+                                auth_router_data = Box::pin(process_capture_flow(
+                                    auth_router_data,
+                                    authorize_response,
+                                    state,
+                                    connector,
+                                    call_connector_action.clone(),
+                                    business_profile,
+                                    header_payload,
+                                    gateway_context,
+                                ))
+                                .await?;
+                            }
+                            Ok(auth_router_data)
+                        }
                     }
-                    Ok(auth_router_data)
                 }
             }
         } else {

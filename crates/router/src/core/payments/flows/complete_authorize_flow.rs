@@ -495,10 +495,10 @@ async fn handle_preprocessing(
         types::PaymentsResponseData,
     >,
 > {
+    let complete_authorize_request_data = router_data.request.clone();
     match preprocessing_flow_name {
         api_interface::PreProcessingFlowName::Authenticate => {
             // Convert CompleteAuthorize to Authenticate for UCS call
-            let complete_authorize_request_data = router_data.request.clone();
             let authenticate_request_data =
                 types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
             let authenticate_response_data: Result<
@@ -534,7 +534,6 @@ async fn handle_preprocessing(
         }
         api_interface::PreProcessingFlowName::PostAuthenticate => {
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
-            let complete_authorize_request_data = router_data.request.clone();
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
             let post_authenticate_response_data: Result<
@@ -557,6 +556,7 @@ async fn handle_preprocessing(
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
+            dbg!(&post_authenticate_response);
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     post_authenticate_router_data,
@@ -566,6 +566,15 @@ async fn handle_preprocessing(
             Ok(complete_authorize_router_data)
         }
     }
+    .map(|mut router_data| {
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata, ..
+        }) = &router_data.response
+        {
+            connector_metadata.clone_into(&mut router_data.request.connector_meta);
+        }
+        router_data
+    })
 }
 
 pub async fn handle_authenticate_connector_call(
