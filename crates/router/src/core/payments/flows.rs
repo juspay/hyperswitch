@@ -256,10 +256,6 @@ pub trait Feature<F, T> {
     ) {
     }
 
-    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
-        None
-    }
-
     async fn call_preprocessing_through_unified_connector_service<'a>(
         self,
         _state: &SessionState,

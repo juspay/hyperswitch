@@ -186,12 +186,6 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
-    fn get_current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo<'_>> {
-        Some(api_interface::CurrentFlowInfo::Authorize {
-            auth_type: &self.auth_type,
-            request_data: &self.request,
-        })
-    }
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
