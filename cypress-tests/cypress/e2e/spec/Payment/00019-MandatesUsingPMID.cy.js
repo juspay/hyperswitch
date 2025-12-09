@@ -159,7 +159,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.captureCallTest(fixtures.captureBody, newData, globalState);
 
         if (shouldContinue)
-          shouldContinue = utils.should_continue_further(newData);
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -324,7 +324,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.captureCallTest(fixtures.captureBody, newData, globalState);
 
         if (shouldContinue)
-          shouldContinue = utils.should_continue_further(newData);
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -582,15 +582,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        const newData = {
-          ...data,
-          Response: data.ResponseCustom || data.Response,
-        };
-
-        cy.captureCallTest(fixtures.captureBody, newData, globalState);
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
 
         if (shouldContinue)
-          shouldContinue = utils.should_continue_further(newData);
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
