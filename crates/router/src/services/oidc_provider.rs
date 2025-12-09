@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use api_models::{
     oidc::{
         AuthCodeData, Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError,
@@ -13,7 +15,6 @@ use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use router_env::tracing;
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
 use crate::{
