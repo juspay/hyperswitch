@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.09.0
+
+### Features
+
+- **core:** Consume Card Holder Name in Payment Method Batch Migrations ([#10551](https://github.com/juspay/hyperswitch/pull/10551)) ([`a690a40`](https://github.com/juspay/hyperswitch/commit/a690a40bab3deae2f79ff9717b8eee81bec29462))
+- **platform:** Implement platform-connected setup for publishable key authentication ([#10475](https://github.com/juspay/hyperswitch/pull/10475)) ([`3831a52`](https://github.com/juspay/hyperswitch/commit/3831a526358bb79091bc51f7bfa7b4bd05518ccb))
+- **revenue_recovery:** Enable multiple retries for partial charged payments ([#9818](https://github.com/juspay/hyperswitch/pull/9818)) ([`e7fe480`](https://github.com/juspay/hyperswitch/commit/e7fe4804acd86ae0cc561cbe71d1ea227e4452cc))
+
+### Bug Fixes
+
+- Send customer_name to ucs during customer create ([#10561](https://github.com/juspay/hyperswitch/pull/10561)) ([`eb6080f`](https://github.com/juspay/hyperswitch/commit/eb6080fe1a6025acf631694278cadaad97c4ff2b))
+- Use proper masked deserialize method to deserialize ucs response ([#10566](https://github.com/juspay/hyperswitch/pull/10566)) ([`d42c447`](https://github.com/juspay/hyperswitch/commit/d42c447bd8d709dd451193540c140ce9fd2c5ce2))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`f436d7b`](https://github.com/juspay/hyperswitch/commit/f436d7b80692588655f102eb3e02c1cabc534242))
+
+### Revert
+
+- **postman:** Postman tests for bluesnap and stripe failure scenarios ([#10527](https://github.com/juspay/hyperswitch/pull/10527)) ([`d84e66b`](https://github.com/juspay/hyperswitch/commit/d84e66b88cbb4ed9c4557b8fcb92ab6529769e9a))
+
+**Full Changelog:** [`2025.12.08.0...2025.12.09.0`](https://github.com/juspay/hyperswitch/compare/2025.12.08.0...2025.12.09.0)
+
+- - -
+
 ## 2025.12.08.0
 
 ### Features
