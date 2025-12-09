@@ -1293,6 +1293,7 @@ pub async fn create_recipient(
                         &*state.store,
                         payout_data,
                         common_utils::date_time::now().saturating_add(Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS)),
+                        state.conf.application_source,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3200,6 +3201,7 @@ pub async fn add_external_account_addition_task(
     db: &dyn StorageInterface,
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
+    application_source: common_enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
     let runner = storage::ProcessTrackerRunner::AttachPayoutAccountWorkflow;
     let task = "STRPE_ATTACH_EXTERNAL_ACCOUNT";
@@ -3224,6 +3226,7 @@ pub async fn add_external_account_addition_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 

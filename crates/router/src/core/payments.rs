@@ -8781,6 +8781,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
@@ -8806,6 +8807,7 @@ pub async fn add_process_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 

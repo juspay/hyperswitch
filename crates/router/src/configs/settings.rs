@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+use common_enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -73,6 +74,7 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
