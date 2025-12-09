@@ -215,7 +215,7 @@ pub enum Insertable {
     ReverseLookUp(ReverseLookupNew),
     Payouts(PayoutsNew),
     PayoutAttempt(PayoutAttemptNew),
-    PaymentMethod(PaymentMethodNew),
+    PaymentMethod(Box<PaymentMethodNew>),
     Mandate(MandateNew),
 }
 

@@ -132,17 +132,18 @@ impl SubscriptionResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct GetPlansResponse {
-    pub plan_id: String,
+pub struct GetSubscriptionItemsResponse {
+    pub item_id: String,
     pub name: String,
     pub description: Option<String>,
-    pub price_id: Vec<SubscriptionPlanPrices>,
+    pub price_id: Vec<SubscriptionItemPrices>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct SubscriptionPlanPrices {
+pub struct SubscriptionItemPrices {
     pub price_id: String,
-    pub plan_id: Option<String>,
+    // This can be plan_id or addon_id
+    pub item_id: Option<String>,
     pub amount: MinorUnit,
     pub currency: Currency,
     pub interval: PeriodUnit,
@@ -178,18 +179,27 @@ impl ClientSecret {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, ToSchema)]
-pub struct GetPlansQuery {
+pub struct GetSubscriptionItemsQuery {
     #[schema(value_type = Option<String>)]
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<ClientSecret>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+    pub item_type: SubscriptionItemType,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SubscriptionItemType {
+    /// This is a subscription plan
+    Plan,
+    /// This is a subscription addon
+    Addon,
 }
 
 impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
-impl ApiEventMetric for GetPlansQuery {}
-impl ApiEventMetric for GetPlansResponse {}
+impl ApiEventMetric for GetSubscriptionItemsQuery {}
+impl ApiEventMetric for GetSubscriptionItemsResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
@@ -557,6 +567,17 @@ pub struct EstimateSubscriptionQuery {
 
 impl ApiEventMetric for EstimateSubscriptionQuery {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ListSubscriptionQuery {
+    /// Number of records to return.
+    pub limit: Option<i64>,
+
+    /// Offset for pagination.
+    pub offset: Option<i64>,
+}
+
+impl ApiEventMetric for ListSubscriptionQuery {}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct EstimateSubscriptionResponse {
     /// Estimated amount to be charged for the invoice.
@@ -591,3 +612,186 @@ pub struct SubscriptionLineItem {
 }
 
 impl ApiEventMetric for EstimateSubscriptionResponse {}
+
+/// Request payload for pausing a subscription.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PauseSubscriptionRequest {
+    /// List of options to pause the subscription.
+    pub pause_option: Option<PauseOption>,
+    /// Optional date when the subscription should be paused (if not provided, pauses immediately)
+    #[schema(value_type = Option<String>)]
+    pub pause_at: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PauseOption {
+    /// Pause immediately
+    Immediately,
+    /// Pause at the end of current term
+    EndOfTerm,
+    /// Pause on a specific date,
+    SpecificDate,
+}
+
+/// Response payload returned after successfully pausing a subscription.
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PauseSubscriptionResponse {
+    /// Unique identifier for the subscription.
+    pub id: SubscriptionId,
+    /// Current status of the subscription.
+    pub status: SubscriptionStatus,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+    /// Associated profile ID.
+    pub profile_id: ProfileId,
+    /// Merchant identifier owning this subscription.
+    pub merchant_id: MerchantId,
+    /// Customer ID associated with this subscription.
+    pub customer_id: CustomerId,
+    /// Date when the subscription was paused
+    #[schema(value_type = Option<String>)]
+    pub paused_at: Option<time::PrimitiveDateTime>,
+}
+
+/// Request payload for resuming a subscription.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ResumeSubscriptionRequest {
+    /// Options to resume the subscription.
+    pub resume_option: Option<ResumeOption>,
+    /// Optional date when the subscription should be resumed (if not provided, resumes immediately)
+    #[schema(value_type = Option<String>)]
+    pub resume_date: Option<time::PrimitiveDateTime>,
+    /// Applicable when charges get added during this operation and resume_option is set as 'immediately'. Allows to raise invoice immediately or add them to unbilled charges.
+    pub charges_handling: Option<ChargesHandling>,
+    /// Applicable when the subscription has past due invoices and resume_option is set as 'immediately'. Allows to collect past due invoices or retain them as unpaid. If 'schedule_payment_collection' option is chosen in this field, remaining refundable credits and excess payments are applied
+    pub unpaid_invoices_handling: Option<UnpaidInvoicesHandling>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ResumeOption {
+    /// Resume immediately
+    Immediately,
+    /// Resume on a specific date,
+    SpecificDate,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargesHandling {
+    InvoiceImmediately,
+    AddToUnbilledCharges,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UnpaidInvoicesHandling {
+    NoAction,
+    SchedulePaymentCollection,
+}
+
+/// Response payload returned after successfully resuming a subscription.
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct ResumeSubscriptionResponse {
+    /// Unique identifier for the subscription.
+    pub id: SubscriptionId,
+    /// Current status of the subscription.
+    pub status: SubscriptionStatus,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+    /// Associated profile ID.
+    pub profile_id: ProfileId,
+    /// Merchant identifier owning this subscription.
+    pub merchant_id: MerchantId,
+    /// Customer ID associated with this subscription.
+    pub customer_id: CustomerId,
+    /// Date when the subscription was resumed
+    #[schema(value_type = Option<String>)]
+    pub next_billing_at: Option<time::PrimitiveDateTime>,
+}
+
+/// Request payload for cancelling a subscription.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CancelSubscriptionRequest {
+    /// Optional reason for cancelling the subscription
+    pub cancel_option: Option<CancelOption>,
+    /// Optional date when the subscription should be cancelled (if not provided, cancels immediately)
+    #[schema(value_type = Option<String>)]
+    pub cancel_at: Option<time::PrimitiveDateTime>,
+    /// Specifies how to handle unbilled charges when canceling immediately
+    pub unbilled_charges_option: Option<UnbilledChargesOption>,
+    /// Specifies how to handle credits for current term charges when canceling immediately
+    pub credit_option_for_current_term_charges: Option<CreditOption>,
+    /// Specifies how to handle past due invoices when canceling immediately
+    pub account_receivables_handling: Option<AccountReceivablesHandling>,
+    /// Specifies how to handle refundable credits when canceling immediately
+    pub refundable_credits_handling: Option<RefundableCreditsHandling>,
+    /// Reason code for canceling the subscription
+    pub cancel_reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CancelOption {
+    Immediately,
+    EndOfTerm,
+    SpecificDate,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RefundableCreditsHandling {
+    NoAction,
+    ScheduleRefund,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountReceivablesHandling {
+    NoAction,
+    SchedulePaymentCollection,
+    WriteOff,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CreditOption {
+    None,
+    Prorate,
+    Full,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UnbilledChargesOption {
+    Invoice,
+    Delete,
+}
+
+/// Response payload returned after successfully cancelling a subscription.
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct CancelSubscriptionResponse {
+    /// Unique identifier for the subscription.
+    pub id: SubscriptionId,
+    /// Current status of the subscription.
+    pub status: SubscriptionStatus,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+    /// Associated profile ID.
+    pub profile_id: ProfileId,
+    /// Merchant identifier owning this subscription.
+    pub merchant_id: MerchantId,
+    /// Customer ID associated with this subscription.
+    pub customer_id: CustomerId,
+    /// Date when the subscription was cancelled
+    #[schema(value_type = Option<String>)]
+    pub cancelled_at: Option<time::PrimitiveDateTime>,
+}
+
+impl ApiEventMetric for PauseSubscriptionRequest {}
+impl ApiEventMetric for PauseSubscriptionResponse {}
+impl ApiEventMetric for ResumeSubscriptionRequest {}
+impl ApiEventMetric for ResumeSubscriptionResponse {}
+impl ApiEventMetric for CancelSubscriptionRequest {}
+impl ApiEventMetric for CancelSubscriptionResponse {}

@@ -1,7 +1,6 @@
 use common_enums::Currency;
 use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
-
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: id_type::SubscriptionId,
@@ -53,26 +52,47 @@ impl From<SubscriptionStatus> for common_enums::SubscriptionStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlansResponse {
-    pub list: Vec<SubscriptionPlans>,
+pub struct GetSubscriptionItemsResponse {
+    pub list: Vec<SubscriptionItems>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SubscriptionPlans {
-    pub subscription_provider_plan_id: String,
+pub struct SubscriptionItems {
+    pub subscription_provider_item_id: String,
     pub name: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlanPricesResponse {
-    pub list: Vec<SubscriptionPlanPrices>,
+pub struct GetSubscriptionItemPricesResponse {
+    pub list: Vec<SubscriptionItemPrices>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SubscriptionPlanPrices {
+pub struct SubscriptionPauseResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub paused_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionResumeResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancelResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub cancelled_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionItemPrices {
     pub price_id: String,
-    pub plan_id: Option<String>,
+    pub item_id: Option<String>,
     pub amount: MinorUnit,
     pub currency: Currency,
     pub interval: PeriodUnit,
@@ -81,11 +101,11 @@ pub struct SubscriptionPlanPrices {
     pub trial_period_unit: Option<PeriodUnit>,
 }
 
-impl From<SubscriptionPlanPrices> for api_models::subscription::SubscriptionPlanPrices {
-    fn from(item: SubscriptionPlanPrices) -> Self {
+impl From<SubscriptionItemPrices> for api_models::subscription::SubscriptionItemPrices {
+    fn from(item: SubscriptionItemPrices) -> Self {
         Self {
             price_id: item.price_id,
-            plan_id: item.plan_id,
+            item_id: item.item_id,
             amount: item.amount,
             currency: item.currency,
             interval: item.interval.into(),
