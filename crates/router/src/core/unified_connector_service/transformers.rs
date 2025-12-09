@@ -1479,6 +1479,12 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let payment_method_type = router_data
+            .request
+            .payment_method_type
+            .map(payments_grpc::PaymentMethodType::foreign_from)
+            .map(|pmt| pmt as i32);
+
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let mandate_reference = match &router_data.request.mandate_id {
@@ -1542,7 +1548,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             browser_info,
             test_mode: router_data.test_mode,
-            payment_method_type: None,
+            payment_method_type,
             state,
             return_url: router_data.request.router_return_url.clone(),
             description: router_data.description.clone(),
@@ -2836,6 +2842,116 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMethodType {
+    fn foreign_from(value: common_enums::PaymentMethodType) -> Self {
+        match value {
+            common_enums::PaymentMethodType::Ach => Self::Ach,
+            common_enums::PaymentMethodType::Affirm => Self::Affirm,
+            common_enums::PaymentMethodType::AfterpayClearpay => Self::AfterpayClearpay,
+            common_enums::PaymentMethodType::Alfamart => Self::Alfamart,
+            common_enums::PaymentMethodType::AliPay => Self::AliPay,
+            common_enums::PaymentMethodType::AliPayHk => Self::AliPayHk,
+            common_enums::PaymentMethodType::Alma => Self::Alma,
+            common_enums::PaymentMethodType::AmazonPay => Self::AmazonPay,
+            common_enums::PaymentMethodType::ApplePay => Self::ApplePay,
+            common_enums::PaymentMethodType::Atome => Self::Atome,
+            common_enums::PaymentMethodType::Bacs => Self::Bacs,
+            common_enums::PaymentMethodType::BancontactCard => Self::BancontactCard,
+            common_enums::PaymentMethodType::Becs => Self::Becs,
+            common_enums::PaymentMethodType::Benefit => Self::Benefit,
+            common_enums::PaymentMethodType::Bizum => Self::Bizum,
+            common_enums::PaymentMethodType::Blik => Self::Blik,
+            common_enums::PaymentMethodType::Boleto => Self::Boleto,
+            common_enums::PaymentMethodType::BcaBankTransfer => Self::BcaBankTransfer,
+            common_enums::PaymentMethodType::BniVa => Self::BniVa,
+            common_enums::PaymentMethodType::BriVa => Self::BriVa,
+            #[cfg(feature = "v2")]
+            common_enums::PaymentMethodType::Card => Self::Credit, // Card maps to CREDIT in proto
+            common_enums::PaymentMethodType::CardRedirect => Self::CardRedirect,
+            common_enums::PaymentMethodType::CimbVa => Self::CimbVa,
+            common_enums::PaymentMethodType::ClassicReward => Self::ClassicReward,
+            common_enums::PaymentMethodType::Credit => Self::Credit,
+            common_enums::PaymentMethodType::CryptoCurrency => Self::CryptoCurrency,
+            common_enums::PaymentMethodType::Cashapp => Self::Cashapp,
+            common_enums::PaymentMethodType::Dana => Self::Dana,
+            common_enums::PaymentMethodType::DanamonVa => Self::DanamonVa,
+            common_enums::PaymentMethodType::Debit => Self::Debit,
+            common_enums::PaymentMethodType::DuitNow => Self::DuitNow,
+            common_enums::PaymentMethodType::Efecty => Self::Efecty,
+            common_enums::PaymentMethodType::Eft => Self::Eft,
+            common_enums::PaymentMethodType::Eps => Self::Eps,
+            common_enums::PaymentMethodType::Fps => Self::Fps,
+            common_enums::PaymentMethodType::Evoucher => Self::Evoucher,
+            common_enums::PaymentMethodType::Giropay => Self::Giropay,
+            common_enums::PaymentMethodType::Givex => Self::Givex,
+            common_enums::PaymentMethodType::GooglePay => Self::GooglePay,
+            common_enums::PaymentMethodType::GoPay => Self::GoPay,
+            common_enums::PaymentMethodType::Gcash => Self::Gcash,
+            common_enums::PaymentMethodType::Ideal => Self::Ideal,
+            common_enums::PaymentMethodType::Interac => Self::Interac,
+            common_enums::PaymentMethodType::Indomaret => Self::Indomaret,
+            common_enums::PaymentMethodType::KakaoPay => Self::KakaoPay,
+            common_enums::PaymentMethodType::LocalBankRedirect => Self::LocalBankRedirect,
+            common_enums::PaymentMethodType::MandiriVa => Self::MandiriVa,
+            common_enums::PaymentMethodType::Knet => Self::Knet,
+            common_enums::PaymentMethodType::MbWay => Self::MbWay,
+            common_enums::PaymentMethodType::MobilePay => Self::MobilePay,
+            common_enums::PaymentMethodType::Momo => Self::Momo,
+            common_enums::PaymentMethodType::MomoAtm => Self::MomoAtm,
+            common_enums::PaymentMethodType::Multibanco => Self::Multibanco,
+            common_enums::PaymentMethodType::OnlineBankingThailand => Self::OnlineBankingThailand,
+            common_enums::PaymentMethodType::OnlineBankingCzechRepublic => Self::OnlineBankingCzechRepublic,
+            common_enums::PaymentMethodType::OnlineBankingFinland => Self::OnlineBankingFinland,
+            common_enums::PaymentMethodType::OnlineBankingFpx => Self::OnlineBankingFpx,
+            common_enums::PaymentMethodType::OnlineBankingPoland => Self::OnlineBankingPoland,
+            common_enums::PaymentMethodType::OnlineBankingSlovakia => Self::OnlineBankingSlovakia,
+            common_enums::PaymentMethodType::Oxxo => Self::Oxxo,
+            common_enums::PaymentMethodType::PagoEfectivo => Self::PagoEfectivo,
+            common_enums::PaymentMethodType::PermataBankTransfer => Self::PermataBankTransfer,
+            common_enums::PaymentMethodType::OpenBankingUk => Self::OpenBankingUk,
+            common_enums::PaymentMethodType::PayBright => Self::PayBright,
+            common_enums::PaymentMethodType::Paypal => Self::PayPal,
+            common_enums::PaymentMethodType::Paze => Self::Paze,
+            common_enums::PaymentMethodType::Pix => Self::Pix,
+            common_enums::PaymentMethodType::PaySafeCard => Self::PaySafeCard,
+            common_enums::PaymentMethodType::Przelewy24 => Self::Przelewy24,
+            common_enums::PaymentMethodType::PromptPay => Self::PromptPay,
+            common_enums::PaymentMethodType::Pse => Self::Pse,
+            common_enums::PaymentMethodType::RedCompra => Self::RedCompra,
+            common_enums::PaymentMethodType::RedPagos => Self::RedPagos,
+            common_enums::PaymentMethodType::SamsungPay => Self::SamsungPay,
+            common_enums::PaymentMethodType::Sepa => Self::Sepa,
+            common_enums::PaymentMethodType::SepaBankTransfer => Self::SepaBankTransfer,
+            common_enums::PaymentMethodType::Sofort => Self::Sofort,
+            common_enums::PaymentMethodType::Swish => Self::Swish,
+            common_enums::PaymentMethodType::TouchNGo => Self::TouchNGo,
+            common_enums::PaymentMethodType::Trustly => Self::Trustly,
+            common_enums::PaymentMethodType::Twint => Self::Twint,
+            common_enums::PaymentMethodType::UpiCollect => Self::UpiCollect,
+            common_enums::PaymentMethodType::UpiIntent => Self::UpiIntent,
+            common_enums::PaymentMethodType::UpiQr => Self::UpiQr,
+            common_enums::PaymentMethodType::Vipps => Self::Vipps,
+            common_enums::PaymentMethodType::VietQr => Self::VietQr,
+            common_enums::PaymentMethodType::Venmo => Self::Venmo,
+            common_enums::PaymentMethodType::Walley => Self::Walley,
+            common_enums::PaymentMethodType::WeChatPay => Self::WeChatPay,
+            common_enums::PaymentMethodType::SevenEleven => Self::SevenEleven,
+            common_enums::PaymentMethodType::Lawson => Self::Lawson,
+            common_enums::PaymentMethodType::MiniStop => Self::MiniStop,
+            common_enums::PaymentMethodType::FamilyMart => Self::FamilyMart,
+            common_enums::PaymentMethodType::Seicomart => Self::Seicomart,
+            common_enums::PaymentMethodType::PayEasy => Self::PayEasy,
+            common_enums::PaymentMethodType::LocalBankTransfer => Self::LocalBankTransfer,
+            common_enums::PaymentMethodType::OpenBankingPIS => Self::OpenBankingPis,
+            common_enums::PaymentMethodType::DirectCarrierBilling => Self::DirectCarrierBilling,
+            common_enums::PaymentMethodType::InstantBankTransfer => Self::InstantBankTransfer,
+            common_enums::PaymentMethodType::RevolutPay => Self::RevolutPay,
+            // Variants that don't have direct proto equivalents
+            _ => Self::Unspecified,
         }
     }
 }
