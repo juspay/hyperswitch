@@ -137,10 +137,10 @@ const payment_method_data_3ds = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
