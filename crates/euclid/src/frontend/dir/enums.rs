@@ -58,6 +58,7 @@ pub enum PayLaterType {
     Flexiti,
     Atome,
     Breadpay,
+    Payjustnow,
 }
 
 #[derive(
@@ -172,6 +173,7 @@ pub enum BankRedirectType {
     OpenBankingUk,
     Przelewy24,
     Trustly,
+    OpenBanking,
 }
 
 #[derive(

@@ -1307,13 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Gift Card Balance Check
+/// Payments - Check Balance and Apply PM Data
 ///
-/// Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    get,
-    path = "/v2/payments/{id}/check-gift-card-balance",
+    post,
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1323,13 +1323,13 @@ pub fn payments_list() {}
         ),
     ),
     request_body(
-      content = PaymentsGiftCardBalanceCheckRequest,
+      content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Get the Gift Card Balance", body = GiftCardBalanceCheckResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
-    operation_id = "Retrieve Gift Card Balance",
+    operation_id = "Apply Payment Method Data",
     security(("publishable_key" = []))
 )]
-pub fn payment_check_gift_card_balance() {}
+pub fn payments_apply_pm_data() {}

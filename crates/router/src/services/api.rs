@@ -23,13 +23,12 @@ use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
-        RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -42,16 +41,16 @@ pub use hyperswitch_interfaces::{
     },
     api_client::{
         call_connector_api, execute_connector_processing_step, handle_response,
-        handle_ucs_response, store_raw_connector_response_if_required,
+        store_raw_connector_response_if_required,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
+use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
-use tera::{Context, Error as TeraError, Tera};
 
 use super::{
     authentication::AuthenticateAndFetch,
@@ -101,11 +100,17 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemPricesData, Req, Res>;
 pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
+pub type BoxedSubscriptionPauseInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionPauseData, Req, Res>;
+pub type BoxedSubscriptionResumeInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionResumeData, Req, Res>;
+pub type BoxedSubscriptionCancelInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCancelData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -222,10 +227,10 @@ where
             }
             .switch()
         })?;
-    session_state.add_request_id(request_id);
+    session_state.add_request_id(request_id.clone());
     let mut request_state = session_state.get_req_state();
 
-    request_state.event_context.record_info(request_id);
+    request_state.event_context.record_info(request_id.clone());
     request_state
         .event_context
         .record_info(("flow".to_string(), flow.to_string()));
@@ -312,8 +317,13 @@ where
         }
     };
 
+    let values: Vec<&serde_json::Value> = [Some(&serialized_request), serialized_response.as_ref()]
+        .into_iter()
+        .flatten()
+        .collect();
+
     let infra = extract_mapped_fields(
-        &serialized_request,
+        &values,
         state.enhancement.as_ref(),
         state.infra_components.as_ref(),
     );
@@ -733,6 +743,10 @@ pub trait Authenticate {
     fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -757,6 +771,10 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         // In v1, this maps to `all_keys_required` to retain backward compatibility.
         // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
+    }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        self.three_ds_data.is_some()
     }
 }
 
@@ -801,7 +819,19 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
-impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsCaptureRequest {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
+        self.all_keys_required
+    }
+}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsExtendAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
@@ -879,7 +909,7 @@ pub fn build_redirection_form(
                     var frm = document.getElementById("payment_form");
                     var formFields = frm.querySelectorAll("input");
 
-                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                    if (((frm.getAttribute("method") || "GET").toUpperCase()) === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
                         }}, 300);
@@ -1647,112 +1677,13 @@ pub fn build_redirection_form(
     }
 }
 
-fn build_payment_link_template(
-    payment_link_data: PaymentLinkFormData,
-) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
-    let mut tera = Tera::default();
-
-    // Add modification to css template with dynamic data
-    let css_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.css").to_string();
-    let _ = tera.add_raw_template("payment_link_css", &css_template);
-    let mut context = Context::new();
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-
-    let rendered_css = match tera.render("payment_link_css", &context) {
-        Ok(rendered_css) => rendered_css,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    // Add modification to js template with dynamic data
-    let js_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
-
-    let _ = tera.add_raw_template("payment_link_js", &js_template);
-
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
-    let sdk_origin = payment_link_data
-        .sdk_url
-        .host_str()
-        .ok_or_else(|| {
-            logger::error!("Host missing for payment link SDK URL");
-            report!(errors::ApiErrorResponse::InternalServerError)
-        })
-        .and_then(|host| {
-            if host == "localhost" {
-                let port = payment_link_data.sdk_url.port().ok_or_else(|| {
-                    logger::error!("Port missing for localhost in SDK URL");
-                    report!(errors::ApiErrorResponse::InternalServerError)
-                })?;
-                Ok(format!(
-                    "{}://{}:{}",
-                    payment_link_data.sdk_url.scheme(),
-                    host,
-                    port
-                ))
-            } else {
-                Ok(format!("{}://{}", payment_link_data.sdk_url.scheme(), host))
-            }
-        })?;
-    context.insert("sdk_origin", &sdk_origin);
-
-    let rendered_js = match tera.render("payment_link_js", &context) {
-        Ok(rendered_js) => rendered_js,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    // Logging template
-    let logging_template =
-        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
-    //Locale template
-    let locale_template = include_str!("../core/payment_link/locale.js").to_string();
-
-    // Modify Html template with rendered js and rendered css files
-    let html_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
-
-    let _ = tera.add_raw_template("payment_link", &html_template);
-
-    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
-
-    context.insert(
-        "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url),
-    );
-
-    context.insert(
-        "hyperloader_sdk_link",
-        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
-    );
-    context.insert("locale_template", &locale_template);
-    context.insert("rendered_css", &rendered_css);
-    context.insert("rendered_js", &rendered_js);
-
-    context.insert("logging_template", &logging_template);
-
-    Ok((tera, context))
-}
-
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_payment_link_template(payment_link_data)
-        .attach_printable("Failed to build payment link's HTML template")?;
-    let payment_link_initiator =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link_initiator.js")
-            .to_string();
-    context.insert("payment_link_initiator", &payment_link_initiator);
-
-    tera.render("payment_link", &context)
-        .map_err(|tera_error: TeraError| {
-            crate::logger::warn!("{tera_error}");
-            report!(errors::ApiErrorResponse::InternalServerError)
+    payment_link::build_payment_link_html(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to build payment link HTML: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Error while rendering open payment link's HTML template")
 }
@@ -1760,95 +1691,27 @@ pub fn build_payment_link_html(
 pub fn build_secure_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_payment_link_template(payment_link_data)
-        .attach_printable("Failed to build payment link's HTML template")?;
-    let payment_link_initiator =
-        include_str!("../core/payment_link/payment_link_initiate/secure_payment_link_initiator.js")
-            .to_string();
-    context.insert("payment_link_initiator", &payment_link_initiator);
-
-    tera.render("payment_link", &context)
-        .map_err(|tera_error: TeraError| {
-            crate::logger::warn!("{tera_error}");
-            report!(errors::ApiErrorResponse::InternalServerError)
+    payment_link::build_secure_payment_link_html(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to build secure payment link HTML: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Error while rendering secure payment link's HTML template")
-}
-
-fn get_hyper_loader_sdk(sdk_url: &url::Url) -> String {
-    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
-}
-
-fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
-    format!(
-        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
-            <link rel="preload" href="{sdk_url}" as="script">"#,
-    )
 }
 
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let mut tera = Tera::default();
-
-    // Add modification to css template with dynamic data
-    let css_template =
-        include_str!("../core/payment_link/payment_link_status/status.css").to_string();
-    let _ = tera.add_raw_template("payment_link_css", &css_template);
-    let mut context = Context::new();
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-
-    let rendered_css = match tera.render("payment_link_css", &context) {
-        Ok(rendered_css) => rendered_css,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    //Locale template
-    let locale_template = include_str!("../core/payment_link/locale.js");
-
-    // Logging template
-    let logging_template =
-        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
-
-    // Add modification to js template with dynamic data
-    let js_template =
-        include_str!("../core/payment_link/payment_link_status/status.js").to_string();
-    let _ = tera.add_raw_template("payment_link_js", &js_template);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
-
-    let rendered_js = match tera.render("payment_link_js", &context) {
-        Ok(rendered_js) => rendered_js,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    // Modify Html template with rendered js and rendered css files
-    let html_template =
-        include_str!("../core/payment_link/payment_link_status/status.html").to_string();
-    let _ = tera.add_raw_template("payment_link_status", &html_template);
-
-    context.insert("rendered_css", &rendered_css);
-    context.insert("locale_template", &locale_template);
-
-    context.insert("rendered_js", &rendered_js);
-    context.insert("logging_template", &logging_template);
-
-    match tera.render("payment_link_status", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+    payment_link::get_payment_link_status(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to get payment link status: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Error while rendering payment link status page")
 }
 
 pub fn extract_mapped_fields(
-    value: &serde_json::Value,
+    values: &[&serde_json::Value],
     mapping: Option<&HashMap<String, String>>,
     existing_enhancement: Option<&serde_json::Value>,
 ) -> Option<serde_json::Value> {
@@ -1864,9 +1727,19 @@ pub fn extract_mapped_fields(
     };
 
     for (dot_path, output_key) in mapping {
-        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+        let mut extracted_value = None;
+
+        // Try to extract from values in order of priority
+        for value in values {
+            if let Some(found_value) = extract_field_by_dot_path(value, dot_path) {
+                extracted_value = Some(found_value);
+                break;
+            }
+        }
+
+        if let Some(value) = extracted_value {
             if let Some(obj) = enhancement.as_object_mut() {
-                obj.insert(output_key.clone(), extracted_value);
+                obj.insert(output_key.clone(), value);
             }
         }
     }

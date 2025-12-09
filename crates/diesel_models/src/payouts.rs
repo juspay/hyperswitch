@@ -37,6 +37,7 @@ pub struct Payouts {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
 }
 
 #[derive(
@@ -78,6 +79,7 @@ pub struct PayoutsNew {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

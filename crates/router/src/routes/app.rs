@@ -8,7 +8,10 @@ use api_models::routing::RuleMigrationQuery;
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
-use common_utils::{id_type, types::TenantConfig};
+use common_utils::{
+    id_type,
+    types::{keymanager::KeyManagerState, TenantConfig},
+};
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -23,9 +26,11 @@ use external_services::{
 use hyperswitch_interfaces::{
     crm::CrmInterface,
     encryption_interface::EncryptionManagementInterface,
+    helpers as interfaces_helpers,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
+    types as interfaces_types,
 };
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
@@ -101,6 +106,7 @@ pub use crate::{
     },
     events::EventsHandler,
     services::{get_cache_store, get_store},
+    types::transformers::ForeignFrom,
 };
 use crate::{
     configs::{secrets_transformers, Settings},
@@ -146,6 +152,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
 }
 impl SessionState {
+    pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
+        self.store = store;
+    }
     pub fn get_req_state(&self) -> ReqState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),
@@ -154,7 +163,7 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
     pub fn get_grpc_headers_ucs(
@@ -162,20 +171,21 @@ impl SessionState {
         unified_connector_service_execution_mode: ExecutionMode,
     ) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        let request_id = self.request_id.clone();
         let shadow_mode = match unified_connector_service_execution_mode {
-            ExecutionMode::Primary => false,
-            ExecutionMode::Shadow => true,
+            ExecutionMode::Primary => Some(false),
+            ExecutionMode::Shadow => Some(true),
+            ExecutionMode::NotApplicable => None,
         };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
-            .shadow_mode(Some(shadow_mode))
+            .shadow_mode(shadow_mode)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
         GrpcRecoveryHeaders {
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
 }
@@ -206,7 +216,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.get_request_id_str()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
@@ -251,6 +261,12 @@ impl SessionStateInfo for SessionState {
     }
 }
 
+impl interfaces_helpers::GetComparisonServiceConfig for SessionState {
+    fn get_comparison_service_config(&self) -> Option<interfaces_types::ComparisonServiceConfig> {
+        self.conf.comparison_service.clone()
+    }
+}
+
 impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
     fn get_api_client(&self) -> &dyn crate::services::ApiClient {
         self.api_client.as_ref()
@@ -259,11 +275,10 @@ impl hyperswitch_interfaces::api_client::ApiClientWrapper for SessionState {
         self.conf.proxy.clone()
     }
     fn get_request_id(&self) -> Option<RequestId> {
-        self.request_id
+        self.request_id.clone()
     }
     fn get_request_id_str(&self) -> Option<String> {
-        self.request_id
-            .map(|req_id| req_id.as_hyphenated().to_string())
+        self.request_id.as_ref().map(|req_id| req_id.to_string())
     }
     fn get_tenant(&self) -> Tenant {
         self.tenant.clone()
@@ -334,7 +349,7 @@ impl AppStateInfo for AppState {
         self.event_handler.clone()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.request_id.replace(request_id);
     }
 
@@ -522,14 +537,35 @@ impl AppState {
         cache_store: Arc<RedisStore>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
+        let km_conf = conf.key_manager.get_inner();
+        let key_manager_state = KeyManagerState {
+            global_tenant_id: conf.multitenancy.global_tenant.tenant_id.clone(),
+            tenant_id: tenant.get_tenant_id().clone(),
+            enabled: km_conf.enabled,
+            url: km_conf.url.clone(),
+            client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
+            #[cfg(feature = "km_forward_x_request_id")]
+            request_id: None,
+            #[cfg(feature = "keymanager_mtls")]
+            cert: km_conf.cert.clone(),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: km_conf.ca.clone(),
+            infra_values: Self::process_env_mappings(conf.infra_values.clone()),
+        };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
                     KafkaStore::new(
                         #[allow(clippy::expect_used)]
-                        get_store(&conf.clone(), tenant, Arc::clone(&cache_store), testable)
-                            .await
-                            .expect("Failed to create store"),
+                        get_store(
+                            &conf.clone(),
+                            tenant,
+                            Arc::clone(&cache_store),
+                            testable,
+                            key_manager_state,
+                        )
+                        .await
+                        .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
@@ -538,14 +574,20 @@ impl AppState {
                 ),
                 EventsHandler::Logs(_) => Box::new(
                     #[allow(clippy::expect_used)]
-                    get_store(conf, tenant, Arc::clone(&cache_store), testable)
-                        .await
-                        .expect("Failed to create store"),
+                    get_store(
+                        conf,
+                        tenant,
+                        Arc::clone(&cache_store),
+                        testable,
+                        key_manager_state,
+                    )
+                    .await
+                    .expect("Failed to create store"),
                 ),
             },
             #[allow(clippy::expect_used)]
             StorageImpl::Mock => Box::new(
-                MockDb::new(&conf.redis)
+                MockDb::new(&conf.redis, key_manager_state)
                     .await
                     .expect("Failed to create mock store"),
             ),
@@ -578,7 +620,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
-        let store = self.stores.get(tenant).ok_or_else(err)?.clone();
+        let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
+        let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
+        store.set_key_manager_state(key_manager_state);
         Ok(SessionState {
             store,
             global_store: self.global_store.clone(),
@@ -589,7 +633,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
-            request_id: self.request_id,
+            request_id: self.request_id.clone(),
             base_url: tenant_conf.base_url.clone(),
             tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]
@@ -726,6 +770,10 @@ impl Payments {
             )
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
+                web::resource("/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             .service(
@@ -771,6 +819,10 @@ impl Payments {
                         .route(web::get().to(payments::payments_get_intent)),
                 )
                 .service(
+                    web::resource("/get-revenue-recovery-intent")
+                        .route(web::get().to(payments::revenue_recovery_get_intent)),
+                )
+                .service(
                     web::resource("/update-intent")
                         .route(web::put().to(payments::payments_update_intent)),
                 )
@@ -787,9 +839,12 @@ impl Payments {
                     web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
+                .service(web::scope("/payment-methods").service(
+                    web::resource("").route(web::get().to(payments::list_payment_methods)),
+                ))
                 .service(
-                    web::resource("/payment-methods")
-                        .route(web::get().to(payments::list_payment_methods)),
+                    web::resource("/eligibility/check-balance-and-apply-pm-data")
+                        .route(web::post().to(payments::payments_apply_pm_data)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
@@ -797,10 +852,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                )
-                .service(
-                    web::resource("/check-gift-card-balance")
-                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 )
                 .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
@@ -1254,8 +1305,9 @@ impl Subscription {
             ))
             .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
-                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+                web::resource("/items").route(web::get().to(subscription::get_subscription_items)),
             )
+            .service(web::resource("/list").route(web::get().to(subscription::list_subscriptions)))
             .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {
@@ -1273,6 +1325,18 @@ impl Subscription {
             .service(
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/pause")
+                    .route(web::post().to(subscription::pause_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/resume")
+                    .route(web::post().to(subscription::resume_subscription)),
+            )
+            .service(
+                web::resource("/{subscription_id}/cancel")
+                    .route(web::post().to(subscription::cancel_subscription)),
             )
     }
 }
@@ -1460,6 +1524,7 @@ impl Payouts {
                     web::resource("/filter")
                         .route(web::post().to(payouts_list_available_filters_for_merchant)),
                 )
+                .service(web::resource("/v2/filter").route(web::get().to(get_payout_filters)))
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
@@ -2798,6 +2863,10 @@ impl User {
                     web::resource("/user/resend_invite").route(web::post().to(user::resend_invite)),
                 )
                 .service(
+                    web::resource("/terminate_accept_invite")
+                        .route(web::post().to(user::terminate_accept_invite)),
+                )
+                .service(
                     web::resource("/accept_invite_from_email")
                         .route(web::post().to(user::accept_invite_from_email)),
                 );
@@ -3083,12 +3152,23 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("/{authentication_id}/eligibility-check")
+                    .route(web::post().to(authentication::authentication_eligibility_check))
+                    .route(
+                        web::get().to(authentication::authentication_retrieve_eligibility_check),
+                    ),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")
                     .route(web::post().to(authentication::authentication_sync_post_update)),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
                     .route(web::post().to(authentication::authentication_sync)),
+            )
+            .service(
+                web::resource("/{authentication_id}/enabled_authn_methods_token")
+                    .route(web::post().to(authentication::authentication_session_token)),
             )
     }
 }
@@ -3124,12 +3204,12 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
-            .service(web::resource("/status/{token_id}").route(
+            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
-            .service(web::resource("/redis-data/{token_id}").route(
+            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
                 web::get().to(
                     super::revenue_recovery_redis::get_revenue_recovery_redis_data,
                 ),

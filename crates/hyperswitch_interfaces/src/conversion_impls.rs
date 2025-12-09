@@ -12,9 +12,10 @@ use hyperswitch_domain_models::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
-            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, GiftCardBalanceCheckFlowData,
+            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
-            SubscriptionCreateData, SubscriptionCustomerData, UasFlowData, VaultConnectorFlowData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
             WebhookSourceVerifyData,
         },
         RouterDataV2,
@@ -892,11 +893,14 @@ macro_rules! default_router_data_conversion {
         }
     };
 }
-default_router_data_conversion!(GetSubscriptionPlansData);
-default_router_data_conversion!(GetSubscriptionPlanPricesData);
+default_router_data_conversion!(GetSubscriptionItemsData);
+default_router_data_conversion!(GetSubscriptionItemPricesData);
 default_router_data_conversion!(SubscriptionCreateData);
 default_router_data_conversion!(SubscriptionCustomerData);
 default_router_data_conversion!(GetSubscriptionEstimateData);
+default_router_data_conversion!(SubscriptionResumeData);
+default_router_data_conversion!(SubscriptionPauseData);
+default_router_data_conversion!(SubscriptionCancelData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(

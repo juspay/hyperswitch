@@ -36,6 +36,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
+        api_enums::PaymentMethodType::Payjustnow => Ok(dirval!(PayLaterType = Payjustnow)),
         api_enums::PaymentMethodType::AfterpayClearpay => {
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
@@ -180,6 +181,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
     }
 }
 
@@ -1061,8 +1063,6 @@ pub fn make_mca_graph(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     use std::collections::{HashMap, HashSet};
 
     use api_models::enums as api_enums;

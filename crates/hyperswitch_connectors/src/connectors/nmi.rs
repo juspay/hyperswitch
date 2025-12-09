@@ -11,7 +11,6 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use hex;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -157,8 +156,10 @@ impl ConnectorValidation for Nmi {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::Card,
+            utils::PaymentMethodDataType::ApplePay,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -1077,7 +1078,7 @@ static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::ApplePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods,
             specific_features: None,

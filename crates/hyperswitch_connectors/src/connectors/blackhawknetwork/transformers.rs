@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
         AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodBalance, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsPreProcessingData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, PreprocessingResponseId, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData},
 };
@@ -15,7 +15,9 @@ use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::types::{
+    PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+};
 
 pub struct BlackhawknetworkRouterData<T> {
     pub amount: StringMajorUnit,
@@ -132,24 +134,12 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccount
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BlackhawknetworkVerifyAccountResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BlackhawknetworkVerifyAccountResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::PreProcessingResponse {

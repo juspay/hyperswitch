@@ -1,8 +1,9 @@
 pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, BankRedirect as BankRedirectPayout,
-    CardPayout, PaymentMethodTypeInfo, PayoutActionRequest, PayoutAttemptResponse,
-    PayoutCreateRequest, PayoutCreateResponse, PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse,
-    PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListResponse,
+    CardPayout, Passthrough as PassthroughPayout, PaymentMethodTypeInfo, PayoutActionRequest,
+    PayoutAttemptResponse, PayoutCreateRequest, PayoutCreateResponse,
+    PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse, PayoutListConstraints,
+    PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2, PayoutListResponse,
     PayoutMethodData, PayoutMethodDataResponse, PayoutRequest, PayoutRetrieveBody,
     PayoutRetrieveRequest, PixBankTransfer, RequiredFieldsOverrideRequest, SepaBankTransfer,
     Wallet as WalletPayout,
