@@ -1620,6 +1620,15 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                                 tokenization_method: "apple_pay".to_string(),
                             }),
                         )))
+                    } else if let Some(PaymentMethodToken::Token(applepay_token)) =
+                        payment_method_token
+                    {
+                        Some(Self::Wallet(StripeWallet::ApplepayPayment(
+                            ApplepayPayment {
+                                token: applepay_token,
+                                payment_method_types: StripePaymentMethodType::Card,
+                            },
+                        )))
                     } else {
                         None
                     };
@@ -1840,13 +1849,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None)
         };
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(SplitPaymentsRequest::StripeSplitPayment(_)) => {
-                match item.payment_method_token.clone() {
-                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
-                    _ => None,
-                }
-            }
+        let payment_method_token = match (
+            item.request.split_payments.as_ref(),
+            item.request.payment_method_data.clone(),
+        ) {
+            (
+                Some(SplitPaymentsRequest::StripeSplitPayment(_)),
+                PaymentMethodData::Card(_)
+            )=> match item.payment_method_token.clone() {
+                Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                _ => None,
+            },
+
             _ => None,
         };
 
@@ -4487,7 +4501,10 @@ impl
             PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Ok(Self::try_from(bank_redirect_data)?)
             }
-            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((wallet_data, None))?),
+            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((
+                wallet_data,
+                item.payment_method_token.clone(),
+            ))?),
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);
 
