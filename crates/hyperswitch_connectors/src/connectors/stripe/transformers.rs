@@ -1853,13 +1853,12 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             item.request.split_payments.as_ref(),
             item.request.payment_method_data.clone(),
         ) {
-            (
-                Some(SplitPaymentsRequest::StripeSplitPayment(_)),
-                PaymentMethodData::Card(_)
-            )=> match item.payment_method_token.clone() {
-                Some(PaymentMethodToken::Token(secret)) => Some(secret),
-                _ => None,
-            },
+            (Some(SplitPaymentsRequest::StripeSplitPayment(_)), PaymentMethodData::Card(_)) => {
+                match item.payment_method_token.clone() {
+                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                    _ => None,
+                }
+            }
 
             _ => None,
         };
