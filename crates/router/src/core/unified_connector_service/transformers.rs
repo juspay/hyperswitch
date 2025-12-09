@@ -855,7 +855,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .capture_method
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
-        
 
         let state = router_data
             .access_token
