@@ -324,8 +324,7 @@ impl<F: Clone + Send + Sync>
         _state: &SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
     ) -> CustomResult<
         (
             BoxedOperation<

@@ -69,6 +69,8 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+#[cfg(feature = "v1")]
+use storage_impl::platform_wrapper;
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
@@ -265,8 +267,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         state: &SessionState,
         payment_data: &mut D,
         request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -591,8 +592,7 @@ where
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -606,11 +606,10 @@ where
             Some(customer_id) => {
                 // This function is to retrieve customer details. If the customer is deleted, it returns
                 // customer details that contains the fields as Redacted
-                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                    db,
+                    platform.get_provider(),
                     customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
                 )
                 .await?
             }
@@ -677,8 +676,7 @@ where
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -691,11 +689,10 @@ where
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
             Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
+                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                    db,
+                    platform.get_provider(),
                     customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
                 )
                 .await?
             }
@@ -780,8 +777,7 @@ where
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -794,11 +790,10 @@ where
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
             Some(customer_id) => {
-                db.find_customer_optional_by_customer_id_merchant_id(
+                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                    db,
+                    platform.get_provider(),
                     customer_id,
-                    &merchant_key_store.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
                 )
                 .await?
             }
@@ -882,8 +877,7 @@ where
         _state: &SessionState,
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,

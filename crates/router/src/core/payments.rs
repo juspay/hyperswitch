@@ -616,13 +616,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
-        .get_or_create_customer_details(
-            state,
-            &mut payment_data,
-            customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .get_or_create_customer_details(state, &mut payment_data, customer_details, platform)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
@@ -1332,6 +1326,7 @@ where
         )
         .await?;
 
+    // check this flow
     let connector = set_eligible_connector_for_nti_in_payment_data(
         state,
         &business_profile,
@@ -1345,6 +1340,7 @@ where
 
     let locale = header_payload.locale.clone();
 
+    // also check this flow
     let schedule_time = if should_add_task_to_process_tracker {
         payment_sync::get_sync_process_schedule_time(
             &*state.store,
@@ -1361,13 +1357,7 @@ where
 
     let (operation, customer) = operation
         .to_domain()?
-        .get_or_create_customer_details(
-            state,
-            &mut payment_data,
-            customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .get_or_create_customer_details(state, &mut payment_data, customer_details, &platform)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;

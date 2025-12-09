@@ -65,6 +65,8 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "v1")]
+use storage_impl::platform_wrapper;
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -1685,9 +1687,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     operation: BoxedOperation<'a, F, R, D>,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
-    merchant_id: &id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: common_enums::enums::MerchantStorageScheme,
+    platform: &domain::Platform,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
@@ -1752,7 +1752,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data.payment_intent.customer_details = raw_customer_details
         .clone()
         .async_map(|customer_details| {
-            create_encrypted_data(&key_manager_state, key_store, customer_details)
+            create_encrypted_data(
+                &key_manager_state,
+                platform.get_processor().get_key_store(),
+                customer_details,
+            )
         })
         .await
         .transpose()
@@ -1766,15 +1770,13 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
-            let customer_data = db
-                .find_customer_optional_by_customer_id_merchant_id(
+            let customer_data =
+                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                    db,
+                    platform.get_provider(),
                     &customer_id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
                 )
                 .await?;
-            let key = key_store.key.get_inner().peek();
             let encrypted_data = types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::Customer),
@@ -1791,8 +1793,13 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         },
                     ),
                 ),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key,
+                Identifier::Merchant(platform.get_provider().get_account().get_id().clone()),
+                platform
+                    .get_provider()
+                    .get_key_store()
+                    .key
+                    .get_inner()
+                    .peek(),
             )
             .await
             .and_then(|val| val.try_into_batchoperation())
@@ -1832,13 +1839,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             last_modified_by: None,
                         };
 
-                        db.update_customer_by_customer_id_merchant_id(
+                        platform_wrapper::customer::update_customer_by_customer_id_merchant_id(
+                            db,
+                            platform.get_provider(),
                             customer_id,
-                            merchant_id.to_owned(),
                             c,
                             customer_update,
-                            key_store,
-                            storage_scheme,
                         )
                         .await
                     } else {
@@ -1848,7 +1854,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 None => {
                     let new_customer = domain::Customer {
                         customer_id,
-                        merchant_id: merchant_id.to_owned(),
+                        merchant_id: platform.get_provider().get_account().get_id().to_owned(),
                         name: encryptable_customer.name,
                         email: encryptable_customer.email.map(|email| {
                             let encryptable: Encryptable<
@@ -1876,22 +1882,26 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         last_modified_by: None, // Same as created_by on creation
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
-                    db.insert_customer(new_customer, key_store, storage_scheme)
-                        .await
+                    platform_wrapper::customer::insert_customer(
+                        db,
+                        platform.get_provider(),
+                        new_customer,
+                    )
+                    .await
                 }
             })
         }
         None => match &payment_data.payment_intent.customer_id {
             None => None,
-            Some(customer_id) => db
-                .find_customer_optional_by_customer_id_merchant_id(
+            Some(customer_id) => {
+                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                    db,
+                    platform.get_provider(),
                     customer_id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
                 )
                 .await?
-                .map(Ok),
+                .map(Ok)
+            }
         },
     };
     Ok((

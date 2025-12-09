@@ -319,8 +319,7 @@ where
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -330,9 +329,7 @@ where
             Box::new(self),
             payment_data,
             request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
+            platform,
         )
         .await
     }

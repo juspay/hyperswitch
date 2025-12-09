@@ -17,6 +17,8 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
+#[cfg(feature = "v1")]
+use storage_impl::platform_wrapper;
 
 use super::PayoutData;
 #[cfg(feature = "payouts")]
@@ -767,7 +769,7 @@ pub async fn save_payout_data_to_locker(
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
-    _merchant_context: &domain::Platform,
+    _platform: &domain::Platform,
 ) -> RouterResult<Option<domain::Customer>> {
     todo!()
 }
@@ -784,24 +786,15 @@ pub(super) async fn get_or_create_customer_details(
         .customer_id
         .clone()
         .unwrap_or_else(generate_customer_id_of_default_length);
-
     let merchant_id = platform.get_processor().get_account().get_id();
-    let key = platform
-        .get_processor()
-        .get_key_store()
-        .key
-        .get_inner()
-        .peek();
 
-    match db
-        .find_customer_optional_by_customer_id_merchant_id(
-            &customer_id,
-            merchant_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+    match platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+        db,
+        platform.get_provider(),
+        &customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?
     {
         // Customer found
         Some(customer) => Ok(Some(customer)),
@@ -830,10 +823,13 @@ pub(super) async fn get_or_create_customer_details(
                             },
                         ),
                     ),
-                    Identifier::Merchant(
-                        platform.get_processor().get_key_store().merchant_id.clone(),
-                    ),
-                    key,
+                    Identifier::Merchant(merchant_id.clone()),
+                    platform
+                        .get_provider()
+                        .get_key_store()
+                        .key
+                        .get_inner()
+                        .peek(),
                 )
                 .await
                 .and_then(|val| val.try_into_batchoperation())
@@ -874,11 +870,7 @@ pub(super) async fn get_or_create_customer_details(
                 };
 
                 Ok(Some(
-                    db.insert_customer(
-                        customer,
-                        platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
-                    )
+                    platform_wrapper::customer::insert_customer(db, platform.get_provider(), customer)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {

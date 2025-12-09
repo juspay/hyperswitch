@@ -214,8 +214,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
     ) -> errors::CustomResult<
         (
             PaymentSessionUpdateOperation<'a, F>,

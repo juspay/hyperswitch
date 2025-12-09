@@ -226,8 +226,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
         _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
     ) -> errors::CustomResult<
         (
             PaymentExtendAuthorizationOperation<'a, F>,
