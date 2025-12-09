@@ -1519,10 +1519,37 @@ async fn payouts_incoming_webhook_flow(
 }
 
 #[cfg(feature = "payouts")]
+struct PayoutWebhookPreCondition {
+    is_non_terminal_status: bool,
+    is_source_verified: bool,
+}
+
+#[cfg(feature = "payouts")]
 enum PaoyoutWebhookAction {
     UpdateStatus,
     RetrieveStatus,
     NoAction,
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutWebhookPreCondition {
+    pub fn new(is_non_terminal_status: bool, is_source_verified: bool) -> Self {
+        Self {
+            is_non_terminal_status,
+            is_source_verified,
+        }
+    }
+
+    // only update if the payout is in non-terminal status
+    // if source verified, update the payout attempt and trigger outgoing webhook
+    // if not source verified, do a payout retrieve call and update the status
+    pub fn get_payout_webhook_action(&self) -> PaoyoutWebhookAction {
+        match (self.is_non_terminal_status, self.is_source_verified) {
+            (true, true) => PaoyoutWebhookAction::UpdateStatus,
+            (true, false) => PaoyoutWebhookAction::RetrieveStatus,
+            (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
+        }
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1589,10 +1616,11 @@ async fn process_payout_incoming_webhook(
     ))
     .await?;
 
-    let payout_webhook_action = PaoyoutWebhookAction::from((
+    let payout_webhook_action = PayoutWebhookPreCondition::new(
         payout_data.payout_attempt.status.is_non_terminal_status(),
         source_verified,
-    ));
+    )
+    .get_payout_webhook_action();
     match payout_webhook_action {
         PaoyoutWebhookAction::UpdateStatus => {
             payout_incoming_webhook_update_status(
