@@ -447,6 +447,39 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => true,
+        AttemptStatus::Started
+        | AttemptStatus::Authorized
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Failure
+        | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Expired => false,
+    }
+}
+
 pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     match status {
         AttemptStatus::AuthenticationFailed
@@ -2071,6 +2104,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2180,6 +2214,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -6722,7 +6759,9 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
 }
 
 #[cfg(feature = "payouts")]
