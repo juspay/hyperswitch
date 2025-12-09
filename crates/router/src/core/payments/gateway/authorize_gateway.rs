@@ -16,7 +16,10 @@ use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterf
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext,
-        unified_connector_service::{self, handle_unified_connector_service_response_for_payment_authorize, handle_unified_connector_service_response_for_payment_repeat},
+        unified_connector_service::{
+            self, handle_unified_connector_service_response_for_payment_authorize,
+            handle_unified_connector_service_response_for_payment_repeat,
+        },
     },
     routes::SessionState,
     services::logger,
@@ -109,8 +112,10 @@ where
             .lineage_ids(lineage_ids);
 
         let updated_router_data = if is_repeat_payment {
-            logger::info!("Granular Gateway: Detected repeat payment, calling UCS RepeatPayment endpoint");
-            
+            logger::info!(
+                "Granular Gateway: Detected repeat payment, calling UCS RepeatPayment endpoint"
+            );
+
             let payment_repeat_request =
                 payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
                     .change_context(ConnectorError::RequestEncodingFailed)
@@ -138,10 +143,11 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                    let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                        router_data.status = status;
-                        response
-                    });
+                    let router_data_response =
+                        ucs_data.router_data_response.map(|(response, status)| {
+                            router_data.status = status;
+                            response
+                        });
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = payment_repeat_response.captured_amount;

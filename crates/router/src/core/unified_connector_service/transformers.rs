@@ -2904,7 +2904,9 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::MomoAtm => Self::MomoAtm,
             common_enums::PaymentMethodType::Multibanco => Self::Multibanco,
             common_enums::PaymentMethodType::OnlineBankingThailand => Self::OnlineBankingThailand,
-            common_enums::PaymentMethodType::OnlineBankingCzechRepublic => Self::OnlineBankingCzechRepublic,
+            common_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
+                Self::OnlineBankingCzechRepublic
+            }
             common_enums::PaymentMethodType::OnlineBankingFinland => Self::OnlineBankingFinland,
             common_enums::PaymentMethodType::OnlineBankingFpx => Self::OnlineBankingFpx,
             common_enums::PaymentMethodType::OnlineBankingPoland => Self::OnlineBankingPoland,
