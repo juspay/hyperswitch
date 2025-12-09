@@ -22,34 +22,10 @@ pub async fn profile_create(
     if let Err(api_error) = payload
         .payment_link_config
         .as_ref()
-        .map(|cfg| {
-            if let Some(default_cfg) = cfg.default_config.as_ref() {
-                if let Some(custom_message) =
-                    default_cfg.custom_message_for_payment_method_types.as_ref()
-                {
-                    custom_message.validate().map_err(|message| {
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: message.to_string(),
-                        }
-                    })?;
-                }
-            }
-
-            if let Some(biz_cfgs) = cfg.business_specific_configs.as_ref() {
-                for config in biz_cfgs.values() {
-                    if let Some(custom_message) =
-                        config.custom_message_for_payment_method_types.as_ref()
-                    {
-                        custom_message.validate().map_err(|message| {
-                            errors::ApiErrorResponse::InvalidRequestData {
-                                message: message.to_string(),
-                            }
-                        })?;
-                    }
-                }
-            }
-
-            Ok::<_, errors::ApiErrorResponse>(())
+        .map(|config| {
+            config
+                .validate()
+                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
         })
         .transpose()
     {
@@ -241,34 +217,10 @@ pub async fn profile_update(
     if let Err(api_error) = payload
         .payment_link_config
         .as_ref()
-        .map(|cfg| {
-            if let Some(default_cfg) = cfg.default_config.as_ref() {
-                if let Some(custom_message) =
-                    default_cfg.custom_message_for_payment_method_types.as_ref()
-                {
-                    custom_message.validate().map_err(|message| {
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: message.to_string(),
-                        }
-                    })?;
-                }
-            }
-
-            if let Some(biz_cfgs) = cfg.business_specific_configs.as_ref() {
-                for config in biz_cfgs.values() {
-                    if let Some(custom_message) =
-                        config.custom_message_for_payment_method_types.as_ref()
-                    {
-                        custom_message.validate().map_err(|message| {
-                            errors::ApiErrorResponse::InvalidRequestData {
-                                message: message.to_string(),
-                            }
-                        })?;
-                    }
-                }
-            }
-
-            Ok::<_, errors::ApiErrorResponse>(())
+        .map(|config| {
+            config
+                .validate()
+                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
         })
         .transpose()
     {

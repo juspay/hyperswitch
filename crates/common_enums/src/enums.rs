@@ -2074,30 +2074,58 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-/// Custom T&C Message to be shown per payment method type
+/// List of custom T&C messages grouped by payment method
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<PaymentMethod, HashMap<PaymentMethodType, String>>)]
-    pub  Option<
-        std::collections::HashMap<
-            PaymentMethod,
-            std::collections::HashMap<PaymentMethodType, String>,
-        >,
-    >,
-);
+pub struct PaymentMethodsConfig(pub Vec<PaymentMethodConfig>);
 
-impl CustomTermsByPaymentMethodTypes {
+/// Custom T&C messages for a specific payment method
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodConfig {
+    pub payment_method: PaymentMethod,
+    pub payment_method_types: Vec<PaymentMethodTypeConfig>,
+}
+
+/// Custom T&C message for a specific payment method type
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodTypeConfig {
+    pub payment_method_type: PaymentMethodType,
+    pub message: CustomMessage,
+}
+
+/// Custom T&C message content and display mode
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct CustomMessage {
+    pub value: String,
+    pub display_mode: CustomMessageDisplayMode,
+}
+
+/// Display mode options for controlling how messages are shown.
+#[derive(
+    Default, Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomMessageDisplayMode {
+    #[default]
+    DefaultSdkMessage,
+    Custom,
+    None,
+}
+
+impl PaymentMethodsConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        if let Some(ref map) = self.0 {
-            for (pm, pm_types_map) in map.iter() {
-                for pm_type in pm_types_map.keys() {
-                    if PaymentMethod::from(*pm_type) != *pm {
-                        return Err(ApplicationError::ApiClientError(
-                            ApiClientError::RequestNotSent(format!(
-                                "Payment Method Type '{pm_type}' does not belong to Payment Method '{pm}'"
-                            )),
-                        ));
-                    }
+        for pm_config in &self.0 {
+            let parent_pm = pm_config.payment_method;
+
+            for pm_type_config in &pm_config.payment_method_types {
+                let pm_type = pm_type_config.payment_method_type;
+
+                // Check if the payment_method_type belongs to the parent payment_method
+                if PaymentMethod::from(pm_type) != parent_pm {
+                    return Err(ApplicationError::ApiClientError(
+                        ApiClientError::RequestNotSent(format!(
+                            "Payment Method Type '{pm_type}' does not belong to Payment Method '{parent_pm}'"
+                        )),
+                    ));
                 }
             }
         }

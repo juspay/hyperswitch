@@ -78,7 +78,7 @@ function initializeSDK() {
     showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
     customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
-    customMessageForPaymentMethodTypes: paymentDetails.custom_message_for_payment_method_types,
+    paymentMethodsConfig: paymentDetails.payment_methods_config,
   };
   var showCardTerms = paymentDetails.show_card_terms;
   if (showCardTerms !== null && typeof showCardTerms === "string") {
