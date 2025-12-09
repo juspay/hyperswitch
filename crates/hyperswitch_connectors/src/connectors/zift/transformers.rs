@@ -335,7 +335,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         country_code: item.router_data.get_optional_billing_country(),
                         email: item.router_data.get_optional_billing_email(),
                         phone: item.router_data.get_optional_billing_phone_number(),
-                        transaction_code: item.router_data.payment_id.clone(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::ExternalThreeDs(external_3ds_request))
                 } else {
@@ -357,7 +357,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         country_code: item.router_data.get_optional_billing_country(),
                         email: item.router_data.get_optional_billing_email(),
                         phone: item.router_data.get_optional_billing_phone_number(),
-                        transaction_code: item.router_data.payment_id.clone(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::Card(card_request))
                 }
@@ -401,7 +401,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     country_code: item.router_data.get_optional_billing_country(),
                     email: item.router_data.get_optional_billing_email(),
                     phone: item.router_data.get_optional_billing_phone_number(),
-                    transaction_code: item.router_data.payment_id.clone(),
+                    transaction_code: item.router_data.connector_request_reference_id.clone(),
                 };
                 Ok(Self::Mandate(mandate_request))
             }
