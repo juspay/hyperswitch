@@ -1,7 +1,8 @@
+use std::str::FromStr;
+
 use common_utils::{events::ApiEventMetric, pii};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use utoipa::ToSchema;
 
 const RESPONSE_TYPES_SUPPORTED: &[ResponseType] = &[ResponseType::Code];

@@ -1,14 +1,15 @@
+use api_models::oidc::{
+    Jwk, JwksResponse, KeyType, KeyUse, OidcDiscoveryResponse, SigningAlgorithm,
+};
+use error_stack::ResultExt;
+use once_cell::sync::OnceCell;
+
 use crate::{
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::api::ApplicationResponse,
     utils::user::get_base_url,
 };
-use api_models::oidc::{
-    Jwk, JwksResponse, KeyType, KeyUse, OidcDiscoveryResponse, SigningAlgorithm,
-};
-use error_stack::ResultExt;
-use once_cell::sync::OnceCell;
 
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
