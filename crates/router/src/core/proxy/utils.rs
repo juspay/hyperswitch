@@ -1,8 +1,10 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
 use common_utils::{
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{Encode, OptionExt, BytesExt},
     id_type,
+    crypto::{GcmAes256, DecodeMessage},
 };
+use masking::PeekInterface;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods;
 use masking::Mask;
@@ -26,6 +28,7 @@ use crate::{
 pub struct ProxyRequestWrapper(pub proxy_api_models::ProxyRequest);
 pub enum ProxyRecord {
     PaymentMethodRecord(Box<domain::PaymentMethod>),
+    VolatilePaymentMethodRecord(Box<domain::PaymentMethod>),
     TokenizationRecord(Box<domain::Tokenization>),
 }
 
@@ -75,6 +78,51 @@ impl ProxyRequestWrapper {
                     tokenization_record,
                 )))
             }
+            proxy_api_models::TokenType::VolatilePaymentMethodId => {
+                let pm_id = token.as_str();
+                let encryption_key = key_store.key.get_inner();
+
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
+
+                let response = redis_conn
+                    .get_key::<bytes::Bytes>(&pm_id.into())
+                    .await;
+
+                let payment_method_record = match response {
+                    Ok(resp) => {
+                        let decrypted_payload = GcmAes256
+                            .decode_message(
+                                encryption_key.peek().as_ref(),
+                                masking::Secret::new(resp.into()),
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to decode redis temp locker data")?;
+
+                        let get_response: domain::PaymentMethod =
+                            bytes::Bytes::from(decrypted_payload)
+                                .parse_struct("PaymentMethod")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "Error getting PaymentMethod from tokenize response",
+                                )?;
+
+                        Ok(get_response)
+                    }
+                    Err(err) => {
+                        Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".into(),
+                        })
+                    }
+                }?;
+
+                Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(
+                    payment_method_record,
+                )))
+            }
         }
     }
 
@@ -108,6 +156,12 @@ impl ProxyRecord {
             Self::TokenizationRecord(tokenization_record) => Ok(
                 payment_methods::VaultId::generate(tokenization_record.locker_id.clone()),
             ),
+            Self::VolatilePaymentMethodRecord(payment_method) => payment_method
+                .locker_id
+                .clone()
+                .get_required_value("vault_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Locker id not present in Volatile Payment Method Entry"),
         }
     }
 
@@ -121,7 +175,10 @@ impl ProxyRecord {
                 .attach_printable("Customer id not present in Payment Method Entry"),
             Self::TokenizationRecord(tokenization_record) => {
                 Ok(tokenization_record.customer_id.clone())
-            }
+            },
+            Self::VolatilePaymentMethodRecord(payment_method) => {
+                todo!()
+            },
         }
     }
 
@@ -160,6 +217,9 @@ impl ProxyRecord {
                     .attach_printable("Failed to retrieve vault data")?;
 
                 Ok(vault_data.get("data").cloned().unwrap_or(Value::Null))
+            }
+            Self::VolatilePaymentMethodRecord(_) => {
+                todo!()
             }
         }
     }
