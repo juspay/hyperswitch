@@ -977,7 +977,7 @@ pub struct PaymentMethodsConfig(
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PaymentMethodConfig {
     /// Payment Method
-    #[schema(example = "card")]
+    #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method: common_enums::PaymentMethod,
 
     /// Payment Method Types
@@ -990,6 +990,7 @@ pub struct PaymentMethodConfig {
             }
         }
     ]))]
+    #[schema(value_type = Vec<CustomTerms>)]
     pub payment_method_types: Vec<CustomTerms>,
 }
 
@@ -997,10 +998,11 @@ pub struct PaymentMethodConfig {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CustomTerms {
     /// Payment Method Type
-    #[schema(example = "sepa")]
+    #[schema(value_type = PaymentMethodType, example = "sepa")]
     pub payment_method_type: common_enums::PaymentMethodType,
 
     /// The message to be shown
+    #[schema(value_type = CustomMessage)]
     pub message: CustomMessage,
 }
 
@@ -1008,11 +1010,11 @@ pub struct CustomTerms {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CustomMessage {
     /// The text to be shown per payment method type
-    #[schema(example = "I authorize Novalnet AG to debit my account.")]
+    #[schema(value_type = String, example = "I authorize Novalnet AG to debit my account.")]
     pub value: String,
 
     /// The display mode for terms and conditions
-    #[schema(example = "custom")]
+    #[schema(value_type = SdkDisplayMode , example = "custom")]
     pub display_mode: SdkDisplayMode,
 }
 

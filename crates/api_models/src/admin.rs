@@ -3370,7 +3370,7 @@ pub struct PaymentLinkConfigRequest {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<common_types::payments::PaymentMethodsConfig>)]
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
         Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
@@ -3484,7 +3484,7 @@ pub struct PaymentLinkConfig {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<common_types::payments::PaymentMethodsConfig>)]
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
         Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
