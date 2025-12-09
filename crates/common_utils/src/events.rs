@@ -140,6 +140,7 @@ pub enum ApiEventsType {
     },
     ThreeDsDecisionRule,
     Chat,
+    Oidc,
 }
 
 impl ApiEventMetric for serde_json::Value {}

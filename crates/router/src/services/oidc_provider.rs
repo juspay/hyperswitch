@@ -43,7 +43,7 @@ static CACHED_JWKS: OnceCell<JwksResponse> = OnceCell::new();
 /// Build JWKS response with public keys (all keys for token validation)
 pub async fn get_jwks(state: SessionState) -> RouterResponse<JwksResponse> {
     let jwks_response = CACHED_JWKS.get_or_try_init(|| {
-        let oidc_keys = state.conf.oidc.get_all_keys();
+        let oidc_keys = state.conf.oidc.get_inner().get_all_keys();
         let mut keys = Vec::new();
 
         for key_config in oidc_keys {
@@ -97,6 +97,7 @@ pub fn validate_authorize_params(
     let client = state
         .conf
         .oidc
+        .get_inner()
         .get_client(&payload.client_id)
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcAuthorizationError {
@@ -248,6 +249,7 @@ fn validate_token_request(
     let registered_client = state
         .conf
         .oidc
+        .get_inner()
         .get_client(request_client_id)
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcTokenError {
@@ -335,10 +337,15 @@ async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let signing_key = state.conf.oidc.get_signing_key().ok_or_else(|| {
-        report!(ApiErrorResponse::InternalServerError)
-            .attach_printable("No signing key configured for OIDC")
-    })?;
+    let signing_key = state
+        .conf
+        .oidc
+        .get_inner()
+        .get_signing_key()
+        .ok_or_else(|| {
+            report!(ApiErrorResponse::InternalServerError)
+                .attach_printable("No signing key configured for OIDC")
+        })?;
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -407,7 +414,7 @@ pub async fn process_token_request(
     let id_token = generate_id_token(&state, &auth_code_data).await?;
 
     Ok(ApplicationResponse::Json(OidcTokenResponse {
-        id_token,
+        id_token: id_token.into(),
         token_type: TOKEN_TYPE_BEARER.to_string(),
         expires_in: ID_TOKEN_TTL_IN_SECS,
     }))
