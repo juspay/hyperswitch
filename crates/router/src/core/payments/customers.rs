@@ -1,11 +1,11 @@
 pub use hyperswitch_domain_models::customer::update_connector_customer_in_customers;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use router_env::{instrument, tracing};
 
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     logger,
     routes::{metrics, SessionState},
@@ -19,6 +19,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Option<String>> {
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         api::CreateConnectorCustomer,
@@ -42,13 +43,14 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
         customer_response_data,
     );
 
-    let resp = services::execute_connector_processing_step(
+    let resp = gateway::execute_payment_gateway(
         state,
         connector_integration,
         &customer_router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payment_failed_response()?;

@@ -121,17 +121,14 @@ where
 
                 let create_order_response = response.into_inner();
 
-                let (router_data_response, _status_code) =
+                let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_create_order(
                         create_order_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
                 router_data.response = router_data_response;
+                router_data.connector_http_status_code = Some(status_code);
                 Ok((router_data, create_order_response))
             },
         ))

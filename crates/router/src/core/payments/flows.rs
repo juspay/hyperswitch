@@ -105,6 +105,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -112,16 +113,17 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<()>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(
@@ -130,6 +132,7 @@ pub trait Feature<F, T> {
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,
@@ -173,6 +176,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>>
     where
         F: Clone,
@@ -197,6 +201,7 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>>
     where
         F: Clone,

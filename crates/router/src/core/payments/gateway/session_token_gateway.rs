@@ -130,11 +130,6 @@ where
                         payment_session_token_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
-
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 

@@ -134,6 +134,7 @@ where
                         response
                     });
                 router_data.response = router_data_response;
+
                 router_data.amount_captured = payment_authorize_response.captured_amount;
                 router_data.minor_amount_captured = payment_authorize_response
                     .minor_captured_amount
@@ -143,11 +144,6 @@ where
                     .clone()
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
-
-                // Populate connector_customer_id if present
-                ucs_data.connector_customer_id.map(|connector_customer_id| {
-                    router_data.connector_customer = Some(connector_customer_id);
-                });
 
                 ucs_data.connector_response.map(|customer_response| {
                     router_data.connector_response = Some(customer_response);

@@ -542,6 +542,11 @@ pub trait ConnectorSpecifications {
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
     }
 
+    /// Is Authorize session token required before authorize
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        false
+    }
+
     #[cfg(feature = "v1")]
     /// Generate connector customer reference ID for payments
     fn generate_connector_customer_id(

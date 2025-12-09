@@ -15,7 +15,10 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers, transformers,
+            PaymentData,
+        },
         unified_connector_service as ucs_core,
     },
     logger,
@@ -107,7 +110,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -159,12 +162,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -175,6 +180,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
@@ -186,6 +192,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
                 should_continue_payment,
+                gateway_context,
             )
             .await
         } else {
@@ -969,7 +976,7 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    gateway_context: payments::flows::gateway_context::RouterGatewayContext,
+    gateway_context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<
         api::CompleteAuthorize,
