@@ -616,10 +616,16 @@ pub fn extract_payment_link_config(
 pub fn get_payment_link_config_based_on_priority(
     payment_create_link_config: Option<api_models::payments::PaymentCreatePaymentLinkConfig>,
     business_link_config: Option<diesel_models::business_profile::BusinessPaymentLinkConfig>,
-    merchant_name: String,
+    processor: &domain::Processor,
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
+    let merchant_name = processor
+        .get_account()
+        .merchant_name
+        .clone()
+        .map(|name| name.into_inner().peek().to_owned())
+        .unwrap_or_default();
     let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
         if let Some(ref business_config) = business_link_config {
             (

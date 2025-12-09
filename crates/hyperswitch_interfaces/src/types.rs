@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
@@ -37,8 +37,8 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
@@ -66,8 +66,8 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
@@ -202,11 +202,11 @@ pub type ExtendedAuthorizationType = dyn ConnectorIntegration<
     PaymentsResponseData,
 >;
 
-/// Type alias for ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>
+/// Type alias for ConnectorIntegration<GetSubscriptionItemPrices, GetSubscriptionItemPricesRequest, GetSubscriptionItemPricesResponse>
 pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
-    GetSubscriptionPlanPrices,
-    GetSubscriptionPlanPricesRequest,
-    GetSubscriptionPlanPricesResponse,
+    GetSubscriptionItemPrices,
+    GetSubscriptionItemPricesRequest,
+    GetSubscriptionItemPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`
@@ -368,11 +368,11 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegration<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>`
+/// Type alias for `ConnectorIntegration<GetSubscriptionItems, GetSubscriptionItemsRequest, GetSubscriptionItemsResponse>`
 pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
-    GetSubscriptionPlans,
-    GetSubscriptionPlansRequest,
-    GetSubscriptionPlansResponse,
+    GetSubscriptionItems,
+    GetSubscriptionItemsRequest,
+    GetSubscriptionItemsResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<GetSubscriptionEstimate, GetSubscriptionEstimateRequest, GetSubscriptionEstimateResponse>`

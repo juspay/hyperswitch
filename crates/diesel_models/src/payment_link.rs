@@ -18,7 +18,7 @@ pub struct PaymentLink {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
@@ -45,11 +45,11 @@ pub struct PaymentLinkNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fulfilment_time: Option<PrimitiveDateTime>,
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
