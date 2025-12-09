@@ -183,7 +183,7 @@ pub struct Settings<S: SecretState> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PreProcessingFlowConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub preprocessing_bloated_connectors: HashSet<enums::Connector>,
+    pub authentication_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

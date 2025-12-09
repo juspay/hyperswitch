@@ -236,7 +236,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
-    async fn granular_preprocessing_steps<'a>(
+    async fn execute_authentication_steps<'a>(
         self,
         state: &SessionState,
         connector_data: &api::ConnectorData,
@@ -249,32 +249,30 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             .connector
             .get_preprocessing_flow_if_needed(current_flow);
         match optional_preprocessing_flow {
-            Some(preprocessing_flow) => {
-                let updated_router_data = Box::pin(handle_preprocessing(
+            Some(api_interface::AuthenticationFlowName::AuthenticationFlowName(
+                authentication_flow_name,
+            )) => {
+                let updated_router_data = Box::pin(handle_complete_authorize_authentication_steps(
                     self,
                     state,
                     connector_data,
-                    preprocessing_flow,
+                    authentication_flow_name,
                     gateway_context,
                 ))
                 .await?;
-                let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
-                    response: &updated_router_data.response,
-                    attempt_status: updated_router_data.status,
-                };
-                let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
-                    request_data: &updated_router_data.request,
-                };
-                let should_continue = connector_data
-                    .connector
-                    .decide_should_continue_after_preprocessing(
-                        current_flow,
-                        preprocessing_flow,
-                        pre_processing_flow_response,
-                    );
+                // check if redirection is not present in the response and attempt status is not AuthenticationFailed
+                // if condition does not satisfy, then we don't need to proceed further
+                let should_continue = (matches!(
+                    updated_router_data.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && updated_router_data.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed);
                 Ok((updated_router_data, should_continue))
             }
-            None => Ok((self, true)),
+            Some(_) | None => Ok((self, true)),
         }
     }
 
@@ -313,20 +311,16 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                         preprocessing_flow,
                     ))
                     .await?;
-                let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
-                    response: &updated_router_data.response,
-                    attempt_status: updated_router_data.status,
-                };
-                let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
-                    request_data: &updated_router_data.request,
-                };
-                let should_continue = connector_data
-                    .connector
-                    .decide_should_continue_after_preprocessing(
-                        current_flow,
-                        preprocessing_flow,
-                        pre_processing_flow_response,
-                    );
+                // check if redirection is not present in the response and attempt status is not AuthenticationFailed
+                // if condition does not satisfy, then we don't need to proceed further
+                let should_continue = (matches!(
+                    updated_router_data.response,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && updated_router_data.attempt_status
+                    != common_enums::AttemptStatus::AuthenticationFailed);
                 Ok((updated_router_data, should_continue))
             }
             None => Ok((self, true)),
@@ -478,7 +472,7 @@ async fn handle_preprocessing_through_unified_connector_service(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn handle_preprocessing(
+async fn handle_complete_authorize_authentication_steps<Req>(
     router_data: types::RouterData<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
@@ -486,7 +480,7 @@ async fn handle_preprocessing(
     >,
     state: &SessionState,
     connector_data: &api::ConnectorData,
-    preprocessing_flow_name: api_interface::PreProcessingFlowName,
+    authentication_flow_name: api_interface::AuthenticationFlowName,
     gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<
@@ -496,8 +490,13 @@ async fn handle_preprocessing(
     >,
 > {
     let complete_authorize_request_data = router_data.request.clone();
-    match preprocessing_flow_name {
-        api_interface::PreProcessingFlowName::Authenticate => {
+    match authentication_flow_name {
+        api_interface::AuthenticationFlowName::PreAuthenticate => {
+            // PreAuthentication is not applicable for CompleteAuthorize flow
+            logger::error!("PreAuthenticate flow is not applicable for CompleteAuthorize flow");
+            Ok(router_data)
+        }
+        api_interface::AuthenticationFlowName::Authenticate => {
             // Convert CompleteAuthorize to Authenticate for UCS call
             let authenticate_request_data =
                 types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
@@ -532,7 +531,7 @@ async fn handle_preprocessing(
 
             Ok(complete_authorize_router_data)
         }
-        api_interface::PreProcessingFlowName::PostAuthenticate => {
+        api_interface::AuthenticationFlowName::PostAuthenticate => {
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;

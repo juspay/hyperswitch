@@ -407,8 +407,8 @@ pub enum CurrentFlowInfo<'a> {
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
 pub enum AlternateFlow {
-    /// Pre-authentication flow
-    PreAuthenticate,
+    /// Authentication flow
+    AuthenticationFlow(AuthenticationFlowName),
 }
 
 /// The Preprocessing flow that must be made before the current flow.
@@ -418,8 +418,17 @@ pub enum AlternateFlow {
 #[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
     /// Authentication flow must be made before the actual flow
+    AuthenticationFlow(AuthenticationFlowName),
+}
+
+/// Type of authentication flow
+#[derive(Debug, Clone, Copy)]
+pub enum AuthenticationFlowName {
+    /// Pre-authentication flow
+    PreAuthenticate,
+    /// Authentication flow
     Authenticate,
-    /// Post-authentication flow must be made before the actual flow
+    /// Post-authentication flow
     PostAuthenticate,
 }
 
@@ -440,17 +449,6 @@ pub trait ConnectorSpecifications {
         _current_flow: CurrentFlowInfo<'_>,
     ) -> Option<PreProcessingFlowName> {
         None
-    }
-    /// Based on the current flow and preprocessing_flow_response, decide if the main flow must be called or not
-    ///
-    /// By default, always continue with the main flow after the preprocessing flow.
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        _current_flow: CurrentFlowInfo<'_>,
-        _pre_processing_flow_name: PreProcessingFlowName,
-        _preprocessing_flow_response: PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        true
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(

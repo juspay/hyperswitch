@@ -4181,7 +4181,7 @@ where
         .as_ref()
         .is_some_and(|config| {
             config
-                .preprocessing_bloated_connectors
+                .authentication_bloated_connectors
                 .contains(&connector.connector_name)
         }) {
         logger::info!(
@@ -4189,7 +4189,7 @@ where
             connector.connector_name
         );
         router_data
-            .granular_preprocessing_steps(state, &connector, &context)
+            .execute_authentication_steps(state, &connector, &context)
             .await?
     } else {
         complete_preprocessing_steps_if_required(
