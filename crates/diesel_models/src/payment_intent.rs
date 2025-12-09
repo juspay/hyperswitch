@@ -228,7 +228,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    pub payment_methods_config: Option<common_enums::PaymentMethodsConfig>,
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Custom text colour for payment link's handle confirm button

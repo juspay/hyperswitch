@@ -2074,65 +2074,6 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-/// List of custom T&C messages grouped by payment method
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct PaymentMethodsConfig(pub Vec<PaymentMethodConfig>);
-
-/// Custom T&C messages for a specific payment method
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct PaymentMethodConfig {
-    pub payment_method: PaymentMethod,
-    pub payment_method_types: Vec<PaymentMethodTypeConfig>,
-}
-
-/// Custom T&C message for a specific payment method type
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct PaymentMethodTypeConfig {
-    pub payment_method_type: PaymentMethodType,
-    pub message: CustomMessage,
-}
-
-/// Custom T&C message content and display mode
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomMessage {
-    pub value: String,
-    pub display_mode: CustomMessageDisplayMode,
-}
-
-/// Display mode options for controlling how messages are shown.
-#[derive(
-    Default, Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum CustomMessageDisplayMode {
-    #[default]
-    DefaultSdkMessage,
-    Custom,
-    None,
-}
-
-impl PaymentMethodsConfig {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        for pm_config in &self.0 {
-            let parent_pm = pm_config.payment_method;
-
-            for pm_type_config in &pm_config.payment_method_types {
-                let pm_type = pm_type_config.payment_method_type;
-
-                // Check if the payment_method_type belongs to the parent payment_method
-                if PaymentMethod::from(pm_type) != parent_pm {
-                    return Err(ApplicationError::ApiClientError(
-                        ApiClientError::RequestNotSent(format!(
-                            "Payment Method Type '{pm_type}' does not belong to Payment Method '{parent_pm}'"
-                        )),
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,

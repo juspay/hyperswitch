@@ -3370,8 +3370,9 @@ pub struct PaymentLinkConfigRequest {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<common_enums::PaymentMethodsConfig>)]
-    pub payment_methods_config: Option<common_enums::PaymentMethodsConfig>,
+    #[schema(value_type = Option<common_types::payments::PaymentMethodsConfig>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
@@ -3402,7 +3403,7 @@ pub struct PaymentLinkConfigRequest {
 
 impl PaymentLinkConfigRequest {
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(custom_message) = self.payment_methods_config.as_ref() {
+        if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
         Ok(())
@@ -3481,8 +3482,9 @@ pub struct PaymentLinkConfig {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<PaymentMethodsConfig>)]
-    pub payment_methods_config: Option<common_enums::PaymentMethodsConfig>,
+    #[schema(value_type = Option<common_types::payments::PaymentMethodsConfig>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
