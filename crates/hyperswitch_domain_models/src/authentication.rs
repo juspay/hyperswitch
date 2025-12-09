@@ -17,7 +17,6 @@ use serde_json::Value;
 use super::behaviour;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-// #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
 pub struct Authentication {
     pub authentication_id: common_utils::id_type::AuthenticationId,
@@ -99,7 +98,6 @@ pub struct Authentication {
     pub merchant_country_code: Option<String>,
 }
 
-// #[cfg(feature = "v1")]
 impl Authentication {
     pub fn is_separate_authn_required(&self) -> bool {
         self.maximum_supported_version

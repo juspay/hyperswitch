@@ -22,9 +22,7 @@ use api_models::{
     payments::{self, CustomerDetails},
 };
 #[cfg(feature = "v1")]
-use common_utils::{
-    crypto::Encryptable, errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor,
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -964,7 +962,7 @@ impl
         Option<payments::Address>,
         Option<payments::Address>,
         Option<payments::BrowserInformation>,
-        Option<Encryptable<masking::Secret<String, common_utils::pii::EmailStrategy>>>,
+        common_utils::crypto::OptionalEncryptableEmail,
     )> for AuthenticationEligibilityResponse
 {
     type Error = error_stack::Report<ApiErrorResponse>;
@@ -976,7 +974,7 @@ impl
             Option<payments::Address>,
             Option<payments::Address>,
             Option<payments::BrowserInformation>,
-            Option<Encryptable<masking::Secret<String, common_utils::pii::EmailStrategy>>>,
+            common_utils::crypto::OptionalEncryptableEmail,
         ),
     ) -> Result<Self, Self::Error> {
         let authentication_connector = authentication

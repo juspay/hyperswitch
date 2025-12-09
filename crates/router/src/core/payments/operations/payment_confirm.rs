@@ -1611,8 +1611,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         None,
                         None,
                         None,
-                        // None,
-                        // None
                     ).await?
                 } else {
                     authentication
