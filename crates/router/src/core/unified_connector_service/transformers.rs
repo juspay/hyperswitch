@@ -299,7 +299,7 @@ impl
                 .map(|e| e.expose().expose().into()),
             browser_info,
 
-            session_token: None,
+            session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
@@ -431,7 +431,11 @@ impl
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
             merchant_account_metadata: HashMap::new(),
-            customer_name: router_data.request.description.clone(),
+            customer_name: router_data
+                .request
+                .name
+                .clone()
+                .map(ExposeInterface::expose),
             email: router_data
                 .request
                 .email

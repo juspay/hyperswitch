@@ -256,9 +256,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
-        let m_merchant_id = merchant_id.clone();
         let store = state.clone().store;
         let m_request_merchant_connector_details = request.merchant_connector_details.clone();
+        let m_processor = platform.get_processor().clone();
 
         let config_update_fut = tokio::spawn(
             async move {
@@ -266,7 +266,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .async_map(|mcd| async {
                         helpers::insert_merchant_connector_creds_to_config(
                             store.as_ref(),
-                            &m_merchant_id,
+                            &m_processor,
                             mcd,
                         )
                         .await
@@ -810,7 +810,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
-            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,
@@ -1463,7 +1462,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                merchant_category_code: business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),

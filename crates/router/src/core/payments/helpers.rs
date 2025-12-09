@@ -4008,10 +4008,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
 ) -> RouterResult<()> {
-    let primary_business_details = platform
-        .get_processor()
+    let primary_business_details = processor
         .get_account()
         .primary_business_details
         .clone()
@@ -4319,9 +4318,10 @@ mod tests {
 #[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
+    let merchant_id = processor.get_account().get_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -7867,16 +7867,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7932,7 +7932,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    platform.get_processor().get_account().get_id().clone()
+                    processor.get_account().get_id().clone()
                 )),
             );
         }

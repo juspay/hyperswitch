@@ -6686,6 +6686,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -8841,7 +8852,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -8870,7 +8880,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -14743,15 +14754,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
@@ -19647,7 +19651,8 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking"
         ]
       },
       "PaymentMethodUpdate": {

@@ -17,7 +17,7 @@ use common_utils::{
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
-use hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt;
+use hyperswitch_domain_models::payouts::{payout_attempt::PayoutAttempt, payouts::PayoutsUpdate};
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
@@ -1605,6 +1605,25 @@ async fn payout_incoming_webhook_update_status(
         .switch()
         .attach_printable("Failed to get error object for payouts")?;
 
+    let payouts_update = PayoutsUpdate::StatusUpdate { status };
+
+    let updated_payouts = db
+        .update_payout(
+            &payout_data.payouts,
+            payouts_update,
+            &payout_attempt,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating payouts: payout_id: {}",
+                payout_data.payouts.payout_id.get_string_repr()
+            )
+        })?;
+    payout_data.payouts = updated_payouts;
+
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
@@ -1638,7 +1657,7 @@ async fn payout_incoming_webhook_update_status(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payout attempt: payout_attempt_id: {}",
@@ -2865,7 +2884,7 @@ async fn update_additional_payment_method_data(
 
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
-        platform.clone(),
+        platform.get_provider().clone(),
         payment_method_update,
         &payment_method_id,
         Some(pm),
