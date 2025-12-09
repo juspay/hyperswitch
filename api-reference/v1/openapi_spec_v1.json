@@ -27908,14 +27908,6 @@
             "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
-            "nullable": true
-          },
           "manual_retry_allowed": {
             "type": "boolean",
             "description": "If true the payment can be retried with same or different payment method which means the confirm call can be made again.",
@@ -29499,14 +29491,6 @@
               "$ref": "#/components/schemas/PaymentMethodType"
             },
             "description": "Allowed Payment Method Types for a given PaymentIntent",
-            "nullable": true
-          },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
             "nullable": true
           },
           "manual_retry_allowed": {

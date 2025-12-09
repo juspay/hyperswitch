@@ -922,9 +922,8 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&payout_attempt.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;

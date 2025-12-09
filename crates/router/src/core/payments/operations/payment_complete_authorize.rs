@@ -343,7 +343,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
-            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response,
             surcharge_details: None,
