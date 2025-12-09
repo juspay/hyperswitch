@@ -626,27 +626,30 @@ pub async fn save_payout_data_to_locker(
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         payout_data.payment_method = Some(
-            cards::PmCards { state, platform }
-                .create_payment_method(
-                    &new_payment_method,
-                    customer_id,
-                    &payment_method_id,
-                    Some(stored_resp.card_reference.clone()),
-                    platform.get_processor().get_account().get_id(),
-                    None,
-                    None,
-                    card_details_encrypted.clone(),
-                    connector_mandate_details,
-                    None,
-                    None,
-                    payment_method_billing_address,
-                    None,
-                    None,
-                    None,
-                    None,
-                    Default::default(),
-                )
-                .await?,
+            cards::PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .create_payment_method(
+                &new_payment_method,
+                customer_id,
+                &payment_method_id,
+                Some(stored_resp.card_reference.clone()),
+                platform.get_processor().get_account().get_id(),
+                None,
+                None,
+                card_details_encrypted.clone(),
+                connector_mandate_details,
+                None,
+                None,
+                payment_method_billing_address,
+                None,
+                None,
+                None,
+                None,
+                Default::default(),
+            )
+            .await?,
         );
     }
 
@@ -922,9 +925,8 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         Some(&payout_attempt.profile_id),
-        platform.get_processor().get_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
