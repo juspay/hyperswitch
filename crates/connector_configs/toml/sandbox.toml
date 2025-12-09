@@ -6791,6 +6791,24 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.jwt_mac_key]
+name="jwt_mac_key"
+label="JWT MAC KEY"
+placeholder="Enter your JWT MAC Key"
+required=false
+type="Text"
 
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
