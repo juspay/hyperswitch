@@ -4,7 +4,7 @@ use http::StatusCode;
 
 use crate::router_data;
 
-#[derive(Copy, Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorType {
     InvalidRequestError,
