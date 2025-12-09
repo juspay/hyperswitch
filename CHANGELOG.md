@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix2
+
+### Bug Fixes
+
+- **payouts:** Update payout intent in case of webhook ([#10580](https://github.com/juspay/hyperswitch/pull/10580)) ([`2d1d8d8`](https://github.com/juspay/hyperswitch/commit/2d1d8d8cf66af916c92bcedaf78c768f6e4a8bbd))
+
+**Full Changelog:** [`2025.12.03.0-hotfix1...2025.12.03.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix1...2025.12.03.0-hotfix2)
+
+- - -
+
 ## 2025.12.03.0-hotfix1
 
 ### Refactors
