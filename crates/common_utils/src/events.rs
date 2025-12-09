@@ -142,6 +142,43 @@ pub enum ApiEventsType {
     Chat,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "api_flow", rename_all = "snake_case")]
+pub enum ConnectorEventsType {
+    Payout {
+        payout_id: String,
+    },
+    Payment {
+        payment_id: String,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+    },
+    Dispute {
+        dispute_id: String,
+    },
+}
+
+impl ConnectorEventsType {
+    pub fn new(
+        payment_id: String,
+        refund_id: Option<String>,
+        payout_id: Option<String>,
+        dispute_id: Option<String>,
+    ) -> Self {
+        match (refund_id, payout_id, dispute_id) {
+            (Some(refund_id), _, _) => Self::Refund {
+                payment_id,
+                refund_id,
+            },
+            (_, Some(payout_id), _) => Self::Payout { payout_id },
+            (_, _, Some(dispute_id)) => Self::Dispute { dispute_id },
+            _ => Self::Payment { payment_id },
+        }
+    }
+}
+
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
 
