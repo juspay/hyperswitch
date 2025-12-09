@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::{events::ApiEventMetric, pii};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -23,56 +24,58 @@ const CLAIMS_SUPPORTED: &[Claim] = &[
 ];
 
 /// OIDC Response Type
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResponseType {
     Code,
 }
 
 /// OIDC Response Mode
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResponseMode {
     Query,
 }
 
 /// OIDC Subject Type
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SubjectType {
     Public,
 }
 
 /// OIDC Signing Algorithm
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SigningAlgorithm {
     #[serde(rename = "RS256")]
     Rs256,
 }
 
 /// JWK Key Type
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum KeyType {
     #[serde(rename = "RSA")]
     Rsa,
 }
 
 /// JWK Key Use
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyUse {
     Sig,
 }
 
 /// OIDC Grant Type
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GrantType {
     AuthorizationCode,
 }
 
 /// OIDC Scope
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, strum::EnumString)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Scope {
@@ -81,14 +84,14 @@ pub enum Scope {
 }
 
 /// OIDC Token Endpoint Authentication Method
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenAuthMethod {
     ClientSecretBasic,
 }
 
 /// OIDC Claim
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Claim {
     Aud,
@@ -101,7 +104,7 @@ pub enum Claim {
 }
 
 /// OIDC Authorization Error as per RFC 6749
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OidcAuthorizationError {
@@ -115,7 +118,7 @@ pub enum OidcAuthorizationError {
 }
 
 /// OIDC Token Error as per RFC 6749
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OidcTokenError {
@@ -320,7 +323,8 @@ pub struct OidcTokenRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenResponse {
     /// ID Token value associated with the authenticated session
-    pub id_token: String,
+    #[schema(value_type = String)]
+    pub id_token: Secret<String>,
 
     /// OAuth 2.0 Token Type value
     #[schema(example = "Bearer")]
@@ -331,9 +335,38 @@ pub struct OidcTokenResponse {
     pub expires_in: u64,
 }
 
-impl ApiEventMetric for OidcDiscoveryResponse {}
-impl ApiEventMetric for JwksResponse {}
-impl ApiEventMetric for OidcAuthorizeQuery {}
-impl ApiEventMetric for AuthCodeData {}
-impl ApiEventMetric for OidcTokenRequest {}
-impl ApiEventMetric for OidcTokenResponse {}
+impl ApiEventMetric for OidcDiscoveryResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}
+
+impl ApiEventMetric for JwksResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}
+
+impl ApiEventMetric for OidcAuthorizeQuery {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}
+
+impl ApiEventMetric for AuthCodeData {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}
+
+impl ApiEventMetric for OidcTokenRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}
+
+impl ApiEventMetric for OidcTokenResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Oidc)
+    }
+}

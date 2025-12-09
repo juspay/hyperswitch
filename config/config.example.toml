@@ -479,19 +479,18 @@ base_url = ""                        # Base url used for user specific redirects
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
 
-# OIDC configuration for OpenID Connect authentication
 [oidc.key.k1]
-kid = ""
-private_key = ""
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers
+private_key = ""  # RSA private key used for signing ID tokens 
 
 [oidc.key.k2]
-kid = ""
-private_key = ""
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers
+private_key = ""  # RSA private key used for signing ID tokens 
 
 [oidc.client.c1]
-client_id = ""
-client_secret = ""
-redirect_uri = ""
+client_id = ""     # OIDC client identifier for the relying party
+client_secret = "" # Client secret used to authenticate the client
+redirect_uri = ""  # Redirect URI registered for the OIDC client
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

@@ -442,6 +442,7 @@ impl BasicAuthProvider for OidcAuthProvider {
         let client = session
             .conf
             .oidc
+            .get_inner()
             .get_client(identifier)
             .ok_or(errors::ApiErrorResponse::InvalidBasicAuth)?;
 

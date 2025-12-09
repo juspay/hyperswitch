@@ -107,7 +107,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
-    pub oidc: OidcSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,

@@ -4,7 +4,7 @@ use http::StatusCode;
 
 use crate::router_data;
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Copy, Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorType {
     InvalidRequestError,
@@ -225,11 +225,6 @@ pub enum ApiErrorResponse {
     )]
     InvalidJwtToken,
     #[error(
-        error_type = ErrorType::InvalidRequestError, code = "IR_17_1",
-        message = "Access forbidden, invalid Basic authentication credentials"
-    )]
-    InvalidBasicAuth,
-    #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_18",
         message = "{message}",
     )]
@@ -312,6 +307,11 @@ pub enum ApiErrorResponse {
     ConnectedAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_50", message = "Invalid connected account operation")]
     InvalidConnectedOperation,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_51",
+        message = "Access forbidden, invalid Basic authentication credentials"
+    )]
+    InvalidBasicAuth,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -603,7 +603,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
-            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 171, "Access forbidden, invalid Basic authentication credentials", None)),
+            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 51, "Access forbidden, invalid Basic authentication credentials", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
