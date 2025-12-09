@@ -4,6 +4,18 @@ use router_env::env::Env;
 use serde::Deserialize;
 
 fn main() {
+    // DEBUG OUTPUT - Start
+    println!("cargo:warning=================================");
+    println!("cargo:warning=DEBUG: ENVIRONMENT = {:?}", std::env::var("ENVIRONMENT"));
+    println!("cargo:warning=DEBUG: All env vars containing 'ENV':");
+    for (key, value) in std::env::vars() {
+        if key.contains("ENV") {
+            println!("cargo:warning=  {} = {}", key, value);
+        }
+    }
+    println!("cargo:warning=================================");
+    // DEBUG OUTPUT - End
+
     // Manually deserialize ENVIRONMENT variable to Env enum
     let environment = std::env::var("ENVIRONMENT")
         .ok()
@@ -51,6 +63,12 @@ fn main() {
 
     // Set environment variable for compile-time access
     println!("cargo:rustc-env=SDK_URL={}", sdk_url);
+    
+    // DEBUG: Show what SDK_URL was selected
+    println!("cargo:warning=================================");
+    println!("cargo:warning=DEBUG: Selected environment = {}", environment);
+    println!("cargo:warning=DEBUG: Selected SDK_URL = {}", sdk_url);
+    println!("cargo:warning=================================");
 }
 
 #[derive(Debug, Deserialize)]
