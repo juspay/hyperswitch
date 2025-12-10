@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable,
@@ -85,6 +86,79 @@ impl UserRole {
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         let check_lineage = Self::check_user_in_lineage(
+            tenant_id,
+            Some(org_id),
+            Some(merchant_id),
+            Some(profile_id),
+        );
+
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(check_lineage)
+            .and(dsl::version.eq(version));
+
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
+    }
+
+    fn check_user_in_lineage_by_entity_type(
+        tenant_id: id_type::TenantId,
+        org_id: Option<id_type::OrganizationId>,
+        merchant_id: Option<id_type::MerchantId>,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> Box<
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>>
+            + 'static,
+    > {
+        // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
+        // either tenant level, org level, merchant level, or profile level
+        // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
+        // Org-level: (org_id = ? && entity_type = organization)
+        // Merchant-level: (org_id = ? && merchant_id = ? && entity_id = merchant)
+        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ? && entity_type = profile)
+        Box::new(
+            // Tenant-level condition
+            dsl::tenant_id
+                .eq(tenant_id.clone())
+                .and(dsl::org_id.is_null())
+                .and(dsl::merchant_id.is_null())
+                .and(dsl::profile_id.is_null())
+                .or(
+                    // Org-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::entity_type.eq(EntityType::Organization)),
+                )
+                .or(
+                    // Merchant-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::merchant_id.eq(merchant_id.clone()))
+                        .and(dsl::entity_type.eq(EntityType::Merchant)),
+                )
+                .or(
+                    // Profile-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id)
+                        .and(dsl::org_id.eq(org_id))
+                        .and(dsl::merchant_id.eq(merchant_id))
+                        .and(dsl::profile_id.eq(profile_id))
+                        .and(dsl::entity_type.eq(EntityType::Profile)),
+                ),
+        )
+    }
+
+    pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
+        conn: &PgPooledConn,
+        user_id: String,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        version: UserRoleVersion,
+    ) -> StorageResult<Self> {
+        let check_lineage = Self::check_user_in_lineage_by_entity_type(
             tenant_id,
             Some(org_id),
             Some(merchant_id),
