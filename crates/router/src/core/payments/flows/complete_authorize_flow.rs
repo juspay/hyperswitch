@@ -255,7 +255,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 "Authentication flow is required for connector: {}",
                 connector.connector_name
             );
-            let complete_authorize_request_data = router_data.request.clone();
+            let mut complete_authorize_request_data = router_data.request.clone();
             let authenticate_request_data =
                 types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
             let authenticate_response_data: Result<
@@ -280,6 +280,12 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let authenticate_response = authenticate_router_data.response.clone();
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &authenticate_router_data.response
+            {
+                connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+            };
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     authenticate_router_data,
@@ -322,7 +328,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 connector.connector_name
             );
             // Convert CompleteAuthorize to PostAuthenticate for UCS call
-            let complete_authorize_request_data = router_data.request.clone();
+            let mut complete_authorize_request_data = router_data.request.clone();
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
             let post_authenticate_response_data: Result<
@@ -345,6 +351,12 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &post_authenticate_router_data.response
+            {
+                connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+            };
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     post_authenticate_router_data,

@@ -27,7 +27,6 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     payments as domain_payments, router_request_types::PaymentsCaptureData,
 };
-use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{

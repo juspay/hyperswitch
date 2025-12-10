@@ -342,12 +342,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
-            let pre_authenticate_router_data = handle_pre_authenticate_connector_call(
+            let pre_authenticate_router_data = Box::pin(handle_pre_authenticate_connector_call(
                 state,
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
-            )
+            ))
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
