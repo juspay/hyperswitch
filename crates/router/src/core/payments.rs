@@ -6145,8 +6145,7 @@ where
                         ))))
                     } else {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "support for predecrypted token is not enabled for GooglePay"
-                                .to_string(),
+                            message: "Predecrypted token config is not enabled for GooglePay. Please enable metadata.google_pay.support_predecrypted_token in your merchant connector account.".to_string(),
                         }
                         .into())
                     }
