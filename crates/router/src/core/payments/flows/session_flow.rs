@@ -281,11 +281,12 @@ async fn create_applepay_session_token(
             header_payload,
         )
     } else {
-        let is_pre_decrypt_flow_supported =
-            is_applepay_predecrypted_flow_supported(router_data.connector_meta_data.clone());
         // Get the apple pay metadata
         let apple_pay_metadata =
-            helpers::get_applepay_metadata(router_data.connector_meta_data.clone());
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
+                .attach_printable(
+                    "Failed to to fetch apple pay certificates during session call",
+                )?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -370,7 +371,7 @@ async fn create_applepay_session_token(
                 }
                 Err(_) => {
                     if apple_pay_combined_metadata.is_predecrypted_token_supported() {
-                        logger::info!("Apple pay, only predecrypted flow is enabled");
+                        logger::info!("Apple pay only predecrypted flows are enabled");
                         return Ok(types::PaymentsSessionRouterData {
                             response: Ok(types::PaymentsResponseData::SessionResponse {
                                 session_token: payment_types::SessionToken::NoSessionTokenReceived,
