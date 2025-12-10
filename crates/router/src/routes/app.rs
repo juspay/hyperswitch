@@ -3025,15 +3025,20 @@ impl User {
                         .route(web::get().to(user::theme::list_all_themes_in_lineage)),
                 )
                 .service(
-                    web::resource("/{theme_id}")
-                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
-                        .route(web::put().to(user::theme::update_user_theme))
-                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
-                        .route(web::delete().to(user::theme::delete_user_theme)),
-                )
-                .service(
-                    web::resource("/{theme_id}/version")
-                        .route(web::get().to(user::theme::get_theme_version)),
+                    web::scope("/{theme_id}")
+                        .service(
+                            web::resource("")
+                                .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                                .route(web::put().to(user::theme::update_user_theme))
+                                .route(
+                                    web::post().to(user::theme::upload_file_to_user_theme_storage),
+                                )
+                                .route(web::delete().to(user::theme::delete_user_theme)),
+                        )
+                        .service(
+                            web::resource("/version")
+                                .route(web::get().to(user::theme::get_theme_version)),
+                        ),
                 ),
         );
         route

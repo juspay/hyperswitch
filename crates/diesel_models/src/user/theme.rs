@@ -73,7 +73,7 @@ impl ThemeNew {
             email_background_color: email_config.background_color,
             email_entity_name: email_config.entity_name,
             email_entity_logo_url: email_config.entity_logo_url,
-            theme_config_version: theme_config_version,
+            theme_config_version,
         }
     }
 }

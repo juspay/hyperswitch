@@ -1602,6 +1602,8 @@ diesel::table! {
         #[max_length = 64]
         email_entity_name -> Varchar,
         email_entity_logo_url -> Text,
+        #[max_length = 13]
+        theme_config_version -> Varchar,
     }
 }
 
