@@ -11231,7 +11231,7 @@ pub struct PaymentLinkInitiateRequest {
     pub payment_id: id_type::PaymentId,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 #[serde(untagged)]
 pub enum PaymentLinkData {
     PaymentLinkDetails(Box<PaymentLinkDetails>),
@@ -11306,7 +11306,7 @@ pub struct SecurePaymentLinkDetails {
     pub color_icon_card_cvc_error: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkStatusDetails {
     pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,

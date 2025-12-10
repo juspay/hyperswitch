@@ -10,12 +10,11 @@
 function initializeSDK() {
   // @ts-ignore
   var encodedPaymentDetails = window.__PAYMENT_DETAILS;
-  var decoded = decodeURIComponent(encodedPaymentDetails);
-  var paymentDetails = keysToCamel(JSON.parse(decoded));
-  var clientSecret = paymentDetails.clientSecret;
-  var sdkUiRules = paymentDetails.sdkUiRules;
-  var labelType = paymentDetails.paymentFormLabelType;
-  var colorIconCardCvcError = paymentDetails.colorIconCardCvcError;
+  var paymentDetails = decodeUri(encodedPaymentDetails);
+  var clientSecret = paymentDetails.client_secret;
+  var sdkUiRules = paymentDetails.sdk_ui_rules;
+  var labelType = paymentDetails.payment_form_label_type;
+  var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -55,45 +54,45 @@ function initializeSDK() {
     locale: paymentDetails.locale,
   });
   var type =
-    paymentDetails.sdkLayout === "spaced_accordion" ||
-    paymentDetails.sdkLayout === "accordion"
+    paymentDetails.sdk_layout === "spaced_accordion" ||
+      paymentDetails.sdk_layout === "accordion"
       ? "accordion"
-      : paymentDetails.sdkLayout;
-  var hideCardNicknameField = paymentDetails.hideCardNicknameField;
+      : paymentDetails.sdk_layout;
+  var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
     displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
-      spacedAccordionItems: paymentDetails.sdkLayout === "spaced_accordion",
+      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
     },
     branding: "never",
     wallets: {
-      walletReturnUrl: paymentDetails.returnUrl,
+      walletReturnUrl: paymentDetails.return_url,
       style: {
         theme: "dark",
         type: "default",
         height: 55,
       },
     },
-    showCardFormByDefault: paymentDetails.showCardFormByDefault,
+    showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
-    customMessageForCardTerms: paymentDetails.customMessageForCardTerms,
-    paymentMethodsConfig: paymentDetails.customMessageForPaymentMethodTypes,
+    customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
+    paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
   };
-  var showCardTerms = paymentDetails.showCardTerms;
+  var showCardTerms = paymentDetails.show_card_terms;
   if (showCardTerms !== null && typeof showCardTerms === "string") {
     unifiedCheckoutOptions.terms = {
       card: showCardTerms
     };
   }
-  var paymentMethodsHeaderText = paymentDetails.paymentFormHeaderText;
+  var paymentMethodsHeaderText = paymentDetails.payment_form_header_text;
   if (paymentMethodsHeaderText !== null && typeof paymentMethodsHeaderText === "string") {
     unifiedCheckoutOptions.paymentMethodsHeaderText = paymentMethodsHeaderText;
   }
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
-  showSDK(paymentDetails.displaySdkOnly, paymentDetails.enableButtonOnlyOnFormReady);
+  showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
   let shimmer = document.getElementById("payment-details-shimmer");
   shimmer.classList.add("reduce-opacity");

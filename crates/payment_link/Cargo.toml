@@ -29,6 +29,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 api_models = { path = "../api_models", default-features = false }
 common_utils = { path = "../common_utils" }
 getrandom = { version = "0.2.16", optional = true }
+common_types = { path = "../common_types" }
 
 [build-dependencies]
 router_env = { path = "../router_env" }
