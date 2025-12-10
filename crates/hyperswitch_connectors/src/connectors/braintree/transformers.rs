@@ -2323,17 +2323,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         // Check for external 3DS authentication data
-        let three_ds_data = item
-            .router_data
-            .request
-            .authentication_data
-            .as_ref()
-            .map(|auth_data| convert_external_three_ds_data(auth_data))
-            .transpose()?;
+        let three_ds_data =
+            item.router_data
+                .request
+                .authentication_data
+                .as_ref()
+                .map(|auth_data| ThreeDSecureAuthenticationInput {
+                    pass_through: Some(convert_external_three_ds_data(auth_data)),
+                });
 
-        // Create options if we have 3DS data
         let options = three_ds_data.map(|three_ds| CreditCardTransactionOptions {
-            three_d_secure_pass_through: Some(three_ds),
+            three_d_secure_authentication: Some(three_ds),
         });
 
         let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
@@ -2626,7 +2626,13 @@ pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, error
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardTransactionOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub three_d_secure_pass_through: Option<ThreeDSecurePassThroughInput>,
+    pub three_d_secure_authentication: Option<ThreeDSecureAuthenticationInput>,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureAuthenticationInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pass_through: Option<ThreeDSecurePassThroughInput>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2643,14 +2649,12 @@ pub struct ThreeDSecurePassThroughInput {
     pub directory_server_response: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub directory_server_transaction_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub acs_transaction_id: Option<String>,
 }
 
 fn convert_external_three_ds_data(
     auth_data: &hyperswitch_domain_models::router_request_types::AuthenticationData,
-) -> Result<ThreeDSecurePassThroughInput, error_stack::Report<errors::ConnectorError>> {
-    Ok(ThreeDSecurePassThroughInput {
+) -> ThreeDSecurePassThroughInput {
+    ThreeDSecurePassThroughInput {
         eci_flag: auth_data.eci.clone(),
         cavv: Some(auth_data.cavv.clone()),
         three_d_secure_server_transaction_id: auth_data.threeds_server_transaction_id.clone(),
@@ -2661,10 +2665,9 @@ fn convert_external_three_ds_data(
         directory_server_response: auth_data
             .transaction_status
             .as_ref()
-            .map(|status| map_transaction_status_to_code(status)),
+            .map(map_transaction_status_to_code(status)),
         directory_server_transaction_id: auth_data.ds_trans_id.clone(),
-        acs_transaction_id: auth_data.acs_trans_id.clone(),
-    })
+    }
 }
 
 fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> String {
