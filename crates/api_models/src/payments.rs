@@ -9491,6 +9491,15 @@ impl ApplePayCombinedWrapper {
     pub fn is_predecrypted_token_supported(&self) -> bool {
         self.support_predecrypted_token.unwrap_or(false)
     }
+    pub fn get_combined_metadata_required(
+        &self,
+    ) -> Result<ApplePayCombinedMetadata, ValidationError> {
+        self.data
+            .clone()
+            .ok_or_else(|| ValidationError::IncorrectValueProvided {
+                field_name: "metatadata.apple_pay_combined",
+            })
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -9501,7 +9510,7 @@ pub struct ApplepayCombinedSessionTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplepaySessionTokenMetadata {
-    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePayCombined(ApplePayCombinedWrapper),
     ApplePay(ApplePayMetadata),
 }
 

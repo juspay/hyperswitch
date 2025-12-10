@@ -615,14 +615,9 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                             )
                             .change_context(errors::ConnectorError::ParsingFailed)
                             .and_then(|combined_metadata| {
-                                match combined_metadata.apple_pay_combined.data {
-                                    Some(combined_metadata) => {
-                                        Ok(ApplepaySessionTokenMetadata::ApplePayCombined(
-                                            combined_metadata,
-                                        ))
-                                    }
-                                    None => Err(errors::ConnectorError::ParsingFailed.into()),
-                                }
+                                Ok(ApplepaySessionTokenMetadata::ApplePayCombined(
+                                    combined_metadata.apple_pay_combined,
+                                ))
                             })
                             .or_else(|_| {
                                 apple_pay_metadata
@@ -639,7 +634,9 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
 
                         let merchant_identifier = match applepay_metadata {
                             ApplepaySessionTokenMetadata::ApplePayCombined(ref combined) => {
-                                match combined {
+                                match combined.get_combined_metadata_required().change_context(
+                                    errors::ConnectorError::MissingApplePayTokenData.into(),
+                                )? {
                                     ApplePayCombinedMetadata::Simplified { .. } => {
                                         return Err(
                                             errors::ConnectorError::MissingApplePayTokenData.into(),
@@ -647,7 +644,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     }
                                     ApplePayCombinedMetadata::Manual {
                                         session_token_data, ..
-                                    } => &session_token_data.merchant_identifier,
+                                    } => &session_token_data.merchant_identifier.clone(),
                                 }
                             }
                             ApplepaySessionTokenMetadata::ApplePay(ref data) => {

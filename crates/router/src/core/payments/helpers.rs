@@ -5536,6 +5536,7 @@ pub fn validate_customer_access(
 }
 
 pub fn is_apple_pay_simplified_flow(
+    //
     connector_metadata: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -5550,14 +5551,15 @@ pub fn is_apple_pay_simplified_flow(
         .ok();
 
     // return true only if the apple flow type is simplified
-    Ok(matches!(
-        option_apple_pay_metadata,
-        Some(
-            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                api_models::payments::ApplePayCombinedMetadata::Simplified { .. }
-            )
-        )
-    ))
+    Ok(match option_apple_pay_metadata {
+        Some(api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+            combined_data,
+        )) => match combined_data.data {
+            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. }) => true,
+            _ => false,
+        },
+        _ => false,
+    })
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
@@ -5609,6 +5611,7 @@ async fn get_apple_pay_metadata_if_needed(
 }
 
 async fn get_and_merge_apple_pay_metadata(
+    //
     connector_metadata: Option<masking::Secret<tera::Value>>,
     connector_wallets_details_optional: Option<api_models::admin::ConnectorWalletDetails>,
 ) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
@@ -5631,7 +5634,7 @@ async fn get_and_merge_apple_pay_metadata(
                     .attach_printable("Failed to serialize Apple Pay combined metadata as JSON")?;
 
                 api_models::admin::ConnectorWalletDetails {
-                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)),
+                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)), // pass the entire wrapper
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
@@ -5682,7 +5685,8 @@ async fn get_and_merge_apple_pay_metadata(
     Ok(connector_wallets_details_optional)
 }
 
-pub fn is_predecrypted_flow_supported_googlepay(
+pub fn is_googlepay_predecrypted_flow_supported(
+    //change name
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> bool {
     connector_metadata
@@ -5691,7 +5695,7 @@ pub fn is_predecrypted_flow_supported_googlepay(
         .map(|metadata| metadata.google_pay.is_predecrypted_token_supported())
         .unwrap_or(false)
 }
-pub fn is_predecrypted_flow_supported_applepay(
+pub fn is_applepay_predecrypted_flow_supported(
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> bool {
     connector_metadata
@@ -5715,16 +5719,13 @@ pub fn get_applepay_metadata(
             "ApplepayCombinedSessionTokenData",
         )
         .change_context(errors::ConnectorError::ParsingFailed)
-        .and_then(
-            |combined_metadata| match combined_metadata.apple_pay_combined.data {
-                Some(combined_metadata) => Ok(
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                        combined_metadata,
-                    ),
+        .and_then(|combined_metadata| {
+            Ok(
+                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                    combined_metadata.apple_pay_combined,
                 ),
-                None => Err(errors::ConnectorError::ParsingFailed.into()),
-            },
-        )
+            )
+        })
         .or_else(|_| {
             connector_metadata
                 .parse_value::<api_models::payments::ApplepaySessionTokenData>(

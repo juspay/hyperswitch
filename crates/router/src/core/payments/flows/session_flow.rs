@@ -18,7 +18,7 @@ use crate::{
         payments::{
             self, access_token, customers,
             gateway::context as gateway_context,
-            helpers::{self, is_predecrypted_flow_supported_applepay},
+            helpers::{self, is_applepay_predecrypted_flow_supported},
             transformers, PaymentData,
         },
     },
@@ -282,26 +282,10 @@ async fn create_applepay_session_token(
         )
     } else {
         let is_pre_decrypt_flow_supported =
-            is_predecrypted_flow_supported_applepay(router_data.connector_meta_data.clone());
+            is_applepay_predecrypted_flow_supported(router_data.connector_meta_data.clone());
         // Get the apple pay metadata
         let apple_pay_metadata =
-            match helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
-                .attach_printable("Failed to to fetch apple pay certificates during session call")
-            {
-                Ok(metadata) => metadata,
-                Err(err) => {
-                    if is_pre_decrypt_flow_supported {
-                        return Ok(types::PaymentsSessionRouterData {
-                            response: Ok(types::PaymentsResponseData::SessionResponse {
-                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
-                            }),
-                            ..router_data.clone()
-                        });
-                    } else {
-                        return Err(err);
-                    }
-                }
-            };
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone());
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -315,11 +299,11 @@ async fn create_applepay_session_token(
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
-            ) => match apple_pay_combined_metadata {
-                payment_types::ApplePayCombinedMetadata::Simplified {
+            ) => match apple_pay_combined_metadata.get_combined_metadata_required() {
+                Ok(payment_types::ApplePayCombinedMetadata::Simplified {
                     payment_request_data,
                     session_token_data,
-                } => {
+                }) => {
                     logger::info!("Apple pay simplified flow");
 
                     let merchant_identifier = state
@@ -361,10 +345,10 @@ async fn create_applepay_session_token(
                         Some(session_token_data.initiative_context),
                     )
                 }
-                payment_types::ApplePayCombinedMetadata::Manual {
+                Ok(payment_types::ApplePayCombinedMetadata::Manual {
                     payment_request_data,
                     session_token_data,
-                } => {
+                }) => {
                     logger::info!("Apple pay manual flow");
 
                     let apple_pay_session_request = get_session_request_for_manual_apple_pay(
@@ -383,6 +367,24 @@ async fn create_applepay_session_token(
                         merchant_business_country,
                         session_token_data.initiative_context,
                     )
+                }
+                Err(_) => {
+                    if apple_pay_combined_metadata.is_predecrypted_token_supported() {
+                        logger::info!("Apple pay, only predecrypted flow is enabled");
+                        return Ok(types::PaymentsSessionRouterData {
+                            response: Ok(types::PaymentsResponseData::SessionResponse {
+                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                            }),
+                            ..router_data.clone()
+                        });
+                    } else {
+                        logger::info!("Apple pay No flows are enabled");
+                        return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "connector_metadata".to_string(),
+                            expected_format: "applepay_metadata_format".to_string(),
+                        }
+                        .into());
+                    }
                 }
             },
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {

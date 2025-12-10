@@ -130,7 +130,10 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
-        payments::helpers::{get_applepay_metadata, is_predecrypted_flow_supported_googlepay},
+        payments::helpers::{
+            get_applepay_metadata, is_applepay_predecrypted_flow_supported,
+            is_googlepay_predecrypted_flow_supported,
+        },
         payouts,
         routing::{self as core_routing},
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
@@ -6002,9 +6005,9 @@ where
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_apple_pay_wallet_data());
 
-        let pre_decrypted_token = if let Some(data) = apple_pay_wallet_data {
+        if let Some(data) = apple_pay_wallet_data {
             match &data.payment_data {
-                common_payments_types::ApplePayPaymentData::Encrypted(_) => None,
+                common_payments_types::ApplePayPaymentData::Encrypted(_) => Ok(None),
                 common_payments_types::ApplePayPaymentData::Decrypted(
                     apple_pay_predecrypt_data,
                 ) => {
@@ -6012,28 +6015,23 @@ where
                         &apple_pay_predecrypt_data.application_expiration_month,
                         &apple_pay_predecrypt_data.application_expiration_year,
                     )?;
-                    Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
-                        apple_pay_predecrypt_data.clone(),
-                    )))
+
+                    if is_applepay_predecrypted_flow_supported(
+                        merchant_connector_account.get_metadata(),
+                    ) {
+                        Ok(Some(PaymentMethodToken::ApplePayDecrypt(Box::new(
+                            apple_pay_predecrypt_data.clone(),
+                        ))))
+                    } else {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Predecrypted token is not enabled for ApplePay".to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
         } else {
-            None
-        };
-
-        let support_predecrypted_token =
-            is_predecrypted_flow_supported_googlepay(merchant_connector_account.get_metadata());
-        match (pre_decrypted_token, support_predecrypted_token) {
-            (Some(PaymentMethodToken::ApplePayDecrypt(_token)), false) => {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Predecrypted token is not enabled for ApplePay".to_string(),
-                }
-                .into())
-            }
-            (Some(PaymentMethodToken::ApplePayDecrypt(token)), true) => {
-                Ok(Some(PaymentMethodToken::ApplePayDecrypt(token)))
-            }
-            (_, _) => Ok(None),
+            Ok(None)
         }
     }
 
@@ -6052,10 +6050,10 @@ where
         );
 
         let wallet_flow = match apple_pay_metadata {
-            Some(domain::ApplePayFlow::Simplified(payment_processing_details)) => Some(
+            Some(domain::ApplePayFlow::DecryptionSupported(payment_processing_details)) => Some(
                 DecideWalletFlow::ApplePayDecrypt(payment_processing_details),
             ),
-            Some(domain::ApplePayFlow::Manual) | None => None,
+            Some(domain::ApplePayFlow::NonDecryption) | None => None,
         };
         Ok(wallet_flow)
     }
@@ -6148,7 +6146,7 @@ where
             None
         };
         let support_predecrypted_token =
-            is_predecrypted_flow_supported_googlepay(merchant_connector_account.get_metadata());
+            is_googlepay_predecrypted_flow_supported(merchant_connector_account.get_metadata());
         match (pre_decrypted_token, support_predecrypted_token) {
             (Some(PaymentMethodToken::GooglePayDecrypt(_token)), false) => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -7544,48 +7542,59 @@ fn check_apple_pay_metadata(
         metadata.and_then(|apple_pay_metadata| {
             let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
 
-            parsed_metadata.ok().map(|metadata| match metadata {
+            parsed_metadata.ok().and_then(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     apple_pay_combined,
-                ) => match apple_pay_combined {
-                    api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
-                        domain::ApplePayFlow::Simplified(payments_api::PaymentProcessingDetails {
-                            payment_processing_certificate: state
-                                .conf
-                                .applepay_decrypt_keys
-                                .get_inner()
-                                .apple_pay_ppc
-                                .clone(),
-                            payment_processing_certificate_key: state
-                                .conf
-                                .applepay_decrypt_keys
-                                .get_inner()
-                                .apple_pay_ppc_key
-                                .clone(),
-                        })
+                ) => match apple_pay_combined.get_combined_metadata_required() {
+                    Ok(api_models::payments::ApplePayCombinedMetadata::Simplified { .. }) => {
+                        Some(domain::ApplePayFlow::DecryptionSupported(
+                            payments_api::PaymentProcessingDetails {
+                                payment_processing_certificate: state
+                                    .conf
+                                    .applepay_decrypt_keys
+                                    .get_inner()
+                                    .apple_pay_ppc
+                                    .clone(),
+                                payment_processing_certificate_key: state
+                                    .conf
+                                    .applepay_decrypt_keys
+                                    .get_inner()
+                                    .apple_pay_ppc_key
+                                    .clone(),
+                            },
+                        ))
                     }
-                    api_models::payments::ApplePayCombinedMetadata::Manual {
+                    Ok(api_models::payments::ApplePayCombinedMetadata::Manual {
                         payment_request_data: _,
                         session_token_data,
-                    } => {
+                    }) => {
                         if let Some(manual_payment_processing_details_at) =
                             session_token_data.payment_processing_details_at
                         {
                             match manual_payment_processing_details_at {
                                 payments_api::PaymentProcessingDetailsAt::Hyperswitch(
                                     payment_processing_details,
-                                ) => domain::ApplePayFlow::Simplified(payment_processing_details),
+                                ) => Some(domain::ApplePayFlow::DecryptionSupported(
+                                    payment_processing_details,
+                                )),
                                 payments_api::PaymentProcessingDetailsAt::Connector => {
-                                    domain::ApplePayFlow::Manual
+                                    Some(domain::ApplePayFlow::NonDecryption)
                                 }
                             }
                         } else {
-                            domain::ApplePayFlow::Manual
+                            Some(domain::ApplePayFlow::NonDecryption)
+                        }
+                    }
+                    Err(_) => {
+                        if apple_pay_combined.is_predecrypted_token_supported() {
+                            Some(domain::ApplePayFlow::NonDecryption)
+                        } else {
+                            None
                         }
                     }
                 },
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
-                    domain::ApplePayFlow::Manual
+                    Some(domain::ApplePayFlow::NonDecryption)
                 }
             })
         })

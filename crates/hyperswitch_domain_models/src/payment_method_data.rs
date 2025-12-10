@@ -53,10 +53,13 @@ pub enum ExternalVaultPaymentMethodData {
     VaultToken(VaultToken),
 }
 
+// Determines if decryption should be performed
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
-    Simplified(api_models::payments::PaymentProcessingDetails),
-    Manual,
+    // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    DecryptionSupported(api_models::payments::PaymentProcessingDetails),
+    // decryption by connector or predecrypted
+    NonDecryption,
 }
 
 impl PaymentMethodData {
