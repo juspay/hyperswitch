@@ -454,6 +454,12 @@ impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PaymentId {
     }
 }
 
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PayoutId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
 impl<T: AnalyticsDataSource> ToSql<T> for common_utils::id_type::CustomerId {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(self.get_string_repr().to_owned())
