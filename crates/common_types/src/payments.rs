@@ -1015,6 +1015,7 @@ pub struct CustomMessage {
 
     /// The display mode for terms and conditions
     #[schema(value_type = SdkDisplayMode , example = "custom")]
+    #[serde(default)]
     pub display_mode: SdkDisplayMode,
 }
 
@@ -1023,14 +1024,12 @@ pub struct CustomMessage {
 #[serde(rename_all = "snake_case")]
 pub enum SdkDisplayMode {
     /// Display the default terms and conditions in sdk
-    DefaultSdkMessage,
-
-    /// Display the custom configured by the merchant
-    Custom,
-
     #[default]
+    DefaultSdkMessage,
+    /// Display the custom configured by the merchant
+    CustomMessage,
     /// No terms and conditions to be shown
-    None,
+    Hidden,
 }
 
 impl PaymentMethodsConfig {
