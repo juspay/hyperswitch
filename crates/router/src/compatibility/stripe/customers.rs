@@ -57,8 +57,8 @@ pub async fn customer_create(
             customers::create_customer(state, platform.get_provider().clone(), req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -95,8 +95,8 @@ pub async fn customer_retrieve(
             customers::retrieve_customer(state, platform.get_provider().clone(), None, customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -147,8 +147,8 @@ pub async fn customer_update(
             customers::update_customer(state, platform.get_provider().clone(), request_internal)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -181,12 +181,12 @@ pub async fn customer_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform = auth.into();
-            customers::delete_customer(state, platform, customer_id)
+            let platform: domain::Platform = auth.into();
+            customers::delete_customer(state, platform.get_provider().clone(), customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -230,8 +230,8 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            is_connected_allowed: true,
+            is_platform_allowed: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))

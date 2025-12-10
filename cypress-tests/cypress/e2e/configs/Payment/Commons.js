@@ -687,6 +687,34 @@ export const connectorDetails = {
       },
     }),
   },
+  real_time_payment_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "MYR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DuitNow: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+  },
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {

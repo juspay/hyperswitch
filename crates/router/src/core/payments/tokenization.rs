@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::{
-    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
-};
+use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
@@ -17,6 +15,9 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_method_data::{
+    get_applepay_wallet_info, get_googlepay_wallet_info,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     callback_mapper::CallbackMapper,
@@ -130,12 +131,16 @@ pub async fn save_payment_method<FData>(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
+    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    let cards = PmCards { state, platform };
+    let cards = PmCards {
+        state,
+        provider: platform.get_provider(),
+    };
     match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -297,14 +302,15 @@ where
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
-                    ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(applepay),
-                    )),
+                    ) => Some(PaymentMethodsData::WalletDetails(get_applepay_wallet_info(
+                        applepay,
+                        payment_method_token.clone(),
+                    ))),
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(googlepay),
+                        get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
                     _ => None,
                 };
@@ -1107,17 +1113,16 @@ pub async fn save_in_locker_internal(
         .clone()
         .get_required_value("customer_id")?;
     match (payment_method_request.card.clone(), card_detail) {
-        (_, Some(card)) | (Some(card), _) => {
-            Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &card,
-                &customer_id,
-                None,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")
-        }
+        (_, Some(card)) | (Some(card), _) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
@@ -1285,12 +1290,18 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &nt_data,
-                &customer_id,
-                None,
-            ))
+            let (res, dc) = Box::pin(
+                PmCards {
+                    state,
+                    provider: platform.get_provider(),
+                }
+                .add_card_to_locker(
+                    payment_method_request,
+                    &nt_data,
+                    &customer_id,
+                    None,
+                ),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1328,12 +1339,18 @@ pub async fn save_network_token_in_locker(
                             card_type: None,
                         };
 
-                        let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                            payment_method_request,
-                            &network_token_data,
-                            &customer_id,
-                            None,
-                        ))
+                        let (res, dc) = Box::pin(
+                            PmCards {
+                                state,
+                                provider: platform.get_provider(),
+                            }
+                            .add_card_to_locker(
+                                payment_method_request,
+                                &network_token_data,
+                                &customer_id,
+                                None,
+                            ),
+                        )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;
