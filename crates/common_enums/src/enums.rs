@@ -2575,7 +2575,7 @@ pub enum ExecutionMode {
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
     UcsConnector,
-    DirectConnector,
+    DirectandUCSConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.

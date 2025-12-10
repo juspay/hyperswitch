@@ -213,17 +213,17 @@ async fn determine_connector_integration_type(
             } else {
                 router_env::logger::debug!(
                     connector = ?connector,
-                    "Using DirectConnector - not in ucs_only_list"
+                    "Using DirectandUCSConnector - not in ucs_only_list"
                 );
-                Ok(ConnectorIntegrationType::DirectConnector)
+                Ok(ConnectorIntegrationType::DirectandUCSConnector)
             }
         }
         None => {
             router_env::logger::debug!(
                 connector = ?connector,
-                "UCS config not present, using DirectConnector"
+                "UCS config not present, using DirectandUCSConnector"
             );
-            Ok(ConnectorIntegrationType::DirectConnector)
+            Ok(ConnectorIntegrationType::DirectandUCSConnector)
         }
     }
 }
@@ -399,7 +399,7 @@ fn decide_execution_path(
             GatewaySystem::UnifiedConnectorService,
             ExecutionPath::UnifiedConnectorService,
         )),
-        ConnectorIntegrationType::DirectConnector => {
+        ConnectorIntegrationType::DirectandUCSConnector => {
             match (previous_gateway, execution_mode) {
                 (Some(GatewaySystem::Direct), ExecutionMode::NotApplicable) => {
                     // Previous gateway was Direct, continue using Direct
