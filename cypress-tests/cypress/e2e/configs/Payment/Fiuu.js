@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { cardRequiredField, customerAcceptance, } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -57,6 +57,25 @@ const billingAddress = {
     last_name: "Doe",
   },
   email: "johndoe@gmail.com",
+};
+
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["fiuu"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
 };
 
 export const connectorDetails = {
@@ -460,6 +479,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        card_cvc:"444",
         currency: "MYR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
@@ -658,6 +678,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -691,6 +714,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -847,6 +873,17 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+    },
+  },
+   pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
