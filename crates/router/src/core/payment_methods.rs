@@ -1026,7 +1026,7 @@ pub async fn create_volatile_payment_method_core(
         .async_map(|billing| {
             cards::create_encrypted_data(
                 key_manager_state,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 billing,
             )
         })
@@ -1238,7 +1238,7 @@ pub async fn create_volatile_payment_method_card_core(
                 merchant_id,
                 payment_method_billing_address.clone(),
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 Some(&payment_method_data),
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
@@ -2886,7 +2886,7 @@ pub async fn vault_payment_method_in_volatile_storage(
     Option<id_type::MerchantConnectorAccountId>,
 )> {
     let vault_id = domain::VaultId::generate(generate_id(consts::ID_LENGTH, "vault"));
-    let merchant_key_store = platform.get_processor().get_key_store();
+    let merchant_key_store = platform.get_provider().get_key_store();
 
     let payload = pmd
         .encode_to_string_of_json()
