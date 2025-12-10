@@ -1,3 +1,5 @@
+application_source = "main"
+
 [log.file]
 enabled = false
 
@@ -382,6 +384,7 @@ zsl.base_url = "https://api.sitoffalb.net/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
+cug_stream = "CUG_SCHEDULER_STREAM"
 
 [scheduler.consumer]
 disabled = false
