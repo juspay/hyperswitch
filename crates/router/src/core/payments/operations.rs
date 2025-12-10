@@ -605,7 +605,7 @@ where
             Some(customer_id) => {
                 // This function is to retrieve customer details. If the customer is deleted, it returns
                 // customer details that contains the fields as Redacted
-                platform_wrapper::customer::find_customer_optional_by_customer_id_merchant_id(
+                platform_wrapper::customer::find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     db,
                     platform.get_provider(),
                     customer_id,

@@ -1945,11 +1945,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
-
-        let payment_attempt =
-            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+        let cloned_platform = platform.clone();
+        let payment_attempt_fut =
+            tokio::spawn(
+                async move {
+                    platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
                 m_db.as_ref(),
-                platform.get_processor(),
+                cloned_platform.get_processor(),
                 m_payment_data_payment_attempt,
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
                     currency: payment_data.currency,
@@ -1967,7 +1969,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     straight_through_algorithm: m_straight_through_algorithm,
                     error_code: m_error_code,
                     error_message: m_error_message,
-                    updated_by: platform
+                    updated_by: cloned_platform
                         .get_processor()
                         .get_account()
                         .storage_scheme
@@ -2010,10 +2012,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .payment_attempt
                         .request_extended_authorization,
                     tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
-                },
+                }
             )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
+                .await
+                }
+                .in_current_span(),
+            );
 
         let billing_address = payment_data.address.get_payment_billing();
         let key_manager_state = state.into();
@@ -2154,8 +2159,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 )
             };
 
-        let (payment_intent, _) = tokio::try_join!(
+        let (payment_intent, payment_attempt, _) = tokio::try_join!(
             utils::flatten_join_error(payment_intent_fut),
+            utils::flatten_join_error(payment_attempt_fut),
             utils::flatten_join_error(customer_fut)
         )?;
 

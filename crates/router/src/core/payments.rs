@@ -1324,7 +1324,6 @@ where
         )
         .await?;
 
-    // check this flow
     let connector = set_eligible_connector_for_nti_in_payment_data(
         state,
         &business_profile,
@@ -1338,7 +1337,6 @@ where
 
     let locale = header_payload.locale.clone();
 
-    // also check this flow
     let schedule_time = if should_add_task_to_process_tracker {
         payment_sync::get_sync_process_schedule_time(
             &*state.store,

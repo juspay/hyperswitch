@@ -257,24 +257,21 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        let attempt_status = payment_data.payment_attempt.status;
-        payment_data.payment_attempt =
-            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_attempt,
-                storage::PaymentAttemptUpdate::StatusUpdate {
-                    status: attempt_status,
-                    updated_by: platform
-                        .get_processor()
-                        .get_account()
-                        .storage_scheme
-                        .to_string(),
-                },
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_attempt.clone(),
+            storage::PaymentAttemptUpdate::StatusUpdate {
+                status: payment_data.payment_attempt.status,
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
+                    .storage_scheme
+                    .to_string(),
+            },
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentApprove))
