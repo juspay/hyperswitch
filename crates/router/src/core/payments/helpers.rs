@@ -5536,7 +5536,6 @@ pub fn validate_customer_access(
 }
 
 pub fn is_apple_pay_simplified_flow(
-    //
     connector_metadata: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
