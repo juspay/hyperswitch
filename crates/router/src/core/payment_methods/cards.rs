@@ -3547,6 +3547,10 @@ pub async fn list_payment_methods(
         platform.get_processor().get_account().get_id(),
     )
     .await;
+    let is_guest_customer = payment_intent
+        .as_ref()
+        .map(|payment_intent| payment_intent.customer_id.is_none())
+        .unwrap_or(true);
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent)
     {
@@ -3628,6 +3632,7 @@ pub async fn list_payment_methods(
             collect_billing_details_from_wallets,
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
             sdk_next_action,
+            is_guest_customer,
         },
     ))
 }
