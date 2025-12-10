@@ -238,7 +238,7 @@ impl ProxyRecord {
             }
             Self::VolatilePaymentMethodRecord(_) => {
                 //retrieve from redis
-                let vault_id = self.get_vault_id()?.get_string_repr();
+                let vault_id = self.get_vault_id()?;
                 let key_store = platform.get_processor().get_key_store();
                 let encryption_key = key_store.key.get_inner();
 
@@ -248,7 +248,7 @@ impl ProxyRecord {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get redis connection")?;
 
-                let response = redis_conn.get_key::<bytes::Bytes>(&vault_id.into()).await;
+                let response = redis_conn.get_key::<bytes::Bytes>(&vault_id.get_string_repr().into()).await;
 
                 match response {
                     Ok(resp) => {
