@@ -869,6 +869,7 @@ impl PaymentMethodsController for PmCards<'_> {
             prev_status,
             curr_status,
             merchant_id,
+            self.state.conf.application_source,
         )
         .await
     }
@@ -1367,6 +1368,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 enums::PaymentMethodStatus::AwaitingData,
                 enums::PaymentMethodStatus::Inactive,
                 merchant_id,
+                state.conf.application_source,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4968,6 +4970,7 @@ impl TempLockerCardSupport {
             &*state.store,
             &lookup_key,
             enums::PaymentMethod::Card,
+            state.conf.application_source,
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);

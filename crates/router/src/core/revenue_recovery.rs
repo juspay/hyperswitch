@@ -57,8 +57,10 @@ use crate::{
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
-
 use common_enums::enums::ProcessTrackerStatus;
+
+#[cfg(feature = "v1")]
+use crate::types::common_enums;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
@@ -140,6 +142,7 @@ pub async fn upsert_calculate_pcr_task(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;
@@ -316,8 +319,18 @@ pub async fn perform_execute_payment(
                         &tracking_data.payment_attempt_id,
                     ))
                     .await?;
-
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
+                    // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
+                    let _unlocked = match payment_intent.status {
+                        IntentStatus::Failed => {
+                            storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                                state,
+                                &connector_customer_id,
+                                &payment_intent.id,
+                            )
+                            .await?
+                        }
+                        _ => false,
+                    };
                 }
 
                 Some(payment_processor_token) => {
@@ -372,6 +385,7 @@ pub async fn perform_execute_payment(
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
+                        state.conf.application_source,
                     )
                     .await?;
 
@@ -443,6 +457,7 @@ async fn insert_psync_pcr_task_to_pt(
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -466,6 +481,7 @@ async fn insert_psync_pcr_task_to_pt(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
@@ -978,6 +994,7 @@ async fn insert_execute_pcr_task_to_pt(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .map_err(|e| {
                 logger::error!(
