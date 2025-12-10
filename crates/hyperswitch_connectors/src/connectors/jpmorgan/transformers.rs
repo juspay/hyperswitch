@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use common_enums::enums::CaptureMethod;
 use common_utils::types::MinorUnit;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -394,22 +392,14 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     fn try_from(
         item: &JpmorganRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = Some(CapMethod::Now);
-        let capture_method = Some(requests::CapMethod::Now);
+        let total_amount = item.router_data.request.minor_payment_amount;
         let amount_to_capture = item.amount;
 
-        // isAmountFinal is true when capturing less than the total capturable amount (partial capture)
-        // Don't send the field for full captures
-        let is_amount_final = item
-            .router_data
-            .minor_amount_capturable
-            .and_then(|capturable| (capturable > amount_to_capture).then_some(true));
-
         Ok(Self {
-            capture_method,
+            capture_method: Some(CapMethod::Now),
             amount: amount_to_capture,
             currency: Some(item.router_data.request.currency),
-            is_amount_final,
+            is_amount_final: (total_amount > amount_to_capture).then_some(true),
         })
     }
 }
