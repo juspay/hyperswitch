@@ -16293,8 +16293,7 @@
         "type": "object",
         "description": "Custom T&C message content and display mode",
         "required": [
-          "value",
-          "display_mode"
+          "value"
         ],
         "properties": {
           "value": {
@@ -35393,8 +35392,8 @@
         "description": "Display mode options for controlling how messages are shown.",
         "enum": [
           "default_sdk_message",
-          "custom",
-          "none"
+          "custom_message",
+          "hidden"
         ]
       },
       "SdkInformation": {
