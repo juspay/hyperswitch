@@ -1096,6 +1096,17 @@ impl TryFrom<&enums::BankNames> for StripeBankNames {
     }
 }
 
+fn validate_and_get_setup_future_usage(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    payment_method_type: &Option<common_enums::PaymentMethodType>,
+) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
+    match payment_method_type {
+        Some(common_enums::PaymentMethodType::Affirm)
+        => Ok(None),
+        Some(_) | None => Ok(setup_future_usage),
+    }
+}
+
 fn validate_shipping_address_against_payment_method(
     shipping_address: &Option<StripeShippingAddress>,
     payment_method: Option<&StripePaymentMethodType>,
@@ -2019,12 +2030,14 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         payment_method_type.as_ref(),
                     )?;
 
+                let setup_future_usage = validate_and_get_setup_future_usage(item.request.setup_future_usage, &item.request.payment_method_type)?;
+
                     (
                         Some(payment_method_data),
                         None,
                         billing_address,
                         payment_method_type,
-                        item.request.setup_future_usage,
+                        setup_future_usage,
                     )
                 }
             }
@@ -2196,10 +2209,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             None
         };
 
-        setup_future_usage = match (setup_future_usage, is_moto) {
-            (Some(enums::FutureUsage::OnSession), Some(true)) => None,
-            _ => setup_future_usage,
-        };
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -2233,7 +2242,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             off_session: item.request.off_session,
             setup_future_usage: match (
                 item.request.split_payments.as_ref(),
-                item.request.setup_future_usage,
+                setup_future_usage,
                 item.request.customer_acceptance.as_ref(),
                 is_moto,
             ) {
