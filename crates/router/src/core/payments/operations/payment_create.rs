@@ -811,11 +811,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
@@ -863,9 +862,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
-        payment_data.payment_attempt = state
-            .store
-            .update_payment_attempt_with_attempt_id(
+        payment_data.payment_attempt =
+            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
@@ -877,13 +877,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     },
                     surcharge_amount,
                     tax_amount,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
                     merchant_connector_id,
                     routing_approach,
                     is_stored_credential,
                 },
-                storage_scheme,
-                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -899,31 +901,37 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let customer_details = raw_customer_details
             .clone()
             .async_map(|customer_details| {
-                create_encrypted_data(&key_manager_state, key_store, customer_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    platform.get_processor().get_key_store(),
+                    customer_details,
+                )
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt customer details")?;
 
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
-                payment_data.payment_intent,
-                storage::PaymentIntentUpdate::PaymentCreateUpdate {
-                    return_url: None,
-                    status,
-                    customer_id,
-                    shipping_address_id: None,
-                    billing_address_id: None,
-                    customer_details,
-                    updated_by: storage_scheme.to_string(),
-                },
-                key_store,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_data.payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent,
+            storage::PaymentIntentUpdate::PaymentCreateUpdate {
+                return_url: None,
+                status,
+                customer_id,
+                shipping_address_id: None,
+                billing_address_id: None,
+                customer_details,
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
+                    .storage_scheme
+                    .to_string(),
+            },
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentCreate))

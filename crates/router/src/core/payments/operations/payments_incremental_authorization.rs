@@ -25,6 +25,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+use storage_impl::platform_wrapper;
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(operations = "all", flow = "incremental_authorization")]
@@ -205,11 +206,10 @@ impl<F: Clone + Sync>
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -260,15 +260,14 @@ impl<F: Clone + Sync>
             })
             .attach_printable("failed while inserting new authorization")?;
         // Update authorization_count in payment_intent
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
+        payment_data.payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {
                     authorization_count: new_authorization_count,
                 },
-                key_store,
-                storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

@@ -9,6 +9,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
@@ -364,11 +365,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentConfirmData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
@@ -401,7 +401,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
-                updated_by: storage_scheme.to_string(),
+                updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
                 active_attempt_id,
             };
 
@@ -422,7 +422,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
-            updated_by: storage_scheme.to_string(),
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
             connector,
             merchant_connector_id,
             authentication_type,
@@ -430,12 +430,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             connector_response_reference_id,
         };
 
-        let updated_payment_intent = db
-            .update_payment_intent(
+        let updated_payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
-                key_store,
-                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -443,12 +443,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
 
         payment_data.payment_intent = updated_payment_intent;
 
-        let updated_payment_attempt = db
-            .update_payment_attempt(
-                key_store,
+        let updated_payment_attempt =
+            platform_wrapper::payment_attempt::update_payment_attempt(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
-                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

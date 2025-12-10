@@ -6,6 +6,7 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -723,11 +724,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentConfirmData<F>,
         customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
@@ -764,7 +764,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
-                updated_by: storage_scheme.to_string(),
+                updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
                 active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
             };
 
@@ -786,7 +786,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             Some(payment_method) => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
                     status: attempt_status,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
                     connector,
                     merchant_connector_id: merchant_connector_id.ok_or_else( || {
                         error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -800,7 +800,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             None => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
                     status: attempt_status,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
                     connector,
                     merchant_connector_id,
                     authentication_type,
@@ -810,29 +810,27 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             }
         };
 
-        let updated_payment_intent = db
-            .update_payment_intent(
-                payment_data.payment_intent.clone(),
-                payment_intent_update,
-                key_store,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment intent")?;
+        let updated_payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent.clone(),
+            payment_intent_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to update payment intent")?;
 
         payment_data.payment_intent = updated_payment_intent;
 
-        let updated_payment_attempt = db
-            .update_payment_attempt(
-                key_store,
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment attempt")?;
+        let updated_payment_attempt = platform_wrapper::payment_attempt::update_payment_attempt(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_attempt.clone(),
+            payment_attempt_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_attempt = updated_payment_attempt;
 
@@ -840,17 +838,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             let customer_id = customer.get_id().clone();
             let customer_merchant_id = customer.merchant_id.clone();
 
-            let _updated_customer = db
-                .update_customer_by_global_id(
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    key_store,
-                    storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during `update_trackers`")?;
+            let _updated_customer = platform_wrapper::customer::update_customer_by_global_id(
+                state.store.as_ref(),
+                platform.get_provider(),
+                &customer_id,
+                customer,
+                updated_customer,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update customer during `update_trackers`")?;
         }
 
         Ok((Box::new(self), payment_data))

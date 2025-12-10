@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentCaptureData;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -295,26 +296,24 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentCaptureData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentCaptureData<F>)>
     where
         F: 'b + Send,
     {
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.to_string() };
+        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: platform.get_processor().get_account().storage_scheme.to_string() };
 
-        let payment_attempt = state
-            .store
-            .update_payment_attempt(
-                key_store,
+        let payment_attempt =
+            platform_wrapper::payment_attempt::update_payment_attempt(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
-                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

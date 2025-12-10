@@ -7,6 +7,7 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -376,11 +377,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
@@ -398,7 +398,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
             let shipping_details = shipping_address
                 .clone()
                 .async_map(|shipping_details| {
-                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                    create_encrypted_data(
+                        &key_manager_state,
+                        platform.get_processor().get_key_store(),
+                        shipping_details,
+                    )
                 })
                 .await
                 .transpose()
@@ -411,9 +415,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
                 payment_data.payment_intent.shipping_address_id.as_deref(),
                 &payment_data.payment_intent.merchant_id,
                 payment_data.payment_intent.customer_id.as_ref(),
-                key_store,
+                platform.get_processor().get_key_store(),
                 &payment_data.payment_intent.payment_id,
-                storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await?;
 
@@ -424,15 +428,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
             shipping_details,
         };
 
-            let db = &*state.store;
             let payment_intent = payment_data.payment_intent.clone();
 
-            let updated_payment_intent = db
-                .update_payment_intent(
+            let updated_payment_intent =
+                platform_wrapper::payment_intent::update_payment_intent(
+                    state.store.as_ref(),
+                    platform.get_processor(),
                     payment_intent,
                     payment_intent_update,
-                    key_store,
-                    storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

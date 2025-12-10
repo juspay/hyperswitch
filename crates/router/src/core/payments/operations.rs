@@ -492,11 +492,10 @@ pub trait UpdateTracker<F, D, Req>: Send {
         &'b self,
         db: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         payment_data: D,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
-        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>

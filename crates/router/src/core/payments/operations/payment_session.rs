@@ -6,6 +6,7 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -248,11 +249,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
@@ -261,19 +261,23 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
     {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
-            Some(metadata) => state
-                .store
-                .update_payment_intent(
+            Some(metadata) => {
+                platform_wrapper::payment_intent::update_payment_intent(
+                    state.store.as_ref(),
+                    platform.get_processor(),
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: platform
+                            .get_processor()
+                            .get_account()
+                            .storage_scheme
+                            .to_string(),
                     },
-                    key_store,
-                    storage_scheme,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+            }
             None => payment_data.payment_intent,
         };
 

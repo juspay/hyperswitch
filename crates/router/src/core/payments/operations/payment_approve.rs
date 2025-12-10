@@ -17,12 +17,11 @@ use crate::{
     services,
     types::{
         api::{self, PaymentIdTypeExt},
-        domain,
-        storage::{self, enums as storage_enums},
-        PaymentAddress,
+        domain, storage, PaymentAddress,
     },
     utils::OptionExt,
 };
+use storage_impl::platform_wrapper;
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "capture")]
@@ -227,11 +226,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentApproveOperation<'b, F>, PaymentData<F>)>
@@ -245,28 +243,36 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
             status: payment_data.payment_intent.status,
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
-            updated_by: storage_scheme.to_string(),
+            updated_by: platform
+                .get_processor()
+                .get_account()
+                .storage_scheme
+                .to_string(),
         };
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
+        payment_data.payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_intent,
                 intent_status_update,
-                key_store,
-                storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        state
-            .store
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
+
+        let attempt_status = payment_data.payment_attempt.status;
+        payment_data.payment_attempt =
+            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+                state.store.as_ref(),
+                platform.get_processor(),
+                payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::StatusUpdate {
-                    status: payment_data.payment_attempt.status,
-                    updated_by: storage_scheme.to_string(),
+                    status: attempt_status,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
                 },
-                storage_scheme,
-                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

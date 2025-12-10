@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -479,11 +480,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(CompleteAuthorizeOperation<'b, F>, PaymentData<F>)>
@@ -494,15 +494,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
         };
 
-        let db = &*state.store;
         let payment_intent = payment_data.payment_intent.clone();
 
-        let updated_payment_intent = db
-            .update_payment_intent(
+        let updated_payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

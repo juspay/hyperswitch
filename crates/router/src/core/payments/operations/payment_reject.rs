@@ -21,6 +21,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+use storage_impl::platform_wrapper;
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(operations = "all", flow = "cancel")]
@@ -222,11 +223,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>
@@ -236,7 +236,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
         let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
             merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
-            updated_by: storage_scheme.to_string(),
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
         let (error_code, error_message) =
             payment_data
@@ -252,27 +252,24 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
             status: enums::AttemptStatus::Failure,
             error_code,
             error_message,
-            updated_by: storage_scheme.to_string(),
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
 
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
+        payment_data.payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_intent,
                 intent_status_update,
-                key_store,
-                storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_data.payment_attempt = state
-            .store
-            .update_payment_attempt_with_attempt_id(
+        payment_data.payment_attempt = platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_attempt.clone(),
                 attempt_status_update,
-                storage_scheme,
-                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

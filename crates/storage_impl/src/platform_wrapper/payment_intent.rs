@@ -1,6 +1,9 @@
 use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::{
-    payments::{payment_intent::PaymentIntentInterface, PaymentIntent},
+    payments::{
+        payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
+        PaymentIntent,
+    },
     platform::Processor,
 };
 
@@ -17,6 +20,25 @@ where
     store
         .insert_payment_intent(
             payment_intent,
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
+        )
+        .await
+}
+
+pub async fn update_payment_intent<S>(
+    store: &S,
+    processor: &Processor,
+    payment_intent: PaymentIntent,
+    payment_intent_update: PaymentIntentUpdate,
+) -> CustomResult<PaymentIntent, StorageError>
+where
+    S: PaymentIntentInterface<Error = StorageError> + ?Sized,
+{
+    store
+        .update_payment_intent(
+            payment_intent,
+            payment_intent_update,
             processor.get_key_store(),
             processor.get_account().storage_scheme,
         )

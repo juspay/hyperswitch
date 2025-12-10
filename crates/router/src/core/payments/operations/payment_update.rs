@@ -14,6 +14,7 @@ use hyperswitch_domain_models::payments::payment_intent::{
 };
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -720,11 +721,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         _state: &'b SessionState,
         req_state: ReqState,
+        _platform: &domain::Platform,
         mut _payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
@@ -740,11 +740,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
@@ -816,9 +815,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
-        payment_data.payment_attempt = state
-            .store
-            .update_payment_attempt_with_attempt_id(
+        payment_data.payment_attempt =
+            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
                     currency: payment_data.currency,
@@ -834,7 +834,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     capture_method,
                     fingerprint_id: None,
                     payment_method_billing_address_id,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
                     network_transaction_id,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
@@ -845,8 +849,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             tax_amount,
                         ),
                 },
-                storage_scheme,
-                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -891,7 +893,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_payment_billing()
             .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    platform.get_processor().get_key_store(),
+                    billing_details,
+                )
             })
             .await
             .transpose()
@@ -902,7 +908,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_shipping()
             .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    platform.get_processor().get_key_store(),
+                    shipping_details,
+                )
             })
             .await
             .transpose()
@@ -917,9 +927,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_intent
             .merchant_order_reference_id
             .clone();
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
+        payment_data.payment_intent =
+            platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                     amount: payment_data.amount.into(),
@@ -938,7 +949,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     order_details,
                     metadata,
                     payment_confirm_source: None,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
                     fingerprint_id: None,
                     session_expiry,
                     request_external_three_ds_authentication: payment_data
@@ -972,8 +987,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
                 })),
-                key_store,
-                storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
