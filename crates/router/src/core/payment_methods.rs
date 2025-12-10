@@ -688,6 +688,12 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_data: None,
             payment_method_id: None,
         },
+        storage::PaymentTokenData::BankDebit(_) => storage::PaymentMethodDataWithId {
+            payment_method: None,
+            payment_method_data: None,
+
+            payment_method_id: None,
+        },
     };
     Ok(token)
 }

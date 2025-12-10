@@ -121,6 +121,7 @@ impl PaymentMethodData {
             .iter()
             .find(|info| &info.network == network)
             .map(|info| info.saving_percentage)
+            .flatten()
     }
 }
 
@@ -767,6 +768,18 @@ pub struct CardToken {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
+pub enum AdditionalBankDebitData {
+    AchBankDebit {
+        masked_account_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
@@ -795,6 +808,50 @@ pub enum BankDebitData {
         sort_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
+}
+
+impl TryFrom<BankDebitData> for AdditionalBankDebitData {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(value: BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            BankDebitData::AchBankDebit {
+                account_number,
+                routing_number: _,
+                card_holder_name: _,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Ok(Self::AchBankDebit {
+                masked_account_number: Secret::new(
+                    account_number
+                        .peek()
+                        .chars()
+                        .rev()
+                        .take(4)
+                        .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect::<String>(),
+                ),
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            }),
+            BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::BacsBankDebit { .. } => Err(error_stack::Report::new(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message:
+                        "Unsupported bank debit type for conversion to AdditionalBankDebitData"
+                            .to_string(),
+                },
+            )),
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -2376,13 +2433,16 @@ pub enum PaymentMethodsData {
     BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
+    BankDebit(AdditionalBankDebitData),
 }
 
 impl PaymentMethodsData {
     #[cfg(feature = "v1")]
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
         if let Self::Card(card) = self {
-            card.co_badged_card_data.clone()
+            card.co_badged_card_data
+                .clone()
+                .map(|co_badged_card_data_to_be_saved| co_badged_card_data_to_be_saved.into())
         } else {
             None
         }
@@ -2415,7 +2475,10 @@ impl PaymentMethodsData {
                     }),
                 ))
             }
-            Self::BankDetails(_) | Self::WalletDetails(_) | Self::NetworkToken(_) => None,
+            Self::BankDetails(_)
+            | Self::WalletDetails(_)
+            | Self::NetworkToken(_)
+            | Self::BankDebit(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
@@ -2462,7 +2525,7 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
-    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardDataToBeSaved>,
 }
 
 #[cfg(feature = "v2")]
@@ -2528,6 +2591,37 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
             co_badged_card_data: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    From<(
+        payment_methods::CardDetailFromLocker,
+        Option<&payment_methods::CoBadgedCardData>,
+    )> for CardDetailsPaymentMethod
+{
+    fn from(
+        (item, co_badged_card_data): (
+            payment_methods::CardDetailFromLocker,
+            Option<&payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        Self {
+            issuer_country: item.issuer_country,
+            last4_digits: item.last4_digits,
+            expiry_month: item.expiry_month,
+            expiry_year: item.expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: co_badged_card_data
+                .map(payment_methods::CoBadgedCardDataToBeSaved::from),
         }
     }
 }

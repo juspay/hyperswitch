@@ -4499,7 +4499,7 @@ pub async fn get_pm_list_context(
                     None
                 });
 
-            bank_account_token_data.map(|data| {
+            let pm_list_ctx = bank_account_token_data.map(|data| {
                 let token_data = PaymentTokenData::AuthBankDebit(data);
 
                 PaymentMethodListContext {
@@ -4508,6 +4508,26 @@ pub async fn get_pm_list_context(
                     bank_transfer_details: None,
                     hyperswitch_token_data: is_payment_associated.then_some(token_data),
                 }
+            });
+
+            // If pm_list_ctx is None at this point, it means that either PM auth connector
+            // is not configured or the call to it failed. We create token data using pm_id
+            // locker_id. locker_id is optional because for migrated payment methods we might
+            // not have locker_id. In that case merchant can use `connector_mandate_id` to do
+            // MITs. So even without locker_id, the saved PM should show in customer PML
+            pm_list_ctx.or_else(|| {
+                let token_data = PaymentTokenData::BankDebit(storage::BankDebitTokenData {
+                    payment_method_type: pm.payment_method_type,
+                    payment_method_id: pm.payment_method_id.clone(),
+                    locker_id: pm.locker_id.clone(),
+                });
+
+                Some(PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                })
             })
         }
 
@@ -4746,8 +4766,11 @@ pub async fn get_masked_bank_details(
         .clone()
         .map(|x| x.into_inner().expose())
         .map(
-            |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+            |v| -> Result<
+                domain::PaymentMethodsData,
+                error_stack::Report<errors::ApiErrorResponse>,
+            > {
+                v.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
                     .change_context(errors::StorageError::DeserializationFailed)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
@@ -4760,11 +4783,20 @@ pub async fn get_masked_bank_details(
 
     match payment_method_data {
         Some(pmd) => match pmd {
-            PaymentMethodsData::Card(_) => Ok(None),
-            PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+            domain::PaymentMethodsData::Card(_) => Ok(None),
+            domain::PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
             })),
-            PaymentMethodsData::WalletDetails(_) => Ok(None),
+            domain::PaymentMethodsData::BankDebit(
+                domain::AdditionalBankDebitData::AchBankDebit {
+                    masked_account_number,
+                    ..
+                },
+            ) => Ok(Some(MaskedBankDetails {
+                mask: masked_account_number.expose(),
+            })),
+            domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
+            _ => Ok(None),
         },
         None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
