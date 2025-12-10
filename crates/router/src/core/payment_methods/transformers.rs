@@ -432,6 +432,29 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+pub fn mk_add_bank_debit_response_hs(
+    bank_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id.to_owned(),
+        payment_method_id: bank_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
