@@ -172,7 +172,6 @@ export const connectorDetails = {
           billing: mockBillingDetails,
         },
         currency: "USD",
-        
       },
       Response: {
         status: 200,
