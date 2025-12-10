@@ -251,7 +251,9 @@ impl ProxyRecord {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get redis connection")?;
 
-                let response = redis_conn.get_key::<bytes::Bytes>(&vault_id.get_string_repr().into()).await;
+                let response = redis_conn
+                    .get_key::<bytes::Bytes>(&vault_id.get_string_repr().into())
+                    .await;
 
                 match response {
                     Ok(resp) => {
