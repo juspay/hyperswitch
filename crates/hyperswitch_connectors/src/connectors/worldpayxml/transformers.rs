@@ -915,9 +915,11 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             .and_then(get_address_details);
 
         let payment_details = match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                PaymentDetails::try_from((&req_card, item.router_data.request.capture_method,session))?
-            }
+            PaymentMethodData::Card(req_card) => PaymentDetails::try_from((
+                &req_card,
+                item.router_data.request.capture_method,
+                session,
+            ))?,
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => PaymentDetails::try_from((
                     &google_pay_data,
