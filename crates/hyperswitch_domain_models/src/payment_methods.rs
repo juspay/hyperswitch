@@ -98,7 +98,7 @@ pub struct PaymentMethod {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
     /// The identifier for the payment method. Using this recurring payments can be made
     pub id: id_type::GlobalPaymentMethodId,

@@ -40,6 +40,8 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -1211,6 +1213,9 @@ pub async fn create_volatile_payment_method_card_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     let db = &*state.store;
 
+    let keymanager_state = &(state).into();
+    let merchant_key_store = platform.get_processor().get_key_store();
+
     let payment_method_data = domain::PaymentMethodVaultingData::try_from(req.payment_method_data)?
         .populate_bin_details_for_payment_method(state)
         .await;
@@ -1251,7 +1256,11 @@ pub async fn create_volatile_payment_method_card_core(
                 external_vault_source,
             )
             .await
-            .attach_printable("failed to construct payment method")?;
+            .attach_printable("failed to construct payment method")?
+            .convert()
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
             let redis_connection = state
                 .store
@@ -1273,13 +1282,23 @@ pub async fn create_volatile_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert payment method id in redis")?;
 
+            let domain_payment_method = domain::PaymentMethod::convert_back(
+                keymanager_state,
+                payment_method,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::EncryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
             let resp = pm_transforms::generate_payment_method_response(
-                &payment_method,
+                &domain_payment_method,
                 &None,
                 req.storage_type,
             )?;
 
-            Ok((resp, payment_method))
+            Ok((resp, domain_payment_method))
         }
         Err(e) => Err(e),
     }?;

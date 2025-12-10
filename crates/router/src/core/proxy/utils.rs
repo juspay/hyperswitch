@@ -1,13 +1,15 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
 use common_utils::{
-    ext_traits::{Encode, OptionExt, BytesExt},
+    crypto::{DecodeMessage, GcmAes256},
+    ext_traits::{BytesExt, Encode, OptionExt},
     id_type,
-    crypto::{GcmAes256, DecodeMessage},
 };
-use masking::PeekInterface;
+
+use hyperswitch_domain_models::behaviour::Conversion;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods;
 use masking::Mask;
+use masking::PeekInterface;
 use serde_json::Value;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
@@ -88,9 +90,7 @@ impl ProxyRequestWrapper {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get redis connection")?;
 
-                let response = redis_conn
-                    .get_key::<bytes::Bytes>(&pm_id.into())
-                    .await;
+                let response = redis_conn.get_key::<bytes::Bytes>(&pm_id.into()).await;
 
                 let payment_method_record = match response {
                     Ok(resp) => {
@@ -102,15 +102,26 @@ impl ProxyRequestWrapper {
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to decode redis temp locker data")?;
 
-                        let get_response: domain::PaymentMethod =
-                            bytes::Bytes::from(decrypted_payload)
-                                .parse_struct("PaymentMethod")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable(
-                                    "Error getting PaymentMethod from tokenize response",
-                                )?;
+                        let payment_method  = bytes::Bytes::from(
+                            decrypted_payload,
+                        )
+                        .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error getting PaymentMethod from tokenize response")?;
 
-                        Ok(get_response)
+                    let keymanager_state = &state.into();
+
+                        let domain_payment_method = domain::PaymentMethod::convert_back(
+                            keymanager_state,
+                            payment_method,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                        Ok(domain_payment_method)
                     }
                     Err(err) => {
                         Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
@@ -165,20 +176,23 @@ impl ProxyRecord {
         }
     }
 
-    fn get_customer_id(&self) -> RouterResult<id_type::GlobalCustomerId> {
+    fn get_customer_id(&self) -> RouterResult<Option<id_type::GlobalCustomerId>> {
         match self {
-            Self::PaymentMethodRecord(payment_method) => payment_method
-                .customer_id
-                .clone()
-                .get_required_value("customer_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Customer id not present in Payment Method Entry"),
+            Self::PaymentMethodRecord(payment_method) => {
+                let customer_id = payment_method
+                    .customer_id
+                    .clone()
+                    .get_required_value("customer_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Customer id not present in Payment Method Entry")?;
+                Ok(Some(customer_id))
+            },
             Self::TokenizationRecord(tokenization_record) => {
-                Ok(tokenization_record.customer_id.clone())
-            },
+                Ok(Some(tokenization_record.customer_id.clone()))
+            }
             Self::VolatilePaymentMethodRecord(payment_method) => {
-                todo!()
-            },
+                Ok(payment_method.customer_id.clone())
+            }
         }
     }
 
@@ -189,11 +203,13 @@ impl ProxyRecord {
     ) -> RouterResult<Value> {
         match self {
             Self::PaymentMethodRecord(_) => {
+                let customer_id = self.get_customer_id()?.get_required_value("customer_id").change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Locker id not present in Payment Method Entry")?;
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
                     state,
                     &platform,
                     &self.get_vault_id()?,
-                    &self.get_customer_id()?,
+                    &customer_id,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -206,8 +222,10 @@ impl ProxyRecord {
                     .attach_printable("Failed to serialize vault data")?)
             }
             Self::TokenizationRecord(_) => {
+                let customer_id = self.get_customer_id()?.get_required_value("customer_id").change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Locker id not present in Payment Method Entry")?;
                 let vault_request = pm_types::VaultRetrieveRequest {
-                    entity_id: self.get_customer_id()?,
+                    entity_id: customer_id,
                     vault_id: self.get_vault_id()?,
                 };
 
@@ -219,7 +237,47 @@ impl ProxyRecord {
                 Ok(vault_data.get("data").cloned().unwrap_or(Value::Null))
             }
             Self::VolatilePaymentMethodRecord(_) => {
-                todo!()
+                //retrieve from redis
+                let vault_id = self.get_vault_id()?.get_string_repr();
+                let key_store = platform.get_processor().get_key_store();
+                let encryption_key = key_store.key.get_inner();
+
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
+
+                let response = redis_conn.get_key::<bytes::Bytes>(&vault_id.into()).await;
+
+                let payment_method_record = match response {
+                    Ok(resp) => {
+                        let decrypted_payload = GcmAes256
+                            .decode_message(
+                                encryption_key.peek().as_ref(),
+                                masking::Secret::new(resp.into()),
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to decode redis temp locker data")?;
+
+                        let vault_data  = bytes::Bytes::from(
+                            decrypted_payload,
+                        )
+                        .parse_struct::<domain::PaymentMethodVaultingData>("PaymentMethodVaultingData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error getting PaymentMethodVaultingData from tokenize response")?;
+
+                        Ok(vault_data.encode_to_value()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to serialize vault data")?)
+
+                    }
+                    Err(err) => {
+                        Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".into(),
+                        })
+                    }
+                }?;
             }
         }
     }
