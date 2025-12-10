@@ -398,7 +398,7 @@ pub enum StandardisedCode {
     MerchantInactive,
     CfgPmNotEnabledOrMisconfigured,
     CurrencyOrCorridorNotEnabled,
-    CfgWalletOrTokenConfigIssue,
+    WalletOrTokenConfigIssue,
     StoredCredentialOrMitNotEnabled,
     ThreedsConfigurationIssue,
     SubscriptionPlanInactive,
