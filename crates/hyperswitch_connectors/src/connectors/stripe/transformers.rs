@@ -1102,8 +1102,7 @@ fn validate_and_get_setup_future_usage(
 ) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
     match payment_method_type {
         Some(common_enums::PaymentMethodType::Affirm)
-        | Some(common_enums::PaymentMethodType::Klarna)
-        => Ok(None),
+        | Some(common_enums::PaymentMethodType::Klarna) => Ok(None),
         Some(_) | None => Ok(setup_future_usage),
     }
 }
