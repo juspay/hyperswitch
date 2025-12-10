@@ -5,7 +5,7 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "12",
   card_exp_year: "2030",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "444",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -479,7 +479,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        card_cvc:"444",
         currency: "MYR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
