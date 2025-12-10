@@ -17,7 +17,17 @@ export const cardCreditEnabled = [
     payment_method_types: [
       {
         payment_method_type: "credit",
-        card_networks: ["Visa", "Mastercard", "AmericanExpress", "Discover","JCB","DinersClub","UnionPay","RuPay","Interac"],
+        card_networks: [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "Discover",
+          "JCB",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+          "Interac",
+        ],
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: false,

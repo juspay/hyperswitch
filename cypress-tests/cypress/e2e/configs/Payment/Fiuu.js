@@ -1,4 +1,4 @@
-import { cardRequiredField, customerAcceptance, } from "./Commons";
+import { cardRequiredField, customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -677,7 +677,7 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -713,7 +713,7 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -874,7 +874,7 @@ export const connectorDetails = {
       },
     },
   },
-   pm_list: {
+  pm_list: {
     PmListResponse: {
       PmListNull: {
         payment_methods: [],
