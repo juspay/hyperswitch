@@ -2665,7 +2665,7 @@ fn convert_external_three_ds_data(
         directory_server_response: auth_data
             .transaction_status
             .as_ref()
-            .map(map_transaction_status_to_code(status)),
+            .map(map_transaction_status_to_code),
         directory_server_transaction_id: auth_data.ds_trans_id.clone(),
     }
 }
