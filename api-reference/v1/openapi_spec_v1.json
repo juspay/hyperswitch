@@ -11959,6 +11959,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -21465,15 +21476,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountId": {
         "type": "string",
@@ -26141,7 +26145,8 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking"
         ]
       },
       "PaymentMethodUpdate": {
@@ -27641,6 +27646,13 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -27894,14 +27906,6 @@
               "$ref": "#/components/schemas/PaymentMethodType"
             },
             "description": "Allowed Payment Method Types for a given PaymentIntent",
-            "nullable": true
-          },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
             "nullable": true
           },
           "manual_retry_allowed": {
@@ -29202,6 +29206,13 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp indicating when this payment intent was last modified, in ISO 8601 format.",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -29480,14 +29491,6 @@
               "$ref": "#/components/schemas/PaymentMethodType"
             },
             "description": "Allowed Payment Method Types for a given PaymentIntent",
-            "nullable": true
-          },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
             "nullable": true
           },
           "manual_retry_allowed": {

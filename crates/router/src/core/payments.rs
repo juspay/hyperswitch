@@ -46,7 +46,7 @@ use common_utils::{
     id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
-use diesel_models::{ephemeral_key, fraud_check::FraudCheck, refund as diesel_refund};
+use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
@@ -4128,7 +4128,7 @@ where
             create_order_response.create_order_result.ok().is_some()
         }
         // If create order is not required, then we can proceed with further processing
-        None => true,
+        None => should_continue_further,
     };
 
     let updated_customer = call_create_connector_customer_if_required(
@@ -7974,7 +7974,6 @@ where
     pub connector_customer_id: Option<String>,
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
-    pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub frm_message: Option<FraudCheck>,
@@ -8782,6 +8781,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
@@ -8807,6 +8807,7 @@ pub async fn add_process_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -11500,7 +11501,6 @@ pub trait OperationSessionGetters<F> {
     fn get_token(&self) -> Option<&str>;
     fn get_multiple_capture_data(&self) -> Option<&types::MultipleCaptureData>;
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse>;
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
     fn get_authentication(
@@ -11680,10 +11680,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
         self.payment_link_data.clone()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        self.ephemeral_key.clone()
     }
 
     fn get_setup_mandate(&self) -> Option<&MandateData> {
@@ -12035,10 +12031,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -12344,10 +12336,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
-        todo!()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
         todo!()
     }
 
@@ -12658,10 +12646,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -12965,10 +12949,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -13268,10 +13248,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -13436,10 +13412,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
     }
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
-        todo!()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
         todo!()
     }
 

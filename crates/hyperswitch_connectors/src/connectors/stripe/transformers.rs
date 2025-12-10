@@ -902,7 +902,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Flexiti
             | enums::PaymentMethodType::Mifinity
             | enums::PaymentMethodType::Breadpay
-            | enums::PaymentMethodType::UpiQr => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::UpiQr
+            | enums::PaymentMethodType::OpenBanking => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1171,7 +1172,8 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
-            | BankRedirectData::LocalBankRedirect {} => Err(ConnectorError::NotImplemented(
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBanking { .. } => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
         }
@@ -1620,6 +1622,15 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                                 tokenization_method: "apple_pay".to_string(),
                             }),
                         )))
+                    } else if let Some(PaymentMethodToken::Token(applepay_token)) =
+                        payment_method_token
+                    {
+                        Some(Self::Wallet(StripeWallet::ApplepayPayment(
+                            ApplepayPayment {
+                                token: applepay_token,
+                                payment_method_types: StripePaymentMethodType::Card,
+                            },
+                        )))
                     } else {
                         None
                     };
@@ -1777,7 +1788,8 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Sofort { .. }
             | BankRedirectData::Trustly { .. }
-            | BankRedirectData::LocalBankRedirect {} => Err(ConnectorError::NotImplemented(
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBanking { .. } => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1840,13 +1852,17 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None)
         };
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(SplitPaymentsRequest::StripeSplitPayment(_)) => {
+        let payment_method_token = match (
+            item.request.split_payments.as_ref(),
+            item.request.payment_method_data.clone(),
+        ) {
+            (Some(SplitPaymentsRequest::StripeSplitPayment(_)), PaymentMethodData::Card(_)) => {
                 match item.payment_method_token.clone() {
                     Some(PaymentMethodToken::Token(secret)) => Some(secret),
                     _ => None,
                 }
             }
+
             _ => None,
         };
 
@@ -4487,7 +4503,10 @@ impl
             PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Ok(Self::try_from(bank_redirect_data)?)
             }
-            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((wallet_data, None))?),
+            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((
+                wallet_data,
+                item.payment_method_token.clone(),
+            ))?),
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);
 
@@ -4790,17 +4809,17 @@ fn get_transaction_metadata(
     order_id: String,
 ) -> HashMap<String, String> {
     let mut meta_data = HashMap::from([("metadata[order_id]".to_string(), order_id)]);
-    let mut request_hash_map = HashMap::new();
-
     if let Some(metadata) = merchant_metadata {
         let hashmap: HashMap<String, Value> =
             serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
 
         for (key, value) in hashmap {
-            request_hash_map.insert(format!("metadata[{key}]"), value.to_string());
+            let metadata_value = match value {
+                Value::String(string_value) => string_value,
+                value_data => value_data.to_string(),
+            };
+            meta_data.insert(format!("metadata[{key}]"), metadata_value);
         }
-
-        meta_data.extend(request_hash_map)
     };
     meta_data
 }
