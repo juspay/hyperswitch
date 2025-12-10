@@ -237,14 +237,14 @@ impl ConnectorApiIntegrationPayload {
                     }
                     api_models::enums::PaymentMethod::NetworkToken => {
                         if let Some(payment_method_types) = methods.payment_method_types {
-                            for method_type in payment_method_types {
-                                network_token_details.push(Provider {
+                            network_token_details.extend(payment_method_types.into_iter().map(
+                                |method_type| Provider {
                                     payment_method_type: method_type.payment_method_type,
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
-                                })
-                            }
+                                },
+                            ));
                         }
                     }
                 }
