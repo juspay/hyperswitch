@@ -8,13 +8,13 @@ use crate::{
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::api::ApplicationResponse,
-    utils::user::get_base_url,
+    utils::user as user_utils,
 };
 
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
-    let control_center_url = get_base_url(&state);
+    let control_center_url = user_utils::get_base_url(&state);
 
     Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
         backend_base_url,
