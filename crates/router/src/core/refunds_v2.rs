@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
-        payments::{self, access_token, helpers},
+        payments::{self, access_token, gateway::context as gateway_context, helpers},
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -163,12 +163,21 @@ pub async fn trigger_refund_to_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -276,11 +285,21 @@ pub async fn internal_trigger_refund_to_gateway(
     )
     .await?;
 
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
+
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -824,12 +843,21 @@ pub async fn sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -911,12 +939,21 @@ pub async fn internal_sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
+    let profile_id = payment_intent.profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account,
+        payment_intent.merchant_id.clone(),
+        profile_id,
+        None,
+    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
+        &default_gateway_context,
     ))
     .await?;
 
@@ -1323,7 +1360,7 @@ pub async fn schedule_refund_execution(
                     // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_execute_task(db, &refund, runner)
+                            add_refund_execute_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.id.get_string_repr()))?;
@@ -1368,7 +1405,7 @@ pub async fn schedule_refund_execution(
 
                             match update_refund {
                                 Ok((updated_refund_data, raw_connector_response)) => {
-                                    add_refund_sync_task(db, &updated_refund_data, runner)
+                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
@@ -1387,7 +1424,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_sync_task(db, &refund, runner)
+                            add_refund_sync_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.id.get_string_repr()))?;
@@ -1426,6 +1463,7 @@ pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1441,6 +1479,7 @@ pub async fn add_refund_execute_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;
@@ -1463,6 +1502,7 @@ pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1478,6 +1518,7 @@ pub async fn add_refund_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;

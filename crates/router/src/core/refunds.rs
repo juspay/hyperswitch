@@ -25,7 +25,10 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, helpers, helpers::MerchantConnectorAccountType},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers,
+            helpers::MerchantConnectorAccountType,
+        },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
         utils::{
@@ -105,6 +108,7 @@ pub async fn refund_create_core(
             &req.payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
@@ -116,7 +120,8 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -205,12 +210,21 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -671,6 +685,7 @@ pub async fn refund_retrieve_core(
             payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -683,7 +698,8 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -818,12 +834,21 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -1688,7 +1713,7 @@ pub async fn schedule_refund_execution(
                     // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_execute_task(db, &refund, runner)
+                            add_refund_execute_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.refund_id))?;
@@ -1710,7 +1735,7 @@ pub async fn schedule_refund_execution(
 
                             match update_refund {
                                 Ok((updated_refund_data, raw_connector_response)) => {
-                                    add_refund_sync_task(db, &updated_refund_data, runner)
+                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
@@ -1729,7 +1754,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_sync_task(db, &refund, runner)
+                            add_refund_sync_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.refund_id))?;
@@ -1921,6 +1946,7 @@ pub async fn trigger_refund_execute_workflow(
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
+                    &key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1957,6 +1983,7 @@ pub async fn trigger_refund_execute_workflow(
                 db,
                 &updated_refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
+                state.conf.application_source,
             )
             .await?;
         }
@@ -1966,6 +1993,7 @@ pub async fn trigger_refund_execute_workflow(
                 db,
                 &refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
+                state.conf.application_source,
             )
             .await?;
         }
@@ -2000,6 +2028,7 @@ pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2020,6 +2049,7 @@ pub async fn add_refund_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
@@ -2044,6 +2074,7 @@ pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2059,6 +2090,7 @@ pub async fn add_refund_execute_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;

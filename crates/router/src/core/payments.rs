@@ -5,6 +5,7 @@ pub mod flows;
 pub mod gateway;
 pub mod helpers;
 pub mod operations;
+pub mod session_token;
 
 #[cfg(feature = "retry")]
 pub mod retry;
@@ -45,7 +46,7 @@ use common_utils::{
     id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
-use diesel_models::{ephemeral_key, fraud_check::FraudCheck, refund as diesel_refund};
+use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
@@ -3553,6 +3554,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Expired => {
@@ -3732,6 +3734,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 &payment_intent.active_attempt.get_id(),
                 &merchant_id,
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -4096,10 +4099,13 @@ where
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &context,
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -4108,7 +4114,7 @@ where
     );
 
     let should_continue_further = match router_data
-        .create_order_at_connector(state, &connector, should_continue_further)
+        .create_order_at_connector(state, &connector, should_continue_further, &context)
         .await?
     {
         Some(create_order_response) => {
@@ -4122,7 +4128,7 @@ where
             create_order_response.create_order_result.ok().is_some()
         }
         // If create order is not required, then we can proceed with further processing
-        None => true,
+        None => should_continue_further,
     };
 
     let updated_customer = call_create_connector_customer_if_required(
@@ -4132,6 +4138,7 @@ where
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
+        &context,
     )
     .await?;
 
@@ -4157,6 +4164,7 @@ where
             &connector,
             &tokenization_action,
             should_continue_further,
+            &context,
         )
         .await?;
 
@@ -4189,10 +4197,18 @@ where
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
     let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
+        // Check if the actual flow specific request can be built with available data only for direct gateway
+        if context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };
@@ -4657,16 +4673,26 @@ where
         + Send
         + Sync,
 {
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account_type_details,
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
     let add_access_token_result = router_data
         .add_access_token(
             state,
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &gateway_context,
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
 
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -4679,6 +4705,7 @@ where
             &connector,
             &tokenization_action,
             should_continue_further,
+            &gateway_context,
         )
         .await?;
     let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
@@ -4688,7 +4715,7 @@ where
         should_continue_further,
     );
     let should_continue = match router_data
-        .create_order_at_connector(state, &connector, should_continue_further)
+        .create_order_at_connector(state, &connector, should_continue_further, &gateway_context)
         .await?
     {
         Some(create_order_response) => {
@@ -4745,19 +4772,6 @@ where
         // and rely on previous status set in router_data
         // TODO: status is already set when constructing payment data, why should this be done again?
         // router_data.status = payment_data.get_payment_attempt().status;
-        let lineage_ids = grpc_client::LineageIds::new(
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-        );
-        let gateway_context = gateway_context::RouterGatewayContext {
-            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            platform: platform.clone(),
-            header_payload: header_payload.clone(),
-            lineage_ids,
-            merchant_connector_account: merchant_connector_account_type_details,
-            execution_path: ExecutionPath::Direct,
-            execution_mode: ExecutionMode::NotApplicable,
-        };
         router_data
             .decide_flows(
                 state,
@@ -5064,12 +5078,26 @@ where
     )
     .await?;
 
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account_type_details.clone(),
+        payment_data.get_payment_intent().merchant_id.clone(),
+        profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
+
     let (connector_request, should_continue_further) =
         if matches!(execution_path, ExecutionPath::Direct) {
             let mut should_continue_further = true;
 
             let should_continue = match router_data
-                .create_order_at_connector(state, &connector, should_continue_further)
+                .create_order_at_connector(
+                    state,
+                    &connector,
+                    should_continue_further,
+                    &default_gateway_context,
+                )
                 .await?
             {
                 Some(create_order_response) => {
@@ -5486,16 +5514,28 @@ where
         )
         .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::new(
+        platform.clone(),
+        header_payload.clone(),
+        business_profile,
+        merchant_connector_account.clone(),
+        ExecutionPath::Direct,
+        None,
+    );
+
     let add_access_token_result = router_data
         .add_access_token(
             state,
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &gateway_context,
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
 
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -5561,26 +5601,6 @@ where
             header_payload.clone(),
         )
         .await?;
-
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    // TODO: determine execution path for proxy call connector service
-    let execution_path = ExecutionPath::Direct;
-    // Execution mode is irrelevant for Direct execution path
-    let execution_mode = ExecutionMode::NotApplicable;
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path,
-        execution_mode,
-    };
 
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
@@ -5649,6 +5669,14 @@ where
             )
             .await?,
         ));
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_data.get_payment_intent().merchant_id.clone(),
+        profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
     operation
         .to_domain()?
         .populate_payment_data(state, payment_data, platform, business_profile, &connector)
@@ -5672,10 +5700,13 @@ where
             &connector,
             platform,
             payment_data.get_creds_identifier(),
+            &default_gateway_context,
         )
         .await?;
 
-    router_data = router_data.add_session_token(state, &connector).await?;
+    router_data
+        .add_session_token(state, &connector, &default_gateway_context)
+        .await?;
 
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -5705,20 +5736,6 @@ where
             header_payload.clone(),
         )
         .await?;
-    let lineage_ids = grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
 
     let router_data = if should_continue_further {
         router_data
@@ -5730,7 +5747,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                gateway_context,
+                default_gateway_context,
             )
             .await
     } else {
@@ -5839,20 +5856,14 @@ where
             header_payload.clone(),
         )
         .await?;
-    let lineage_ids = grpc_client::LineageIds::new(
+
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
     );
-
-    let gateway_context = gateway_context::RouterGatewayContext {
-        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
-        header_payload: header_payload.clone(),
-        lineage_ids,
-        merchant_connector_account: merchant_connector_account.clone(),
-        execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
-    };
 
     let router_data = if should_continue_further {
         router_data
@@ -6390,19 +6401,13 @@ where
                 Some(header_payload.clone()),
             )
             .await?;
-        let lineage_ids = grpc_client::LineageIds::new(
+        let gateway_context = gateway_context::RouterGatewayContext::direct(
+            platform.clone(),
+            merchant_connector_account.clone(),
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
+            payment_data.get_creds_identifier().map(|id| id.to_string()),
         );
-        let gateway_context = gateway_context::RouterGatewayContext {
-            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            platform: platform.clone(),
-            header_payload: header_payload.clone(),
-            lineage_ids,
-            merchant_connector_account: merchant_connector_account.clone(),
-            execution_path: ExecutionPath::Direct,
-            execution_mode: ExecutionMode::NotApplicable,
-        };
 
         let res = router_data.decide_flows(
             state,
@@ -6529,24 +6534,13 @@ where
             )
             .await?;
 
-        let lineage_ids = grpc_client::LineageIds::new(
+        let gateway_context = gateway_context::RouterGatewayContext::direct(
+            platform.clone(),
+            merchant_connector_account.clone(),
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
+            payment_data.get_creds_identifier().map(|id| id.to_string()),
         );
-
-        // TODO: determine execution path for SDK session token call.
-        let execution_path = ExecutionPath::Direct;
-        let execution_mode = ExecutionMode::NotApplicable;
-
-        let gateway_context = gateway_context::RouterGatewayContext {
-            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            platform: platform.clone(),
-            header_payload: header_payload.clone(),
-            lineage_ids,
-            merchant_connector_account: merchant_connector_account.clone(),
-            execution_path,
-            execution_mode,
-        };
 
         let res = router_data.decide_flows(
             state,
@@ -6797,6 +6791,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
+    gateway_context: &gateway::context::RouterGatewayContext,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
@@ -6812,7 +6807,6 @@ where
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
     let connector_name = payment_data.get_payment_attempt().connector.clone();
-
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
@@ -6859,7 +6853,7 @@ where
                     payment_data.get_payment_attempt(),
                     &label,
                 );
-
+            logger::debug!(should_call_connector_customer = should_call_connector);
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let mut customer_router_data = payment_data
@@ -6879,7 +6873,7 @@ where
                 customer_router_data.access_token = access_token.cloned();
 
                 let connector_customer_id = customer_router_data
-                    .create_connector_customer(state, &connector)
+                    .create_connector_customer(state, &connector, gateway_context)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
@@ -6926,6 +6920,14 @@ where
 {
     let connector_name = payment_data.get_payment_attempt().connector.clone();
 
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_data.get_payment_intent().merchant_id.clone(),
+        profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
@@ -6958,7 +6960,7 @@ where
                     .await?;
 
                 let connector_customer_id = router_data
-                    .create_connector_customer(state, &connector)
+                    .create_connector_customer(state, &connector, &default_gateway_context)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
@@ -7972,7 +7974,6 @@ where
     pub connector_customer_id: Option<String>,
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
-    pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub frm_message: Option<FraudCheck>,
@@ -8275,6 +8276,7 @@ pub async fn list_payments(
                     &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
             {
@@ -8779,6 +8781,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
@@ -8804,6 +8807,7 @@ pub async fn add_process_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -10709,6 +10713,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             merchant_id,
             &attempt_id.clone(),
             storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -11079,6 +11084,7 @@ pub async fn payments_manual_update(
             &merchant_id,
             &attempt_id.clone(),
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -11144,6 +11150,7 @@ pub async fn payments_manual_update(
             payment_attempt.clone(),
             attempt_update,
             merchant_account.storage_scheme,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -11494,7 +11501,6 @@ pub trait OperationSessionGetters<F> {
     fn get_token(&self) -> Option<&str>;
     fn get_multiple_capture_data(&self) -> Option<&types::MultipleCaptureData>;
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse>;
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
     fn get_authentication(
@@ -11674,10 +11680,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
         self.payment_link_data.clone()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        self.ephemeral_key.clone()
     }
 
     fn get_setup_mandate(&self) -> Option<&MandateData> {
@@ -12029,10 +12031,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -12338,10 +12336,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
-        todo!()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
         todo!()
     }
 
@@ -12652,10 +12646,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -12959,10 +12949,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -13262,10 +13248,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
-        todo!()
-    }
-
     fn get_setup_mandate(&self) -> Option<&MandateData> {
         todo!()
     }
@@ -13430,10 +13412,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
     }
 
     fn get_payment_link_data(&self) -> Option<api_models::payments::PaymentLinkResponse> {
-        todo!()
-    }
-
-    fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey> {
         todo!()
     }
 
