@@ -9497,7 +9497,7 @@ impl ApplePayCombinedWrapper {
         self.data
             .clone()
             .ok_or(ValidationError::IncorrectValueProvided {
-                field_name: "metatadata.apple_pay_combined",
+                field_name: "metadata.apple_pay_combined",
             })
     }
 }
