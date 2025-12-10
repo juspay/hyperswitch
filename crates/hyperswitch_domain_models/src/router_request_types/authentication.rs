@@ -3,7 +3,7 @@ use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address,
+    address, authentication,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::{Card, PaymentMethodData},
     router_request_types::BrowserInformation,
@@ -182,5 +182,5 @@ pub struct ExternalThreeDSConnectorMetadata {
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
     pub cavv: Option<masking::Secret<String>>,
-    pub authentication: diesel_models::authentication::Authentication,
+    pub authentication: authentication::Authentication,
 }

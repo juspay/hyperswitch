@@ -984,6 +984,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::subscription::CancelSubscriptionRequest,
         api_models::subscription::CancelSubscriptionResponse,
         api_models::subscription::SubscriptionItemType,
+        api_models::payments::DeviceDetails
     )),
     modifiers(&SecurityAddon)
 )]
