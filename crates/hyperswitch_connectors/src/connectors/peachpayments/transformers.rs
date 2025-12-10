@@ -372,7 +372,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsCancelRouterData>> for Peachpayme
             )?,
             display_amount: None,
         };
-        Ok(PeachpaymentsVoidRequest { amount })
+        Ok(Self { amount })
     }
 }
 
