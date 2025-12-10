@@ -48,6 +48,13 @@ pub struct GsmCreateRequest {
     /// details specific to the retry behavior.
     #[schema(value_type = Option<GsmFeatureData>)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    /// Standardised error code for the GSM rule
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Description of the error
+    pub description: Option<String>,
+    /// User guidance message for the error
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -110,6 +117,13 @@ pub struct GsmUpdateRequest {
     /// details specific to the retry behavior.
     #[schema(value_type = Option<GsmFeatureData>)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    /// Standardised error code for the GSM rule
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Description of the error
+    pub description: Option<String>,
+    /// User guidance message for the error
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -184,4 +198,11 @@ pub struct GsmResponse {
     /// details specific to the retry behavior.
     #[schema(value_type = GsmFeatureData)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
+    /// Standardised error code for the GSM rule
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_code: Option<api_enums::StandardisedCode>,
+    /// Description of the error
+    pub description: Option<String>,
+    /// User guidance message for the error
+    pub user_guidance_message: Option<String>,
 }

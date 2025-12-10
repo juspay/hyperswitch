@@ -1669,6 +1669,9 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
             error_category: value.error_category,
             feature_data: value.feature_data.unwrap_or(inferred_feature_data),
             feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         }
     }
 }
@@ -1774,6 +1777,9 @@ impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_t
                 .unwrap_or(false),
             feature_data: Some(value.feature_data),
             feature: value.feature,
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         }
     }
 }

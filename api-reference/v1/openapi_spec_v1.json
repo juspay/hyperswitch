@@ -19685,6 +19685,24 @@
               }
             ],
             "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the error",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "User guidance message for the error",
+            "nullable": true
           }
         }
       },
@@ -19861,6 +19879,24 @@
           },
           "feature_data": {
             "$ref": "#/components/schemas/GsmFeatureData"
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the error",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "User guidance message for the error",
+            "nullable": true
           }
         }
       },
@@ -19987,6 +20023,24 @@
                 "$ref": "#/components/schemas/GsmFeatureData"
               }
             ],
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the error",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "User guidance message for the error",
             "nullable": true
           }
         }
