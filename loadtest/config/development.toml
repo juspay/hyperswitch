@@ -40,11 +40,11 @@ force_cookies = true
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
-private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 2048)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
 
 [oidc.key.k2]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
-private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 2048)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
 
 [oidc.client.c1]
 client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
