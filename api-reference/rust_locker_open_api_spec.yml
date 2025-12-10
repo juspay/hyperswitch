@@ -20,6 +20,11 @@ paths:
       summary: Provide Key 1
       description: Provide the first key to unlock the locker
       operationId: setKey1
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
         description: Provide key 1 to unlock the locker
         content:
@@ -41,6 +46,11 @@ paths:
       summary: Provide Key 2
       description: Provide the second key to unlock the locker
       operationId: setKey2
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
         description: Provide key 2 to unlock the locker
         content:
@@ -61,6 +71,11 @@ paths:
         - Key Custodian
       summary: Unlock the locker
       description: Unlock the locker with the key1 and key2 provided
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       responses:
         "200":
           description: Successfully Unlocked
@@ -86,6 +101,11 @@ paths:
         - Data
       summary: Add Data in Locker
       description: Add sensitive data in the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
         description: The request body might be JWE + JWS encrypted when using middleware
         content:
@@ -111,6 +131,11 @@ paths:
         - Data
       summary: Delete Data from Locker
       description: Delete sensitive data from the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
         description: The request body might be JWE + JWS encrypted when using middleware
         content:
@@ -136,6 +161,11 @@ paths:
         - Data
       summary: Retrieve Data from Locker
       description: Retrieve sensitive data from the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
         description: The request body might be JWE + JWS encrypted when using middleware
         content:
@@ -157,12 +187,16 @@ paths:
   /data/fingerprint:
     post:
       tags:
-        - Cards
         - Data
-      summary: Get or insert the card fingerprint
-      description: Get or insert the card fingerprint
+      summary: Get or insert the data fingerprint
+      description: Get or insert the data fingerprint
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
       requestBody:
-        description: Provide card number and hash key
+        description: Provide data number and hash key
         content:
           application/json:
             schema:
@@ -232,9 +266,10 @@ components:
     FingerprintReq:
       type: object
       properties:
-        card:
-          $ref: "#/components/schemas/FingerprintCardData"
-        hash_key:
+        data:
+          type: string
+          example: 4242424242424242
+        key:
           type: string
           example: Hash1
     JWEReq:
@@ -347,14 +382,8 @@ components:
       type: object
       description: Response received if the fingerprint insertion or retrieval was successful
       properties:
-        status:
+        fingerprint_id:
           type: string
-          enum: [Ok]
-        payload:
-          type: object
-          properties:
-            fingerprint:
-              type: string
     JWERes:
       title: JWERes
       type: object

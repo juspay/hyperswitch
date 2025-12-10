@@ -1888,6 +1888,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
             PaymentMethodType::Atome => Self::PayLater,
+            PaymentMethodType::Payjustnow => Self::PayLater,
             PaymentMethodType::Boleto => Self::Voucher,
             PaymentMethodType::Efecty => Self::Voucher,
             PaymentMethodType::PagoEfectivo => Self::Voucher,
@@ -2138,7 +2139,9 @@ impl From<IntentStatus> for Option<EventType> {
         match value {
             IntentStatus::Succeeded => Some(EventType::PaymentSucceeded),
             IntentStatus::Failed => Some(EventType::PaymentFailed),
-            IntentStatus::Processing => Some(EventType::PaymentProcessing),
+            IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+                Some(EventType::PaymentProcessing)
+            }
             IntentStatus::RequiresMerchantAction
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::Conflicted => Some(EventType::ActionRequired),
@@ -2225,8 +2228,6 @@ impl From<SubscriptionStatus> for Option<EventType> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
 
     #[derive(serde::Serialize)]

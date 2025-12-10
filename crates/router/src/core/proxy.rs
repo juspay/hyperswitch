@@ -12,21 +12,19 @@ use serde_json::Value;
 
 pub async fn proxy_core(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
     let proxy_record = req_wrapper
         .get_proxy_record(
             &state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
-    let vault_data = proxy_record
-        .get_vault_data(&state, merchant_context)
-        .await?;
+    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
 
     let processed_body =
         interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;

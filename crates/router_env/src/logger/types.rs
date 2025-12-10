@@ -269,8 +269,8 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
-    /// Subscription get plans flow,
-    GetPlansForSubscription,
+    /// Subscription get items flow,
+    GetSubscriptionItemsForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
     /// Subscription create and confirm flow,
@@ -281,6 +281,12 @@ pub enum Flow {
     UpdateSubscription,
     /// Get Subscription estimate flow
     GetSubscriptionEstimate,
+    /// Pause Subscription flow
+    PauseSubscription,
+    /// Resume Subscription flow
+    ResumeSubscription,
+    /// Cancel Subscription flow
+    CancelSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -658,6 +664,12 @@ pub enum Flow {
     AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
+    /// Authentication Session Token flow
+    AuthenticationSessionToken,
+    /// Authentication Eligibility Check flow
+    AuthenticationEligibilityCheck,
+    /// Authentication Retrieve Eligibility Check flow
+    AuthenticationRetrieveEligibilityCheck,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow
