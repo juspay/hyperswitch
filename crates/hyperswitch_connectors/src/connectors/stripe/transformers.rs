@@ -1918,7 +1918,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_method,
             billing_address,
             payment_method_types,
-            mut setup_future_usage,
+            setup_future_usage,
         ) = if payment_method_token.is_some() {
             (None, None, StripeBillingAddress::default(), None, None)
         } else {
