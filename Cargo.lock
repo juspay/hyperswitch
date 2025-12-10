@@ -6074,7 +6074,6 @@ name = "payment_link"
 version = "0.1.0"
 dependencies = [
  "api_models",
- "common_types",
  "common_utils",
  "error-stack 0.4.1",
  "getrandom 0.2.16",

@@ -1,4 +1,3 @@
-use api_models::payments::PaymentLinkData;
 use error_stack::Result;
 use serde_json::Value;
 
@@ -55,7 +54,9 @@ pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
     }
 }
 
-pub fn get_js_script(payment_details: &PaymentLinkData) -> Result<String, PaymentLinkError> {
+pub fn get_js_script(
+    payment_details: &api_models::payments::PaymentLinkData,
+) -> Result<String, PaymentLinkError> {
     let mut json =
         serde_json::to_value(payment_details).map_err(|_| PaymentLinkError::SerializationFailed)?;
 
