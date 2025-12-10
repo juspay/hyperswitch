@@ -177,12 +177,7 @@ impl SessionState {
         // Only build proxy config if at least one field is present
         if proxy.http_url.is_some() || proxy.https_url.is_some() {
             router_env::logger::debug!("Building proxy config override for UCS headers");
-            let proxy_override = ProxyConfigOverride {
-                http_url: proxy.http_url.clone(),
-                https_url: proxy.https_url.clone(),
-                mitm_proxy_enabled: proxy.mitm_enabled,
-                idle_pool_connection_timeout: proxy.idle_pool_connection_timeout,
-            };
+            let proxy_override = ProxyConfigOverride::from(proxy.clone());
 
             let config_override = ConfigOverride {
                 proxy: Some(proxy_override),
