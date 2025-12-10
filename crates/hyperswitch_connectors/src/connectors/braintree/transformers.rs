@@ -217,6 +217,8 @@ impl TryFrom<&ConnectorAuthType> for BraintreeAuthType {
 pub struct PaymentInput {
     payment_method_id: Secret<String>,
     transaction: TransactionBody,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<CreditCardTransactionOptions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -327,6 +329,7 @@ impl
                 input: PaymentInput {
                     payment_method_id: connector_mandate_id.into(),
                     transaction: transaction_body,
+                    options: None,
                 },
             },
         })
@@ -367,7 +370,9 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
         )?;
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
-                if item.router_data.is_three_ds() {
+                if item.router_data.is_three_ds()
+                    && item.router_data.request.authentication_data.is_none()
+                {
                     Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
                         metadata,
                     )?))
@@ -2317,6 +2322,20 @@ impl
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
+        // Check for external 3DS authentication data
+        let three_ds_data = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .map(|auth_data| convert_external_three_ds_data(auth_data))
+            .transpose()?;
+
+        // Create options if we have 3DS data
+        let options = three_ds_data.map(|three_ds| CreditCardTransactionOptions {
+            three_d_secure_pass_through: Some(three_ds),
+        });
+
         let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
             (
                 match item.router_data.request.is_auto_capture()? {
@@ -2373,6 +2392,7 @@ impl
                         }
                     },
                     transaction: transaction_body,
+                    options,
                 },
             },
         })
@@ -2473,6 +2493,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 input: PaymentInput {
                     payment_method_id: three_ds_data.nonce,
                     transaction: transaction_body,
+                    options: None,
                 },
             },
         })
@@ -2599,5 +2620,64 @@ pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, error
         "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
         "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
+    }
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreditCardTransactionOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_secure_pass_through: Option<ThreeDSecurePassThroughInput>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecurePassThroughInput {
+    pub eci_flag: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_secure_server_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directory_server_response: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directory_server_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_transaction_id: Option<String>,
+}
+
+fn convert_external_three_ds_data(
+    auth_data: &hyperswitch_domain_models::router_request_types::AuthenticationData,
+) -> Result<ThreeDSecurePassThroughInput, error_stack::Report<errors::ConnectorError>> {
+    Ok(ThreeDSecurePassThroughInput {
+        eci_flag: auth_data.eci.clone(),
+        cavv: Some(auth_data.cavv.clone()),
+        three_d_secure_server_transaction_id: auth_data.threeds_server_transaction_id.clone(),
+        version: auth_data
+            .message_version
+            .as_ref()
+            .map(|semantic_version| semantic_version.to_string()),
+        directory_server_response: auth_data
+            .transaction_status
+            .as_ref()
+            .map(|status| map_transaction_status_to_code(status)),
+        directory_server_transaction_id: auth_data.ds_trans_id.clone(),
+        acs_transaction_id: auth_data.acs_trans_id.clone(),
+    })
+}
+
+fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> String {
+    match status {
+        common_enums::TransactionStatus::Success => "Y".to_string(),
+        common_enums::TransactionStatus::Failure => "N".to_string(),
+        common_enums::TransactionStatus::VerificationNotPerformed => "U".to_string(),
+        common_enums::TransactionStatus::NotVerified => "A".to_string(),
+        common_enums::TransactionStatus::Rejected => "R".to_string(),
+        common_enums::TransactionStatus::ChallengeRequired => "C".to_string(),
+        common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+            "D".to_string()
+        }
+        common_enums::TransactionStatus::InformationOnly => "I".to_string(),
     }
 }

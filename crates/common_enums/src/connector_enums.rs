@@ -485,7 +485,6 @@ impl Connector {
             | Self::Blackhawknetwork
             | Self::Calida
             | Self::Boku
-            | Self::Braintree
             | Self::Breadpay
             | Self::Cashtocode
             | Self::Celero
@@ -592,7 +591,8 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Phonepe => false,
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
+            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
 
