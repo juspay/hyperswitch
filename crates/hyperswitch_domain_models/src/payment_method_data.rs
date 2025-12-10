@@ -120,8 +120,7 @@ impl PaymentMethodData {
             .0
             .iter()
             .find(|info| &info.network == network)
-            .map(|info| info.saving_percentage)
-            .flatten()
+            .and_then(|info| info.saving_percentage)
     }
 }
 
