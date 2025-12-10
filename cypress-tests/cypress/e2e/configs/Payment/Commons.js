@@ -17,7 +17,7 @@ export const cardCreditEnabled = [
     payment_method_types: [
       {
         payment_method_type: "credit",
-        card_networks: ["Visa","Mastercard"],
+        card_networks: null,
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: false,
