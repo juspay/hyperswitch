@@ -5611,7 +5611,6 @@ async fn get_apple_pay_metadata_if_needed(
 }
 
 async fn get_and_merge_apple_pay_metadata(
-    //
     connector_metadata: Option<masking::Secret<tera::Value>>,
     connector_wallets_details_optional: Option<api_models::admin::ConnectorWalletDetails>,
 ) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
