@@ -26,6 +26,7 @@ pub struct Theme {
     pub email_background_color: String,
     pub email_entity_name: String,
     pub email_entity_logo_url: String,
+    pub theme_config_version: String,
 }
 
 #[derive(Clone, Debug, Insertable, DebugAsDisplay)]
@@ -45,6 +46,7 @@ pub struct ThemeNew {
     pub email_background_color: String,
     pub email_entity_name: String,
     pub email_entity_logo_url: String,
+    pub theme_config_version: String,
 }
 
 impl ThemeNew {
@@ -55,7 +57,7 @@ impl ThemeNew {
         email_config: EmailThemeConfig,
     ) -> Self {
         let now = date_time::now();
-
+        let theme_config_version = now.assume_utc().unix_timestamp().to_string();
         Self {
             theme_id,
             theme_name,
@@ -71,6 +73,7 @@ impl ThemeNew {
             email_background_color: email_config.background_color,
             email_entity_name: email_config.entity_name,
             email_entity_logo_url: email_config.entity_logo_url,
+            theme_config_version: theme_config_version,
         }
     }
 }
@@ -95,15 +98,19 @@ pub struct ThemeUpdateInternal {
     pub email_background_color: Option<String>,
     pub email_entity_name: Option<String>,
     pub email_entity_logo_url: Option<String>,
+    pub last_modified_at: Option<PrimitiveDateTime>,
+    pub theme_config_version: Option<String>,
 }
 
 #[derive(Clone)]
 pub enum ThemeUpdate {
     EmailConfig { email_config: EmailThemeConfig },
+    ThemeConfig,
 }
 
 impl From<ThemeUpdate> for ThemeUpdateInternal {
     fn from(value: ThemeUpdate) -> Self {
+        let theme_config_version = date_time::now().assume_utc().unix_timestamp().to_string();
         match value {
             ThemeUpdate::EmailConfig { email_config } => Self {
                 email_primary_color: Some(email_config.primary_color),
@@ -111,6 +118,17 @@ impl From<ThemeUpdate> for ThemeUpdateInternal {
                 email_background_color: Some(email_config.background_color),
                 email_entity_name: Some(email_config.entity_name),
                 email_entity_logo_url: Some(email_config.entity_logo_url),
+                last_modified_at: Some(date_time::now()),
+                theme_config_version: None,
+            },
+            ThemeUpdate::ThemeConfig => Self {
+                email_primary_color: None,
+                email_foreground_color: None,
+                email_background_color: None,
+                email_entity_name: None,
+                email_entity_logo_url: None,
+                last_modified_at: Some(date_time::now()),
+                theme_config_version: Some(theme_config_version),
             },
         }
     }

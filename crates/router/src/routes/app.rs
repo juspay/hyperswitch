@@ -3030,6 +3030,10 @@ impl User {
                         .route(web::put().to(user::theme::update_user_theme))
                         .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
                         .route(web::delete().to(user::theme::delete_user_theme)),
+                )
+                .service(
+                    web::resource("/{theme_id}/version")
+                        .route(web::get().to(user::theme::get_theme_version)),
                 ),
         );
         route
