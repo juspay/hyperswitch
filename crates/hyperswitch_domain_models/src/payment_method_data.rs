@@ -57,8 +57,9 @@ pub enum ExternalVaultPaymentMethodData {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
     // Either Merchant provided certificates i.e decryption by hyperswitch or Hyperswitch certificates i.e simplified flow
+    // decryption is performed in hyperswitch
     DecryptionSupported(api_models::payments::PaymentProcessingDetails),
-    // decryption by connector or predecrypted
+    // decryption by connector or predecrypted token
     NonDecryption,
 }
 
