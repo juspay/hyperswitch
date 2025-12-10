@@ -3401,7 +3401,7 @@ pub async fn delete_payment_method_core(
 
     let _customer = db
         .find_customer_by_global_id(
-            &payment_method.customer_id,
+            customer_id,
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
