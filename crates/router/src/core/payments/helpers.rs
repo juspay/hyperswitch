@@ -5686,7 +5686,6 @@ async fn get_and_merge_apple_pay_metadata(
 }
 
 pub fn is_googlepay_predecrypted_flow_supported(
-    //change name
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> bool {
     connector_metadata
