@@ -1101,8 +1101,7 @@ fn validate_and_get_setup_future_usage(
     payment_method_type: &Option<common_enums::PaymentMethodType>,
 ) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
     match payment_method_type {
-        Some(common_enums::PaymentMethodType::Affirm)
-        => Ok(None),
+        Some(common_enums::PaymentMethodType::Affirm) => Ok(None),
         Some(_) | None => Ok(setup_future_usage),
     }
 }
@@ -2030,7 +2029,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         payment_method_type.as_ref(),
                     )?;
 
-                let setup_future_usage = validate_and_get_setup_future_usage(item.request.setup_future_usage, &item.request.payment_method_type)?;
+                    let setup_future_usage = validate_and_get_setup_future_usage(
+                        item.request.setup_future_usage,
+                        &item.request.payment_method_type,
+                    )?;
 
                     (
                         Some(payment_method_data),
@@ -2208,7 +2210,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         } else {
             None
         };
-
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
