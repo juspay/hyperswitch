@@ -351,7 +351,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
-            let complete_authorize_router_data =
+            let authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     pre_authenticate_router_data,
                     authorize_request_data,
@@ -359,7 +359,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 );
             // After doing pre_authentication, step, we should not proceed with authorize call.
             // control must be returned to SDK.
-            Ok((complete_authorize_router_data, false))
+            Ok((authorize_router_data, false))
         } else {
             Ok((self, true))
         }
