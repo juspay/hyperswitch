@@ -39,7 +39,7 @@ pub use hyperswitch_domain_models::customer;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::{GetPaymentMethodType, NetworkTokenData, PazeWalletData},
+    payment_method_data::{GetPaymentMethodType, PazeWalletData},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
@@ -1020,6 +1020,13 @@ pub fn validate_card_data(
             validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
         }
         Some(api::PaymentMethodData::NetworkToken(network_token)) => {
+            let cryptogram = network_token.token_cryptogram.peek().to_string();
+            if cryptogram.trim().is_empty() {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid token_cryptogram".to_string()
+                }))?
+            }
+
             validate_card_expiry(
                 &network_token.token_exp_month,
                 &network_token.token_exp_year,
@@ -2726,7 +2733,7 @@ pub async fn fetch_network_token_details_from_locker(
     merchant_id: &id_type::MerchantId,
     network_token_locker_id: &str,
     network_transaction_data: api_models::payments::NetworkTokenWithNTIRef,
-) -> RouterResult<NetworkTokenData> {
+) -> RouterResult<domain::NetworkTokenData> {
     let mut token_data =
         cards::get_card_from_locker(state, customer_id, merchant_id, network_token_locker_id)
             .await
@@ -2752,7 +2759,7 @@ pub async fn fetch_network_token_details_from_locker(
         .ok()
         .flatten();
 
-    let network_token_data = NetworkTokenData {
+    let network_token_data = domain::NetworkTokenData {
         token_number: token_data.card_number.into(),
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
