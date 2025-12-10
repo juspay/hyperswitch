@@ -2574,7 +2574,9 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
+    /// Represents only UCS Connector integration
     UcsConnector,
+    /// Represents Connector integration which may be on both Direct and UCS
     DirectandUCSConnector,
 }
 
