@@ -18,7 +18,7 @@ use crate::{
         payments::{
             self, access_token, customers,
             gateway::context as gateway_context,
-            helpers::{self, is_applepay_predecrypted_flow_supported},
+            helpers::{self},
             transformers, PaymentData,
         },
     },

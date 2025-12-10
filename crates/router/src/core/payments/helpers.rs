@@ -5634,7 +5634,7 @@ async fn get_and_merge_apple_pay_metadata(
                     .attach_printable("Failed to serialize Apple Pay combined metadata as JSON")?;
 
                 api_models::admin::ConnectorWalletDetails {
-                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)), // pass the entire wrapper
+                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)),
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
