@@ -6127,37 +6127,33 @@ where
             .and_then(|payment_method_data| payment_method_data.get_wallet_data())
             .and_then(|wallet_data| wallet_data.get_google_pay_wallet_data());
 
-        let pre_decrypted_token = if let Some(data) = google_pay_wallet_data {
+        if let Some(data) = google_pay_wallet_data {
             match &data.tokenization_data {
-                common_payments_types::GpayTokenizationData::Encrypted(_) => None,
+                common_payments_types::GpayTokenizationData::Encrypted(_) => Ok(None),
                 common_payments_types::GpayTokenizationData::Decrypted(
                     google_pay_predecrypt_data,
                 ) => {
-                    helpers::validate_card_expiry(
-                        &google_pay_predecrypt_data.card_exp_month,
-                        &google_pay_predecrypt_data.card_exp_year,
-                    )?;
-                    Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
-                        google_pay_predecrypt_data.clone(),
-                    )))
+                    if is_googlepay_predecrypted_flow_supported(
+                        merchant_connector_account.get_metadata(),
+                    ) {
+                        helpers::validate_card_expiry(
+                            &google_pay_predecrypt_data.card_exp_month,
+                            &google_pay_predecrypt_data.card_exp_year,
+                        )?;
+                        Ok(Some(PaymentMethodToken::GooglePayDecrypt(Box::new(
+                            google_pay_predecrypt_data.clone(),
+                        ))))
+                    } else {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Predecrypted token config is not enabled for GooglePay"
+                                .to_string(),
+                        }
+                        .into())
+                    }
                 }
             }
         } else {
-            None
-        };
-        let support_predecrypted_token =
-            is_googlepay_predecrypted_flow_supported(merchant_connector_account.get_metadata());
-        match (pre_decrypted_token, support_predecrypted_token) {
-            (Some(PaymentMethodToken::GooglePayDecrypt(_token)), false) => {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Predecrypted token config is not enabled for GooglePay".to_string(),
-                }
-                .into())
-            }
-            (Some(PaymentMethodToken::GooglePayDecrypt(token)), true) => {
-                Ok(Some(PaymentMethodToken::GooglePayDecrypt(token)))
-            }
-            (_, _) => Ok(None),
+            Ok(None)
         }
     }
     fn decide_wallet_flow(
