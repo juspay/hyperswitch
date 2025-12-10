@@ -4118,15 +4118,13 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(Option<UserFromToken>, AuthenticationType)> {
-        let (user, auth_type) =
-            <Self as AuthenticateAndFetch<UserFromToken, A>>::authenticate_and_fetch(
-                self,
-                request_headers,
-                state,
-            )
-            .await?;
-
-        Ok((Some(user), auth_type))
+        <Self as AuthenticateAndFetch<UserFromToken, A>>::authenticate_and_fetch(
+            self,
+            request_headers,
+            state,
+        )
+        .await
+        .map(|(user, auth_type)| (Some(user), auth_type))
     }
 }
 

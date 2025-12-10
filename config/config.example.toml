@@ -481,17 +481,17 @@ force_cookies = true                 # Whether to use only cookies for JWT extra
 
 # OIDC configuration for OpenID Connect authentication
 [oidc.key.k1]
-kid = ""
-private_key = ""
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 2048)
 
 [oidc.key.k2]
-kid = ""
-private_key = ""
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 2048)
 
 [oidc.client.c1]
-client_id = ""
-client_secret = ""
-redirect_uri = ""
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

@@ -1,8 +1,7 @@
-use std::str::FromStr;
-
-use common_utils::{events::ApiEventMetric, pii};
+use common_utils::events::ApiEventMetric;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use utoipa::ToSchema;
 
 const RESPONSE_TYPES_SUPPORTED: &[ResponseType] = &[ResponseType::Code];
@@ -289,17 +288,6 @@ pub struct OidcAuthorizeQuery {
     pub nonce: Option<String>,
 }
 
-/// Authorization Code Data stored in Redis
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthCodeData {
-    pub sub: String,
-    pub client_id: String,
-    pub redirect_uri: String,
-    pub scope: Vec<Scope>,
-    pub nonce: Option<String>,
-    pub email: pii::Email,
-}
-
 /// OIDC Token Request
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenRequest {
@@ -348,12 +336,6 @@ impl ApiEventMetric for JwksResponse {
 }
 
 impl ApiEventMetric for OidcAuthorizeQuery {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Oidc)
-    }
-}
-
-impl ApiEventMetric for AuthCodeData {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Oidc)
     }
