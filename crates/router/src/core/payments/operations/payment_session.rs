@@ -261,23 +261,21 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
     {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
-            Some(metadata) => {
-                platform_wrapper::payment_intent::update_payment_intent(
-                    state.store.as_ref(),
-                    platform.get_processor(),
-                    payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
-                        updated_by: platform
-                            .get_processor()
-                            .get_account()
-                            .storage_scheme
-                            .to_string(),
-                    },
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
-            }
+            Some(metadata) => platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
+                payment_data.payment_intent,
+                storage::PaymentIntentUpdate::MetadataUpdate {
+                    metadata,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
+                },
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
             None => payment_data.payment_intent,
         };
 

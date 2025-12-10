@@ -308,16 +308,15 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
     {
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: platform.get_processor().get_account().storage_scheme.to_string() };
 
-        let payment_attempt =
-            platform_wrapper::payment_attempt::update_payment_attempt(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not update payment attempt")?;
+        let payment_attempt = platform_wrapper::payment_attempt::update_payment_attempt(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_attempt.clone(),
+            payment_attempt_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not update payment attempt")?;
 
         payment_data.payment_attempt = payment_attempt;
         Ok((Box::new(self), payment_data))

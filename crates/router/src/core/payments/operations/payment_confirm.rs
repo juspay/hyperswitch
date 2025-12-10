@@ -9,7 +9,6 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
-use storage_impl::platform_wrapper;
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -19,6 +18,7 @@ use hyperswitch_domain_models::router_request_types::unified_authentication_serv
 use masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
+use storage_impl::platform_wrapper;
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -2123,14 +2123,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .in_current_span(),
         );
 
-        let customer_fut = if let Some((updated_customer, customer)) =
-            updated_customer.zip(customer)
-        {
-            let m_provider = platform.get_provider().clone();
-            let m_updated_customer = updated_customer.clone();
-            let session_state = state.clone();
-            let m_db = session_state.store.clone();
-            tokio::spawn(
+        let customer_fut =
+            if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
+                let m_provider = platform.get_provider().clone();
+                let m_updated_customer = updated_customer.clone();
+                let session_state = state.clone();
+                let m_db = session_state.store.clone();
+                tokio::spawn(
                     async move {
                         let m_customer_customer_id = customer.customer_id.to_owned();
                         platform_wrapper::customer::update_customer_by_customer_id_merchant_id(
@@ -2148,12 +2147,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     }
                     .in_current_span(),
                 )
-        } else {
-            tokio::spawn(
-                async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
-                    .in_current_span(),
-            )
-        };
+            } else {
+                tokio::spawn(
+                    async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
+                        .in_current_span(),
+                )
+            };
 
         let (payment_intent, _) = tokio::try_join!(
             utils::flatten_join_error(payment_intent_fut),

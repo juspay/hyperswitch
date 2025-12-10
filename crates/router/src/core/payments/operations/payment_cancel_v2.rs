@@ -222,16 +222,15 @@ impl<F: Clone + Send + Sync>
             updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
 
-        let updated_payment_attempt =
-            platform_wrapper::payment_attempt::update_payment_attempt(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Failed to update payment attempt for cancellation")?;
+        let updated_payment_attempt = platform_wrapper::payment_attempt::update_payment_attempt(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_attempt.clone(),
+            payment_attempt_update,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Failed to update payment attempt for cancellation")?;
         payment_data.set_payment_attempt(updated_payment_attempt);
 
         Ok((Box::new(self), payment_data))

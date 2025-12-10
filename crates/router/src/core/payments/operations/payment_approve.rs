@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -21,7 +22,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use storage_impl::platform_wrapper;
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "capture")]
@@ -249,15 +249,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
                 .storage_scheme
                 .to_string(),
         };
-        payment_data.payment_intent =
-            platform_wrapper::payment_intent::update_payment_intent(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_intent,
-                intent_status_update,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_data.payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent,
+            intent_status_update,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let attempt_status = payment_data.payment_attempt.status;
         payment_data.payment_attempt =

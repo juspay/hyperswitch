@@ -430,29 +430,27 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             connector_response_reference_id,
         };
 
-        let updated_payment_intent =
-            platform_wrapper::payment_intent::update_payment_intent(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_intent.clone(),
-                payment_intent_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment intent")?;
+        let updated_payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent.clone(),
+            payment_intent_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to update payment intent")?;
 
         payment_data.payment_intent = updated_payment_intent;
 
-        let updated_payment_attempt =
-            platform_wrapper::payment_attempt::update_payment_attempt(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to update payment attempt")?;
+        let updated_payment_attempt = platform_wrapper::payment_attempt::update_payment_attempt(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_attempt.clone(),
+            payment_attempt_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_attempt = updated_payment_attempt;
 

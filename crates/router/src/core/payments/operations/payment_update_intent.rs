@@ -16,9 +16,9 @@ use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     ApiModelToDieselModelConvertor,
 };
-use storage_impl::platform_wrapper;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -397,16 +397,15 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 active_attempt_id_type: Some(intent.active_attempt_id_type),
             }));
 
-        let new_payment_intent =
-            platform_wrapper::payment_intent::update_payment_intent(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_intent,
-                payment_intent_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not update Intent")?;
+        let new_payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent,
+            payment_intent_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not update Intent")?;
 
         payment_data.payment_intent = new_payment_intent;
 

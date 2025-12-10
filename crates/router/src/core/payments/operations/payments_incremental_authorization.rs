@@ -6,6 +6,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -25,7 +26,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use storage_impl::platform_wrapper;
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(operations = "all", flow = "incremental_authorization")]
@@ -260,18 +260,17 @@ impl<F: Clone + Sync>
             })
             .attach_printable("failed while inserting new authorization")?;
         // Update authorization_count in payment_intent
-        payment_data.payment_intent =
-            platform_wrapper::payment_intent::update_payment_intent(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::AuthorizationCountUpdate {
-                    authorization_count: new_authorization_count,
-                },
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Failed to update authorization_count in Payment Intent")?;
+        payment_data.payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent.clone(),
+            storage::PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count: new_authorization_count,
+            },
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Failed to update authorization_count in Payment Intent")?;
         match &payment_data.incremental_authorization_details {
             Some(details) => {
                 payment_data.incremental_authorization_details =

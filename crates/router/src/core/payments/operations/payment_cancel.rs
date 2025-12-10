@@ -271,15 +271,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
             };
 
         if let Some(payment_intent_update) = intent_status_update {
-            payment_data.payment_intent =
-                platform_wrapper::payment_intent::update_payment_intent(
-                    state.store.as_ref(),
-                    platform.get_processor(),
-                    payment_data.payment_intent,
-                    payment_intent_update,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            payment_data.payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+                state.store.as_ref(),
+                platform.get_processor(),
+                payment_data.payment_intent,
+                payment_intent_update,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         }
 
         payment_data.payment_attempt =

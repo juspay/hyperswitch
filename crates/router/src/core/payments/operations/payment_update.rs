@@ -927,69 +927,68 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_intent
             .merchant_order_reference_id
             .clone();
-        payment_data.payment_intent =
-            platform_wrapper::payment_intent::update_payment_intent(
-                state.store.as_ref(),
-                platform.get_processor(),
-                payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
-                    amount: payment_data.amount.into(),
-                    currency: payment_data.currency,
-                    setup_future_usage,
-                    status: intent_status,
-                    customer_id: customer_id.clone(),
-                    shipping_address_id: shipping_address,
-                    billing_address_id: billing_address,
-                    return_url,
-                    business_country,
-                    business_label,
-                    description,
-                    statement_descriptor_name,
-                    statement_descriptor_suffix,
-                    order_details,
-                    metadata,
-                    payment_confirm_source: None,
-                    updated_by: platform
-                        .get_processor()
-                        .get_account()
-                        .storage_scheme
-                        .to_string(),
-                    fingerprint_id: None,
-                    session_expiry,
-                    request_external_three_ds_authentication: payment_data
-                        .payment_intent
-                        .request_external_three_ds_authentication,
-                    frm_metadata,
-                    customer_details,
-                    merchant_order_reference_id,
-                    billing_details,
-                    shipping_details,
-                    is_payment_processor_token_flow: None,
-                    tax_details: None,
-                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
-                    is_iframe_redirection_enabled: payment_data
-                        .payment_intent
-                        .is_iframe_redirection_enabled,
-                    is_confirm_operation: false, // this is not a confirm operation
-                    payment_channel: payment_data.payment_intent.payment_channel,
-                    feature_metadata: payment_data
-                        .payment_intent
-                        .feature_metadata
-                        .clone()
-                        .map(masking::Secret::new),
-                    tax_status: payment_data.payment_intent.tax_status,
-                    discount_amount: payment_data.payment_intent.discount_amount,
-                    order_date: payment_data.payment_intent.order_date,
-                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-                    duty_amount: payment_data.payment_intent.duty_amount,
-                    enable_partial_authorization: payment_data
-                        .payment_intent
-                        .enable_partial_authorization,
-                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
-                })),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_data.payment_intent = platform_wrapper::payment_intent::update_payment_intent(
+            state.store.as_ref(),
+            platform.get_processor(),
+            payment_data.payment_intent.clone(),
+            storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
+                amount: payment_data.amount.into(),
+                currency: payment_data.currency,
+                setup_future_usage,
+                status: intent_status,
+                customer_id: customer_id.clone(),
+                shipping_address_id: shipping_address,
+                billing_address_id: billing_address,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source: None,
+                updated_by: platform
+                    .get_processor()
+                    .get_account()
+                    .storage_scheme
+                    .to_string(),
+                fingerprint_id: None,
+                session_expiry,
+                request_external_three_ds_authentication: payment_data
+                    .payment_intent
+                    .request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details,
+                merchant_order_reference_id,
+                billing_details,
+                shipping_details,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                is_iframe_redirection_enabled: payment_data
+                    .payment_intent
+                    .is_iframe_redirection_enabled,
+                is_confirm_operation: false, // this is not a confirm operation
+                payment_channel: payment_data.payment_intent.payment_channel,
+                feature_metadata: payment_data
+                    .payment_intent
+                    .feature_metadata
+                    .clone()
+                    .map(masking::Secret::new),
+                tax_status: payment_data.payment_intent.tax_status,
+                discount_amount: payment_data.payment_intent.discount_amount,
+                order_date: payment_data.payment_intent.order_date,
+                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                duty_amount: payment_data.payment_intent.duty_amount,
+                enable_partial_authorization: payment_data
+                    .payment_intent
+                    .enable_partial_authorization,
+                enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            })),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let amount = payment_data.amount;
         req_state
             .event_context
