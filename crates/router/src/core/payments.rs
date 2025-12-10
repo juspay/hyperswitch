@@ -4142,7 +4142,6 @@ where
     )
     .await?;
 
-    #[cfg(feature = "v1")]
     if let Some(connector_customer_id) = {
         core_utils::get_connector_customer_id(
             &state.conf,
@@ -4176,15 +4175,52 @@ where
             should_continue_further,
         );
 
-    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
-        &connector,
-        payment_data,
-        router_data,
-        operation,
-        should_continue_further,
-    )
-    .await?;
+    (router_data, should_continue_further) = if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            config
+                .authentication_bloated_connectors
+                .contains(&connector.connector_name)
+        }) {
+        logger::info!(
+            "Using granular authentication steps for connector: {}",
+            connector.connector_name
+        );
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .pre_authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        let (router_data, should_continue_further) = if should_continue_further {
+            router_data
+                .post_authentication_step(state, &connector, &context)
+                .await?
+        } else {
+            (router_data, false)
+        };
+        (router_data, should_continue_further)
+    } else {
+        complete_preprocessing_steps_if_required(
+            state,
+            &connector,
+            payment_data,
+            router_data,
+            operation,
+            should_continue_further,
+        )
+        .await?
+    };
 
     if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
         session_token: Some(session_token),
