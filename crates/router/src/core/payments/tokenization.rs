@@ -308,7 +308,7 @@ where
                     )),
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => {
                         Some(domain::PaymentMethodsData::BankDebit(
-                            domain::AdditionalBankDebitData::try_from(bank_debit_data)
+                            domain::BankDebitDetailsPaymentMethod::try_from(bank_debit_data)
                                 .change_context(errors::ApiErrorResponse::NotImplemented {
                                     message: errors::NotImplementedMessage::Reason(
                                         "payment_method_data storage is only supported for ACH"

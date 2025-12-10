@@ -688,6 +688,8 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_data: None,
             payment_method_id: None,
         },
+        // TODO: Locker support for BankDebit will be added in a future PR, currently keeping
+        // these fields as None
         storage::PaymentTokenData::BankDebit(_) => storage::PaymentMethodDataWithId {
             payment_method: None,
             payment_method_data: None,

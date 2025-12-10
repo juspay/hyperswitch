@@ -25,7 +25,6 @@ pub struct CardTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankDebitTokenData {
-    pub payment_method_type: Option<enums::PaymentMethodType>,
     pub payment_method_id: String,
     pub locker_id: Option<String>,
 }

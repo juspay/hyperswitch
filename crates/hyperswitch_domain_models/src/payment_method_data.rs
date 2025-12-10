@@ -767,18 +767,6 @@ pub struct CardToken {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub enum AdditionalBankDebitData {
-    AchBankDebit {
-        masked_account_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
-        bank_name: Option<common_enums::BankNames>,
-        bank_type: Option<common_enums::BankType>,
-        bank_holder_type: Option<common_enums::BankHolderType>,
-    },
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
@@ -809,31 +797,40 @@ pub enum BankDebitData {
     },
 }
 
-impl TryFrom<BankDebitData> for AdditionalBankDebitData {
+impl TryFrom<BankDebitData> for BankDebitDetailsPaymentMethod {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
 
     fn try_from(value: BankDebitData) -> Result<Self, Self::Error> {
         match value {
             BankDebitData::AchBankDebit {
                 account_number,
-                routing_number: _,
+                routing_number,
                 card_holder_name: _,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             } => Ok(Self::AchBankDebit {
-                masked_account_number: Secret::new(
-                    account_number
-                        .peek()
-                        .chars()
-                        .rev()
-                        .take(4)
-                        .collect::<String>()
-                        .chars()
-                        .rev()
-                        .collect::<String>(),
-                ),
+                masked_account_number: account_number
+                    .peek()
+                    .chars()
+                    .rev()
+                    .take(4)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>(),
+                // Store the last 4 digits of routing number, the last digit is a check digit
+                // first 4 digits identify processing region, so are not stored
+                masked_routing_number: routing_number
+                    .peek()
+                    .chars()
+                    .rev()
+                    .take(4)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>(),
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -845,7 +842,7 @@ impl TryFrom<BankDebitData> for AdditionalBankDebitData {
             | BankDebitData::BacsBankDebit { .. } => Err(error_stack::Report::new(
                 common_utils::errors::ValidationError::InvalidValue {
                     message:
-                        "Unsupported bank debit type for conversion to AdditionalBankDebitData"
+                        "Unsupported bank debit type for conversion to BankDebitDetailsPaymentMethod"
                             .to_string(),
                 },
             )),
@@ -2432,7 +2429,7 @@ pub enum PaymentMethodsData {
     BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
-    BankDebit(AdditionalBankDebitData),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -2507,6 +2504,19 @@ pub struct NetworkTokenDetailsPaymentMethod {
 
 fn saved_in_locker_default() -> bool {
     true
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        masked_account_number: String,
+        masked_routing_number: String,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 #[cfg(feature = "v1")]
