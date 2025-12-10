@@ -376,6 +376,8 @@ pub struct JpmorganCaptureRequest {
     capture_method: Option<CapMethod>,
     amount: MinorUnit,
     currency: Option<common_enums::Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_amount_final: Option<bool>,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -392,13 +394,22 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     fn try_from(
         item: &JpmorganRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = Some(map_capture_method(
-            item.router_data.request.capture_method.unwrap_or_default(),
-        )?);
+        let capture_method = Some(CapMethod::Now);
+        let capture_method = Some(requests::CapMethod::Now);
+        let amount_to_capture = item.amount;
+
+        // isAmountFinal is true when capturing less than the total capturable amount (partial capture)
+        // Don't send the field for full captures
+        let is_amount_final = item
+            .router_data
+            .minor_amount_capturable
+            .and_then(|capturable| (capturable > amount_to_capture).then_some(true));
+
         Ok(Self {
             capture_method,
-            amount: item.amount,
+            amount: amount_to_capture,
             currency: Some(item.router_data.request.currency),
+            is_amount_final,
         })
     }
 }
@@ -655,61 +666,16 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ReversalReason {
-    NoResponse,
-    LateResponse,
-    UnableToDeliver,
-    CardDeclined,
-    MacNotVerified,
-    MacSyncError,
-    ZekSyncError,
-    SystemMalfunction,
-    SuspectedFraud,
-}
-
-impl FromStr for ReversalReason {
-    type Err = error_stack::Report<errors::ConnectorError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "NO_RESPONSE" => Ok(Self::NoResponse),
-            "LATE_RESPONSE" => Ok(Self::LateResponse),
-            "UNABLE_TO_DELIVER" => Ok(Self::UnableToDeliver),
-            "CARD_DECLINED" => Ok(Self::CardDeclined),
-            "MAC_NOT_VERIFIED" => Ok(Self::MacNotVerified),
-            "MAC_SYNC_ERROR" => Ok(Self::MacSyncError),
-            "ZEK_SYNC_ERROR" => Ok(Self::ZekSyncError),
-            "SYSTEM_MALFUNCTION" => Ok(Self::SystemMalfunction),
-            "SUSPECTED_FRAUD" => Ok(Self::SuspectedFraud),
-            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
-                field_name: "cancellation_reason",
-            })),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
-    pub amount: Option<i64>,
     pub is_void: Option<bool>,
-    pub reversal_reason: Option<ReversalReason>,
 }
 
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.amount,
             is_void: Some(true),
-            reversal_reason: item
-                .router_data
-                .request
-                .cancellation_reason
-                .as_ref()
-                .map(|reason| ReversalReason::from_str(reason))
-                .transpose()?,
         })
     }
 }
