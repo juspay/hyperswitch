@@ -110,7 +110,8 @@ pub enum ThemeUpdate {
 
 impl From<ThemeUpdate> for ThemeUpdateInternal {
     fn from(value: ThemeUpdate) -> Self {
-        let theme_config_version = date_time::now().assume_utc().unix_timestamp().to_string();
+        let now = date_time::now();
+        let theme_config_version = now.assume_utc().unix_timestamp().to_string();
         match value {
             ThemeUpdate::EmailConfig { email_config } => Self {
                 email_primary_color: Some(email_config.primary_color),
@@ -118,7 +119,7 @@ impl From<ThemeUpdate> for ThemeUpdateInternal {
                 email_background_color: Some(email_config.background_color),
                 email_entity_name: Some(email_config.entity_name),
                 email_entity_logo_url: Some(email_config.entity_logo_url),
-                last_modified_at: Some(date_time::now()),
+                last_modified_at: Some(now),
                 theme_config_version: None,
             },
             ThemeUpdate::ThemeConfig => Self {
@@ -127,7 +128,7 @@ impl From<ThemeUpdate> for ThemeUpdateInternal {
                 email_background_color: None,
                 email_entity_name: None,
                 email_entity_logo_url: None,
-                last_modified_at: Some(date_time::now()),
+                last_modified_at: Some(now),
                 theme_config_version: Some(theme_config_version),
             },
         }
