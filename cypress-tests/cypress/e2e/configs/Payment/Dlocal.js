@@ -38,7 +38,7 @@ const failedCardDetails = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
     card_issuer: "JP Morgan",
     card_issuing_country: "INDIA",
@@ -52,10 +52,32 @@ const payment_method_data_no3ds = {
   },
   billing: null,
 };
+// Billing address structure that matches API response exactly
+// API returns address fields in a specific order and includes origin_zip
+const apiBillingAddress = {
+  address: {
+    line1: "Servidao B-1",
+    line2: null,
+    line3: null,
+    city: "Volta Redonda",
+    state: "Rio de Janeiro",
+    zip: "27275-595",
+    country: "BR",
+    first_name: "Thiago",
+    last_name: "Gabriel",
+    origin_zip: null,
+  },
+  phone: {
+    number: "123456712345",
+    country_code: "+55",
+  },
+  email: "thiago@example.com",
+};
+
 const payment_method_data_no3ds_address = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
     card_issuer: "JP Morgan",
     card_issuing_country: "INDIA",
@@ -67,12 +89,12 @@ const payment_method_data_no3ds_address = {
     payment_checks: null,
     authentication_data: null,
   },
-  billing: mockBillingDetails,
+  billing: apiBillingAddress,
 };
 const payment_method_data_3ds_address = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
     card_issuer: "JP Morgan",
     card_issuing_country: "INDIA",
@@ -84,7 +106,7 @@ const payment_method_data_3ds_address = {
     payment_checks: null,
     authentication_data: null,
   },
-  billing: mockBillingDetails,
+  billing: apiBillingAddress,
 };
 export const connectorDetails = {
   card_pm: {
@@ -100,7 +122,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "cancelled",
           error_code: "104",
           error_message: "Card declined",
           unified_code: "UE_9000",
@@ -150,7 +172,7 @@ export const connectorDetails = {
           billing: mockBillingDetails,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        
       },
       Response: {
         status: 200,
@@ -263,7 +285,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "cancelled",
           capture_method: "manual",
         },
       },
