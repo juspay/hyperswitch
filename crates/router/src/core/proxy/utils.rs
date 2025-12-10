@@ -250,7 +250,7 @@ impl ProxyRecord {
 
                 let response = redis_conn.get_key::<bytes::Bytes>(&vault_id.into()).await;
 
-                let payment_method_record = match response {
+                match response {
                     Ok(resp) => {
                         let decrypted_payload = GcmAes256
                             .decode_message(
@@ -277,7 +277,7 @@ impl ProxyRecord {
                             message: "Token is invalid or expired".into(),
                         })
                     }
-                }?;
+                }
             }
         }
     }
