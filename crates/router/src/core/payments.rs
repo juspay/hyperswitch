@@ -6024,7 +6024,8 @@ where
                         ))))
                     } else {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Predecrypted token is not enabled for ApplePay".to_string(),
+                            message: "support for predecrypted token is not enabled for ApplePay"
+                                .to_string(),
                         }
                         .into())
                     }
