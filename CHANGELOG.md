@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.11.26.0-hotfix7
+
+### Features
+
+- **payment_links:** Verify payment method mapping for custom tnc ([#10613](https://github.com/juspay/hyperswitch/pull/10613)) ([`c9b4003`](https://github.com/juspay/hyperswitch/commit/c9b40030684716cfd94e339e41ea9b768f97aa5b))
+
+**Full Changelog:** [`2025.11.26.0-hotfix6...2025.11.26.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2025.11.26.0-hotfix6...2025.11.26.0-hotfix7)
+
+- - -
+
 ## 2025.11.26.0-hotfix6
 
 ### Features
