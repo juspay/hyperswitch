@@ -952,3 +952,39 @@ pub struct PartnerMerchantIdentifierDetails {
 }
 
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PaymentIntentStateMetadata {
+    /// Shows up the total refunded amount for a payment
+    pub total_refunded_amount: Option<MinorUnit>,
+    /// Shows up the total disputed amount across all disputes for a particular payment
+    pub total_disputed_amount: Option<MinorUnit>,
+}
+
+impl PaymentIntentStateMetadata {
+    /// Builder method to set total_refunded_amount
+    pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_refunded_amount = Some(amount);
+        self
+    }
+    /// Builder method to set total_disputed_amount
+    pub fn with_total_disputed_amount(mut self, amount: MinorUnit) -> Self {
+        self.total_disputed_amount = Some(amount);
+        self
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);

@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 use super::enums::{Currency, DisputeStage, DisputeStatus};
 use crate::{admin::MerchantConnectorInfo, files};
 
-#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -56,6 +56,8 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// Shows if the disputed amount is already refunded in the payment
+    pub is_already_refunded: bool,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]

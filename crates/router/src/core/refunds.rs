@@ -27,7 +27,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{
             self, access_token, gateway::context as gateway_context, helpers,
-            helpers::MerchantConnectorAccountType,
+            helpers::MerchantConnectorAccountType, PaymentIntentStateMetadataExt,
         },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
@@ -86,6 +86,12 @@ pub async fn refund_create_core(
             .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
+
+    payment_intent
+        .state_metadata
+        .clone()
+        .unwrap_or_default()
+        .validate_refund_against_intent_state_metadata(&req, &payment_intent)?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
@@ -1303,7 +1309,7 @@ pub async fn validate_and_create_refund(
         .await
     {
         Ok(refund) => {
-            Box::pin(schedule_refund_execution(
+            let (updated_refund, raw_response) = Box::pin(schedule_refund_execution(
                 state,
                 refund.clone(),
                 refund_type,
@@ -1314,7 +1320,14 @@ pub async fn validate_and_create_refund(
                 split_refunds,
                 req.all_keys_required,
             ))
-            .await?
+            .await?;
+            payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
+                .await?;
+            (updated_refund, raw_response)
         }
         Err(err) => {
             if err.current_context().is_db_unique_violation() {

@@ -3,7 +3,10 @@ use std::{collections::HashMap, ops::Deref, str::FromStr};
 use api_models::{
     admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
 };
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::{
+    ext_traits::{Encode, ValueExt},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -63,24 +66,26 @@ pub async fn retrieve_dispute(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
-            dispute_id: req.dispute_id,
+            dispute_id: req.dispute_id.clone(),
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
+    let db = &state.store;
     #[cfg(feature = "v1")]
-    let dispute_response =
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &dispute.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    #[cfg(feature = "v1")]
+    let mut dispute_response =
         if should_call_connector_for_dispute_sync(req.force_sync, dispute.dispute_status) {
-            let db = &state.store;
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
-            let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
-                    &dispute.payment_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let payment_attempt = db
                 .find_payment_attempt_by_attempt_id_merchant_id(
@@ -147,7 +152,7 @@ pub async fn retrieve_dispute(
 
             update_dispute_data(
                 &state,
-                platform,
+                platform.clone(),
                 business_profile,
                 Some(dispute.clone()),
                 dispute_sync_response,
@@ -157,9 +162,25 @@ pub async fn retrieve_dispute(
             .await
             .attach_printable("Dispute update failed")?
         } else {
-            api_models::disputes::DisputeResponse::foreign_from(dispute)
+            api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
+    #[cfg(feature = "v1")]
+    {
+        let current_state = payment_intent.state_metadata.unwrap_or_default();
 
+        dispute_response.is_already_refunded = payment_intent
+            .amount_captured
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            - current_state
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64()
+            < current_state
+                .total_disputed_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+    }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
 

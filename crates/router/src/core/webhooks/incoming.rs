@@ -38,7 +38,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
-        payments::{self, tokenization},
+        payments::{self, tokenization, PaymentIntentStateMetadataExt},
         refunds, relay, unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
@@ -1966,6 +1966,29 @@ async fn refunds_incoming_webhook_flow(
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
         .0
     };
+
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &refund.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to find payment intent for payment_id: {:?}",
+                refund.payment_id
+            )
+        })?;
+
+    payment_intent
+        .state_metadata
+        .clone()
+        .unwrap_or_default()
+        .update_intent_state_metadata_for_refund(&state, &platform, payment_intent)
+        .await?;
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
@@ -1973,8 +1996,8 @@ async fn refunds_incoming_webhook_flow(
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
-            state,
-            platform,
+            state.clone(),
+            platform.clone(),
             business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
@@ -2573,7 +2596,7 @@ async fn disputes_incoming_webhook_flow(
 
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
-            option_dispute,
+            option_dispute.clone(),
             dispute_details,
             platform.get_processor().get_account().get_id(),
             &platform.get_processor().get_account().organization_id,
@@ -2583,6 +2606,33 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+        if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
+            && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+        {
+            let payment_intent = db
+                .find_payment_intent_by_payment_id_merchant_id(
+                    &payment_attempt.payment_id,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch payment_intent")?;
+
+            payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .update_intent_state_metadata_for_dispute(
+                    &state,
+                    &platform,
+                    payment_intent,
+                    &dispute_object,
+                )
+                .await?;
+        }
+
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
