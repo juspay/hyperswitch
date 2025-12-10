@@ -843,6 +843,18 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
+    PaymentIntent: (_paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -953,6 +965,9 @@ export const connectorDetails = {
       },
     },
     Blik: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -965,10 +980,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "payment_intent_invalid_parameter",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
@@ -984,6 +1002,40 @@ export const connectorDetails = {
                 email: "guest@juspay.in",
               },
             },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Bancontact: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Brussels",
+            state: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+32",
           },
         },
       },
