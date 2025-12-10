@@ -58,8 +58,6 @@
       "last_name": "doe"
     }
   },
-  "statement_descriptor_name": "joseph",
-  "statement_descriptor_suffix": "JS",
   "metadata": {
     "udf1": "value1",
     "new_customer": "true",
