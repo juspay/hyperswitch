@@ -54,41 +54,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
 
-[proxy]
-http_url = "http://localhost:8081"
-https_url = "http://localhost:8081"
-mitm_proxy_enabled = true
-mitm_ca_certificate = """-----BEGIN CERTIFICATE-----
-MIIDNTCCAh2gAwIBAgIUHqafO+Sw+T88Ie7bbPglpx+b0uUwDQYJKoZIhvcNAQEL
-BQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN
-MjUxMTIwMTEwOTE2WhcNMzUxMTIwMTEwOTE2WjAoMRIwEAYDVQQDDAltaXRtcHJv
-eHkxEjAQBgNVBAoMCW1pdG1wcm94eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-AQoCggEBALOulqP0j3tyCwWb2LklRmeQR9Yhct5tkyN1glJyKvvzcUXAd4+K9AYN
-wElXjfeCopl2aoArYpDXSEsD1SZyGHGcR7VSfXdEkdSQP3cbiVr1ZZ/yKD8wFB+9
-EFuZBVQlITpH6SBbNzlGYXwW8F4ErE2zPPHTzwQ9RJpEvjf5DMmi1DDc7a/v610s
-enh3WSoDnhtB5gwtg2UG5SJz8tqLVPdPxipguLVOmMjoY5sZyJxi4ofL8U6x5gg2
-B3vXbmOEBkmn9qtWP1ONjDmUmcLQN3rnmJ0ehqdQkIVwy7Ia+qoRljgWZ/6OflQd
-iUkYEfXydC5Rj9ulrdkofsJ6okf3Ka8CAwEAAaNXMFUwDwYDVR0TAQH/BAUwAwEB
-/zATBgNVHSUEDDAKBggrBgEFBQcDATAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
-FHVoVABhFxKIbYEOLk7sKj8gIVGqMA0GCSqGSIb3DQEBCwUAA4IBAQCfuM/8RA/8
-d4h3WQtJS04ve8QB0C9Jc5p9XoC1iBfDkcBd3FPcYvpnWH2N8ROE4m3tzrMB/XZ7
-5CvM9s1X6qLebpmoXtOAb5qFW3zN6O6nj7q6NWV/rocf2kCV/JAgScQ1NJl2J1hs
-ie/2B5voADfMXuMMV7J2XiOZPy5Yhhl7LEKSQTvyN08cr7CnohnOWaW2rCREHBbR
-hlsiouVubdYR5G1dfuc53c1EgGCFraNr1X//bGuzNfO/fUsycTAZ2n9Kbik/WxGu
-x9aNarIHzR4Myzprg437JUwiPJ32TUQ2R2vdISFtwn+2lgYJY05yVveq2F5bIgLU
-qaLgVJL6pKya
------END CERTIFICATE-----"""
-
-[comparison_service]
-enabled=true
-url = "http://app:9000/receive"
-timeout_secs = 5
-
-
 [trace_header]
 header_name = "x-request-id"
 id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or "use_incoming"
-
 
 [server]
 # HTTP Request body limit. Defaults to 32kB
@@ -1414,7 +1382,7 @@ url = "http://localhost:8080"
 enabled = "true"
 
 [grpc_client.unified_connector_service]
-base_url = "http://localhost:9001"
+base_url = "http://localhost:8000"
 connection_timeout = 10
 ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
