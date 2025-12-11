@@ -220,7 +220,7 @@ pub enum WalletAdditionalData {
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(tag = "field_type", rename_all = "snake_case")]
-pub enum PaypalAdditionalData {
+pub enum PaypalAdditionalData { // Exactly one of the three identifiers will always be present
     /// Email linked with paypal account
     Email {
         /// Email linked with paypal account
@@ -237,7 +237,7 @@ pub enum PaypalAdditionalData {
     TelephoneNumber {
         /// mobile number linked to paypal account
         #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
-        telephone_number: Option<MaskedPhoneNumber>,
+        telephone_number: Option<MaskedPhoneNumber>, // Keeping this optional does not affect serialization because the enum is tagged with `field_type`, so the correct variant is chosen explicitly
     },
 }
 
