@@ -55,18 +55,18 @@ while IFS= read -r file; do
   [[ -z "$file" ]] && continue
 
   # Check for breaking changes
-  if grep -iEq "$BREAKING_PATTERNS" "$file" 2>/dev/null; then
+  if grep --ignore-case --extended-regexp --quiet "$BREAKING_PATTERNS" "$file" 2>/dev/null; then
     echo "BREAKING: $file"
-    MATCH_COUNT=$(grep -icE "$BREAKING_PATTERNS" "$file" 2>/dev/null || echo "0")
-    grep -inE "$BREAKING_PATTERNS" "$file" 2>/dev/null | sed 's/^/  /' || true
+    MATCH_COUNT=$(grep --ignore-case --count --extended-regexp "$BREAKING_PATTERNS" "$file" 2>/dev/null || echo "0")
+    grep --ignore-case --line-number --extended-regexp "$BREAKING_PATTERNS" "$file" 2>/dev/null | sed 's/^/  /' || true
     BREAKING=$((BREAKING + MATCH_COUNT))
   fi
 
   # Check for warnings
-  if grep -iEq "$WARNING_PATTERNS" "$file" 2>/dev/null; then
+  if grep --ignore-case --extended-regexp --quiet "$WARNING_PATTERNS" "$file" 2>/dev/null; then
     echo "WARNING: $file"
-    MATCH_COUNT=$(grep -icE "$WARNING_PATTERNS" "$file" 2>/dev/null || echo "0")
-    grep -inE "$WARNING_PATTERNS" "$file" 2>/dev/null | sed 's/^/  /' || true
+    MATCH_COUNT=$(grep --ignore-case --count --extended-regexp "$WARNING_PATTERNS" "$file" 2>/dev/null || echo "0")
+    grep --ignore-case --line-number --extended-regexp "$WARNING_PATTERNS" "$file" 2>/dev/null | sed 's/^/  /' || true
     WARNINGS=$((WARNINGS + MATCH_COUNT))
   fi
 done <<< "$NEW_MIGRATIONS"
