@@ -373,7 +373,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 pub struct JpmorganCaptureRequest {
     capture_method: CapMethod,
     amount: MinorUnit,
-    currency: Option<common_enums::Currency>,
+    currency: common_enums::Currency,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -397,7 +397,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
         Ok(Self {
             capture_method: CapMethod::Now,
             amount: amount_to_capture,
-            currency: Some(item.router_data.request.currency),
+            currency: item.router_data.request.currency,
         })
     }
 }
