@@ -30,7 +30,10 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>, Option<router_request_types::UcsAuthenticationData>),
+        (
+            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
+            Option<router_request_types::UcsAuthenticationData>,
+        ),
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -94,7 +97,10 @@ impl<RCD>
         types::PaymentsPostAuthenticateData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-        (RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>, Option<router_request_types::UcsAuthenticationData>),
+        (
+            RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
+            Option<router_request_types::UcsAuthenticationData>,
+        ),
     > for domain::PostAuthenticate
 where
     RCD: Clone
@@ -113,7 +119,10 @@ where
             types::PaymentsPostAuthenticateData,
             types::PaymentsResponseData,
             RouterGatewayContext,
-            (RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>, Option<router_request_types::UcsAuthenticationData>),
+            (
+                RouterData<Self, types::PaymentsPostAuthenticateData, types::PaymentsResponseData>,
+                Option<router_request_types::UcsAuthenticationData>,
+            ),
         >,
     > {
         match execution_path {
