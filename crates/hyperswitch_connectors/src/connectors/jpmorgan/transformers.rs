@@ -392,8 +392,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     ) -> Result<Self, Self::Error> {
         let amount_to_capture = item.amount;
 
-        /// When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
-        /// isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
+        // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
+        // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
         Ok(Self {
             capture_method: Some(CapMethod::Now),
             amount: amount_to_capture,
@@ -656,8 +656,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
-    /// As per the docs, this is not a required field
-    /// Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
+    // As per the docs, this is not a required field
+    // Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
     pub is_void: bool,
 }
 
@@ -665,7 +665,7 @@ impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
         Ok(Self {
-            is_void: Some(true),
+            is_void: true,
         })
     }
 }
