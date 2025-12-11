@@ -25789,7 +25789,8 @@
           "show_surcharge_breakup_screen",
           "request_external_three_ds_authentication",
           "is_tax_calculation_enabled",
-          "sdk_next_action"
+          "sdk_next_action",
+          "is_guest_customer"
         ],
         "properties": {
           "redirect_url": {
@@ -25848,6 +25849,10 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "indicates whether this is a guest customer flow"
           }
         }
       },
