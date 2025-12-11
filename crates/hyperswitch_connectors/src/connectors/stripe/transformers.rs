@@ -1098,7 +1098,7 @@ impl TryFrom<&enums::BankNames> for StripeBankNames {
 
 fn validate_and_get_setup_future_usage(
     setup_future_usage: Option<common_enums::FutureUsage>,
-    payment_method_type: &Option<common_enums::PaymentMethodType>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
     match payment_method_type {
         Some(common_enums::PaymentMethodType::Affirm)
@@ -2032,7 +2032,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
 
                     let setup_future_usage = validate_and_get_setup_future_usage(
                         item.request.setup_future_usage,
-                        &item.request.payment_method_type,
+                        item.request.payment_method_type,
                     )?;
 
                     (
