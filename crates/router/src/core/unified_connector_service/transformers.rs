@@ -1624,7 +1624,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             }),
             amount: router_data.request.amount,
             currency: currency.into(),
-            minor_amount: router_data.request.amount,
+            minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
                 .email
