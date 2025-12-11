@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix3
+
+### Revert
+
+- "feat(payment_links): Add Validation On Not Allowing Custom T&C When Domain is set to Hyperswitch Hosted" ([#10621](https://github.com/juspay/hyperswitch/pull/10621)) ([`b50977b`](https://github.com/juspay/hyperswitch/commit/b50977b1cd785263992a69664b31299b1b0ecb8e))
+
+**Full Changelog:** [`2025.12.03.0-hotfix2...2025.12.03.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix2...2025.12.03.0-hotfix3)
+
+- - -
+
 ## 2025.12.03.0-hotfix2
 
 ### Bug Fixes
