@@ -797,20 +797,18 @@ pub enum BankDebitData {
     },
 }
 
-impl TryFrom<BankDebitData> for BankDebitDetailsPaymentMethod {
-    type Error = error_stack::Report<common_utils::errors::ValidationError>;
-
-    fn try_from(value: BankDebitData) -> Result<Self, Self::Error> {
-        match value {
-            BankDebitData::AchBankDebit {
+impl BankDebitData {
+    pub fn get_bank_debit_details(self) -> Option<BankDebitDetailsPaymentMethod> {
+        match self {
+            Self::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name: _,
+                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
-            } => Ok(Self::AchBankDebit {
+            } => Some(BankDebitDetailsPaymentMethod::AchBankDebit {
                 masked_account_number: account_number
                     .peek()
                     .chars()
@@ -820,8 +818,6 @@ impl TryFrom<BankDebitData> for BankDebitDetailsPaymentMethod {
                     .chars()
                     .rev()
                     .collect::<String>(),
-                // Store the last 4 digits of routing number, the last digit is a check digit
-                // first 4 digits identify processing region, so are not stored
                 masked_routing_number: routing_number
                     .peek()
                     .chars()
@@ -831,21 +827,16 @@ impl TryFrom<BankDebitData> for BankDebitDetailsPaymentMethod {
                     .chars()
                     .rev()
                     .collect::<String>(),
+                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             }),
-            BankDebitData::SepaBankDebit { .. }
-            | BankDebitData::SepaGuarenteedBankDebit { .. }
-            | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(error_stack::Report::new(
-                common_utils::errors::ValidationError::InvalidValue {
-                    message:
-                        "Unsupported bank debit type for conversion to BankDebitDetailsPaymentMethod"
-                            .to_string(),
-                },
-            )),
+            Self::SepaBankDebit { .. }
+            | Self::SepaGuarenteedBankDebit { .. }
+            | Self::BecsBankDebit { .. }
+            | Self::BacsBankDebit { .. } => None,
         }
     }
 }
@@ -2512,6 +2503,7 @@ pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         masked_account_number: String,
         masked_routing_number: String,
+        card_holder_name: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,

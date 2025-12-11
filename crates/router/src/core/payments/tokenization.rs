@@ -306,17 +306,9 @@ where
                     ) => Some(domain::PaymentMethodsData::WalletDetails(
                         get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
-                    (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => {
-                        Some(domain::PaymentMethodsData::BankDebit(
-                            domain::BankDebitDetailsPaymentMethod::try_from(bank_debit_data)
-                                .change_context(errors::ApiErrorResponse::NotImplemented {
-                                    message: errors::NotImplementedMessage::Reason(
-                                        "payment_method_data storage is only supported for ACH"
-                                            .to_string(),
-                                    ),
-                                })?,
-                        ))
-                    }
+                    (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
+                        .get_bank_debit_details()
+                        .map(domain::PaymentMethodsData::BankDebit),
                     _ => None,
                 };
 

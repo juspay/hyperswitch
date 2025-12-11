@@ -4847,14 +4847,14 @@ pub async fn get_pm_list_context_for_bank_debit(
                 };
 
                 let token_data = PaymentTokenData::AuthBankDebit(token_data);
-                let retval = PaymentMethodListContext {
+                let payment_method_list_context = PaymentMethodListContext {
                     card_details: None,
                     #[cfg(feature = "payouts")]
                     bank_transfer_details: None,
                     hyperswitch_token_data: is_payment_associated.then_some(token_data),
                 };
 
-                Ok(Some(retval))
+                Ok(Some(payment_method_list_context))
             }
             domain::PaymentMethodsData::BankDebit(_) => {
                 let token_data = PaymentTokenData::BankDebit(storage::BankDebitTokenData {
