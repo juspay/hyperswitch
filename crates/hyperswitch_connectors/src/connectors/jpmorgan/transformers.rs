@@ -374,8 +374,6 @@ pub struct JpmorganCaptureRequest {
     capture_method: Option<CapMethod>,
     amount: MinorUnit,
     currency: Option<common_enums::Currency>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_amount_final: Option<bool>,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -392,14 +390,14 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     fn try_from(
         item: &JpmorganRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let total_amount = item.router_data.request.minor_payment_amount;
         let amount_to_capture = item.amount;
 
+        /// When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
+        /// isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
         Ok(Self {
             capture_method: Some(CapMethod::Now),
             amount: amount_to_capture,
             currency: Some(item.router_data.request.currency),
-            is_amount_final: (total_amount > amount_to_capture).then_some(true),
         })
     }
 }
@@ -658,7 +656,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
-    pub is_void: Option<bool>,
+    /// As per the docs, this is not a required field
+    /// Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
+    pub is_void: bool,
 }
 
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
