@@ -3,8 +3,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::payouts::{
     PayoutActionRequest, PayoutCreateRequest, PayoutCreateResponse, PayoutLinkInitiateRequest,
     PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2,
-    PayoutListResponse, PayoutRetrieveRequest, PayoutsAggregateResponse, PayoutsManualUpdateRequest,
-    PayoutsManualUpdateResponse,
+    PayoutListResponse, PayoutRetrieveRequest, PayoutsAggregateResponse,
+    PayoutsManualUpdateRequest, PayoutsManualUpdateResponse,
 };
 
 impl ApiEventMetric for PayoutRetrieveRequest {
