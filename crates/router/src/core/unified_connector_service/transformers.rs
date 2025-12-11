@@ -159,6 +159,7 @@ impl
             customer_id: None,
             address: None,
             metadata: HashMap::new(),
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -249,9 +250,11 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            connector_order_reference_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
+            billing_descriptor: None,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -314,7 +317,6 @@ impl
                 .as_ref()
                 .and_then(|pmt| pmt.get_payment_method_token())
                 .map(ExposeInterface::expose),
-            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -334,6 +336,8 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            connector_metadata: HashMap::new(),
+            enable_partial_authorization: None,
         })
     }
 }
@@ -367,6 +371,9 @@ impl
 
             metadata: HashMap::new(),
             webhook_url: None,
+            connector_metadata: HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
+            state: None,
         })
     }
 }
@@ -417,6 +424,7 @@ impl
                 .map(|phone| phone.peek().to_string()),
             address: None,
             metadata: HashMap::new(),
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -496,6 +504,10 @@ impl
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
+            connector_metadata: HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
+            metadata: HashMap::new(),
+            setup_future_usage: None,
         })
     }
 }
@@ -536,6 +548,8 @@ impl
             metadata: HashMap::new(),
             state: None,
             browser_info: None,
+            connector_metadata: HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -625,6 +639,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -714,6 +729,8 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            connector_metadata: HashMap::new(),
+            connector_order_reference_id: None,
         })
     }
 }
@@ -801,6 +818,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -847,7 +865,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .get_amount_as_i64(),
             currency: currency.into(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            connector_metadata: router_data
+            metadata: router_data
                 .request
                 .metadata
                 .as_ref()
@@ -866,6 +884,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 },
             ),
             state: None,
+            connector_metadata: HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -951,6 +971,7 @@ impl
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
+            billing_descriptor: None,
             payment_method,
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
@@ -1005,6 +1026,9 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
+            connector_metadata: HashMap::new(),
+            connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1093,6 +1117,7 @@ impl
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
+            billing_descriptor: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -1170,6 +1195,9 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            connector_metadata: HashMap::new(),
+            connector_order_reference_id: router_data.request.order_id.clone(),
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1237,6 +1265,7 @@ impl
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
+            billing_descriptor: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -1252,7 +1281,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1331,6 +1359,9 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
+            connector_metadata: HashMap::new(),
+            connector_order_reference_id: router_data.request.order_id.clone(),
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1388,6 +1419,15 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
+                match payment_method_token {
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
+                }
+            }),
+            billing_descriptor: None,
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1460,6 +1500,8 @@ impl
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
+            order_id: None,
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -1524,6 +1566,7 @@ impl
                 )),
             }),
             mandate_reference,
+            shipping_cost: None,
             amount: router_data.request.amount,
             currency: currency.into(),
             minor_amount: router_data.request.amount,
@@ -1566,6 +1609,7 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -3273,7 +3317,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
         });
 
         // Convert connector_metadata to gRPC format
-        let metadata = router_data
+        let connector_metadata = router_data
             .request
             .connector_metadata
             .as_ref()
@@ -3351,7 +3395,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                     )
                 })?
                 .map(i32::from),
-            metadata,
+            connector_metadata,
             refund_metadata,
             browser_info: router_data
                 .request
@@ -3366,6 +3410,9 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 })?,
             state,
             merchant_account_metadata,
+            metadata: HashMap::new(),
+            payment_method_type: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3446,6 +3493,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         .unwrap_or_default()
                 })
                 .unwrap_or_default(),
+            payment_method_type: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3540,7 +3589,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             browser_info,
             amount: router_data.request.amount,
             currency: currency.map(|c| c.into()),
-            connector_metadata: router_data
+            metadata: router_data
                 .request
                 .metadata
                 .as_ref()
@@ -3552,6 +3601,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 })
                 .unwrap_or_default(),
             state: None,
+            connector_metadata: HashMap::new(),
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -3714,6 +3765,8 @@ impl
             merchant_account_metadata: HashMap::new(),
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
+            connector_metadata: HashMap::new(),
+            metadata: HashMap::new(),
         })
     }
 }
