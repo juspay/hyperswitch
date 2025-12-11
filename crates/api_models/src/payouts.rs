@@ -1119,6 +1119,12 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PayoutsManualUpdateRequest {
     /// The identifier for the payout

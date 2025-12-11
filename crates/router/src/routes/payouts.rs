@@ -569,6 +569,63 @@ pub fn populate_browser_info_for_payouts(
     Ok(())
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payouts_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
+            get_aggregates_for_payouts(state, platform, None, req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn get_payouts_aggregates_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.clone().into();
+            get_aggregates_for_payouts(
+                state,
+                platform,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(feature = "olap", feature = "payouts"))]
 impl GetLockingInput for payout_types::PayoutsManualUpdateRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction

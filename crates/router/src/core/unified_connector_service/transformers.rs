@@ -257,7 +257,7 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .map(|(k, v)| (k.clone(), v.to_string()))
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
@@ -387,6 +387,13 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        // Populate state with access token if available (same pattern as Authorize flow)
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -395,9 +402,9 @@ impl
             }),
             amount: router_data.request.minor_amount.get_amount_as_i64(),
             currency: currency.into(),
-
             metadata: HashMap::new(),
             webhook_url: None,
+            state,
         })
     }
 }
@@ -431,7 +438,11 @@ impl
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
             merchant_account_metadata: HashMap::new(),
-            customer_name: router_data.request.description.clone(),
+            customer_name: router_data
+                .request
+                .name
+                .clone()
+                .map(ExposeInterface::expose),
             email: router_data
                 .request
                 .email
@@ -845,8 +856,23 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
+
         Ok(Self {
-            merchant_reference_payment_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -877,7 +903,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     capture_reference: multiple_capture_request_data.capture_reference.clone(),
                 },
             ),
-            state: None,
+            state,
+            merchant_account_metadata,
         })
     }
 }
@@ -3315,6 +3342,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 })?,
             state,
             merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3385,6 +3413,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
                 .transpose()?
                 .unwrap_or_default(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3458,6 +3487,21 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .currency
             .map(payments_grpc::Currency::foreign_try_from)
             .transpose()?;
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .and_then(|val| val.peek().as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<HashMap<String, String>>()
+            })
+            .unwrap_or_default();
 
         Ok(Self {
             request_ref_id: Some(Identifier {
@@ -3486,7 +3530,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(convert_value_map_to_hashmap)
                 .transpose()?
                 .unwrap_or_default(),
-            state: None,
+            state,
+            merchant_account_metadata,
         })
     }
 }

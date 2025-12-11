@@ -188,7 +188,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsAccounts
             | Flow::PayoutsConfirm
             | Flow::PayoutsManualUpdate
-            | Flow::PayoutLinkInitiate => Self::Payouts,
+            | Flow::PayoutLinkInitiate
+            | Flow::PayoutsAggregate => Self::Payouts,
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync

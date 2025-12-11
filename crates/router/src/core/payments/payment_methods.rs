@@ -56,8 +56,12 @@ pub async fn list_payment_methods(
 
     let customer_payment_methods = match &payment_intent.customer_id {
         Some(customer_id) => Some(
-            payment_methods::list_customer_payment_methods_core(&state, &platform, customer_id)
-                .await?,
+            payment_methods::list_customer_payment_methods_core(
+                &state,
+                platform.get_provider(),
+                customer_id,
+            )
+            .await?,
         ),
         None => None,
     };

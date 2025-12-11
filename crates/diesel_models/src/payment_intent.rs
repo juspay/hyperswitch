@@ -229,7 +229,7 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Custom text colour for payment link's handle confirm button
@@ -405,6 +405,8 @@ pub struct PaymentIntentNew {
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub tokenization: Option<common_enums::Tokenization>,
+    pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
 #[cfg(feature = "v1")]
