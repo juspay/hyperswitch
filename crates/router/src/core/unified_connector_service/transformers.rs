@@ -3336,7 +3336,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.clone().expose().clone()),
             payment_method_type: None,
-            test_mode: router_data.test_mode,
             capture_method: router_data
                 .request
                 .capture_method
@@ -3415,7 +3414,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             )?,
             refund_reason: router_data.request.reason.clone(),
             payment_method_type: None,
-            test_mode: router_data.test_mode,
             browser_info: router_data
                 .request
                 .browser_info
@@ -3527,7 +3525,6 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .unwrap_or_default();
 
         Ok(Self {
-            merchant_account_metadata: HashMap::new(),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
