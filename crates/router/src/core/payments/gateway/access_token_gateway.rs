@@ -99,6 +99,7 @@ where
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account.clone(),
                 &platform,
+                router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -141,16 +142,6 @@ where
                         create_access_token_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
-
-                // Update router_data with access token
-                match &access_token_result {
-                    Ok(access_token) => {
-                        router_data.access_token = Some(access_token.clone());
-                    }
-                    Err(_) => {
-                        // Error case - access_token remains None
-                    }
-                }
 
                 router_data.response = access_token_result;
                 router_data.connector_http_status_code = Some(status_code);

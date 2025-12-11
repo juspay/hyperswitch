@@ -4211,6 +4211,8 @@ merchant_secret = "Source verification key"
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking"
 [volt.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"
@@ -5101,7 +5103,7 @@ type = "Text"
 name = "merchant_category_code"
 label = "Merchant Category Code"
 placeholder = "Enter Merchant Category Code"
-required = true
+required=false
 type = "Text"
 
 [ctp_visa.metadata.merchant_country_code]
@@ -5385,11 +5387,154 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[worldpayxml.debit]]
 payment_method_type = "UnionPay"
+[[worldpayxml.wallet]]
+  payment_method_type = "google_pay"
+[[worldpayxml.wallet]]
+  payment_method_type = "apple_pay"
+
+[[worldpayxml.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[worldpayxml.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.jwt_mac_key]
+name="jwt_mac_key"
+label="JWT MAC KEY"
+placeholder="Enter your JWT MAC Key"
+required=false
+type="Text"
 
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
@@ -5623,6 +5768,8 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
+[[payload.bank_debit]]
+payment_method_type = "ach"
 
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
 processing_account_id = "processing_account_id"
@@ -6384,6 +6531,24 @@ options=["CRYPTOGRAM_3DS"]
 api_key="Username"
 api_secret="Password"
 key1="Account ID"
+[zift.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[zift.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[zift.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
@@ -6399,7 +6564,7 @@ key1 = "Merchant Account Id"
 api_key = "API Key"
 [vgs]
 [vgs.connector_auth.SignatureKey]
-  api_key="Username"
-  key1="Password"
+  api_key="Client Id"
+  key1="Client Secret"
   api_secret="Vault Id"
 

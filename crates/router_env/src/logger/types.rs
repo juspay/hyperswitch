@@ -269,8 +269,8 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
-    /// Subscription get plans flow,
-    GetPlansForSubscription,
+    /// Subscription get items flow,
+    GetSubscriptionItemsForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
     /// Subscription create and confirm flow,
@@ -698,6 +698,8 @@ pub enum Flow {
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
+    /// Payouts aggregates flow
+    PayoutsAggregate,
 }
 
 /// Trait for providing generic behaviour to flow metric

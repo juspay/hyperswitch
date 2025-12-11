@@ -94,6 +94,7 @@ where
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
                 &platform,
+                router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -134,16 +135,7 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
                 router_data.response = router_data_response;
-                router_data.payment_method_token = Some(
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(
-                        masking::Secret::new(pm_token_create_response.payment_method_token.clone()),
-                    ),
-                );
                 router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, pm_token_create_response))
