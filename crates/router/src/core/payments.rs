@@ -6024,7 +6024,7 @@ where
                         ))))
                     } else {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Predecrypted token config is not enabled for ApplePay. Enable metadata.applepay_combined.support_predecrypted_token in your merchant connector account.".to_string(),
+                            message: "Predecrypted token is not enabled for ApplePay. Enable metadata.applepay_combined.support_predecrypted_token in your merchant connector account.".to_string(),
                         }
                         .into())
                     }
@@ -6145,7 +6145,7 @@ where
                         ))))
                     } else {
                         Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Predecrypted token config is not enabled for GooglePay. Enable metadata.google_pay.support_predecrypted_token in your merchant connector account.".to_string(),
+                            message: "Predecrypted token is not enabled for GooglePay. Enable metadata.google_pay.support_predecrypted_token in your merchant connector account.".to_string(),
                         }
                         .into())
                     }
