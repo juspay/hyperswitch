@@ -58,10 +58,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
-            (),
-        ),
+        RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -86,6 +83,7 @@ where
             merchant_order_reference_id,
         )
         .await
+        .map(|(router_data, _)| router_data)
     }
 }
 

@@ -61,10 +61,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
             RouterData<Self, ConnectorCustomerData, types::PaymentsResponseData>,
-            (),
-        ),
         ConnectorError,
     > {
         let connector_name = router_data.connector.clone();
@@ -133,6 +130,7 @@ where
             },
         ))
         .await
+        .map(|(router_data, _)| router_data)
         .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }

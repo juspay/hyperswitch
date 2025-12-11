@@ -59,10 +59,7 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
-            RouterData<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
-            (),
-        ),
+        RouterData<Self, types::SetupMandateRequestData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -144,6 +141,7 @@ where
             },
         ))
         .await
+        .map(|(router_data, _)| router_data)
         .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }

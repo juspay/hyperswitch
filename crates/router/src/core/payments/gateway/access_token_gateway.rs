@@ -150,6 +150,7 @@ where
             },
         ))
         .await
+        .map(|(router_data, _)| router_data)
         .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
