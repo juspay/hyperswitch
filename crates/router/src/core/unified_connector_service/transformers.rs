@@ -257,7 +257,7 @@ impl
             .and_then(|val| val.as_object())
             .map(|map| {
                 map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .map(|(k, v)| (k.clone(), v.to_string()))
                     .collect::<HashMap<String, String>>()
             })
             .unwrap_or_default();
