@@ -621,9 +621,9 @@ diesel::table! {
         feature -> Nullable<Varchar>,
         #[max_length = 64]
         standardised_code -> Nullable<Varchar>,
-        #[max_length = 512]
+        #[max_length = 1024]
         description -> Nullable<Varchar>,
-        #[max_length = 512]
+        #[max_length = 1024]
         user_guidance_message -> Nullable<Varchar>,
     }
 }
