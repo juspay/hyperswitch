@@ -1300,42 +1300,6 @@ pub async fn call_unified_connector_service_pre_authenticate(
     .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
 }
 
-pub async fn handle_pre_authenticate_connector_call(
-    state: &SessionState,
-    router_data: types::RouterData<
-        api::PreAuthenticate,
-        types::PaymentsPreAuthenticateData,
-        types::PaymentsResponseData,
-    >,
-    connector: &api::ConnectorData,
-    _gateway_context: &gateway_context::RouterGatewayContext,
-) -> RouterResult<
-    types::RouterData<
-        api::PreAuthenticate,
-        types::PaymentsPreAuthenticateData,
-        types::PaymentsResponseData,
-    >,
-> {
-    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-        api::PreAuthenticate,
-        types::PaymentsPreAuthenticateData,
-        types::PaymentsResponseData,
-    > = connector.connector.get_connector_integration();
-    // TODO: Handle gateway_context later
-    let resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-        // gateway_context.clone(),
-    )
-    .await
-    .to_payment_failed_response()?;
-    Ok(resp)
-}
-
 #[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_repeat_payment(
     router_data: &mut types::RouterData<
