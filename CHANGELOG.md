@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix4
+
+### Features
+
+- **router:** Add `is_guest_customer` in payment method list response ([#10628](https://github.com/juspay/hyperswitch/pull/10628)) ([`b03ac7c`](https://github.com/juspay/hyperswitch/commit/b03ac7c8faec2b7c9ea928cb70311e818f956453))
+
+### Bug Fixes
+
+- **Config:** [Peach Payments] Production Base URL ([#10639](https://github.com/juspay/hyperswitch/pull/10639)) ([`15c4472`](https://github.com/juspay/hyperswitch/commit/15c4472dc14cdaa8ba6c4301ab517676e817b2c5))
+- Use proper masked deserialize method to deserialize ucs response ([#10627](https://github.com/juspay/hyperswitch/pull/10627)) ([`f239ab7`](https://github.com/juspay/hyperswitch/commit/f239ab79122f6c24cd6c86e2c5759ba8083c88dd))
+
+**Full Changelog:** [`2025.12.03.0-hotfix3...2025.12.03.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix3...2025.12.03.0-hotfix4)
+
+- - -
+
 ## 2025.12.03.0-hotfix3
 
 ### Revert
