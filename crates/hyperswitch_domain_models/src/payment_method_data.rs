@@ -134,6 +134,7 @@ pub struct Card {
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -173,6 +174,7 @@ pub struct CardDetailsForNetworkTransactionId {
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -187,6 +189,7 @@ pub struct CardDetail {
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
@@ -215,7 +218,7 @@ impl CardDetailsForNetworkTransactionId {
 
         Some((
             mandate_reference_id,
-            network_transaction_id_and_card_details.clone().into(),
+            (*network_transaction_id_and_card_details.clone()).into(),
         ))
     }
 }
@@ -230,6 +233,7 @@ impl From<&Card> for CardDetail {
             card_network: item.card_network.to_owned(),
             card_type: item.card_type.to_owned(),
             card_issuing_country: item.card_issuing_country.to_owned(),
+            card_issuing_country_code: item.card_issuing_country_code.to_owned(),
             bank_code: item.bank_code.to_owned(),
             nick_name: item.nick_name.to_owned(),
             card_holder_name: item.card_holder_name.to_owned(),
@@ -248,6 +252,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetwor
             card_network: card_details_for_nti.card_network,
             card_type: card_details_for_nti.card_type,
             card_issuing_country: card_details_for_nti.card_issuing_country,
+            card_issuing_country_code: card_details_for_nti.card_issuing_country_code,
             bank_code: card_details_for_nti.bank_code,
             nick_name: card_details_for_nti.nick_name,
             card_holder_name: card_details_for_nti.card_holder_name,
@@ -1082,6 +1087,7 @@ impl
             card_network,
             card_type,
             card_issuing_country,
+            card_issuing_country_code,
             bank_code,
             nick_name,
         } = value;
@@ -1095,6 +1101,7 @@ impl
             card_network,
             card_type,
             card_issuing_country,
+            card_issuing_country_code,
             bank_code,
             nick_name,
             card_holder_name,
@@ -2455,6 +2462,7 @@ fn saved_in_locker_default() -> bool {
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
+    pub issuer_country_code: Option<String>,
     pub expiry_month: Option<Secret<String>>,
     pub expiry_year: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
@@ -2520,6 +2528,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {
             issuer_country: item.card_issuing_country.map(|c| c.to_string()),
+            issuer_country_code: item.card_issuing_country_code.map(|c| c.to_string()),
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
@@ -2637,6 +2646,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: card_data.card_network.clone(),
             card_issuer: None,
             card_type: None,
@@ -2655,6 +2665,7 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: network_token_data.card_network.clone(),
             card_issuer: None,
             card_type: None,
@@ -2687,6 +2698,7 @@ impl
                 card_network,
                 card_issuer,
                 card_issuing_country,
+                card_issuing_country_code,
                 card_type,
                 ..
             },
@@ -2721,6 +2733,7 @@ impl
             card_network,
             card_type,
             card_issuing_country,
+            card_issuing_country_code,
             bank_code: None,
             nick_name,
             co_badged_card_data,
@@ -2781,6 +2794,7 @@ impl
             card_network: card_details.card_network,
             card_type: card_details.card_type,
             card_issuing_country: card_details.issuer_country,
+            card_issuing_country_code: card_details.issuer_country_code,
             bank_code: None,
             nick_name: card_details.nick_name,
             co_badged_card_data,

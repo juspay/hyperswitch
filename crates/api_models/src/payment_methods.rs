@@ -410,6 +410,9 @@ impl PaymentMethodCreate {
                     card_holder_name: payment_method_migrate_card.card_holder_name.clone(),
                     nick_name: payment_method_migrate_card.nick_name.clone(),
                     card_issuing_country: payment_method_migrate_card.card_issuing_country.clone(),
+                    card_issuing_country_code: payment_method_migrate_card
+                        .card_issuing_country_code
+                        .clone(),
                     card_network: payment_method_migrate_card.card_network.clone(),
                     card_issuer: payment_method_migrate_card.card_issuer.clone(),
                     card_type: payment_method_migrate_card.card_type.clone(),
@@ -559,6 +562,9 @@ pub struct CardDetail {
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
+
+    /// Card Issuing Country Code
+    pub card_issuing_country_code: Option<String>,
 
     /// Card's Network
     #[schema(value_type = Option<CardNetwork>)]
@@ -714,6 +720,9 @@ pub struct MigrateCardDetail {
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
 
+    /// Card Issuing Country Code
+    pub card_issuing_country_code: Option<String>,
+
     /// Card's Network
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -750,6 +759,9 @@ pub struct MigrateNetworkTokenData {
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
+
+    /// Card Issuing Country
+    pub card_issuing_country_code: Option<String>,
 
     /// Card's Network
     #[schema(value_type = Option<CardNetwork>)]
@@ -804,6 +816,10 @@ pub struct CardDetailUpdate {
     #[schema(value_type = Option<String>, example = "US")]
     pub issuer_country: Option<String>,
 
+    /// The country code where that particular card was issued
+    #[schema(value_type = Option<String>, example = "US")]
+    pub issuer_country_code: Option<String>,
+
     /// The card network
     #[schema(value_type = Option<String>, example = "VISA")]
     pub card_network: Option<common_enums::CardNetwork>,
@@ -832,6 +848,7 @@ impl CardDetailUpdate {
                 .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
             card_cvc: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: None,
             card_issuer: None,
             card_type: None,
@@ -1110,6 +1127,7 @@ pub struct ExternalVaultTokenData {
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
+    pub issuer_country_code: Option<String>,
     pub expiry_month: Option<masking::Secret<String>>,
     pub expiry_year: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
@@ -1300,6 +1318,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             nick_name: card.nick_name.map(masking::Secret::new),
             card_cvc: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network,
             card_issuer: None,
             card_type: None,
@@ -1312,6 +1331,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
     pub issuer_country: Option<String>,
+    pub issuer_country_code: Option<String>,
     pub last4_digits: Option<String>,
     #[serde(skip)]
     #[schema(value_type=Option<String>)]
@@ -1396,6 +1416,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_network: item.card_network,
             card_type: item.card_type,
             card_issuing_country: item.issuer_country,
+            card_issuing_country_code: item.issuer_country_code,
             bank_code: None,
             last4: item.last4_digits,
             card_isin: item.card_isin,
@@ -1454,6 +1475,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
         Self {
             scheme: None,
             issuer_country: item.issuer_country,
+            issuer_country_code: item.issuer_country_code,
             last4_digits: item.last4_digits,
             card_number: None,
             expiry_month: item.expiry_month,
@@ -1529,6 +1551,7 @@ impl From<CardDetail> for CardDetailFromLocker {
             .map(|card_network| card_network.to_string());
         Self {
             issuer_country: item.card_issuing_country,
+            issuer_country_code: item.card_issuing_country_code,
             last4_digits: Some(item.card_number.get_last4()),
             card_number: Some(item.card_number),
             expiry_month: Some(item.card_exp_month),
@@ -1574,6 +1597,7 @@ impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaym
     ) -> Self {
         Self {
             issuer_country: item.issuer_country,
+            issuer_country_code: item.issuer_country_code,
             last4_digits: item.last4_digits,
             expiry_month: item.expiry_month,
             expiry_year: item.expiry_year,
@@ -3034,6 +3058,7 @@ impl
                 card_type: None,
                 card_issuer: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 nick_name: record.nick_name.clone(),
             }),
             network_token: Some(MigrateNetworkTokenDetail {
@@ -3050,6 +3075,7 @@ impl
                     card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_network: None,
                     card_issuer: None,
                     card_type: None,
@@ -3146,6 +3172,9 @@ pub struct TokenizeCardRequest {
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
 
+    /// Card Issuing Country
+    pub card_issuing_country_code: Option<String>,
+
     /// Card's Network
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -3207,6 +3236,7 @@ impl From<&Card> for MigrateCardDetail {
                 .as_ref()
                 .map(|name| masking::Secret::new(name.clone())),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: None,
             card_issuer: None,
             card_type: None,

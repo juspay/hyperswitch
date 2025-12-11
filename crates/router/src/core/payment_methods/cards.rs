@@ -375,6 +375,7 @@ impl PaymentMethodsController for PmCards<'_> {
             card_holder_name: network_token_data.card_holder_name.clone(),
             nick_name: network_token_data.nick_name.clone(),
             card_issuing_country: network_token_data.card_issuing_country.clone(),
+            card_issuing_country_code: network_token_data.card_issuing_country_code.clone(),
             card_network: network_token_data.card_network.clone(),
             card_issuer: network_token_data.card_issuer.clone(),
             card_type: network_token_data.card_type.clone(),
@@ -1220,6 +1221,9 @@ impl PaymentMethodsController for PmCards<'_> {
                             issuer_country: card
                                 .card_issuing_country
                                 .or(existing_pm_data.issuer_country),
+                            issuer_country_code: card
+                                .card_issuing_country_code
+                                .or(existing_pm_data.issuer_country_code),
                             card_isin: Some(card.card_number.get_card_isin()),
                             card_number: Some(card.card_number),
                             expiry_month: Some(card.card_exp_month),
@@ -1535,6 +1539,9 @@ pub async fn add_payment_method_data(
                             issuer_country: card_info
                                 .as_ref()
                                 .and_then(|ci| ci.card_issuing_country.clone()),
+                            issuer_country_code: card_info
+                                .as_ref()
+                                .and_then(|ci| ci.country_code.clone()),
                             last4_digits: Some(card.card_number.get_last4()),
                             expiry_month: Some(card.card_exp_month),
                             expiry_year: Some(card.card_exp_year),
@@ -1775,6 +1782,9 @@ pub async fn update_customer_payment_method(
                 issuer_country: card_update
                     .issuer_country
                     .or(existing_card_data.issuer_country),
+                issuer_country_code: card_update
+                    .issuer_country_code
+                    .or(existing_card_data.issuer_country_code),
                 card_number: existing_card_data.card_number,
                 expiry_month: card_update
                     .card_exp_month

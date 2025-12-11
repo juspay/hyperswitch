@@ -775,6 +775,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
+                        card_issuing_country_code: card.card_issuing_country_code.clone(),
                         card_network: card_network.clone(),
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),

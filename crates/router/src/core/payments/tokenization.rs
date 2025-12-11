@@ -670,6 +670,9 @@ where
                                     issuer_country: card
                                         .card_issuing_country
                                         .or(existing_pm_data.issuer_country),
+                                    issuer_country_code: card
+                                        .card_issuing_country_code
+                                        .or(existing_pm_data.issuer_country_code),
                                     card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
@@ -1024,6 +1027,7 @@ async fn skip_saving_card_in_locker(
             let card_detail = CardDetailFromLocker {
                 scheme: None,
                 issuer_country: card.card_issuing_country.clone(),
+                issuer_country_code: card.card_issuing_country_code.clone(),
                 last4_digits: last4_digits.clone(),
                 card_number: None,
                 expiry_month: Some(card.card_exp_month.clone()),
@@ -1326,6 +1330,7 @@ pub async fn save_network_token_in_locker(
                             card_holder_name: None,
                             nick_name: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             card_network: Some(token_response.card_brand.clone()),
                             card_issuer: None,
                             card_type: None,
