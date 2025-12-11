@@ -921,7 +921,7 @@ impl RevenueRecoveryAttempt {
             error_message,
             connector_name,
             REVENUE_RECOVERY,
-            crate::consts::DEFAULT_SUBFLOW_STR,
+            consts::DEFAULT_SUBFLOW_STR,
         )
         .await;
 
