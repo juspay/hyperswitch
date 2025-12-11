@@ -2300,36 +2300,6 @@ impl ConnectorSpecifications for Cybersource {
             }
         }
     }
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        match (current_flow, pre_processing_flow_name) {
-            (api::CurrentFlowInfo::Authorize { .. }, _) => {
-                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
-                true
-            }
-            (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::Authenticate,
-            )
-            | (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::PostAuthenticate,
-            ) => {
-                (matches!(
-                    preprocessing_flow_response.response,
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && preprocessing_flow_response.attempt_status
-                    != common_enums::AttemptStatus::AuthenticationFailed)
-            }
-        }
-    }
     fn get_alternate_flow_if_needed(
         &self,
         current_flow: api::CurrentFlowInfo<'_>,
@@ -2347,6 +2317,56 @@ impl ConnectorSpecifications for Cybersource {
             }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => self.is_3ds_setup_required(request_data, *auth_type),
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
+    /// Check if authentication flow is required
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no post_authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => true,
+                    Some(_) | None => false,
+                }
+            }
+        }
+    }
+    /// Check if post-authentication flow is required
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no post_authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => false,
+                    Some(_) | None => true,
+                }
+            }
         }
     }
 }
