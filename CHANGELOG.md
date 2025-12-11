@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.10.0-hotfix1
+
+### Bug Fixes
+
+- [Volt] Production URL for Refunds Flow ([#10637](https://github.com/juspay/hyperswitch/pull/10637)) ([`519876a`](https://github.com/juspay/hyperswitch/commit/519876add848962290bbfe5a387ab49c144492fd))
+
+**Full Changelog:** [`2025.12.10.0...2025.12.10.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.10.0...2025.12.10.0-hotfix1)
+
+- - -
+
 ## 2025.12.10.0
 
 ### Features
