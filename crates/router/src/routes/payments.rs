@@ -154,6 +154,42 @@ pub async fn recovery_payments_create(
 }
 
 #[cfg(feature = "v2")]
+pub async fn migrate_intent_status(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetIntentRequest;
+    let flow = Flow::RevenueRecoveryMigrate;
+    let payload = PaymentsGetIntentRequest {
+        id: path.into_inner(),
+    };
+    let global_payment_id = payload.id.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req.clone(),
+        payload,
+        |state, auth: auth::AuthenticationData, req_payload, req_state| {
+            let platform = auth.clone().into();
+            recovery::migrate_core(
+                state.to_owned(),
+                req_state,
+                platform,
+                auth.profile,
+                req_payload,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateIntent, payment_id))]
 pub async fn payments_create_intent(
     state: web::Data<app::AppState>,

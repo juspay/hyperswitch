@@ -2130,6 +2130,19 @@ pub struct PaymentAttemptRecordResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryMigrationResponse {
+    /// Unique identifier for the payment.
+    #[schema(
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub id: id_type::GlobalPaymentId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryPaymentsResponse {
     /// Unique identifier for the payment.
     #[schema(

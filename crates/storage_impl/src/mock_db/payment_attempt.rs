@@ -59,6 +59,17 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    #[cfg(feature = "v2")]
+    async fn update_attempts_by_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        ids: Vec<id_type::GlobalAttemptId>,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<usize, Self::Error> {
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,

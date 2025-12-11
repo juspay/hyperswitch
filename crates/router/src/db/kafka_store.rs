@@ -1512,6 +1512,19 @@ impl PaymentAttemptInterface for KafkaStore {
         Ok(attempt)
     }
 
+    #[cfg(feature = "v2")]
+    async fn update_attempts_by_id(
+        &self,
+        merchant_key_store: &domain::MerchantKeyStore,
+        ids: Vec<id_type::GlobalAttemptId>,
+        payment_attempt: storage::PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<usize, Self::Error> {
+        self.diesel_store
+            .update_attempts_by_id(merchant_key_store, ids, payment_attempt, storage_scheme)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,

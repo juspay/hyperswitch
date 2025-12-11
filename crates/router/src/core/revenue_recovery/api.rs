@@ -370,3 +370,130 @@ pub async fn custom_revenue_recovery_core(
         response,
     ))
 }
+
+pub async fn migrate_core(
+    state: SessionState,
+    req_state: ReqState,
+    platform: Platform,
+    profile: domain::Profile,
+    request: api_models::payments::PaymentsGetIntentRequest,
+) -> RouterResponse<payments_api::RecoveryMigrationResponse> {
+    let store = state.store.as_ref();
+    let db = &*state.store;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let cell_id = state.conf.cell_information.id.clone();
+    let intent = store
+        .find_payment_intent_by_id(
+            &request.id.clone(),
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let enable_partial_auth = intent.enable_partial_authorization;
+    match *enable_partial_auth {
+        true => {
+            let group_id = id_type::GlobalAttemptGroupId::generate(&cell_id);
+            let active_attempt_id_type = common_enums::ActiveAttemptIDType::AttemptID;
+
+            let payment_intent_update =
+        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::AttemptGroupUpdate {
+            updated_by: platform
+                .get_processor()
+                .get_account()
+                .storage_scheme
+                .to_string(),
+            active_attempt_id_type: common_enums::ActiveAttemptIDType::GroupID,
+            active_attempts_group_id: group_id.clone(),
+        };
+            let updated_payment_intent: hyperswitch_domain_models::payments::PaymentIntent = db
+                .update_payment_intent(
+                    intent.clone(),
+                    payment_intent_update,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to update payment intent")?;
+
+            // let enable_partial_auth = intent.enable_partial_authorization;
+            let payment_attempt_list: Vec<
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+            > = db
+                .find_payment_attempts_by_payment_intent_id(
+                    &request.id,
+                    platform.get_processor().get_key_store(),
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let attempts_count = payment_attempt_list.len();
+            let attempts_id_list = payment_attempt_list
+                .clone()
+                .into_iter()
+                .map(|attempt| attempt.id)
+                .collect();
+            let updated_group_id = updated_payment_intent.active_attempts_group_id.clone();
+            if let Some(intent_group_id) = updated_group_id {
+                let updated_attempts = db.update_attempts_by_id(
+                    &platform.get_processor().get_key_store(),
+                            attempts_id_list,
+                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::MigrationUpdate {
+                                attempts_group_id: intent_group_id.clone(),
+                                updated_by: storage_scheme.to_string(),
+                                },
+                                storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                                    message: "Failed to update payment attempts for revenue recovery migration"
+                                        .to_string(),
+                                })?;
+
+                logger::info!(
+                                        "actual attemtpts count : {attempts_count}, updated_attempts : {updated_attempts}"
+                                );
+            };
+
+            let attempt = payment_attempt_list
+                .into_iter()
+                .find(|attempt| attempt.status == common_enums::AttemptStatus::PartialCharged);
+
+            if let (Some(attempt), Some(amount_captured)) = (attempt, intent.amount_captured) {
+                let payment_attempt_update =
+        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::AmountCapturedUpdate {
+            amount_captured,
+            updated_by: storage_scheme.to_string(),
+        };
+
+                let updated_partial_attempt = db
+                    .update_payment_attempt(
+                        platform.get_processor().get_key_store(),
+                        attempt,
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Failed to update payment attempt for partial auth migration"
+                            .to_string(),
+                    })?;
+
+                logger::info!(
+                    "Updated partial auth attempt id : {:?}",
+                    updated_partial_attempt.id,
+                );
+            }
+        }
+        false => {
+            logger::info!(
+                "Partial authorization is not enabled for the payment intent, skipping migration"
+            );
+        }
+    }
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        payments_api::RecoveryMigrationResponse { id: intent.id },
+    ))
+}

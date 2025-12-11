@@ -686,6 +686,8 @@ pub enum Flow {
     DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
+    /// Revenue recovery migrate  flow
+    RevenueRecoveryMigrate,
     /// Tokenization delete flow
     TokenizationDelete,
     /// Payment method data backfill flow

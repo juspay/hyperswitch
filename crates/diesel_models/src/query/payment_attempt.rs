@@ -276,6 +276,20 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn update_by_ids(
+        conn: &PgPooledConn,
+        ids: Vec<common_utils::id_type::GlobalAttemptId>,
+        payment_attempt: PaymentAttemptUpdateInternal,
+    ) -> StorageResult<usize> {
+        generics::generic_update::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq_any(ids),
+            payment_attempt,
+        )
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,

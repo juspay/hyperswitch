@@ -900,6 +900,14 @@ pub enum PaymentAttemptUpdate {
         connector_payment_id: Option<String>,
         amount_capturable: Option<MinorUnit>,
     },
+    MigrationUpdate {
+        attempts_group_id: id_type::GlobalAttemptGroupId,
+        updated_by: String,
+    },
+    AmountCapturedUpdate {
+        amount_captured: MinorUnit,
+        updated_by: String,
+    },
 }
 
 // TODO: uncomment fields as and when required
@@ -952,6 +960,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
 }
 
 #[cfg(feature = "v2")]
@@ -986,6 +995,7 @@ impl PaymentAttemptUpdateInternal {
             connector_request_reference_id,
             connector_response_reference_id,
             amount_captured,
+            attempts_group_id,
         } = self;
 
         PaymentAttempt {
@@ -1067,7 +1077,7 @@ impl PaymentAttemptUpdateInternal {
                 .or(source.connector_request_reference_id),
             is_overcapture_enabled: source.is_overcapture_enabled,
             network_details: source.network_details,
-            attempts_group_id: source.attempts_group_id,
+            attempts_group_id: attempts_group_id.or(source.attempts_group_id),
             is_stored_credential: source.is_stored_credential,
             authorized_amount: source.authorized_amount,
             amount_captured: amount_captured.or(source.amount_captured),
@@ -1489,6 +1499,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured,
+                    attempts_group_id: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1539,6 +1550,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id: None,
                     cancellation_reason: None,
                     amount_captured,
+                    attempts_group_id: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1586,6 +1598,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    attempts_group_id: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1631,6 +1644,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_request_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    attempts_group_id: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1672,6 +1686,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    attempts_group_id: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1719,8 +1734,77 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_response_reference_id: None,
                     cancellation_reason: None,
                     amount_captured: None,
+                    attempts_group_id: None,
                 }
             }
+            PaymentAttemptUpdate::MigrationUpdate {
+                attempts_group_id,
+                updated_by,
+            } => Self {
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                status: None,
+                authentication_type: None,
+                error_message: None,
+                payment_method_id: None,
+                browser_info: None,
+                error_code: None,
+                connector_metadata: None,
+                error_reason: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                merchant_connector_id: None,
+                redirection_data: None,
+                unified_code: None,
+                unified_message: None,
+                connector_token_details: None,
+                feature_metadata: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                cancellation_reason: None,
+                amount_captured: None,
+                attempts_group_id: Some(attempts_group_id),
+            },
+            PaymentAttemptUpdate::AmountCapturedUpdate {
+                amount_captured,
+                updated_by,
+            } => Self {
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                status: None,
+                authentication_type: None,
+                error_message: None,
+                payment_method_id: None,
+                browser_info: None,
+                error_code: None,
+                connector_metadata: None,
+                error_reason: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                merchant_connector_id: None,
+                redirection_data: None,
+                unified_code: None,
+                unified_message: None,
+                connector_token_details: None,
+                feature_metadata: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                cancellation_reason: None,
+                amount_captured: Some(amount_captured),
+                attempts_group_id: None,
+            },
         }
         // match payment_attempt_update {
         //     PaymentAttemptUpdate::Update {

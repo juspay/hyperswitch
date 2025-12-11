@@ -178,6 +178,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_attempts_by_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        ids: Vec<common_utils::id_type::GlobalAttemptId>,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<usize, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+
+        diesel_models::PaymentAttempt::update_by_ids(
+            &conn,
+            ids,
+            diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
+        )
+        .await
+        .map_err(|error| {
+            let new_error = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_error)
+        })
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -993,6 +1016,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 }
             }
         }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_attempts_by_id(
+        &self,
+        merchant_key_store: &MerchantKeyStore,
+        ids: Vec<common_utils::id_type::GlobalAttemptId>,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<usize, Self::Error> {
+        self.router_store
+            .update_attempts_by_id(merchant_key_store, ids, payment_attempt, storage_scheme)
+            .await
     }
 
     #[cfg(feature = "v1")]

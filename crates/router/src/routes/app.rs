@@ -797,6 +797,10 @@ impl Payments {
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
+                .service(
+                    web::resource("/migrate-intent-status")
+                        .route(web::get().to(payments::migrate_intent_status)),
+                )
                 // TODO: Deprecated. Remove this in favour of /list-attempts
                 .service(
                     web::resource("/list_attempts")
