@@ -371,7 +371,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureRequest {
-    capture_method: Option<CapMethod>,
+    capture_method: CapMethod,
     amount: MinorUnit,
     currency: Option<common_enums::Currency>,
 }
@@ -395,7 +395,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
         // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
         // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
         Ok(Self {
-            capture_method: Some(CapMethod::Now),
+            capture_method: CapMethod::Now,
             amount: amount_to_capture,
             currency: Some(item.router_data.request.currency),
         })
@@ -664,9 +664,7 @@ pub struct JpmorganCancelRequest {
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            is_void: true,
-        })
+        Ok(Self { is_void: true })
     }
 }
 
