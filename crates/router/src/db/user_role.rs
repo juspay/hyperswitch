@@ -373,9 +373,7 @@ impl UserRoleInterface for MockDb {
 
         for user_role in user_roles.iter() {
             let tenant_level_check = user_role.tenant_id == *tenant_id
-                && user_role.org_id.is_none()
-                && user_role.merchant_id.is_none()
-                && user_role.profile_id.is_none();
+                && user_role.entity_type == Some(EntityType::Tenant);
 
             let org_level_check = user_role.tenant_id == *tenant_id
                 && user_role.org_id.as_ref() == Some(org_id)

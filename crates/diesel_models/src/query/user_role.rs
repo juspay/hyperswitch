@@ -100,7 +100,7 @@ impl UserRole {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
     }
 
-    fn check_user_in_lineage_by_entity_type(
+    fn check_user_in_lineage_with_entity_type(
         tenant_id: id_type::TenantId,
         org_id: Option<id_type::OrganizationId>,
         merchant_id: Option<id_type::MerchantId>,
@@ -119,9 +119,7 @@ impl UserRole {
             // Tenant-level condition
             dsl::tenant_id
                 .eq(tenant_id.clone())
-                .and(dsl::org_id.is_null())
-                .and(dsl::merchant_id.is_null())
-                .and(dsl::profile_id.is_null())
+                .and(dsl::entity_type.eq(EntityType::Tenant))
                 .or(
                     // Org-level condition
                     dsl::tenant_id
@@ -158,7 +156,7 @@ impl UserRole {
         profile_id: id_type::ProfileId,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        let check_lineage = Self::check_user_in_lineage_by_entity_type(
+        let check_lineage = Self::check_user_in_lineage_with_entity_type(
             tenant_id,
             Some(org_id),
             Some(merchant_id),
