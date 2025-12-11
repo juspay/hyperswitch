@@ -664,9 +664,7 @@ pub struct JpmorganCancelRequest {
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            is_void: true,
-        })
+        Ok(Self { is_void: true })
     }
 }
 
