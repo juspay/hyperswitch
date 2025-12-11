@@ -280,7 +280,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            order_id: router_data.request.order_id.clone(),
+            connector_order_reference_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -292,6 +292,8 @@ impl
                 .request
                 .request_incremental_authorization,
             minor_amount: router_data.request.amount,
+            enable_partial_authorization: None,
+            billing_descriptor: None,
             email: router_data
                 .request
                 .email
@@ -538,6 +540,8 @@ impl
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
+            connector_metadata: None,
+            setup_future_usage: None,
         })
     }
 }
@@ -734,6 +738,7 @@ impl
             continue_redirection_url: None,
             state: None,
             merchant_account_metadata,
+            connector_order_reference_id: None,
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -999,6 +1004,9 @@ impl
             order_tax_amount: None,
             customer_name: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
             webhook_url: None, // CompleteAuthorize doesn't have webhook_url
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: router_data
@@ -1151,6 +1159,9 @@ impl
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
             authentication_data,
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -1295,6 +1306,9 @@ impl
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
             authentication_data,
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
@@ -1438,6 +1452,7 @@ impl
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
             authentication_data: None,
+            billing_descriptor: None,
             metadata: router_data
                 .request
                 .metadata
@@ -1573,6 +1588,10 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
         })
     }
 }
@@ -3316,6 +3335,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .merchant_account_id
                 .as_ref()
                 .map(|id| id.clone().expose().clone()),
+            payment_method_type: None,
+            test_mode: router_data.test_mode,
             capture_method: router_data
                 .request
                 .capture_method
@@ -3393,6 +3414,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 ),
             )?,
             refund_reason: router_data.request.reason.clone(),
+            payment_method_type: None,
+            test_mode: router_data.test_mode,
             browser_info: router_data
                 .request
                 .browser_info
@@ -3504,6 +3527,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .unwrap_or_default();
 
         Ok(Self {
+            merchant_account_metadata: HashMap::new(),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
