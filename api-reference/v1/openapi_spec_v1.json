@@ -11959,6 +11959,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -16278,13 +16289,38 @@
           }
         }
       },
-      "CustomTermsByPaymentMethodTypes": {
+      "CustomMessage": {
         "type": "object",
-        "description": "Custom T&C Message to be shown per payment method type",
-        "additionalProperties": {
-          "type": "string"
-        },
-        "nullable": true
+        "description": "Custom T&C message content and display mode",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The text to be shown per payment method type",
+            "example": "I authorize Novalnet AG to debit my account."
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomTerms": {
+        "type": "object",
+        "description": "Custom T&C message for a specific payment method type",
+        "required": [
+          "payment_method_type",
+          "message"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "message": {
+            "$ref": "#/components/schemas/CustomMessage"
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -21465,15 +21501,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountId": {
         "type": "string",
@@ -24579,7 +24608,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -24759,7 +24788,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -24840,11 +24869,6 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
-            "nullable": true
-          },
-          "payment_test_mode": {
-            "type": "boolean",
-            "description": "Indicates whether the merchant is testing or live",
             "nullable": true
           }
         }
@@ -25163,6 +25187,35 @@
             }
           }
         ]
+      },
+      "PaymentMethodConfig": {
+        "type": "object",
+        "description": "Custom T&C messages for a specific payment method",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomTerms"
+            },
+            "description": "Payment Method Types",
+            "example": [
+              {
+                "message": {
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
+              }
+            ]
+          }
+        }
       },
       "PaymentMethodCreate": {
         "type": "object",
@@ -25794,7 +25847,8 @@
           "show_surcharge_breakup_screen",
           "request_external_three_ds_authentication",
           "is_tax_calculation_enabled",
-          "sdk_next_action"
+          "sdk_next_action",
+          "is_guest_customer"
         ],
         "properties": {
           "redirect_url": {
@@ -25853,6 +25907,10 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "indicates whether this is a guest customer flow"
           }
         }
       },
@@ -26141,7 +26199,8 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking"
         ]
       },
       "PaymentMethodUpdate": {
@@ -26173,6 +26232,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodsConfig": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PaymentMethodConfig"
+        },
+        "description": "List of custom T&C messages grouped by payment method"
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -27903,14 +27969,6 @@
             "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
-            "nullable": true
-          },
           "manual_retry_allowed": {
             "type": "boolean",
             "description": "If true the payment can be retried with same or different payment method which means the confirm call can be made again.",
@@ -29494,14 +29552,6 @@
               "$ref": "#/components/schemas/PaymentMethodType"
             },
             "description": "Allowed Payment Method Types for a given PaymentIntent",
-            "nullable": true
-          },
-          "ephemeral_key": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
-              }
-            ],
             "nullable": true
           },
           "manual_retry_allowed": {
@@ -35335,6 +35385,15 @@
         "enum": [
           "low_value",
           "transaction_risk_analysis"
+        ]
+      },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
         ]
       },
       "SdkInformation": {

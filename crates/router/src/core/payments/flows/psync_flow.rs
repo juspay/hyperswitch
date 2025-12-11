@@ -342,6 +342,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
                     merchant_connector_account,
                     platform,
+                    self.connector.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct request metadata")?;

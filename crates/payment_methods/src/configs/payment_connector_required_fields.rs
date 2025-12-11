@@ -1575,11 +1575,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     email(),
                     card_with_name(),
                     vec![
-                        RequiredField::BillingAddressLine1,
-                        RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
-                        RequiredField::BillingAddressState,
-                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingUserFirstName,
+                        RequiredField::BillingUserLastName,
                     ],
                 ]
                 .concat(),
@@ -1731,6 +1730,13 @@ fn get_bank_redirect_required_fields(
                     fields(vec![], vec![RequiredField::OpenBankingUkIssuer], vec![]),
                 ),
             ]),
+        ),
+        (
+            enums::PaymentMethodType::OpenBanking,
+            connectors(vec![(
+                Connector::Volt,
+                fields(vec![], billing_name(), vec![]),
+            )]),
         ),
         (
             enums::PaymentMethodType::Trustly,
@@ -3319,11 +3325,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
-                            RequiredField::BillingAddressLine1.to_tuple(),
-                            RequiredField::BillingAddressCity.to_tuple(),
                             RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
                             RequiredField::AchBankDebitAccountNumber.to_tuple(),
                             RequiredField::AchBankDebitRoutingNumber.to_tuple(),
                             RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
