@@ -12,10 +12,20 @@ pub mod session_token_gateway;
 pub mod setup_mandate;
 use std::sync;
 
-use hyperswitch_domain_models::router_flow_types::payments;
-use hyperswitch_interfaces::api::gateway;
+use common_enums;
+use hyperswitch_domain_models::{router_data_v2::PaymentFlowData, router_flow_types::payments};
+use hyperswitch_interfaces::{
+    api::{gateway, Connector, ConnectorIntegration},
+    connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+};
 
-use crate::core::payments::gateway::context as gateway_context;
+use crate::{
+    core::{errors::utils::ConnectorErrorExt, payments::gateway::context as gateway_context},
+    errors::RouterResult,
+    services, types,
+    types::api,
+    SessionState,
+};
 
 pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
     sync::LazyLock::new(|| {
@@ -26,12 +36,27 @@ pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
         ]
     });
 
-pub async fn handle_gateway_call<Flow, Req, Resp>(
+pub async fn handle_gateway_call<Flow, Req, Resp, ResourceCommonData, FlowOutput>(
     state: &SessionState,
     router_data: types::RouterData<Flow, Req, Resp>,
     connector: &api::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
-) -> RouterResult<Flow, Req, Resp> {
+) -> RouterResult<FlowOutput>
+where
+    Flow: gateway::FlowGateway<
+        SessionState,
+        PaymentFlowData,
+        Req,
+        Resp,
+        gateway_context::RouterGatewayContext,
+        FlowOutput,
+    >,
+    FlowOutput: Clone + Send + Sync + gateway::GetRouterData<Flow, Req, Resp> + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    dyn Connector + Sync: ConnectorIntegration<Flow, Req, Resp>,
+    dyn ConnectorV2 + Sync: ConnectorIntegrationV2<Flow, PaymentFlowData, Req, Resp>,
+{
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         Flow,
         Req,
@@ -42,7 +67,7 @@ pub async fn handle_gateway_call<Flow, Req, Resp>(
         state,
         connector_integration,
         &router_data,
-        payments::CallConnectorAction::Trigger,
+        common_enums::CallConnectorAction::Trigger,
         None,
         None,
         gateway_context.clone(),

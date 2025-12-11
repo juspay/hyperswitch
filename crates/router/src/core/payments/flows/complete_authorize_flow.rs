@@ -5,7 +5,9 @@ use common_enums::connector_enums;
 use common_utils::{errors, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
-use hyperswitch_domain_models::{router_request_types, router_response_types};
+use hyperswitch_domain_models::{
+    router_data_v2::PaymentFlowData, router_request_types, router_response_types,
+};
 use hyperswitch_interfaces::{
     api as api_interface, api::ConnectorSpecifications, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
@@ -19,8 +21,8 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway::context as gateway_context, helpers, transformers,
-            PaymentData,
+            self, access_token, gateway as payments_gateway, gateway::context as gateway_context,
+            helpers, transformers, PaymentData,
         },
         unified_connector_service as ucs_core,
     },
@@ -273,13 +275,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
 
             // Call UCS for Authenticate flow and store authentication result for next step
-            let authenticate_router_data = Box::pin(handle_authenticate_connector_call(
-                state,
-                authenticate_router_data,
-                connector,
-                gateway_context,
-            ))
-            .await?;
+            let (authenticate_router_data, authentication_data) =
+                Box::pin(payments_gateway::handle_gateway_call::<
+                    _,
+                    _,
+                    _,
+                    PaymentFlowData,
+                    _,
+                >(
+                    state,
+                    authenticate_router_data,
+                    connector,
+                    gateway_context,
+                ))
+                .await?;
 
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let authenticate_response = authenticate_router_data.response.clone();
@@ -289,6 +298,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
             };
+            complete_authorize_request_data.authentication_data = authentication_data;
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     authenticate_router_data,
@@ -345,13 +355,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     post_authenticate_response_data,
                 );
 
-            let post_authenticate_router_data = Box::pin(handle_post_authenticate_connector_call(
-                state,
-                post_authenticate_router_data,
-                connector,
-                gateway_context,
-            ))
-            .await?;
+            let (post_authenticate_router_data, authentication_data) =
+                Box::pin(payments_gateway::handle_gateway_call::<
+                    _,
+                    _,
+                    _,
+                    PaymentFlowData,
+                    _,
+                >(
+                    state,
+                    post_authenticate_router_data,
+                    connector,
+                    gateway_context,
+                ))
+                .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
@@ -360,6 +377,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             {
                 connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
             };
+            complete_authorize_request_data.authentication_data = authentication_data;
             let complete_authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
                     post_authenticate_router_data,

@@ -10,7 +10,7 @@ use external_services::grpc_client;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-    router_response_types,
+    router_data_v2::PaymentFlowData, router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
@@ -346,7 +346,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
-            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call(
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
                 state,
                 pre_authenticate_router_data,
                 connector,

@@ -87,7 +87,7 @@ where
                 "UCS PSync call disabled for connector: {}, skipping UCS call",
                 connector_name
             );
-            return Ok((router_data.clone(), ()));
+            return Ok(router_data.clone());
         }
         let client = state
             .grpc_client
