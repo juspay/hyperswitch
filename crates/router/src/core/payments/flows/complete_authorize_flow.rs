@@ -9,7 +9,9 @@ use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api as api_interface, api::ConnectorSpecifications, errors as interface_errors,
+    api as api_interface,
+    api::{gateway, ConnectorSpecifications},
+    errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
 use masking::{self, ExposeInterface};
@@ -123,13 +125,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let mut complete_authorize_router_data = services::execute_connector_processing_step(
+        let mut complete_authorize_router_data = gateway::execute_payment_gateway(
             state,
             connector_integration,
             &self,
             call_connector_action.clone(),
             connector_request,
             None,
+            gateway_context.clone(),
         )
         .await
         .to_payment_failed_response()?;

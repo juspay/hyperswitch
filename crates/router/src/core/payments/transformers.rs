@@ -6082,6 +6082,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                Some(RequestIncrementalAuthorization::True)
+            ),
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data

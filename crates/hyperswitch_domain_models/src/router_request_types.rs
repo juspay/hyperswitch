@@ -821,6 +821,7 @@ pub struct CompleteAuthorizeData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub request_incremental_authorization: bool,
     pub authentication_data: Option<UcsAuthenticationData>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     // New amount for amount frame work

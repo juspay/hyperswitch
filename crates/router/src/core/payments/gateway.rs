@@ -1,6 +1,7 @@
 pub mod access_token_gateway;
 pub mod authenticate_gateway;
 pub mod authorize_gateway;
+pub mod complete_authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
 pub mod create_order_gateway;
