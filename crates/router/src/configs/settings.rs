@@ -278,14 +278,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -311,14 +311,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)

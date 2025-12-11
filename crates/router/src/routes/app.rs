@@ -442,14 +442,14 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
                 &conf.multitenancy.global_tenant,
                 Arc::clone(&cache_store),
                 testable,
-            )
+            ))
             .await
             .get_global_storage_interface();
             #[cfg(feature = "olap")]
