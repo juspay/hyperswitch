@@ -202,7 +202,7 @@ pub struct GsmResponse {
     /// details specific to the retry behavior.
     #[schema(value_type = GsmFeatureData)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
-     /// Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`, `INVALID_CARD_NUMBER`, or `INSUFFICIENT_FUNDS`.
+    /// Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`, `INVALID_CARD_NUMBER`, or `INSUFFICIENT_FUNDS`.
     #[schema(value_type = Option<StandardisedCode>)]
     pub standardised_code: Option<api_enums::StandardisedCode>,
     /// A detailed description of the error intended for debugging, analytics, and support teams.  
