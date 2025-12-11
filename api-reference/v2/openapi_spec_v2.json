@@ -22731,27 +22731,74 @@
         }
       },
       "PaypalAdditionalData": {
-        "type": "object",
-        "description": "Masked payout method details for paypal wallet payout method",
-        "properties": {
-          "email": {
-            "type": "string",
+        "oneOf": [
+          {
+            "type": "object",
             "description": "Email linked with paypal account",
-            "example": "john.doe@example.com",
-            "nullable": true
+            "required": [
+              "email",
+              "flow_type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "Email linked with paypal account",
+                "example": "john.doe@example.com"
+              },
+              "flow_type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
           },
-          "telephone_number": {
-            "type": "string",
-            "description": "mobile number linked to paypal account",
-            "example": "******* 3349",
-            "nullable": true
-          },
-          "paypal_id": {
-            "type": "string",
+          {
+            "type": "object",
             "description": "id of the paypal account",
-            "example": "G83K ***** HCQ2",
-            "nullable": true
+            "required": [
+              "paypal_id",
+              "flow_type"
+            ],
+            "properties": {
+              "paypal_id": {
+                "type": "string",
+                "description": "id of the paypal account",
+                "example": "G83K*****HCQ2"
+              },
+              "flow_type": {
+                "type": "string",
+                "enum": [
+                  "paypal_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "mobile number linked to paypal account",
+            "required": [
+              "flow_type"
+            ],
+            "properties": {
+              "telephone_number": {
+                "type": "string",
+                "description": "mobile number linked to paypal account",
+                "example": "G83K ***** HCQ2",
+                "nullable": true
+              },
+              "flow_type": {
+                "type": "string",
+                "enum": [
+                  "telephone_number"
+                ]
+              }
+            }
           }
+        ],
+        "description": "Masked payout method details for paypal wallet payout method",
+        "discriminator": {
+          "propertyName": "flow_type"
         }
       },
       "PaypalFlow": {
@@ -27750,13 +27797,13 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"

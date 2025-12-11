@@ -1050,11 +1050,22 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                 email,
                 telephone_number,
                 paypal_id,
-            }) => Self::Paypal(Box::new(payout_method_utils::PaypalAdditionalData {
-                email: email.map(ForeignFrom::foreign_from),
-                telephone_number: telephone_number.map(From::from),
-                paypal_id: paypal_id.map(From::from),
-            })),
+            }) => {
+                let paypal_additional_data = if let Some(e) = email {
+                    payout_method_utils::PaypalAdditionalData::Email {
+                        email: ForeignFrom::foreign_from(e),
+                    }
+                } else if let Some(id) = paypal_id {
+                    payout_method_utils::PaypalAdditionalData::PaypalId {
+                        paypal_id: From::from(id),
+                    }
+                } else {
+                    payout_method_utils::PaypalAdditionalData::TelephoneNumber {
+                        telephone_number: telephone_number.map(From::from),
+                    }
+                };
+                Self::Paypal(Box::new(paypal_additional_data))
+            }
             Wallet::Venmo(Venmo { telephone_number }) => {
                 Self::Venmo(Box::new(payout_method_utils::VenmoAdditionalData {
                     telephone_number: telephone_number.map(From::from),

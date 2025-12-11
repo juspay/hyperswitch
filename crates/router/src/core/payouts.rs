@@ -9,8 +9,8 @@ pub mod validator;
 use std::{
     collections::{HashMap, HashSet},
     vec::IntoIter,
+    str::FromStr,
 };
-
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "olap")]
 use api_models::{admin::MerchantConnectorInfo, payments as payment_enums};
@@ -565,6 +565,12 @@ pub async fn payouts_cancel_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+
+    let connector_name = payout_attempt
+    .connector
+    .as_deref()
+    .and_then(|connector| common_enums::connector_enums::Connector::from_str(connector).ok());
+
     // Verify if cancellation can be triggered
     if helpers::is_payout_terminal_state(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -575,7 +581,15 @@ pub async fn payouts_cancel_core(
         }));
 
     // Make local cancellation
-    } else if helpers::is_eligible_for_local_payout_cancellation(status) {
+    } else if helpers::is_eligible_for_local_payout_cancellation(status)
+        && (
+            connector_name.is_none()
+            || connector_name
+                .as_ref()
+                .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
+                .unwrap_or(false)
+        )
+    {
         let status = storage_enums::PayoutStatus::Cancelled;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
             connector_payout_id: payout_attempt.connector_payout_id.to_owned(),

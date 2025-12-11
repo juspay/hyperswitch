@@ -206,31 +206,39 @@ pub struct PixBankTransferAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum WalletAdditionalData {
+    /// Additional data for Apple pay decrypt wallet payout method
+    ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
-    /// Additional data for Apple pay decrypt wallet payout method
-    ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
 }
 
 /// Masked payout method details for paypal wallet payout method
 #[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PaypalAdditionalData {
+#[serde(tag = "flow_type", rename_all = "snake_case")]
+pub enum PaypalAdditionalData {
     /// Email linked with paypal account
-    #[schema(value_type = Option<String>, example = "john.doe@example.com")]
-    pub email: Option<MaskedEmail>,
-
-    /// mobile number linked to paypal account
-    #[schema(value_type = Option<String>, example = "******* 3349")]
-    pub telephone_number: Option<MaskedPhoneNumber>,
-
+    Email {
+        /// Email linked with paypal account
+        #[schema(value_type = String, example = "john.doe@example.com")]
+        email: MaskedEmail
+    },
     /// id of the paypal account
-    #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
-    pub paypal_id: Option<MaskedBankAccount>,
+    PaypalId {
+        /// id of the paypal account
+        #[schema(value_type = String, example = "G83K*****HCQ2")]
+        paypal_id: MaskedBankAccount
+    },
+    /// mobile number linked to paypal account
+    TelephoneNumber {
+        /// mobile number linked to paypal account
+        #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
+        telephone_number: Option<MaskedPhoneNumber>
+    },
 }
 
 /// Masked payout method details for venmo wallet payout method
