@@ -84,7 +84,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+use crate::{disputes, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -3616,6 +3616,7 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -4175,6 +4176,7 @@ pub enum BankRedirectData {
         #[smithy(value_type = "String")]
         provider: String,
     },
+    OpenBanking {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -4291,7 +4293,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
             | Self::Blik { .. }
-            | Self::Eft { .. } => None,
+            | Self::Eft { .. }
+            | Self::OpenBanking { .. } => None,
         }
     }
 }
@@ -6905,6 +6908,12 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub created: Option<PrimitiveDateTime>,
 
+    /// Timestamp indicating when this payment intent was last modified, in ISO 8601 format.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
+    pub modified_at: Option<PrimitiveDateTime>,
+
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
@@ -7115,10 +7124,6 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
-
-    /// ephemeral_key for the customer_id mentioned
-    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
-    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
     #[smithy(value_type = "Option<bool>")]
@@ -11262,7 +11267,7 @@ pub struct PaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11289,7 +11294,7 @@ pub struct SecurePaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11440,8 +11445,8 @@ pub struct ClickToPaySessionResponse {
     pub acquirer_bin: String,
     #[smithy(value_type = "String")]
     pub acquirer_merchant_id: String,
-    #[smithy(value_type = "String")]
-    pub merchant_category_code: String,
+    #[smithy(value_type = "Option<String>")]
+    pub merchant_category_code: Option<String>,
     #[smithy(value_type = "String")]
     pub merchant_country_code: String,
     #[schema(value_type = String, example = "38.02")]
