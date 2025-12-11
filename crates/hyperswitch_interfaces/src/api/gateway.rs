@@ -48,9 +48,15 @@ pub trait GatewayContext: Clone + Send + Sync {
 /// * `Context` - Gateway context type (must implement GatewayContext trait)
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput = RouterData<F, Req, Resp>>:
-    Send + Sync
-where
+pub trait PaymentGateway<
+    State,
+    ConnectorData,
+    F,
+    Req,
+    Resp,
+    Context,
+    FlowOutput = RouterData<F, Req, Resp>,
+>: Send + Sync where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
     F: Clone + std::fmt::Debug + Send + Sync + 'static,
@@ -68,7 +74,7 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         context: Context,
-    ) -> CustomResult< FlowOutput, ConnectorError>;
+    ) -> CustomResult<FlowOutput, ConnectorError>;
 }
 
 /// Direct gateway implementation

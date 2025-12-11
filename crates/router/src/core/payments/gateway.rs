@@ -14,6 +14,7 @@ use std::sync;
 
 use hyperswitch_domain_models::router_flow_types::payments;
 use hyperswitch_interfaces::api::gateway;
+
 use crate::core::payments::gateway::context as gateway_context;
 
 pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
@@ -27,19 +28,10 @@ pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
 
 pub async fn handle_gateway_call<Flow, Req, Resp>(
     state: &SessionState,
-    router_data: types::RouterData<
-        Flow,
-        Req,
-        Resp,
-    >,
+    router_data: types::RouterData<Flow, Req, Resp>,
     connector: &api::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
-) -> RouterResult<
-        Flow,
-        Req,
-        Resp,
-    >
-{
+) -> RouterResult<Flow, Req, Resp> {
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         Flow,
         Req,

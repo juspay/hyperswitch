@@ -28,8 +28,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, helpers, session_token,
-            tokenization, transformers, PaymentData,gateway as payments_gateway,gateway as payments_gateway,
+            self, access_token, customers, flows::gateway_context, gateway as payments_gateway,
+            helpers, session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
