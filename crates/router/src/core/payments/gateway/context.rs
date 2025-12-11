@@ -4,7 +4,7 @@
 //! information needed for executing payment operations through either direct
 //! connector integration or Unified Connector Service (UCS).
 
-use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
+use common_enums::{self, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Platform};

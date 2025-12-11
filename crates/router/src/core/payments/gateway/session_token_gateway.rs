@@ -63,7 +63,10 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        (
+            RouterData<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+            (),
+        ),
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -108,7 +111,7 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             authorize_session_token_request,
@@ -133,13 +136,11 @@ where
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, payment_session_token_response))
+                Ok((router_data, (), payment_session_token_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 

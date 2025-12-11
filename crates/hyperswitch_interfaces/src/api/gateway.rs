@@ -48,7 +48,8 @@ pub trait GatewayContext: Clone + Send + Sync {
 /// * `Context` - Gateway context type (must implement GatewayContext trait)
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context>: Send + Sync
+pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput = ()>:
+    Send + Sync
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
@@ -67,7 +68,7 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         context: Context,
-    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
+    ) -> CustomResult<(RouterData<F, Req, Resp>, FlowOutput), ConnectorError>;
 }
 
 /// Direct gateway implementation
@@ -97,7 +98,7 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         _context: Context,
-    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+    ) -> CustomResult<(RouterData<F, Req, Resp>, ()), ConnectorError> {
         // Direct gateway delegates to the existing execute_connector_processing_step
         // This maintains backward compatibility with the traditional HTTP-based flow
         api_client::execute_connector_processing_step(
@@ -109,6 +110,43 @@ where
             return_raw_connector_response,
         )
         .await
+        .map(|rd| (rd, ()))
+    }
+}
+
+#[async_trait]
+impl<State, ConnectorData, F, Req, Resp, Context, T>
+    PaymentGateway<State, ConnectorData, F, Req, Resp, Context, Option<T>> for DirectGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext + 'static,
+{
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+        _context: Context,
+    ) -> CustomResult<(RouterData<F, Req, Resp>, Option<T>), ConnectorError> {
+        // Direct gateway delegates to the existing execute_connector_processing_step
+        // This maintains backward compatibility with the traditional HTTP-based flow
+        api_client::execute_connector_processing_step(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .map(|rd| (rd, None))
     }
 }
 
@@ -117,7 +155,7 @@ where
 /// This trait allows flows to specify which gateway implementation should be used
 /// based on the execution path. Each flow implements this trait to provide
 /// flow-specific gateway selection logic.
-pub trait FlowGateway<State, ConnectorData, Req, Resp, Context>:
+pub trait FlowGateway<State, ConnectorData, Req, Resp, Context, FlowOutput = ()>:
     Clone + std::fmt::Debug + Send + Sync + 'static
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
@@ -133,7 +171,7 @@ where
     /// - Flow-specific UCS gateway for gRPC integration
     fn get_gateway(
         execution_path: ExecutionPath,
-    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context>>;
+    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context, FlowOutput>>;
 }
 
 /// Execute payment gateway operation (backward compatible version)
@@ -182,7 +220,7 @@ where
                 F::get_gateway(execution_path);
 
             // Execute through selected gateway
-            gateway
+            let (ucs_shadow_result, _) = gateway
                 .execute(
                     state,
                     connector_integration,
@@ -193,7 +231,8 @@ where
                     context,
                 )
                 .await
-                .attach_printable("Gateway execution failed")
+                .attach_printable("Gateway execution failed")?;
+            Ok(ucs_shadow_result)
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
             let direct_router_data = api_client::execute_connector_processing_step(
@@ -229,7 +268,7 @@ where
                         .attach_printable("Gateway execution failed");
                     // Send comparison data asynchronously
                     match ucs_shadow_result {
-                        Ok(ucs_router_data) => {
+                        Ok((ucs_router_data, _)) => {
                             // Send comparison data asynchronously
                             if let Some(comparison_service_config) =
                                 state_clone.get_comparison_service_config()
