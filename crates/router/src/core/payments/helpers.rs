@@ -5553,10 +5553,10 @@ pub fn is_apple_pay_simplified_flow(
     Ok(match option_apple_pay_metadata {
         Some(api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
             combined_data,
-        )) => match combined_data.data {
-            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. }) => true,
-            _ => false,
-        },
+        )) => matches!(
+            combined_data.data,
+            Some(api_models::payments::ApplePayCombinedMetadata::Simplified { .. })
+        ),
         _ => false,
     })
 }
@@ -5716,11 +5716,9 @@ pub fn get_applepay_metadata(
             "ApplepayCombinedSessionTokenData",
         )
         .change_context(errors::ConnectorError::ParsingFailed)
-        .and_then(|combined_metadata| {
-            Ok(
-                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                    combined_metadata.apple_pay_combined,
-                ),
+        .map(|combined_metadata| {
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                combined_metadata.apple_pay_combined,
             )
         })
         .or_else(|_| {

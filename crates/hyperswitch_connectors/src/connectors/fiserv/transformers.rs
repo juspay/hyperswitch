@@ -614,10 +614,10 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                 "ApplepayCombinedSessionTokenData",
                             )
                             .change_context(errors::ConnectorError::ParsingFailed)
-                            .and_then(|combined_metadata| {
-                                Ok(ApplepaySessionTokenMetadata::ApplePayCombined(
+                            .map(|combined_metadata| {
+                                ApplepaySessionTokenMetadata::ApplePayCombined(
                                     combined_metadata.apple_pay_combined,
-                                ))
+                                )
                             })
                             .or_else(|_| {
                                 apple_pay_metadata
@@ -635,7 +635,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                         let merchant_identifier = match applepay_metadata {
                             ApplepaySessionTokenMetadata::ApplePayCombined(ref combined) => {
                                 match combined.get_combined_metadata_required().change_context(
-                                    errors::ConnectorError::MissingApplePayTokenData.into(),
+                                    errors::ConnectorError::MissingApplePayTokenData,
                                 )? {
                                     ApplePayCombinedMetadata::Simplified { .. } => {
                                         return Err(

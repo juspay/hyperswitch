@@ -460,10 +460,10 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
             .change_context(errors::ConnectorError::ParsingFailed)
-            .and_then(|combined_metadata| {
-                Ok(ApplepaySessionTokenMetadata::ApplePayCombined(
+            .map(|combined_metadata| {
+                ApplepaySessionTokenMetadata::ApplePayCombined(
                     combined_metadata.apple_pay_combined.clone(),
-                ))
+                )
             })
             .or_else(|_| {
                 apple_pay_metadata
@@ -527,10 +527,8 @@ impl
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
             .change_context(errors::ConnectorError::ParsingFailed)
-            .and_then(|combined_metadata| {
-                Ok(ApplepaySessionTokenMetadata::ApplePayCombined(
-                    combined_metadata.apple_pay_combined,
-                ))
+            .map(|combined_metadata| {
+                ApplepaySessionTokenMetadata::ApplePayCombined(combined_metadata.apple_pay_combined)
             })
             .or_else(|_| {
                 metadata
