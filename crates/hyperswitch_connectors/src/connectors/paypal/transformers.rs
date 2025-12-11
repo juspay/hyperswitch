@@ -1926,6 +1926,13 @@ pub struct PaypalNonLiabilityResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalPostAuthenticateResponse {
+    PaypalLiabilityResponse(PaypalLiabilityResponse),
+    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardParams {
     pub card: AuthResult,
 }

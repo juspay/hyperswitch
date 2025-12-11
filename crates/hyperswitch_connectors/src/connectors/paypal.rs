@@ -25,15 +25,16 @@ use hyperswitch_domain_models::{
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        unified_authentication_service::PostAuthenticate,
         CompleteAuthorize, VerifyWebhookSource,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, ResponseId, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -42,10 +43,10 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsPostSessionTokensRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -67,10 +68,10 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostSessionTokensType,
-        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefreshTokenType,
-        RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType, SetupMandateType,
-        VerifyWebhookSourceType,
+        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostAuthenticateType,
+        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSyncType,
+        PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
+        SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -1473,6 +1474,188 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             // if card does not supports 3DS check for liability
             paypal::PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
                 Ok(PaymentsPreProcessingRouterData {
+                    status: enums::AttemptStatus::AuthenticationSuccessful,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..data.clone()
+                })
+            }
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl api::PaymentsPostAuthenticate for Paypal {}
+
+impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for Paypal
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let order_id = req
+            .request
+            .connector_transaction_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}v2/checkout/orders/{}?fields=payment_source",
+            self.base_url(connectors),
+            order_id,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsPostAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsPostAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPostAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPostAuthenticateRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalPostAuthenticateResponse = res
+            .response
+            .parse_struct("paypal PaypalPostAuthenticateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        // Similar to preprocessing, check authentication status
+        match response {
+            paypal::PaypalPostAuthenticateResponse::PaypalLiabilityResponse(liability_response) => {
+                match (
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .enrollment_status
+                        .as_ref(),
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .three_d_secure
+                        .authentication_status
+                        .as_ref(),
+                    liability_response
+                        .payment_source
+                        .card
+                        .authentication_result
+                        .liability_shift
+                        .clone(),
+                ) {
+                    (
+                        Some(paypal::EnrollmentStatus::Ready),
+                        Some(paypal::AuthenticationStatus::Success),
+                        paypal::LiabilityShift::Possible,
+                    )
+                    | (
+                        Some(paypal::EnrollmentStatus::Ready),
+                        Some(paypal::AuthenticationStatus::Attempted),
+                        paypal::LiabilityShift::Possible,
+                    )
+                    | (Some(paypal::EnrollmentStatus::NotReady), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollmentStatus::Unavailable), None, paypal::LiabilityShift::No)
+                    | (Some(paypal::EnrollmentStatus::Bypassed), None, paypal::LiabilityShift::No) => {
+                        Ok(PaymentsPostAuthenticateRouterData {
+                            status: enums::AttemptStatus::AuthenticationSuccessful,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::NoResponseId,
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..data.clone()
+                        })
+                    }
+                    _ => Ok(PaymentsPostAuthenticateRouterData {
+                        response: Err(ErrorResponse {
+                            attempt_status: Some(enums::AttemptStatus::Failure),
+                            code: NO_ERROR_CODE.to_string(),
+                            message: NO_ERROR_MESSAGE.to_string(),
+                            connector_transaction_id: None,
+                            reason: Some(format!("{} Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+                            constants::CANNOT_CONTINUE_AUTH,
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .liability_shift,
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .three_d_secure
+                                .enrollment_status
+                                .unwrap_or(paypal::EnrollmentStatus::Null),
+                            liability_response
+                                .payment_source
+                                .card
+                                .authentication_result
+                                .three_d_secure
+                                .authentication_status
+                                .unwrap_or(paypal::AuthenticationStatus::Null),
+                            )),
+                            status_code: res.status_code,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        }),
+                        ..data.clone()
+                    }),
+                }
+            }
+            paypal::PaypalPostAuthenticateResponse::PaypalNonLiabilityResponse(_) => {
+                Ok(PaymentsPostAuthenticateRouterData {
                     status: enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
