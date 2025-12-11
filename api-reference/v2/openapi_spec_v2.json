@@ -13535,12 +13535,12 @@
           },
           "description": {
             "type": "string",
-            "description": "Description of the error",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
             "nullable": true
           },
           "user_guidance_message": {
             "type": "string",
-            "description": "User guidance message for the error",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
             "nullable": true
           }
         }
