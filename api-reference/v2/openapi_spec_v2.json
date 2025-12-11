@@ -18145,11 +18145,6 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
-          },
-          "payment_test_mode": {
-            "type": "boolean",
-            "description": "Indicates whether the merchant is testing or live",
-            "nullable": true
           }
         }
       },
