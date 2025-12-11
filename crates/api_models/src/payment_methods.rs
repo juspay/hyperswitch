@@ -2152,6 +2152,9 @@ pub struct PaymentMethodListResponse {
     /// indicates the next action to be performed by the SDK
     #[schema(value_type = SdkNextAction)]
     pub sdk_next_action: payments::SdkNextAction,
+
+    /// indicates whether this is a guest customer flow
+    pub is_guest_customer: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2758,6 +2761,7 @@ pub struct TokenizedBankRedirectValue2 {
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
     pub name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
@@ -3028,7 +3032,7 @@ impl
                     .unwrap_or_else(|| record.card_number_masked.clone()),
                 card_exp_month: record.card_expiry_month.clone(),
                 card_exp_year: record.card_expiry_year.clone(),
-                card_holder_name: record.name.clone(),
+                card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                 card_network: None,
                 card_type: None,
                 card_issuer: None,
@@ -3046,7 +3050,7 @@ impl
                         .network_token_expiry_year
                         .clone()
                         .unwrap_or_default(),
-                    card_holder_name: record.name.clone(),
+                    card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
