@@ -67,14 +67,11 @@ where
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        (
             RouterData<
                 Self,
                 AccessTokenRequestData,
                 hyperswitch_domain_models::router_data::AccessToken,
             >,
-            (),
-        ),
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;

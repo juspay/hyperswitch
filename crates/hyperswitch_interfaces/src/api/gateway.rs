@@ -48,7 +48,7 @@ pub trait GatewayContext: Clone + Send + Sync {
 /// * `Context` - Gateway context type (must implement GatewayContext trait)
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput = ()>:
+pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput = RouterData<F, Req, Resp>>:
     Send + Sync
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
@@ -68,7 +68,7 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         context: Context,
-    ) -> CustomResult<(RouterData<F, Req, Resp>, FlowOutput), ConnectorError>;
+    ) -> CustomResult< FlowOutput, ConnectorError>;
 }
 
 /// Direct gateway implementation
@@ -98,7 +98,7 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         _context: Context,
-    ) -> CustomResult<(RouterData<F, Req, Resp>, ()), ConnectorError> {
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
         // Direct gateway delegates to the existing execute_connector_processing_step
         // This maintains backward compatibility with the traditional HTTP-based flow
         api_client::execute_connector_processing_step(
@@ -114,48 +114,48 @@ where
     }
 }
 
-#[async_trait]
-impl<State, ConnectorData, F, Req, Resp, Context, T>
-    PaymentGateway<State, ConnectorData, F, Req, Resp, Context, Option<T>> for DirectGateway
-where
-    State: Clone + Send + Sync + 'static + ApiClientWrapper,
-    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
-    F: Clone + std::fmt::Debug + Send + Sync + 'static,
-    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
-    Context: GatewayContext + 'static,
-{
-    async fn execute(
-        self: Box<Self>,
-        state: &State,
-        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
-        router_data: &RouterData<F, Req, Resp>,
-        call_connector_action: CallConnectorAction,
-        connector_request: Option<Request>,
-        return_raw_connector_response: Option<bool>,
-        _context: Context,
-    ) -> CustomResult<(RouterData<F, Req, Resp>, Option<T>), ConnectorError> {
-        // Direct gateway delegates to the existing execute_connector_processing_step
-        // This maintains backward compatibility with the traditional HTTP-based flow
-        api_client::execute_connector_processing_step(
-            state,
-            connector_integration,
-            router_data,
-            call_connector_action,
-            connector_request,
-            return_raw_connector_response,
-        )
-        .await
-        .map(|rd| (rd, None))
-    }
-}
+// #[async_trait]
+// impl<State, ConnectorData, F, Req, Resp, Context, T>
+//     PaymentGateway<State, ConnectorData, F, Req, Resp, Context, Option<T>> for DirectGateway
+// where
+//     State: Clone + Send + Sync + 'static + ApiClientWrapper,
+//     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+//     F: Clone + std::fmt::Debug + Send + Sync + 'static,
+//     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+//     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+//     Context: GatewayContext + 'static,
+// {
+//     async fn execute(
+//         self: Box<Self>,
+//         state: &State,
+//         connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+//         router_data: &RouterData<F, Req, Resp>,
+//         call_connector_action: CallConnectorAction,
+//         connector_request: Option<Request>,
+//         return_raw_connector_response: Option<bool>,
+//         _context: Context,
+//     ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+//         // Direct gateway delegates to the existing execute_connector_processing_step
+//         // This maintains backward compatibility with the traditional HTTP-based flow
+//         api_client::execute_connector_processing_step(
+//             state,
+//             connector_integration,
+//             router_data,
+//             call_connector_action,
+//             connector_request,
+//             return_raw_connector_response,
+//         )
+//         .await
+//         .map(|rd| (rd, None))
+//     }
+// }
 
 /// Flow gateway trait for determining execution path
 ///
 /// This trait allows flows to specify which gateway implementation should be used
 /// based on the execution path. Each flow implements this trait to provide
 /// flow-specific gateway selection logic.
-pub trait FlowGateway<State, ConnectorData, Req, Resp, Context, FlowOutput = ()>:
+pub trait FlowGateway<State, ConnectorData, Req, Resp, Context>:
     Clone + std::fmt::Debug + Send + Sync + 'static
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
@@ -171,7 +171,7 @@ where
     /// - Flow-specific UCS gateway for gRPC integration
     fn get_gateway(
         execution_path: ExecutionPath,
-    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context, FlowOutput>>;
+    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context>>;
 }
 
 /// Execute payment gateway operation (backward compatible version)
@@ -220,7 +220,7 @@ where
                 F::get_gateway(execution_path);
 
             // Execute through selected gateway
-            let (ucs_shadow_result, _) = gateway
+            let ucs_shadow_result = gateway
                 .execute(
                     state,
                     connector_integration,
@@ -268,7 +268,7 @@ where
                         .attach_printable("Gateway execution failed");
                     // Send comparison data asynchronously
                     match ucs_shadow_result {
-                        Ok((ucs_router_data, _)) => {
+                        Ok(ucs_router_data) => {
                             // Send comparison data asynchronously
                             if let Some(comparison_service_config) =
                                 state_clone.get_comparison_service_config()

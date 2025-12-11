@@ -29,7 +29,7 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, flows::gateway_context, helpers, session_token,
-            tokenization, transformers, PaymentData,
+            tokenization, transformers, PaymentData,gateway as payments_gateway,gateway as payments_gateway,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -346,7 +346,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
-            let pre_authenticate_router_data = Box::pin(handle_pre_authenticate_connector_call(
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call(
                 state,
                 pre_authenticate_router_data,
                 connector,

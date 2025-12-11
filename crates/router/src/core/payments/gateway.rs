@@ -13,6 +13,8 @@ pub mod setup_mandate;
 use std::sync;
 
 use hyperswitch_domain_models::router_flow_types::payments;
+use hyperswitch_interfaces::api::gateway;
+use crate::core::payments::gateway::context as gateway_context;
 
 pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
     sync::LazyLock::new(|| {
@@ -22,3 +24,38 @@ pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
             std::any::type_name::<payments::SetupMandate>(),
         ]
     });
+
+pub async fn handle_gateway_call<Flow, Req, Resp>(
+    state: &SessionState,
+    router_data: types::RouterData<
+        Flow,
+        Req,
+        Resp,
+    >,
+    connector: &api::ConnectorData,
+    gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+        Flow,
+        Req,
+        Resp,
+    >
+{
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        Flow,
+        Req,
+        Resp,
+    > = connector.connector.get_connector_integration();
+    // TODO: Handle gateway_context later
+    let resp = gateway::execute_payment_gateway(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        gateway_context.clone(),
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(resp)
+}
