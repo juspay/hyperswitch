@@ -20,6 +20,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::errors::ConnectorError;
@@ -29,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData, TokenizationResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
@@ -141,6 +142,36 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for NmiVaultRequest {
     }
 }
 
+impl TryFrom<&TokenizationRouterData> for NmiVaultRequest {
+    type Error = Error;
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+        let (ccnumber, ccexp, cvv) =
+            get_card_details(Some(item.request.payment_method_data.clone()))?;
+        let billing_details = item.get_billing_address()?;
+        let first_name = billing_details.get_first_name()?;
+
+        Ok(Self {
+            security_key: auth_type.api_key,
+            ccnumber,
+            ccexp,
+            cvv,
+            first_name: first_name.clone(),
+            last_name: billing_details
+                .get_last_name()
+                .unwrap_or(first_name)
+                .clone(),
+            address1: billing_details.line1.clone(),
+            address2: billing_details.line2.clone(),
+            city: billing_details.city.clone(),
+            state: billing_details.state.clone(),
+            country: billing_details.country,
+            zip: billing_details.zip.clone(),
+            customer_vault: CustomerAction::AddCustomer,
+        })
+    }
+}
+
 fn get_card_details(
     payment_method_data: Option<PaymentMethodData>,
 ) -> CustomResult<(CardNumber, Secret<String>, Secret<String>), ConnectorError> {
@@ -188,6 +219,76 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
                 .ok_or(ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
+        let (response, status) = match item.response.response {
+            Response::Approved => (
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(Some(RedirectForm::Nmi {
+                        amount: to_currency_base_unit_asf64(amount_data, currency_data.to_owned())?
+                            .to_string(),
+                        currency: currency_data,
+                        customer_vault_id: item
+                            .response
+                            .customer_vault_id
+                            .ok_or(ConnectorError::MissingRequiredField {
+                                field_name: "customer_vault_id",
+                            })?
+                            .peek()
+                            .to_string(),
+                        public_key: auth_type.public_key.ok_or(
+                            ConnectorError::InvalidConnectorConfig {
+                                config: "public_key",
+                            },
+                        )?,
+                        order_id: item.data.connector_request_reference_id.clone(),
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                AttemptStatus::AuthenticationPending,
+            ),
+            Response::Declined | Response::Error => (
+                Err(ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext.to_owned(),
+                    reason: Some(item.response.responsetext),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transactionid),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                AttemptStatus::Failure,
+            ),
+        };
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<TokenizationResponseRouterData<NmiVaultResponse>> for TokenizationRouterData {
+    type Error = Error;
+    fn try_from(
+        item: TokenizationResponseRouterData<NmiVaultResponse>,
+    ) -> Result<Self, Self::Error> {
+        let auth_type: NmiAuthType = (&item.data.connector_auth_type).try_into()?;
+        let amount_data = item
+            .data
+            .request
+            .amount
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+        let currency_data = item.data.request.currency;
         let (response, status) = match item.response.response {
             Response::Approved => (
                 Ok(PaymentsResponseData::TransactionResponse {
