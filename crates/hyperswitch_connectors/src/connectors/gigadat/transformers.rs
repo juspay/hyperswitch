@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
     router_flow_types::PoQuote, router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
 };
-use hyperswitch_interfaces::errors::{self};
+use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
