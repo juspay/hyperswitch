@@ -15,6 +15,7 @@ use hyperswitch_domain_models::{
             PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
             UpdateMetadata, Void,
         },
+        configure_connector_webhook::ConnectorWebhookRegister,
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
@@ -36,6 +37,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -70,6 +72,7 @@ use hyperswitch_domain_models::{
             GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -99,6 +102,9 @@ pub struct Response {
     /// status code
     pub status_code: u16,
 }
+
+/// Type alias for `ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>`
+pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;
 
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsAuthorizeType =

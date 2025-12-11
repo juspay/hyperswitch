@@ -16,9 +16,10 @@ use diesel_models::{business_profile::CardTestingGuardConfig, organization::Orga
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
-use hyperswitch_domain_models::merchant_connector_account::{
+use hyperswitch_domain_models::{router_data::ErrorResponse,
+    merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
-};
+}};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
@@ -4719,13 +4720,14 @@ impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest
 }
 
 
+#[cfg(feature = "v1")]
 pub async fn register_connector_webhook(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::admin::ConnectorWebhookRegisterRequest,
-) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+) -> RouterResponse<api_models::admin::RegisterConnectorWebhookResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store =  db
@@ -4738,10 +4740,17 @@ pub async fn register_connector_webhook(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = req
-        .clone()
-        .get_merchant_connector_account_from_id(db, &merchant_id, merchant_connector_id, &key_store)
-        .await?;
+    let mca = db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_string(),
+            },
+        )?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
         // validate request
@@ -4750,13 +4759,13 @@ pub async fn register_connector_webhook(
         &state.conf.connectors,
         &mca.connector_name,
         api::GetToken::Connector,
-        mca.merchant_connector_id.clone(),
+        Some(mca.merchant_connector_id.clone()),
     )?;
 
     let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
-        api::WebhookRegister,
-        ConnectorWebhookRegisterData,
-        ConnectorWebhookRegisterResponse,
+        hyperswitch_domain_models::router_flow_types::configure_connector_webhook::ConnectorWebhookRegister,
+        hyperswitch_domain_models::router_request_types::configure_connector_webhook::ConnectorWebhookRegisterData,
+         hyperswitch_domain_models::router_response_types::configure_connector_webhook::ConnectorWebhookRegisterResponse,
     > = connector_data.connector.get_connector_integration();
 
     let flow_specific_request_data = configure_connector_webhook::construct_webhook_register_request_data(
@@ -4765,12 +4774,16 @@ pub async fn register_connector_webhook(
         &req,
     )?;
 
+    let auth_type: api_models::admin::ConnectorAuthType = mca
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     Ok(types::RouterData {
-        flow: PhantomData,
-        merchant_id: merchant_connector_id.merchant_id.clone(),
+        flow: std::marker::PhantomData,
+        merchant_id: mca.merchant_id.clone(),
         customer_id: None,
         connector_customer: None,
-        connector: merchant_connector_account.connector_name.clone(),
+        connector: mca.connector_name.clone(),
         payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
@@ -4779,10 +4792,10 @@ pub async fn register_connector_webhook(
         payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
-        address: PaymentAddress::default(),
+        address: types::PaymentAddress::default(),
         auth_type: common_enums::AuthenticationType::default(),
-        connector_meta_data: merchant_connector_account.get_metadata().clone(),
-        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        connector_meta_data: mca.get_metadata().clone(),
+        connector_wallets_details: mca.get_connector_wallets_details(),
         amount_captured: None,
         minor_amount_captured: None,
         access_token: None,
@@ -4827,102 +4840,8 @@ pub async fn register_connector_webhook(
     // Handle the operation result and update db
 
     // generate and return the response the response
-    let response  = RegisterConnectorWebhookResponse {
+    let response  = api_models::admin::RegisterConnectorWebhookResponse {
     };
 
     Ok(service_api::ApplicationResponse::Json(response)) 
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-async fn authorize_verify_select<Op>(
-    operation: Op,
-    state: app::SessionState,
-    req_state: ReqState,
-    platform: domain::Platform,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-    header_payload: HeaderPayload,
-    req: api_models::payments::PaymentsRequest,
-    auth_flow: api::AuthFlow,
-) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
-where
-    Op: Sync
-        + Clone
-        + std::fmt::Debug
-        + payments::operations::Operation<
-            api_types::Authorize,
-            api_models::payments::PaymentsRequest,
-            Data = payments::PaymentData<api_types::Authorize>,
-        > + payments::operations::Operation<
-            api_types::SetupMandate,
-            api_models::payments::PaymentsRequest,
-            Data = payments::PaymentData<api_types::SetupMandate>,
-        >,
-{
-    
-}
-
-#[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
-#[async_trait::async_trait]
-trait MerchantConnectorWebhookRegisterBridge {
-        async fn get_merchant_connector_account_from_id(
-        self,
-        db: &dyn StorageInterface,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &id_type::MerchantConnectorAccountId,
-        key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<domain::MerchantConnectorAccount>;
-
-    fn create_domain_model_from_request(
-        self,
-        state: &SessionState,
-        mca: &domain::MerchantConnectorAccount,
-    ) -> RouterResult<domain::ConnectorWebhookRegisterData>;
-}
-
-#[cfg(all(feature = "v1", feature = "olap"))]
-#[async_trait::async_trait]
-impl MerchantConnectorWebhookRegisterBridge for api_models::admin::ConnectorWebhookRegisterRequest {
-
-    async fn get_merchant_connector_account_from_id(
-        self,
-        db: &dyn StorageInterface,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &id_type::MerchantConnectorAccountId,
-        key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<domain::MerchantConnectorAccount> {
-        let mca = db
-            .find_merchant_connector_account_by_merchant_connector_id(
-                merchant_id,
-                merchant_connector_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_owned(),
-            })?;
-
-        Ok(mca)
-    }
-
-    fn create_domain_model_from_request(
-        self,
-        state: &SessionState,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
-    ) -> RouterResult<domain::ConnectorWebhookRegisterData> {
-        let merchant_id = merchant_connector_account.merchant_id.clone();
-        let merchant_connector_id = merchant_connector_account.merchant_connector_id.clone();
-        let router_base_url = &state.base_url;
-        let webhook_url = format!(
-            "{}/webhooks/{}/{}/",
-            router_base_url,
-            merchant_id.get_string_repr(),
-            merchant_connector_id.get_string_repr()
-        );
-
-        Ok(domain::ConnectorWebhookRegisterData {
-            event_type: self.event_type,
-            webhook_url,
-        })
-    }
 }

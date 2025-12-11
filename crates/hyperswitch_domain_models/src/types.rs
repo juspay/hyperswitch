@@ -146,6 +146,12 @@ pub type VerifyWebhookSourceRouterData = RouterData<
     VerifyWebhookSourceResponseData,
 >;
 
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse
+    >;
+
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
@@ -227,6 +233,9 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
 >;
+
+pub type SubscriptionCreateRouterData =
+    RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
 
 pub type WebhookRegisterRouterData =
     RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;
