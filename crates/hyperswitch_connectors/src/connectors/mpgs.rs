@@ -2,12 +2,16 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use common_enums::enums;
+use api_models::feature_matrix;
+use base64::Engine;
+use common_enums::{
+    enums::{self, PaymentMethodType},
+    CardNetwork,
+};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -24,11 +28,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -45,18 +50,32 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as mpgs;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::RefundsRequestData};
 
 #[derive(Clone)]
-pub struct Mpgs {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-}
+pub struct Mpgs;
 
 impl Mpgs {
     pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMinorUnitForConnector,
-        }
+        &Self
+    }
+
+    fn get_payment_url(
+        &self,
+        auth_type: &mpgs::MpgsAuthType,
+        router_data: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> Result<String, errors::ConnectorError> {
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = router_data.payment_id.clone();
+        let transaction_id = uuid::Uuid::new_v4().to_string();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}/transaction/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id,
+            transaction_id
+        ))
     }
 }
 
@@ -104,10 +123,7 @@ impl ConnectorCommon for Mpgs {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -124,9 +140,18 @@ impl ConnectorCommon for Mpgs {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = mpgs::MpgsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!(
+            "merchant.{}:{}",
+            auth.merchant_id.expose(),
+            auth.api_password.expose()
+        );
+        let auth_header = format!(
+            "Basic {}",
+            &common_utils::consts::BASE64_ENGINE.encode(auth_key)
+        );
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth_header.into_masked(),
         )])
     }
 
@@ -145,9 +170,9 @@ impl ConnectorCommon for Mpgs {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.cause,
+            message: response.error.explanation,
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -161,7 +186,7 @@ impl ConnectorCommon for Mpgs {
 impl ConnectorValidation for Mpgs {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        _pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         match pm_data {
@@ -207,10 +232,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        self.get_payment_url(&auth_type, req, connectors)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
     }
 
     fn get_request_body(
@@ -218,13 +245,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
+        let connector_router_data = mpgs::MpgsRouterData::try_from((
+            &self.get_currency_unit(),
             req.request.currency,
-        )?;
-
-        let connector_router_data = mpgs::MpgsRouterData::from((amount, req));
+            req.request.amount,
+            req,
+        ))?;
         let connector_req = mpgs::MpgsPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -236,7 +262,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Put)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -294,10 +320,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mpg
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = req.payment_id.clone();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id
+        ))
     }
 
     fn build_request(
@@ -358,18 +392,35 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = req.payment_id.clone();
+        let transaction_id = uuid::Uuid::new_v4().to_string();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}/transaction/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id,
+            transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_router_data = mpgs::MpgsRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = mpgs::MpgsPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -420,7 +471,110 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mpgs {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mpgs {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = req.payment_id.clone();
+        let transaction_id = uuid::Uuid::new_v4().to_string();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}/transaction/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id,
+            transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = mpgs::MpgsPaymentsRequest {
+            api_operation: mpgs::MpgsApiOperation::Void,
+            order: mpgs::MpgsOrder {
+                amount: "0".to_string(),
+                currency: req
+                    .request
+                    .currency
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    })?
+                    .to_string(),
+            },
+            source_of_funds: mpgs::MpgsSourceOfFunds {
+                r#type: "CARD".to_string(),
+                provided: None,
+            },
+            transaction: mpgs::MpgsTransaction {
+                reference: req.request.connector_transaction_id.clone(),
+            },
+        };
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: mpgs::MpgsPaymentsResponse = res
+            .response
+            .parse_struct("Mpgs PaymentsCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
     fn get_headers(
@@ -437,10 +591,20 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = req.payment_id.clone();
+        let transaction_id = uuid::Uuid::new_v4().to_string();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}/transaction/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id,
+            transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -448,13 +612,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
+        let connector_router_data = mpgs::MpgsRouterData::try_from((
+            &self.get_currency_unit(),
             req.request.currency,
-        )?;
-
-        let connector_router_data = mpgs::MpgsRouterData::from((refund_amount, req));
+            req.request.refund_amount,
+            req,
+        ))?;
         let connector_req = mpgs::MpgsRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -484,10 +647,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: mpgs::RefundResponse = res
-            .response
-            .parse_struct("mpgs RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: mpgs::MpgsRefundResponse =
+            res.response
+                .parse_struct("mpgs RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -521,10 +684,20 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_id = auth_type.merchant_id.clone().expose();
+        let order_id = req.payment_id.clone();
+        let transaction_id = req.request.get_connector_refund_id()?.to_string();
+        Ok(format!(
+            "{}/api/rest/version/100/merchant/{}/order/{}/transaction/{}",
+            self.base_url(connectors),
+            merchant_id,
+            order_id,
+            transaction_id
+        ))
     }
 
     fn build_request(
@@ -551,10 +724,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: mpgs::RefundResponse =
-            res.response
-                .parse_struct("mpgs RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: mpgs::MpgsRefundResponse = res
+            .response
+            .parse_struct("mpgs RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -597,8 +770,63 @@ impl webhooks::IncomingWebhook for Mpgs {
     }
 }
 
-static MPGS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+static MPGS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic, // PAY operation
+        enums::CaptureMethod::Manual,    // AUTHORIZE + CAPTURE operations
+    ];
+
+    let supported_card_networks = vec![
+        CardNetwork::AmericanExpress,
+        CardNetwork::DinersClub,
+        CardNetwork::Discover,
+        CardNetwork::JCB,
+        CardNetwork::Maestro,
+        CardNetwork::Mastercard,
+        CardNetwork::UnionPay,
+        CardNetwork::Visa,
+    ];
+
+    let mut mpgs_supported_payment_methods = SupportedPaymentMethods::new();
+
+    // Add Credit Card support
+    mpgs_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported, // No mandate implementation in current code
+            refunds: enums::FeatureStatus::Supported,     // Refund flows are implemented
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(feature_matrix::PaymentMethodSpecificFeatures::Card({
+                feature_matrix::CardSpecificFeatures {
+                    three_ds: enums::FeatureStatus::NotSupported, // No 3DS implementation found
+                    no_three_ds: enums::FeatureStatus::Supported, // Basic card processing supported
+                    supported_card_networks: supported_card_networks.clone(),
+                }
+            })),
+        },
+    );
+
+    // Add Debit Card support
+    mpgs_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported, // No mandate implementation in current code
+            refunds: enums::FeatureStatus::Supported,     // Refund flows are implemented
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(feature_matrix::PaymentMethodSpecificFeatures::Card({
+                feature_matrix::CardSpecificFeatures {
+                    three_ds: enums::FeatureStatus::NotSupported, // No 3DS implementation found
+                    no_three_ds: enums::FeatureStatus::Supported, // Basic card processing supported
+                    supported_card_networks: supported_card_networks.clone(),
+                }
+            })),
+        },
+    );
+
+    mpgs_supported_payment_methods
+});
 
 static MPGS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Mpgs",
