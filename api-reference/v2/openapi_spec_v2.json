@@ -22737,7 +22737,7 @@
             "description": "Email linked with paypal account",
             "required": [
               "email",
-              "flow_type"
+              "field_type"
             ],
             "properties": {
               "email": {
@@ -22745,7 +22745,7 @@
                 "description": "Email linked with paypal account",
                 "example": "john.doe@example.com"
               },
-              "flow_type": {
+              "field_type": {
                 "type": "string",
                 "enum": [
                   "email"
@@ -22758,7 +22758,7 @@
             "description": "id of the paypal account",
             "required": [
               "paypal_id",
-              "flow_type"
+              "field_type"
             ],
             "properties": {
               "paypal_id": {
@@ -22766,7 +22766,7 @@
                 "description": "id of the paypal account",
                 "example": "G83K*****HCQ2"
               },
-              "flow_type": {
+              "field_type": {
                 "type": "string",
                 "enum": [
                   "paypal_id"
@@ -22778,7 +22778,7 @@
             "type": "object",
             "description": "mobile number linked to paypal account",
             "required": [
-              "flow_type"
+              "field_type"
             ],
             "properties": {
               "telephone_number": {
@@ -22787,7 +22787,7 @@
                 "example": "G83K ***** HCQ2",
                 "nullable": true
               },
-              "flow_type": {
+              "field_type": {
                 "type": "string",
                 "enum": [
                   "telephone_number"
@@ -22798,7 +22798,7 @@
         ],
         "description": "Masked payout method details for paypal wallet payout method",
         "discriminator": {
-          "propertyName": "flow_type"
+          "propertyName": "field_type"
         }
       },
       "PaypalFlow": {

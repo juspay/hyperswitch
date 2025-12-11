@@ -219,25 +219,25 @@ pub enum WalletAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(tag = "flow_type", rename_all = "snake_case")]
+#[serde(tag = "field_type", rename_all = "snake_case")]
 pub enum PaypalAdditionalData {
     /// Email linked with paypal account
     Email {
         /// Email linked with paypal account
         #[schema(value_type = String, example = "john.doe@example.com")]
-        email: MaskedEmail
+        email: MaskedEmail,
     },
     /// id of the paypal account
     PaypalId {
         /// id of the paypal account
         #[schema(value_type = String, example = "G83K*****HCQ2")]
-        paypal_id: MaskedBankAccount
+        paypal_id: MaskedBankAccount,
     },
     /// mobile number linked to paypal account
     TelephoneNumber {
         /// mobile number linked to paypal account
         #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
-        telephone_number: Option<MaskedPhoneNumber>
+        telephone_number: Option<MaskedPhoneNumber>,
     },
 }
 
