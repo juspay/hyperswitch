@@ -857,7 +857,6 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-<<<<<<< HEAD
         let state = router_data
             .access_token
             .as_ref()
@@ -866,26 +865,11 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
-            .unwrap_or_default();
-
-        Ok(Self {
-=======
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
             .map(|val| convert_value_map_to_hashmap(val.peek()))
             .transpose()?
             .unwrap_or_default();
 
         Ok(Self {
-            merchant_account_metadata,
->>>>>>> 8a7a1edd19e9 (refactor: add `router_return_url` required by pmt flow in ucs)
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
