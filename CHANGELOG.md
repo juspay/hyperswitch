@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.11.0
+
+### Features
+
+- **connector:** [WorldpayWPG] Add apple pay - connector decryption flow ([#10482](https://github.com/juspay/hyperswitch/pull/10482)) ([`cc2eef3`](https://github.com/juspay/hyperswitch/commit/cc2eef3f5cc7b1091b11843d9aa308ee6cb352ce))
+- **payment_links:** Verify payment method mapping for custom tnc ([#10562](https://github.com/juspay/hyperswitch/pull/10562)) ([`9d18b0d`](https://github.com/juspay/hyperswitch/commit/9d18b0d22081b1d48c222994b14f7ed094573858))
+- **router:** Add `is_guest_customer` in payment method list response ([#10598](https://github.com/juspay/hyperswitch/pull/10598)) ([`ebd928f`](https://github.com/juspay/hyperswitch/commit/ebd928f07fff8e36c0371f51fcd005495da0c489))
+- Add configurable granular preprocessing flow for authentication bloated connectors ([#10567](https://github.com/juspay/hyperswitch/pull/10567)) ([`e39e6a5`](https://github.com/juspay/hyperswitch/commit/e39e6a51beb498a1cc311421eb6d188047b2d9a7))
+
+### Bug Fixes
+
+- **connector:** Correct card brand mapping to match supported network list ([#10602](https://github.com/juspay/hyperswitch/pull/10602)) ([`85fcf30`](https://github.com/juspay/hyperswitch/commit/85fcf303d260b8cff295cc82e9d32d615222c8ac))
+- Added context to UCS shadow mode logs HS<>UCS ([#10575](https://github.com/juspay/hyperswitch/pull/10575)) ([`fc0078a`](https://github.com/juspay/hyperswitch/commit/fc0078ae590028da0c5133ca225a19030da49699))
+
+### Revert
+
+- "feat(payment_links): Add Validation On Not Allowing Custom T&C When Domain is set to Hyperswitch Hosted" ([#10616](https://github.com/juspay/hyperswitch/pull/10616)) ([`b258d2b`](https://github.com/juspay/hyperswitch/commit/b258d2b48f40bb8fd4ce7a5435b5621932e053d4))
+
+**Full Changelog:** [`2025.12.10.0...2025.12.11.0`](https://github.com/juspay/hyperswitch/compare/2025.12.10.0...2025.12.11.0)
+
+- - -
+
 ## 2025.12.10.0
 
 ### Features
