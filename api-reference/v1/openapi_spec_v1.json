@@ -36023,7 +36023,7 @@
           "threeds_data_or_protocol_invalid",
           "rate_limit",
           "integ_cryptographic_issue",
-          "gen_unknown_error"
+          "generic_unknown_error"
         ]
       },
       "StaticRoutingAlgorithm": {

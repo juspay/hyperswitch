@@ -421,7 +421,7 @@ pub enum StandardisedCode {
     ThreedsDataOrProtocolInvalid,
     RateLimit,
     IntegCryptographicIssue,
-    GenUnknownError,
+    GenericUnknownError,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
