@@ -314,7 +314,6 @@ impl
                 .as_ref()
                 .and_then(|pmt| pmt.get_payment_method_token())
                 .map(ExposeInterface::expose),
-            access_token: None,
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -333,7 +332,15 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| payments_grpc::BillingDescriptor::foreign_try_from(descriptor)).transpose()?,
             order_details: vec![],
+            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
+            payment_channel: None,
+            order_id: None,
         })
     }
 }
@@ -366,6 +373,7 @@ impl
             currency: currency.into(),
 
             metadata: HashMap::new(),
+            state: None,
             webhook_url: None,
         })
     }
@@ -486,16 +494,35 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
+
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
-
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
             state,
+            sync_type: None,
         })
     }
 }
@@ -866,6 +893,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 },
             ),
             state: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -1004,7 +1032,10 @@ impl
             setup_mandate_details: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
+            billing_descriptor: None,
             order_details: vec![],
+            enable_partial_authorization: None,
+            payment_channel: None,
         })
     }
 }
@@ -1169,7 +1200,14 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| payments_grpc::BillingDescriptor::foreign_try_from(descriptor)).transpose()?,
             order_details: vec![],
+            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
+            payment_channel: None,
         })
     }
 }
@@ -1330,6 +1368,9 @@ impl
                 .transpose()?,
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
+            billing_descriptor: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
             order_details: vec![],
         })
     }
@@ -1460,6 +1501,15 @@ impl
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| payments_grpc::BillingDescriptor::foreign_try_from(descriptor)).transpose()?,
+            order_id: None,
+            payment_method_token: None,
+            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
+            payment_channel: None,
         })
     }
 }
@@ -1496,6 +1546,7 @@ impl
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
                     payment_method_id: connector_mandate_id.get_payment_method_id(),
+                    connector_mandate_request_reference_id: connector_mandate_id.get_connector_mandate_request_reference_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
@@ -1566,6 +1617,9 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+            billing_descriptor: None,
+            mit_category: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1807,7 +1861,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate.connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -1908,7 +1962,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate.connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -2049,7 +2103,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate.connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata: None,
@@ -2150,7 +2204,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate.connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -3100,6 +3154,21 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
     }
 }
 
+impl transformers::ForeignTryFrom<&common_types::payments::BillingDescriptor> for payments_grpc::BillingDescriptor {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(billing_descriptor: &common_types::payments::BillingDescriptor) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: billing_descriptor.name.clone().map(|name| name.expose().into()),
+            city: billing_descriptor.city.clone().map(|city| city.expose().into()),
+            phone: billing_descriptor.phone.clone().map(|phone| phone.expose().into()),
+            statement_descriptor: billing_descriptor.statement_descriptor.clone(),
+            statement_descriptor_suffix: billing_descriptor.statement_descriptor_suffix.clone(),
+            reference: billing_descriptor.reference.clone(),
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -3366,6 +3435,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 })?,
             state,
             merchant_account_metadata,
+            payment_method_type: None,
+            test_mode: None,
         })
     }
 }
@@ -3446,6 +3517,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                         .unwrap_or_default()
                 })
                 .unwrap_or_default(),
+            payment_method_type: None,
+            test_mode: None,
         })
     }
 }
@@ -3552,6 +3625,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 })
                 .unwrap_or_default(),
             state: None,
+            merchant_account_metadata: HashMap::new(),
         })
     }
 }
@@ -3666,7 +3740,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate.connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
