@@ -576,12 +576,24 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
                     unified_message: None,
                 })
             }
-            errors::ConnectorError::NotSupported { message, connector } => {
+            errors::ConnectorError::FlowNotSupported { message, connector } => {
                 Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
                     refund_error_message: Some(format!(
                         "{message} is not supported by {connector}"
                     )),
+                    refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                    updated_by: storage_scheme.to_string(),
+                    connector_refund_id: None,
+                    processor_refund_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                })
+            }
+            errors::ConnectorError::NotSupported { flow, connector } => {
+                Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                    refund_status: Some(enums::RefundStatus::Failure),
+                    refund_error_message: Some(format!("{flow} is not supported by {connector}")),
                     refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
