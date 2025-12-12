@@ -81,6 +81,21 @@ impl PaymentAttempt {
         }
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn update_by_ids(
+        conn: &PgPooledConn,
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        payment_attempt: PaymentAttemptUpdateInternal,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, dsl::payment_id.eq(payment_id.to_owned()), payment_attempt)
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
@@ -225,7 +240,7 @@ impl PaymentAttempt {
             .attach_printable_lazy(|| {
                 format!("Failed to retrieve txn_id for ({txn_id:?}, {txn_data:?})")
             })?;
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::profile_id
                 .eq(profile_id.to_owned())
@@ -272,20 +287,6 @@ impl PaymentAttempt {
             None,
             None,
             Some(dsl::created_at.asc()),
-        )
-        .await
-    }
-
-    #[cfg(feature = "v2")]
-    pub async fn update_by_ids(
-        conn: &PgPooledConn,
-        ids: Vec<common_utils::id_type::GlobalAttemptId>,
-        payment_attempt: PaymentAttemptUpdateInternal,
-    ) -> StorageResult<usize> {
-        generics::generic_update::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::id.eq_any(ids),
-            payment_attempt,
         )
         .await
     }

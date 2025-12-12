@@ -63,10 +63,10 @@ impl PaymentAttemptInterface for MockDb {
     async fn update_attempts_by_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
-        ids: Vec<id_type::GlobalAttemptId>,
+        payment_id: id_type::GlobalPaymentId,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<usize, Self::Error> {
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error> {
         Err(StorageError::MockDbError)?
     }
 

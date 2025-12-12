@@ -429,16 +429,11 @@ pub async fn migrate_core(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             let attempts_count = payment_attempt_list.len();
-            let attempts_id_list = payment_attempt_list
-                .clone()
-                .into_iter()
-                .map(|attempt| attempt.id)
-                .collect();
             let updated_group_id = updated_payment_intent.active_attempts_group_id.clone();
             if let Some(intent_group_id) = updated_group_id {
-                let updated_attempts = db.update_attempts_by_id(
+                let updated_attempts : Vec<hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt> = db.update_attempts_by_id(
                     &platform.get_processor().get_key_store(),
-                            attempts_id_list,
+                            request.id.clone(),
                         hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::MigrationUpdate {
                                 attempts_group_id: intent_group_id.clone(),
                                 updated_by: storage_scheme.to_string(),
@@ -450,9 +445,10 @@ pub async fn migrate_core(
                                     message: "Failed to update payment attempts for revenue recovery migration"
                                         .to_string(),
                                 })?;
+                let updated_attempts_count = updated_attempts.len();
 
                 logger::info!(
-                                        "actual attemtpts count : {attempts_count}, updated_attempts : {updated_attempts}"
+                                        "actual attemtpts count : {attempts_count}, updated_attempts : {updated_attempts_count}"
                                 );
             };
 

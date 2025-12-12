@@ -183,22 +183,40 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn update_attempts_by_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
-        ids: Vec<common_utils::id_type::GlobalAttemptId>,
+        payment_id: common_utils::id_type::GlobalPaymentId,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<usize, errors::StorageError> {
+    ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
+        let keymanager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
-        diesel_models::PaymentAttempt::update_by_ids(
+        use futures::future::try_join_all;
+
+        let updated_attempts = diesel_models::PaymentAttempt::update_by_ids(
             &conn,
-            ids,
+            payment_id,
             diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
         )
         .await
         .map_err(|error| {
             let new_error = diesel_error_to_data_error(*error.current_context());
             error.change_context(new_error)
-        })
+        })?;
+
+        // Now convert each attempt asynchronously
+        let converted = try_join_all(updated_attempts.into_iter().map(|diesel_payment_attempt| {
+            diesel_payment_attempt.convert(
+                keymanager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+        }))
+        .await
+        .map_err(|e| e.change_context(errors::StorageError::DecryptionError))?;
+
+        Ok(converted)
     }
 
     #[cfg(feature = "v1")]
@@ -1023,12 +1041,17 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn update_attempts_by_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
-        ids: Vec<common_utils::id_type::GlobalAttemptId>,
+        payment_id: common_utils::id_type::GlobalPaymentId,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<usize, Self::Error> {
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error> {
         self.router_store
-            .update_attempts_by_id(merchant_key_store, ids, payment_attempt, storage_scheme)
+            .update_attempts_by_id(
+                merchant_key_store,
+                payment_id,
+                payment_attempt,
+                storage_scheme,
+            )
             .await
     }
 

@@ -101,10 +101,10 @@ pub trait PaymentAttemptInterface {
     async fn update_attempts_by_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
-        ids: Vec<id_type::GlobalAttemptId>,
+        payment_id: id_type::GlobalPaymentId,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<usize, Self::Error>;
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
