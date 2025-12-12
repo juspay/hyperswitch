@@ -622,7 +622,7 @@ function bankRedirectRedirection(
             }
             break;
 
-            case "fiuu":
+          case "fiuu":
             if (paymentMethodType === "online_banking_fpx") {
               cy.log("Handling FIUU OnlineBankingFpx redirect flow");
 
