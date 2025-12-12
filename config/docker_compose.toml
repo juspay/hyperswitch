@@ -1,3 +1,8 @@
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
+application_source = "main"
+
 [server]
 port = 8080
 host = "0.0.0.0"
