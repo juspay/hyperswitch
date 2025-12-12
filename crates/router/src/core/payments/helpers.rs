@@ -12,8 +12,8 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
-use common_enums::ConnectorType;
+use common_enums::enums::{CallConnectorAction, GatewaySystem};
+use common_enums::{enums::ExecutionMode, ConnectorType};
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
@@ -2119,6 +2119,7 @@ pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub execution_mode: ExecutionMode,
 }
 
 impl Default for RolloutConfig {
@@ -2127,6 +2128,7 @@ impl Default for RolloutConfig {
             rollout_percent: 0.0,
             http_url: None,
             https_url: None,
+            execution_mode: ExecutionMode::NotApplicable,
         }
     }
 }
@@ -2138,6 +2140,17 @@ pub use hyperswitch_interfaces::types::ProxyOverride;
 pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
+    pub execution_mode: ExecutionMode,
+}
+
+impl Default for RolloutExecutionResult {
+    fn default() -> Self {
+        Self {
+            should_execute: false,
+            proxy_override: None,
+            execution_mode: ExecutionMode::NotApplicable,
+        }
+    }
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
@@ -2180,6 +2193,80 @@ fn create_proxy_override(
     }
 }
 
+// Helper function to execute rollout logic or return default
+impl From<RolloutConfig> for RolloutExecutionResult {
+    fn from(config: RolloutConfig) -> Self {
+        // Validate both rollout_percent bounds and execution_mode
+        let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        let is_valid_execution_mode =
+            !matches!(config.execution_mode, ExecutionMode::NotApplicable);
+
+        match (is_valid_percent, is_valid_execution_mode) {
+            (true, true) => {
+                // Calculate probability to determine if request should execute
+                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let should_execute = sampled_value < config.rollout_percent;
+
+                logger::debug!(
+                    rollout_percent = config.rollout_percent,
+                    sampled_value = sampled_value,
+                    should_execute = should_execute,
+                    execution_mode = ?config.execution_mode,
+                    "Rollout execution decision made"
+                );
+
+                match should_execute {
+                    true => {
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+                        logger::info!(
+                            should_execute = should_execute,
+                            execution_mode = ?config.execution_mode,
+                            "Rollout will be executed with proxy override"
+                        );
+                        Self {
+                            should_execute: true,
+                            proxy_override,
+                            execution_mode: config.execution_mode,
+                        }
+                    }
+                    false => {
+                        logger::info!(
+                            should_execute = should_execute,
+                            execution_mode = ?config.execution_mode,
+                            "Rollout will not be executed"
+                        );
+                        Self::default()
+                    }
+                }
+            }
+            (true, false) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid execution mode in rollout config. Defaulting to NotApplicable and should execute false."
+            );
+                Self::default()
+            }
+            (false, true) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                "Invalid rollout percent in rollout config. Defaulting to should execute false."
+            );
+                Self::default()
+            }
+            (false, false) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid rollout percent and execution mode in rollout config. Defaulting to should execute false and NotApplicable."
+            );
+                Self::default()
+            }
+        }
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -2188,71 +2275,22 @@ pub async fn should_execute_based_on_rollout(
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-            {
-                Ok(config) => Ok(config),
-                Err(err) => {
-                    logger::debug!(
+            // Parse as JSON - log error if it fails but don't propagate
+            Ok(serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
                         error = ?err,
                         config = %rollout_config.config,
-                        "Config not in JSON format, trying legacy float format"
+                        "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>()
-                        .map(|percent| RolloutConfig {
-                            rollout_percent: percent,
-                            http_url: None,
-                            https_url: None,
-                        })
-                        .map_err(|err| {
-                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
-                            err
-                        })
-                }
-            };
-
-            match config_result {
-                Ok(config) => {
-                    if !(0.0..=1.0).contains(&config.rollout_percent) {
-                        logger::warn!(
-                            rollout_percent = config.rollout_percent,
-                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
-                        );
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
-
-                        return Ok(RolloutExecutionResult {
-                            should_execute: false,
-                            proxy_override,
-                        });
-                    }
-
-                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                    let should_execute = sampled_value < config.rollout_percent;
-
-                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
-
-                    Ok(RolloutExecutionResult {
-                        should_execute,
-                        proxy_override,
-                    })
-                }
-                Err(err) => {
-                    logger::error!(error = ?err, "Failed to parse rollout config");
-                    Ok(RolloutExecutionResult {
-                        should_execute: false,
-                        proxy_override: None,
-                    })
-                }
-            }
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(RolloutExecutionResult {
-                should_execute: false,
-                proxy_override: None,
-            })
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            Ok(RolloutExecutionResult::default())
         }
     }
 }

@@ -5,8 +5,7 @@ use api_models::admin;
 use base64::Engine;
 use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
-    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, ShadowRolloutAvailability,
-    UcsAvailability,
+    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
 };
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
@@ -54,8 +53,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                self, is_ucs_enabled, should_execute_based_on_rollout,
-                MerchantConnectorAccountType, ProxyOverride,
+                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -169,28 +168,6 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
-/// Checks if a config key exists and returns its percentage if present
-/// Returns (key_exists, rollout_percentage)
-async fn get_rollout_config_info(state: &SessionState, config_key: &str) -> (bool, Option<f64>) {
-    let db = state.store.as_ref();
-
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
-            // Key exists, try to parse percentage
-            let percentage =
-                match serde_json::from_str::<helpers::RolloutConfig>(&rollout_config.config) {
-                    Ok(config) => Some(config.rollout_percent),
-                    Err(_) => {
-                        // Fallback to legacy format (simple float)
-                        rollout_config.config.parse::<f64>().ok()
-                    }
-                };
-            (true, percentage)
-        }
-        Err(_) => (false, None), // Key doesn't exist
-    }
-}
-
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
@@ -221,35 +198,32 @@ async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
 async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
-    config_key: &str,
 ) -> RouterResult<ConnectorIntegrationType> {
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
             let is_ucs_only = ucs_config.ucs_only_connectors.contains(&connector);
-            let rollout_result = should_execute_based_on_rollout(state, config_key).await?;
 
-            if is_ucs_only || rollout_result.should_execute {
+            if is_ucs_only {
                 router_env::logger::debug!(
                     connector = ?connector,
                     ucs_only_list = is_ucs_only,
-                    rollout_enabled = rollout_result.should_execute,
                     "Using UcsConnector"
                 );
                 Ok(ConnectorIntegrationType::UcsConnector)
             } else {
                 router_env::logger::debug!(
                     connector = ?connector,
-                    "Using DirectConnector - not in ucs_only_list and rollout not enabled"
+                    "Using DirectandUCSConnector - not in ucs_only_list"
                 );
-                Ok(ConnectorIntegrationType::DirectConnector)
+                Ok(ConnectorIntegrationType::DirectandUCSConnector)
             }
         }
         None => {
             router_env::logger::debug!(
                 connector = ?connector,
-                "UCS config not present, using DirectConnector"
+                "UCS config not present, using DirectandUCSConnector"
             );
-            Ok(ConnectorIntegrationType::DirectConnector)
+            Ok(ConnectorIntegrationType::DirectandUCSConnector)
         }
     }
 }
@@ -282,7 +256,7 @@ where
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let (rollout_key, shadow_rollout_key) = build_rollout_keys(
+    let rollout_key = build_rollout_keys(
         merchant_id,
         connector_name,
         &flow_name,
@@ -291,43 +265,13 @@ where
 
     // Determine connector integration type
     let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+        determine_connector_integration_type(state, connector_enum).await?;
 
     // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let (shadow_key_exists, _shadow_percentage) =
-        get_rollout_config_info(state, &shadow_rollout_key).await;
-
-    // Simplified decision logic: Shadow takes priority, then rollout, then direct
-    let shadow_rollout_availability = if shadow_key_exists {
-        // Block 1: Shadow key exists - check if it's enabled
-        let shadow_percentage = _shadow_percentage.unwrap_or(0.0);
-
-        if shadow_percentage != 0.0 {
-            router_env::logger::debug!( shadow_key = %shadow_rollout_key, shadow_percentage = shadow_percentage, "Shadow key enabled, using shadow mode for comparison" );
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            router_env::logger::debug!(
-                shadow_key = %shadow_rollout_key,
-                shadow_percentage = shadow_percentage,
-                rollout_enabled = rollout_result.should_execute,
-                "Shadow key exists but disabled (0.0%), falling back to rollout or direct"
-            );
-            // Shadow disabled, result is the same regardless of rollout status
-            ShadowRolloutAvailability::NotAvailable
-        }
-    } else if rollout_result.should_execute {
-        // Block 2: No shadow key, but rollout is enabled - use primary UCS
-        router_env::logger::debug!( rollout_key = %rollout_key, "No shadow key, rollout enabled, using primary UCS mode" );
-        ShadowRolloutAvailability::NotAvailable
-    } else {
-        // Block 3: Neither shadow nor rollout enabled - use direct
-        router_env::logger::debug!( rollout_key = %rollout_key, shadow_key = %shadow_rollout_key, "Neither shadow nor rollout enabled, using Direct mode" );
-        ShadowRolloutAvailability::NotAvailable
-    };
 
     // Single decision point using pattern matching
-    let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
@@ -372,20 +316,11 @@ where
                 decide_execution_path(
                     connector_integration_type,
                     previous_gateway,
-                    shadow_rollout_availability,
+                    rollout_result.execution_mode,
                 )?
             }
         }
     };
-
-    router_env::logger::info!(
-        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
-        gateway_system,
-        execution_path,
-        merchant_id,
-        connector_name,
-        flow_name
-    );
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
@@ -401,17 +336,27 @@ where
                 }
                 None => {
                     router_env::logger::debug!(
-                        "No proxy override available for Shadow UCS, using original state"
+                        "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
                     );
+                    execution_path = ExecutionPath::Direct;
                     state.clone()
                 }
             }
         }
-        _ => {
+        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => {
             // For Direct and UCS flows, use original state
             state.clone()
         }
     };
+
+    router_env::logger::info!(
+        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
+    );
 
     Ok((execution_path, session_state))
 }
@@ -442,113 +387,69 @@ fn create_updated_session_state_with_proxy(
 fn decide_execution_path(
     connector_type: ConnectorIntegrationType,
     previous_gateway: Option<GatewaySystem>,
-    shadow_rollout_enabled: ShadowRolloutAvailability,
+    execution_mode: ExecutionMode,
 ) -> RouterResult<(GatewaySystem, ExecutionPath)> {
-    match (connector_type, previous_gateway, shadow_rollout_enabled) {
-        // Case 1: DirectConnector with no previous gateway and no shadow rollout
-        // This is a fresh payment request for a direct connector - use direct gateway
-        (
-            ConnectorIntegrationType::DirectConnector,
-            None,
-            ShadowRolloutAvailability::NotAvailable,
-        ) => Ok((GatewaySystem::Direct, ExecutionPath::Direct)),
-
-        // Case 2: DirectConnector previously used Direct gateway, no shadow rollout
-        // Continue using the same direct gateway for consistency
-        (
-            ConnectorIntegrationType::DirectConnector,
-            Some(GatewaySystem::Direct),
-            ShadowRolloutAvailability::NotAvailable,
-        ) => Ok((GatewaySystem::Direct, ExecutionPath::Direct)),
-
-        // Case 3: DirectConnector previously used UCS, but now switching back to Direct (no shadow)
-        // Migration scenario: UCS was used before, but now we're reverting to Direct
-        (
-            ConnectorIntegrationType::DirectConnector,
-            Some(GatewaySystem::UnifiedConnectorService),
-            ShadowRolloutAvailability::NotAvailable,
-        ) => Ok((GatewaySystem::Direct, ExecutionPath::Direct)),
-
-        // Case 4: UcsConnector configuration, but previously used Direct gateway (no shadow)
-        // Maintain Direct for backward compatibility - don't switch mid-transaction
-        (
-            ConnectorIntegrationType::UcsConnector,
-            Some(GatewaySystem::Direct),
-            ShadowRolloutAvailability::NotAvailable,
-        ) => Ok((GatewaySystem::Direct, ExecutionPath::Direct)),
-
-        // Case 5: DirectConnector with no previous gateway, shadow rollout enabled
-        // Use Direct as primary, but also execute UCS in shadow mode for comparison
-        (
-            ConnectorIntegrationType::DirectConnector,
-            None,
-            ShadowRolloutAvailability::IsAvailable,
-        ) => Ok((
-            GatewaySystem::Direct,
-            ExecutionPath::ShadowUnifiedConnectorService,
-        )),
-
-        // Case 6: DirectConnector previously used Direct, shadow rollout enabled
-        // Continue with Direct as primary, execute UCS in shadow mode for testing
-        (
-            ConnectorIntegrationType::DirectConnector,
-            Some(GatewaySystem::Direct),
-            ShadowRolloutAvailability::IsAvailable,
-        ) => Ok((
-            GatewaySystem::Direct,
-            ExecutionPath::ShadowUnifiedConnectorService,
-        )),
-
-        // Case 7: DirectConnector previously used UCS, shadow rollout enabled
-        // Revert to Direct as primary, but keep UCS in shadow mode for comparison
-        (
-            ConnectorIntegrationType::DirectConnector,
-            Some(GatewaySystem::UnifiedConnectorService),
-            ShadowRolloutAvailability::IsAvailable,
-        ) => Ok((
-            GatewaySystem::Direct,
-            ExecutionPath::ShadowUnifiedConnectorService,
-        )),
-
-        // Case 8: UcsConnector configuration, previously used Direct, shadow rollout enabled
-        // Maintain Direct as primary for transaction consistency, shadow UCS for testing
-        (
-            ConnectorIntegrationType::UcsConnector,
-            Some(GatewaySystem::Direct),
-            ShadowRolloutAvailability::IsAvailable,
-        ) => Ok((
-            GatewaySystem::Direct,
-            ExecutionPath::ShadowUnifiedConnectorService,
-        )),
-
-        // Case 9a: UcsConnector with no previous gateway and shadow rollout enabled
-        // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
-        (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::IsAvailable) => {
-            Ok((
-                GatewaySystem::Direct,
-                ExecutionPath::ShadowUnifiedConnectorService,
-            ))
-        }
-
-        // Case 9b: UcsConnector with no previous gateway and no shadow rollout
-        // Fresh payment for a UCS-enabled connector - use UCS as primary
-        (ConnectorIntegrationType::UcsConnector, None, ShadowRolloutAvailability::NotAvailable) => {
-            Ok((
-                GatewaySystem::UnifiedConnectorService,
-                ExecutionPath::UnifiedConnectorService,
-            ))
-        }
-
-        // Case 10: UcsConnector previously used UCS (regardless of shadow rollout)
-        // Continue using UCS for consistency in the payment flow
-        (
-            ConnectorIntegrationType::UcsConnector,
-            Some(GatewaySystem::UnifiedConnectorService),
-            _,
-        ) => Ok((
+    match connector_type {
+        // UCS-only connectors always use UCS
+        ConnectorIntegrationType::UcsConnector => Ok((
             GatewaySystem::UnifiedConnectorService,
             ExecutionPath::UnifiedConnectorService,
         )),
+        ConnectorIntegrationType::DirectandUCSConnector => {
+            match (previous_gateway, execution_mode) {
+                (Some(GatewaySystem::Direct), ExecutionMode::NotApplicable) => {
+                    // Previous gateway was Direct, continue using Direct
+                    Ok((GatewaySystem::Direct, ExecutionPath::Direct))
+                }
+                (Some(GatewaySystem::Direct), ExecutionMode::Primary) => {
+                    // Previous gateway was Direct, continue using Direct
+                    Ok((GatewaySystem::Direct, ExecutionPath::Direct))
+                }
+                (Some(GatewaySystem::Direct), ExecutionMode::Shadow) => {
+                    // Previous gateway was Direct, but now UCS is in shadow mode for comparison
+                    Ok((
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    ))
+                }
+                (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::NotApplicable) => {
+                    // Previous gateway was UCS, continue using Direct as the config key has notapplicable execution mode
+                    Ok((GatewaySystem::Direct, ExecutionPath::Direct))
+                }
+                (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::Primary) => {
+                    // previous gateway was UCS, and config key has execution mode primary - continue using UCS
+                    Ok((
+                        GatewaySystem::UnifiedConnectorService,
+                        ExecutionPath::UnifiedConnectorService,
+                    ))
+                }
+                (Some(GatewaySystem::UnifiedConnectorService), ExecutionMode::Shadow) => {
+                    // previous gateway was UCS, but now UCS is in shadow mode for comparison
+                    Ok((
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    ))
+                }
+                (None, ExecutionMode::Primary) => {
+                    // Fresh payment for a UCS-enabled connector - use UCS as primary
+                    Ok((
+                        GatewaySystem::UnifiedConnectorService,
+                        ExecutionPath::UnifiedConnectorService,
+                    ))
+                }
+                (None, ExecutionMode::Shadow) => {
+                    // Fresh payment for UCS-enabled connector with shadow mode - use shadow UCS
+                    Ok((
+                        GatewaySystem::Direct,
+                        ExecutionPath::ShadowUnifiedConnectorService,
+                    ))
+                }
+                (None, ExecutionMode::NotApplicable) => {
+                    // Fresh payment request for direct connector - use direct gateway
+                    Ok((GatewaySystem::Direct, ExecutionPath::Direct))
+                }
+            }
+        }
     }
 }
 
@@ -558,7 +459,7 @@ fn build_rollout_keys(
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
-) -> (String, String) {
+) -> String {
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
@@ -583,9 +484,7 @@ fn build_rollout_keys(
             flow_name
         )
     };
-
-    let shadow_rollout_key = format!("{rollout_key}_shadow");
-    (rollout_key, shadow_rollout_key)
+    rollout_key
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -681,41 +580,16 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         connector_name,
         flow_name
     );
-    let shadow_rollout_key = format!("{rollout_key}_shadow");
 
     // Determine connector integration type
     let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum, &rollout_key).await?;
+        determine_connector_integration_type(state, connector_enum).await?;
 
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
     // Check both rollout keys to determine priority based on shadow percentage
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_result = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
-
-    // Get shadow percentage to determine priority
-    let (_shadow_key_exists, shadow_percentage) =
-        get_rollout_config_info(state, &shadow_rollout_key).await;
-
-    let shadow_rollout_availability =
-        if shadow_rollout_result.should_execute && shadow_percentage.unwrap_or(0.0) != 0.0 {
-            // Shadow is present and percentage is non-zero, use shadow
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage.unwrap_or(0.0),
-                "Shadow rollout is present with non-zero percentage for webhooks, using shadow"
-            );
-            ShadowRolloutAvailability::IsAvailable
-        } else if rollout_result.should_execute {
-            // Either shadow is 0.0 or not present, use rollout if available
-            router_env::logger::debug!(
-                shadow_percentage = shadow_percentage.unwrap_or(0.0),
-                "Shadow rollout is 0.0 or not present for webhooks, using rollout"
-            );
-            ShadowRolloutAvailability::IsAvailable
-        } else {
-            ShadowRolloutAvailability::NotAvailable
-        };
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -726,7 +600,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         decide_execution_path(
             connector_integration_type,
             previous_gateway,
-            shadow_rollout_availability,
+            rollout_result.execution_mode,
         )?
     };
 
