@@ -42,7 +42,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -701,6 +701,10 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
+                    }),
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented bank redirect type: {bank_redirect_data:?}"
             ))
