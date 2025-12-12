@@ -24,7 +24,7 @@ use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
+pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
