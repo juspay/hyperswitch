@@ -137,6 +137,12 @@ pub async fn construct_fulfillment_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: core_utils::get_merchant_order_reference_id(
+            &state.conf,
+            payment_intent,
+            payment_attempt,
+            &connector_id,
+        )?,
     };
     Ok(router_data)
 }

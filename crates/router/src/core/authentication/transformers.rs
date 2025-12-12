@@ -22,6 +22,8 @@ const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_attempt_id_in_AUTHENTICATION_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
+const IRRELEVANT_MERCHANT_ORDER_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
+    "irrelevant_merchant_order_reference_id_in_authentication_flow";
 
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
@@ -212,6 +214,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: Some(
+            IRRELEVANT_MERCHANT_ORDER_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_string(),
+        ),
     })
 }
 

@@ -44,6 +44,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
+use rand::distributions::{Alphanumeric, DistString};
 use transformers as peachpayments;
 
 use crate::{
@@ -51,6 +52,8 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, RefundsRequestData},
 };
+
+const MAX_ID_LENGTH: usize = 12;
 
 #[derive(Clone)]
 pub struct Peachpayments {
@@ -845,5 +848,17 @@ impl ConnectorSpecifications for Peachpayments {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_merchant_order_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<String> {
+        if payment_intent.merchant_order_reference_id.is_some() {
+            payment_intent.merchant_order_reference_id.clone()
+        } else {
+            Some(Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH))
+        }
     }
 }

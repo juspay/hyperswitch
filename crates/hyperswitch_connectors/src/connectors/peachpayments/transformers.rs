@@ -115,6 +115,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -472,6 +473,7 @@ impl
                     source: COF_DATA_SOURCE.to_string(),
                     mode: COF_DATA_MODE.to_string(),
                 },
+                rrn: item.router_data.merchant_order_reference_id.clone(),
             },
         );
 
@@ -530,7 +532,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 routing_reference,
                 card,
                 amount,
-                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+                rrn: item.router_data.merchant_order_reference_id.clone(),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
