@@ -125,6 +125,9 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
+
+  // Malaysian payment methods
+  OnlineBankingFpx: "MYR",
 };
 
 export const getCurrency = (paymentMethodType) => {
