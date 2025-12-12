@@ -5,8 +5,7 @@ use api_models::{enums as api_enums, payment_methods::Card};
 use common_enums::CardNetwork;
 use common_utils::{
     ext_traits::{Encode, StringExt},
-    id_type,
-    pii::Email,
+    id_type, pii,
     request::RequestContent,
 };
 use error_stack::ResultExt;
@@ -114,7 +113,7 @@ pub struct AddCardRequest {
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: id_type::MerchantId,
-    pub email_address: Option<Email>,
+    pub email_address: Option<pii::Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
 }
@@ -1068,6 +1067,7 @@ pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
+    tokenization_data: Option<pii::SecretSerdeValue>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
@@ -1095,7 +1095,7 @@ pub fn generate_payment_method_session_response(
             .map(From::from),
         psp_tokenization: payment_method_session.psp_tokenization,
         network_tokenization: payment_method_session.network_tokenization,
-        tokenization_data: payment_method_session.tokenization_data,
+        tokenization_data,
         expires_at: payment_method_session.expires_at,
         client_secret,
         next_action,

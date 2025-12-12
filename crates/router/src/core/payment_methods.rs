@@ -3288,6 +3288,7 @@ pub async fn payment_methods_session_create(
         client_secret.secret,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3352,6 +3353,7 @@ pub async fn payment_methods_session_update(
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -3375,6 +3377,7 @@ pub async fn payment_methods_session_retrieve(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None,
         None, // TODO: send associated payments response based on the expandable param
         None,
     );
@@ -3674,15 +3677,39 @@ pub async fn payment_methods_session_confirm(
         None => None,
     };
 
-    let tokenization_response = match payment_method_session.tokenization_data.clone() {
-        Some(tokenization_data) => {
+    let merged_tokenization_data = payment_method_session
+        .tokenization_data
+        .clone()
+        .zip(request.tokenization_data.clone())
+        .and_then(
+            |(session_data, confirm_data)| match (session_data.peek(), confirm_data.peek()) {
+                (
+                    serde_json::Value::Object(session_map),
+                    serde_json::Value::Object(confirm_map),
+                ) => {
+                    let mut merged_map = session_map.clone();
+                    merged_map.extend(confirm_map.clone());
+                    Some(Secret::new(serde_json::Value::Object(merged_map)))
+                }
+                _ => Some(session_data),
+            },
+        )
+        .or_else(|| {
+            payment_method_session
+                .tokenization_data
+                .clone()
+                .or(request.tokenization_data.clone())
+        });
+
+    let tokenization_response = match merged_tokenization_data {
+        Some(ref tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
                 &platform.get_provider().get_account().clone(),
                 &platform.get_provider().get_key_store().clone(),
                 api_models::tokenization::GenericTokenizationRequest {
                     customer_id: customer_id.clone(),
-                    token_request: tokenization_data,
+                    token_request: tokenization_data.clone(),
                 },
             )
             .await?;
@@ -3702,6 +3729,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         payments_response,
+        merged_tokenization_data.clone(),
         (tokenization_response.flatten()),
     );
 
