@@ -3415,13 +3415,9 @@ impl NuveiAmountExt for MinorUnit {
 pub enum NuveiCardType {
     Visa,
     MasterCard,
-    AmericanExpress,
+    Amex,
     Discover,
-    DinersClub,
-    Interac,
-    JCB,
-    UnionPay,
-    CartesBancaires,
+    Diners,
 }
 
 impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
@@ -3430,13 +3426,9 @@ impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
         match card_network {
             common_enums::CardNetwork::Visa => Ok(Self::Visa),
             common_enums::CardNetwork::Mastercard => Ok(Self::MasterCard),
-            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
             common_enums::CardNetwork::Discover => Ok(Self::Discover),
-            common_enums::CardNetwork::DinersClub => Ok(Self::DinersClub),
-            common_enums::CardNetwork::JCB => Ok(Self::JCB),
-            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
-            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
-            common_enums::CardNetwork::Interac => Ok(Self::Interac),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "nuvei",
@@ -3452,12 +3444,9 @@ impl TryFrom<&utils::CardIssuer> for NuveiCardType {
         match card_issuer {
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::Master => Ok(Self::MasterCard),
-            utils::CardIssuer::AmericanExpress => Ok(Self::AmericanExpress),
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Discover => Ok(Self::Discover),
-            utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
-            utils::CardIssuer::JCB => Ok(Self::JCB),
-            utils::CardIssuer::CartesBancaires => Ok(Self::CartesBancaires),
-            &utils::CardIssuer::UnionPay => Ok(Self::UnionPay),
+            utils::CardIssuer::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "nuvei",
