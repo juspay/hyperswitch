@@ -33,8 +33,8 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -84,7 +84,7 @@ use transformers::{
 };
 
 use crate::{
-    constants::{self, headers},
+    constants::headers,
     types::ResponseRouterData,
     utils::{
         self as connector_utils, to_connector_meta, ConnectorErrorType, ConnectorErrorTypeMapping,
@@ -1318,108 +1318,6 @@ impl
     }
 }
 
-fn auth_success_response() -> PaymentsResponseData {
-    PaymentsResponseData::TransactionResponse {
-        resource_id: ResponseId::NoResponseId,
-        redirection_data: Box::new(None),
-        mandate_reference: Box::new(None),
-        connector_metadata: None,
-        network_txn_id: None,
-        connector_response_reference_id: None,
-        incremental_authorization_allowed: None,
-        charges: None,
-    }
-}
-
-fn map_liability_check_response(
-    response: paypal::PaypalLiabilityCheckResponse,
-    status_code: u16,
-) -> (
-    enums::AttemptStatus,
-    Result<PaymentsResponseData, ErrorResponse>,
-) {
-    match response {
-        paypal::PaypalLiabilityCheckResponse::PaypalLiabilityResponse(liability_response) => {
-            let three_ds = &liability_response
-                .payment_source
-                .card
-                .authentication_result
-                .three_d_secure;
-
-            let auth_result = &liability_response.payment_source.card.authentication_result;
-
-            let allowed = matches!(
-                (
-                    three_ds.enrollment_status.as_ref(),
-                    three_ds.authentication_status.as_ref(),
-                    auth_result.liability_shift.clone(),
-                ),
-                (
-                    Some(paypal::EnrollmentStatus::Ready),
-                    Some(paypal::AuthenticationStatus::Success),
-                    paypal::LiabilityShift::Possible,
-                ) | (
-                    Some(paypal::EnrollmentStatus::Ready),
-                    Some(paypal::AuthenticationStatus::Attempted),
-                    paypal::LiabilityShift::Possible,
-                ) | (
-                    Some(paypal::EnrollmentStatus::NotReady),
-                    None,
-                    paypal::LiabilityShift::No
-                ) | (
-                    Some(paypal::EnrollmentStatus::Unavailable),
-                    None,
-                    paypal::LiabilityShift::No
-                ) | (
-                    Some(paypal::EnrollmentStatus::Bypassed),
-                    None,
-                    paypal::LiabilityShift::No
-                )
-            );
-
-            if allowed {
-                (
-                    enums::AttemptStatus::AuthenticationSuccessful,
-                    Ok(auth_success_response()),
-                )
-            } else {
-                let reason = format!(
-                        "{} Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
-                        constants::CANNOT_CONTINUE_AUTH,
-                        auth_result.liability_shift,
-                        three_ds
-                            .enrollment_status.clone()
-                            .unwrap_or(paypal::EnrollmentStatus::Null),
-                        three_ds
-                            .authentication_status.clone()
-                            .unwrap_or(paypal::AuthenticationStatus::Null),
-                    );
-
-                (
-                    enums::AttemptStatus::Failure,
-                    Err(ErrorResponse {
-                        attempt_status: Some(enums::AttemptStatus::Failure),
-                        code: NO_ERROR_CODE.to_string(),
-                        message: NO_ERROR_MESSAGE.to_string(),
-                        connector_transaction_id: None,
-                        reason: Some(reason),
-                        status_code,
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                        connector_metadata: None,
-                    }),
-                )
-            }
-        }
-
-        paypal::PaypalLiabilityCheckResponse::PaypalNonLiabilityResponse(_) => (
-            enums::AttemptStatus::AuthenticationSuccessful,
-            Ok(auth_success_response()),
-        ),
-    }
-}
-
 impl api::PaymentsPreProcessing for Paypal {}
 
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
@@ -1481,7 +1379,14 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let (status, response) = map_liability_check_response(response, res.status_code);
+        let (status, response) = match response.try_into() {
+            Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
+            Err(error) => {
+                let mut error: ErrorResponse = error;
+                error.status_code = res.status_code;
+                (enums::AttemptStatus::Failure, Err(error))
+            }
+        };
 
         Ok(PaymentsPreProcessingRouterData {
             status,
@@ -1562,7 +1467,14 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let (status, response) = map_liability_check_response(response, res.status_code);
+        let (status, response) = match response.try_into() {
+            Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
+            Err(error) => {
+                let mut error: ErrorResponse = error;
+                error.status_code = res.status_code;
+                (enums::AttemptStatus::Failure, Err(error))
+            }
+        };
 
         Ok(PaymentsPostAuthenticateRouterData {
             status,
