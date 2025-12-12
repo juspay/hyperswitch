@@ -1927,7 +1927,7 @@ impl PaymentAttemptUpdate {
                 is_overcapture_enabled,
                 authorized_amount,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: None,
+                error_details: Box::new(None),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1949,7 +1949,7 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
-                error_details: None,
+                error_details: Box::new(None),
             },
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
@@ -1988,7 +1988,7 @@ impl PaymentAttemptUpdate {
                 issuer_error_message,
                 network_details,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: None,
+                error_details: Box::new(None),
             },
             Self::CaptureUpdate {
                 multiple_capture_count,

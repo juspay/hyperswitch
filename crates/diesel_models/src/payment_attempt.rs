@@ -670,7 +670,7 @@ pub enum PaymentAttemptUpdate {
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
-        error_details: Option<ErrorDetails>,
+        error_details: Box<Option<ErrorDetails>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -682,7 +682,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         updated_by: String,
-        error_details: Option<ErrorDetails>,
+        error_details: Box<Option<ErrorDetails>>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -705,7 +705,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_code: Option<String>,
         issuer_error_message: Option<String>,
         network_details: Option<NetworkDetails>,
-        error_details: Option<ErrorDetails>,
+        error_details: Box<Option<ErrorDetails>>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -3428,8 +3428,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled,
                 authorized_amount,
-                error_details,
+                error_details: boxed_error_details,
             } => {
+                let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
@@ -3524,8 +3525,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                error_details,
+                error_details: boxed_error_details,
             } => {
+                let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
@@ -3766,8 +3768,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
-                error_details,
+                error_details: boxed_error_details,
             } => {
+                let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
                     connector_transaction_id
                         .map(ConnectorTransactionId::form_id_and_data)
