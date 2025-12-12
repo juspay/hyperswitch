@@ -43,8 +43,10 @@ use hyperswitch_domain_models::{
     router_flow_types::PoFulfill, router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
 };
-use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
