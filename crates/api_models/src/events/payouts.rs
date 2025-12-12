@@ -4,6 +4,7 @@ use crate::payouts::{
     PayoutActionRequest, PayoutCreateRequest, PayoutCreateResponse, PayoutLinkInitiateRequest,
     PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2,
     PayoutListResponse, PayoutRetrieveRequest, PayoutsAggregateResponse,
+    PayoutsManualUpdateRequest, PayoutsManualUpdateResponse,
 };
 
 impl ApiEventMetric for PayoutRetrieveRequest {
@@ -79,5 +80,21 @@ impl ApiEventMetric for PayoutLinkInitiateRequest {
 impl ApiEventMetric for PayoutsAggregateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+impl ApiEventMetric for PayoutsManualUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout {
+            payout_id: self.payout_id.to_owned(),
+        })
+    }
+}
+
+impl ApiEventMetric for PayoutsManualUpdateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout {
+            payout_id: self.payout_id.to_owned(),
+        })
     }
 }
