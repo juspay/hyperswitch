@@ -1923,7 +1923,7 @@ impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
                 Ok(auth_success_response())
             }
             PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
-                validate_liability_response(liability_response)
+                validate_liability_response(liability_response).map_err(|e| *e)
             }
         }
     }
@@ -1944,7 +1944,7 @@ fn auth_success_response() -> PaymentsResponseData {
 
 fn validate_liability_response(
     liability_response: PaypalLiabilityResponse,
-) -> Result<PaymentsResponseData, ErrorResponse> {
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
     let three_ds = &liability_response
         .payment_source
         .card
@@ -1992,7 +1992,7 @@ fn validate_liability_response(
                 .unwrap_or(AuthenticationStatus::Null),
         );
 
-        Err(ErrorResponse {
+        Err(Box::new(ErrorResponse {
             attempt_status: Some(enums::AttemptStatus::Failure),
             code: NO_ERROR_CODE.to_string(),
             message: NO_ERROR_MESSAGE.to_string(),
@@ -2003,7 +2003,7 @@ fn validate_liability_response(
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
-        })
+        }))
     }
 }
 
@@ -2016,7 +2016,7 @@ impl TryFrom<PaypalPostAuthenticateResponse> for PaymentsResponseData {
                 Ok(auth_success_response())
             }
             PaypalPostAuthenticateResponse::PaypalLiabilityResponse(liability_response) => {
-                validate_liability_response(liability_response)
+                validate_liability_response(liability_response).map_err(|e| *e)
             }
         }
     }
