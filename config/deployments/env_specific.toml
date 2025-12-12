@@ -123,7 +123,6 @@ redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redi
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
 
 # Locker settings contain details for accessing a card locker, a
@@ -131,7 +130,6 @@ vault_private_key = ""          # private key in pem format, corresponding publi
 # like card details
 [locker]
 host = ""                                                             # Locker host
-host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
