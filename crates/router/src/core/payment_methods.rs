@@ -41,6 +41,7 @@ use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::{
+    payment_method_data::BankDebitData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow,
@@ -688,14 +689,42 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_data: None,
             payment_method_id: None,
         },
-        // TODO: Locker support for BankDebit will be added in a future PR, currently keeping
-        // these fields as None
-        storage::PaymentTokenData::BankDebit(_) => storage::PaymentMethodDataWithId {
-            payment_method: None,
-            payment_method_data: None,
+        storage::PaymentTokenData::BankDebit(bank_debit) => {
+            let data = cards::get_bank_debit_from_hs_locker(
+                state,
+                merchant_key_store,
+                &customer.as_ref().unwrap().customer_id,
+                &merchant_key_store.merchant_id,
+                &bank_debit.locker_id.as_ref().unwrap(),
+            )
+            .await?;
 
-            payment_method_id: None,
-        },
+            let (account_number, routing_number) = match data {
+                payment_methods::BankDebitCreateData::ACH {
+                    account_number,
+                    routing_number,
+                } => (account_number, routing_number),
+            };
+
+            storage::PaymentMethodDataWithId {
+                payment_method: Some(enums::PaymentMethod::BankDebit),
+                payment_method_data: Some(
+                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(
+                        BankDebitData::AchBankDebit {
+                            account_number,
+                            routing_number,
+                            card_holder_name: None,
+                            bank_account_holder_name: None,
+                            bank_name: None,
+                            bank_type: None,
+                            bank_holder_type: None,
+                        },
+                    ),
+                ),
+
+                payment_method_id: Some(bank_debit.payment_method_id.clone()),
+            }
+        }
     };
     Ok(token)
 }
@@ -813,6 +842,44 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     Ok(payment_method_request)
                 }
+                domain::PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    card_holder_name: _,
+                    bank_account_holder_name: _,
+                    bank_name: _,
+                    bank_type: _,
+                    bank_holder_type: _,
+                }) => {
+                    let payment_method_request = payment_methods::PaymentMethodCreate {
+                        payment_method: Some(payment_method),
+                        payment_method_type,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        wallet: None,
+                        card: None,
+                        metadata: None,
+                        customer_id: customer_id.clone(),
+                        card_network: None,
+                        client_secret: None,
+                        payment_method_data: Some(
+                            payment_methods::PaymentMethodCreateData::BankDebit(
+                                payment_methods::BankDebitCreateData::ACH {
+                                    account_number: account_number.to_owned(),
+                                    routing_number: routing_number.to_owned(),
+                                },
+                            ),
+                        ),
+                        billing: payment_method_billing_address.cloned().map(From::from),
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
+                    };
+                    Ok(payment_method_request)
+                }
+
                 _ => {
                     let payment_method_request = payment_methods::PaymentMethodCreate {
                         payment_method: Some(payment_method),

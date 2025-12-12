@@ -143,6 +143,15 @@ pub trait PaymentMethodsController {
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 
     #[cfg(feature = "v1")]
+    async fn add_bank_debit_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        bank_debit_data: api_models::payment_methods::BankDebitCreateData,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+
+    #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
