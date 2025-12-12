@@ -1069,6 +1069,7 @@ pub fn generate_payment_method_session_response(
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
+    payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1103,6 +1104,7 @@ pub fn generate_payment_method_session_response(
         associated_payment_methods: payment_method_session.associated_payment_methods,
         authentication_details,
         associated_token_id: token_id,
+        associated_payment_method_id: payment_method_id,
     }
 }
 
