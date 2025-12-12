@@ -462,6 +462,7 @@ where
         connector_details: frm_connector_details.clone(),
         order_details,
         frm_metadata: payment_data.get_payment_intent().frm_metadata.clone(),
+        customer_id: payment_data.get_payment_intent().customer_id.clone(),
     };
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F, D> =
@@ -683,6 +684,7 @@ where
         + Sync
         + Clone,
 {
+    println!("$$$ call_frm_before_connector_call ");
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
         should_call_frm(platform, payment_data, state).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
@@ -763,6 +765,7 @@ impl From<PaymentToFrmData> for PaymentDetails {
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             refund_transaction_id: None,
+            customer_id: payment_data.customer_id,
         }
     }
 }

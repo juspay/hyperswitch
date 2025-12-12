@@ -1,5 +1,6 @@
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
+    id_type::CustomerId,
     pii::Email,
 };
 use diesel_models::types::OrderDetailsWithAmount;
@@ -25,6 +26,7 @@ pub struct FraudCheckCheckoutData {
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
     pub email: Option<Email>,
     pub gateway: Option<String>,
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +40,7 @@ pub struct FraudCheckTransactionData {
     pub connector_transaction_id: Option<String>,
     //The name of the payment gateway or financial institution that processed the transaction.
     pub connector: Option<String>,
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]
