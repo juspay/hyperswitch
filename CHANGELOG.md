@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.12.0
+
+### Features
+
+- Passing Access token for CreateOrder , Capture , Void ([#10582](https://github.com/juspay/hyperswitch/pull/10582)) ([`219dee3`](https://github.com/juspay/hyperswitch/commit/219dee31526b3e12716e855fa9e9dc95b44fc896))
+
+### Bug Fixes
+
+- **Config:** [Peach Payments] Production Base URL ([#10631](https://github.com/juspay/hyperswitch/pull/10631)) ([`0c46529`](https://github.com/juspay/hyperswitch/commit/0c4652970962746935af565da4a9e54ee0609d7d))
+- **connector:**
+  - Fix Fiserv Deserialization Error ([#10124](https://github.com/juspay/hyperswitch/pull/10124)) ([`5ae62a2`](https://github.com/juspay/hyperswitch/commit/5ae62a2dd9634b21ddfa303a23de3d8c71428c68))
+  - [authorizedotnet] user_fields double serializing and remove authorization_indicator_type ([#10609](https://github.com/juspay/hyperswitch/pull/10609)) ([`375089e`](https://github.com/juspay/hyperswitch/commit/375089e0178414ac3c5027a9f8ef992e7c2b6ca6))
+  - [gigadat] make strict type and mask gigadat webhook payload ([#10633](https://github.com/juspay/hyperswitch/pull/10633)) ([`a67341b`](https://github.com/juspay/hyperswitch/commit/a67341bd62019a5f240fc5740eb0f0455571c70a))
+- [Volt] Production URL for Refunds Flow ([#10619](https://github.com/juspay/hyperswitch/pull/10619)) ([`9b296fd`](https://github.com/juspay/hyperswitch/commit/9b296fdc3049e8a83d651223fb32c42f1477cbbe))
+- Serialize metadata values to pass all fields ([#10568](https://github.com/juspay/hyperswitch/pull/10568)) ([`ca4f5b6`](https://github.com/juspay/hyperswitch/commit/ca4f5b6ca22503c26642f3c36f72b7a91f1acb45))
+
+**Full Changelog:** [`2025.12.11.0...2025.12.12.0`](https://github.com/juspay/hyperswitch/compare/2025.12.11.0...2025.12.12.0)
+
+- - -
+
 ## 2025.12.11.0
 
 ### Features
