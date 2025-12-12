@@ -284,7 +284,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenStatusCheckResponse,
         api_models::payment_methods::NetworkTokenStatusCheckSuccessResponse,
         api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
-        api_models::enums::CustomTermsByPaymentMethodTypes,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
@@ -851,6 +850,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::tokenization::GenericTokenizationResponse,
         api_models::tokenization::DeleteTokenDataRequest,
         api_models::tokenization::DeleteTokenDataResponse,
+        common_types::payments::PaymentMethodsConfig,
+        common_types::payments::PaymentMethodConfig,
+        common_types::payments::CustomTerms,
+        common_types::payments::CustomMessage,
+        common_types::payments::SdkDisplayMode,
     )),
     modifiers(&SecurityAddon)
 )]
