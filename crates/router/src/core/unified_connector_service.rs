@@ -1658,13 +1658,13 @@ where
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
 #[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
-pub async fn ucs_logging_wrapper_new<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOutput, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
-) -> CustomResult<RouterData<T, Req, Resp>, UnifiedConnectorServiceError>
+) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
     T: std::fmt::Debug + Clone + Send + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
@@ -1679,7 +1679,7 @@ where
         + Send,
     Fut: std::future::Future<
             Output = CustomResult<
-                (RouterData<T, Req, Resp>, GrpcResp),
+                (RouterData<T, Req, Resp>, FlowOutput, GrpcResp),
                 UnifiedConnectorServiceError,
             >,
         > + Send,
@@ -1721,7 +1721,7 @@ where
 
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
-        Ok((updated_router_data, grpc_response)) => {
+        Ok((updated_router_data, flow_output, grpc_response)) => {
             let status = updated_router_data
                 .connector_http_status_code
                 .unwrap_or(200);
@@ -1731,7 +1731,11 @@ where
                 |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
             );
 
-            (status, Some(grpc_response_body), Ok(updated_router_data))
+            (
+                status,
+                Some(grpc_response_body),
+                Ok((updated_router_data, flow_output)),
+            )
         }
         Err(error) => {
             // Update error metrics for UCS calls
@@ -1781,8 +1785,8 @@ where
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
-        router_data.external_latency =
-            Some(router_data.external_latency.unwrap_or(0) + external_latency);
+        router_data.0.external_latency =
+            Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
 }

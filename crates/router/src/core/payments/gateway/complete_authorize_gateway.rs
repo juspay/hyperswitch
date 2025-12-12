@@ -11,38 +11,39 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
 };
 use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_session_token_create,
+        unified_connector_service::handle_unified_connector_service_response_for_payment_authorize,
     },
     routes::SessionState,
     services::logger,
-    types::{self, transformers::ForeignTryFrom},
+    types::{self, transformers::ForeignTryFrom, MinorUnit},
 };
 
 // =============================================================================
-// PaymentGateway Implementation for domain::AuthorizeSessionToken
+// PaymentGateway Implementation for domain::CompleteAuthorize
 // =============================================================================
 
-/// Implementation of PaymentGateway for api::PSync flow
+/// Implementation of PaymentGateway for api::CompleteAuthorize flow
 #[async_trait]
 impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         Self,
-        types::AuthorizeSessionTokenData,
+        types::CompleteAuthorizeData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::AuthorizeSessionToken
+    > for domain::CompleteAuthorize
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
 {
     async fn execute(
         self: Box<Self>,
@@ -50,20 +51,16 @@ where
         _connector_integration: BoxedConnectorIntegrationInterface<
             Self,
             RCD,
-            types::AuthorizeSessionTokenData,
+            types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        router_data: &RouterData<
-            Self,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        _call_connector_action: CallConnectorAction,
+        router_data: &RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -72,7 +69,6 @@ where
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
         let merchant_order_reference_id = header_payload.x_reference_id.clone();
-
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -80,10 +76,13 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let authorize_session_token_request =
-            payments_grpc::PaymentServiceCreateSessionTokenRequest::foreign_try_from(router_data)
-                .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Session Create Request")?;
+        let granular_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
+                router_data,
+                call_connector_action,
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -111,29 +110,46 @@ where
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
-            authorize_session_token_request,
+            granular_authorize_request,
             header_payload,
-            |mut router_data, authorize_session_token_request, grpc_headers| async move {
-                let response = client
-                    .payment_session_token_create(
-                        authorize_session_token_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .attach_printable("Failed to get payment")?;
+            |mut router_data, granular_authorize_request, grpc_headers| async move {
+                let response = Box::pin(client.payment_authorize_granular(
+                    granular_authorize_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .attach_printable("Failed to get payment")?;
 
-                let payment_session_token_response = response.into_inner();
+                let payment_authorize_response = response.into_inner();
 
-                let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_session_token_create(
-                        payment_session_token_response.clone(),
-                    )
-                    .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data = handle_unified_connector_service_response_for_payment_authorize(
+                    payment_authorize_response.clone(),
+                )
+                .attach_printable("Failed to deserialize UCS response")?;
+
+                let router_data_response =
+                    ucs_data.router_data_response.map(|(response, status)| {
+                        router_data.status = status;
+                        response
+                    });
                 router_data.response = router_data_response;
-                router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, (), payment_session_token_response))
+                router_data.amount_captured = payment_authorize_response.captured_amount;
+                router_data.minor_amount_captured = payment_authorize_response
+                    .minor_captured_amount
+                    .map(MinorUnit::new);
+                router_data.raw_connector_response = payment_authorize_response
+                    .raw_connector_response
+                    .clone()
+                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+                ucs_data.connector_response.map(|customer_response| {
+                    router_data.connector_response = Some(customer_response);
+                });
+
+                Ok((router_data, (), payment_authorize_response))
             },
         ))
         .await
@@ -149,16 +165,16 @@ impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
-        types::AuthorizeSessionTokenData,
+        types::CompleteAuthorizeData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::AuthorizeSessionToken
+    > for domain::CompleteAuthorize
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::AuthorizeSessionTokenData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -167,7 +183,7 @@ where
             SessionState,
             RCD,
             Self,
-            types::AuthorizeSessionTokenData,
+            types::CompleteAuthorizeData,
             types::PaymentsResponseData,
             RouterGatewayContext,
         >,
