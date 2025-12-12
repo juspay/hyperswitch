@@ -48,6 +48,19 @@ pub async fn payments_create(
         return api::log_and_return_error_response(err.into());
     };
 
+    if let Err(err) = payload
+        .payment_link_config
+        .as_ref()
+        .map(|cfg| {
+            cfg.theme_config
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(err.into());
+    };
+
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
@@ -857,7 +870,10 @@ pub async fn payments_post_session_tokens(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1113,7 +1129,10 @@ pub async fn payments_dynamic_tax_calculation(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1237,7 +1256,10 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
@@ -2409,7 +2431,10 @@ pub async fn payments_external_authentication(
                 hyperswitch_domain_models::router_flow_types::Authenticate,
             >(state, platform, req)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await

@@ -978,6 +978,7 @@ pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
     platform: &Platform,
+    connector_name: String,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -991,25 +992,6 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
-
-    let connector_name = {
-        #[cfg(feature = "v1")]
-        {
-            merchant_connector_account
-                .get_connector_name()
-                .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-                .attach_printable("Missing connector name")?
-        }
-
-        #[cfg(feature = "v2")]
-        {
-            merchant_connector_account
-                .get_connector_name()
-                .map(|connector| connector.to_string())
-                .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
-                .attach_printable("Missing connector name")?
-        }
-    };
 
     let merchant_id = platform
         .get_processor()
@@ -1478,7 +1460,11 @@ pub async fn call_unified_connector_service_for_webhook(
                 mca.clone(),
             ));
 
-            build_unified_connector_service_auth_metadata(mca_type, platform)
+            build_unified_connector_service_auth_metadata(
+                mca_type,
+                platform,
+                connector_name.to_string(),
+            )
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1741,7 +1727,7 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response
-            let grpc_response_body = serde_json::to_value(&grpc_response).unwrap_or_else(
+            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
                 |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
             );
 
@@ -1903,10 +1889,13 @@ pub async fn call_unified_connector_service_for_refund_execute(
     let ucs_client = get_ucs_client(state)?;
 
     // Build auth metadata using standard UCS function
-    let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to build UCS auth metadata for refund execute")?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        platform,
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
     // Transform router data to UCS refund request
     let ucs_refund_request =
@@ -1974,10 +1963,13 @@ pub async fn call_unified_connector_service_for_refund_sync(
     let ucs_client = get_ucs_client(state)?;
 
     // Build auth metadata using standard UCS function
-    let connector_auth_metadata =
-        build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to build UCS auth metadata for refund sync")?;
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        platform,
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for refund sync")?;
 
     // Transform router data to UCS refund sync request
     let ucs_refund_sync_request =

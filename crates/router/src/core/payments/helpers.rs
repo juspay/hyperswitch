@@ -62,7 +62,7 @@ use openssl::{
 use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, tracing::Instrument};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -1437,10 +1437,15 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while adding task to process tracker")
+                    super::add_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        state.conf.application_source,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(
@@ -4008,10 +4013,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
 ) -> RouterResult<()> {
-    let primary_business_details = platform
-        .get_processor()
+    let primary_business_details = processor
         .get_account()
         .primary_business_details
         .clone()
@@ -4322,9 +4326,10 @@ mod tests {
 #[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
+    let merchant_id = processor.get_account().get_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -7870,16 +7875,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7935,7 +7940,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    platform.get_processor().get_account().get_id().clone()
+                    processor.get_account().get_id().clone()
                 )),
             );
         }
@@ -8662,40 +8667,48 @@ where
         tokenization_action,
         gateway_context,
     )
-    .await?;
+    .await;
 
-    // Spawn shadow UCS call in background
-    let direct_router_data = result.0.clone();
-    tokio::spawn(async move {
-        execute_shadow_unified_connector_service_call(
-            unified_connector_service_state,
-            unified_connector_service_router_data,
-            direct_router_data,
-            unified_connector_service_header_payload,
-            lineage_ids,
-            unified_connector_service_merchant_connector_account,
-            &connector,
-            unified_connector_service_platform,
-            unified_connector_service_merchant_order_reference_id,
-            call_connector_action,
-            shadow_ucs_call_connector_action,
-            unified_connector_service_creds_identifier,
-            unified_connector_service_customer,
-            unified_connector_service_payment_attempt_data,
-            unified_connector_service_connector_label,
-            unified_connector_service_connector_payment_id,
-        )
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!(
-                "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
-                e
+    // Spawn shadow UCS call in background regardless of HS result
+    // Use the initial router_data as fallback when HS fails
+    let direct_router_data = match &result {
+        Ok(success_data) => Some(success_data.0.clone()),
+        Err(_) => None,
+    };
+
+    tokio::spawn(
+        async move {
+            execute_shadow_unified_connector_service_call(
+                unified_connector_service_state,
+                unified_connector_service_router_data,
+                direct_router_data,
+                unified_connector_service_header_payload,
+                lineage_ids,
+                unified_connector_service_merchant_connector_account,
+                &connector,
+                unified_connector_service_platform,
+                unified_connector_service_merchant_order_reference_id,
+                call_connector_action,
+                shadow_ucs_call_connector_action,
+                unified_connector_service_creds_identifier,
+                unified_connector_service_customer,
+                unified_connector_service_payment_attempt_data,
+                unified_connector_service_connector_label,
+                unified_connector_service_connector_payment_id,
             )
-        })
-        .ok()
-    });
+            .await
+            .map_err(|e| {
+                router_env::logger::debug!(
+                    "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
+                    e
+                )
+            })
+            .ok()
+        }
+        .instrument(tracing::Span::current()),
+    );
 
-    Ok(result)
+    result
 }
 
 #[cfg(feature = "v1")]
@@ -8705,7 +8718,7 @@ where
 pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     state: SessionState,
     mut unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    direct_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    direct_router_data: Option<RouterData<F, RouterDReq, PaymentsResponseData>>,
     header_payload: domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
@@ -8742,7 +8755,7 @@ where
         unified_connector_service_router_data.connector_customer = Some(id);
     });
     // Call UCS in shadow mode
-    let _unified_connector_service_result = unified_connector_service_router_data
+    let unified_connector_service_result = unified_connector_service_router_data
         .call_unified_connector_service(
             &state,
             &header_payload,
@@ -8755,23 +8768,42 @@ where
             shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
             creds_identifier,
         )
-        .await
-        .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
+        .await;
 
-    // Compare results
-    match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
-        &state,
-        direct_router_data,
-        unified_connector_service_router_data,
-    )
-    .await
-    {
-        Ok(_) => {
-            router_env::logger::debug!("Shadow UCS comparison completed successfully");
+    match (direct_router_data, unified_connector_service_result) {
+        (Some(direct_data), Ok(_)) => {
+            // Compare results
+            match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+                &state,
+                direct_data,
+                unified_connector_service_router_data,
+            )
+            .await
+            {
+                Ok(_) => {
+                    router_env::logger::debug!("Shadow UCS comparison completed successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
+                    Ok(())
+                }
+            }
+        }
+        (None, _) => {
+            router_env::logger::debug!(
+                "Direct call failed, skipping UCS router data comparison for payment_id={}",
+                unified_connector_service_payment_id
+            );
             Ok(())
         }
-        Err(e) => {
-            router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
+        (_, Err(e)) => {
+            router_env::logger::debug!(
+                "
+                Skiping UCS router data comparison Shadow UCS call failed for payment_id={}: {:?}",
+                unified_connector_service_payment_id,
+                e
+            );
             Ok(())
         }
     }

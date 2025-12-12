@@ -326,7 +326,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
-            | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            | api_enums::PaymentMethodType::Interac
+            | api_enums::PaymentMethodType::OpenBanking => Self::BankRedirect,
             api_enums::PaymentMethodType::UpiCollect
             | api_enums::PaymentMethodType::UpiIntent
             | api_enums::PaymentMethodType::UpiQr => Self::Upi,
@@ -2206,7 +2207,6 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
-            payment_test_mode: None,
         }
     }
 }

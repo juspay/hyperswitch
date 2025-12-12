@@ -15,6 +15,8 @@ use router_env::{
 use strum::IntoEnumIterator;
 pub mod transformers;
 
+use common_enums;
+
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
@@ -864,6 +866,7 @@ pub async fn fetch_disputes_from_connector(
                 dispute,
                 merchant_id.clone(),
                 schedule_time,
+                state.conf.application_source,
             )
             .await;
 
@@ -938,6 +941,7 @@ pub async fn add_process_dispute_task_to_pt(
     dispute_payload: &DisputeSyncResponse,
     merchant_id: common_utils::id_type::MerchantId,
     schedule_time: Option<time::PrimitiveDateTime>,
+    application_source: common_enums::ApplicationSource,
 ) -> common_utils::errors::CustomResult<(), errors::StorageError> {
     match schedule_time {
         Some(time) => {
@@ -968,6 +972,7 @@ pub async fn add_process_dispute_task_to_pt(
                 None,
                 time,
                 common_types::consts::API_VERSION,
+                application_source,
             )
             .map_err(errors::StorageError::from)?;
             db.insert_process(process_tracker_entry).await?;
@@ -985,6 +990,7 @@ pub async fn add_dispute_list_task_to_pt(
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     profile_id: common_utils::id_type::ProfileId,
     fetch_request: FetchDisputesRequestData,
+    application_source: common_enums::ApplicationSource,
 ) -> common_utils::errors::CustomResult<(), errors::StorageError> {
     TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "dispute_list")));
     let tracking_data = disputes::DisputeListPTData {
@@ -1013,6 +1019,7 @@ pub async fn add_dispute_list_task_to_pt(
         None,
         fetch_request.created_from,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
     db.insert_process(process_tracker_entry).await?;
@@ -1049,6 +1056,7 @@ pub async fn schedule_dispute_sync_task(
         let merchant_id = mca.merchant_id.clone();
         let merchant_connector_id = mca.merchant_connector_id.clone();
         let business_profile_id = business_profile.get_id().clone();
+        let application_source = state.conf.application_source;
 
         tokio::spawn(
             async move {
@@ -1062,6 +1070,7 @@ pub async fn schedule_dispute_sync_task(
                         created_from,
                         created_till,
                     },
+                    application_source,
                 )
                 .await
                 .map_err(|error| {
