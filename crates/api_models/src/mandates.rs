@@ -229,10 +229,6 @@ pub struct NetworkTransactionIdAndCardDetails {
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
-    #[schema(example = "IN")]
-    #[smithy(value_type = "Option<String>")]
-    pub card_issuing_country_code: Option<String>,
-
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
