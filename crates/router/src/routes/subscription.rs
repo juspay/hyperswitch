@@ -252,12 +252,12 @@ pub async fn confirm_subscription(
 }
 
 #[instrument(skip_all)]
-pub async fn get_subscription_plans(
+pub async fn get_subscription_items(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<subscription_types::GetPlansQuery>,
+    query: web::Query<subscription_types::GetSubscriptionItemsQuery>,
 ) -> impl Responder {
-    let flow = Flow::GetPlansForSubscription;
+    let flow = Flow::GetSubscriptionItemsForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
     let payload = query.into_inner();
 
@@ -278,7 +278,7 @@ pub async fn get_subscription_plans(
         payload,
         |state, auth: auth::AuthenticationData, query, _| {
             let platform = auth.into();
-            subscriptions::get_subscription_plans(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_subscription_items(state.into(), platform, profile_id.clone(), query)
         },
         auth::auth_type(
             &*auth_type,

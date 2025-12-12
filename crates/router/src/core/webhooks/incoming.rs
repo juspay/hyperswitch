@@ -17,9 +17,10 @@ use common_utils::{
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
-use hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt;
+use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
+    merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -1307,6 +1308,7 @@ async fn payments_incoming_webhook_flow(
                 id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await?;
 
@@ -1475,10 +1477,89 @@ async fn payouts_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
+    let payout_id =
+        get_payout_id_from_object_reference_id(&state, &platform, &webhook_details).await?;
+
+    let lock_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payout_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Payouts,
+            override_lock_retries: None,
+        },
+    };
+
+    lock_action
+        .clone()
+        .perform_locking_action(
+            &state,
+            platform.get_processor().get_account().get_id().to_owned(),
+        )
+        .await?;
+
+    let payout_response = Box::pin(process_payout_incoming_webhook(
+        state.clone(),
+        platform.clone(),
+        business_profile,
+        event_type,
+        payout_id,
+        source_verified,
+        request_details,
+        connector,
+    ))
+    .await;
+
+    lock_action
+        .free_lock_action(
+            &state,
+            platform.get_processor().get_account().get_id().to_owned(),
+        )
+        .await?;
+
+    payout_response
+}
+
+#[cfg(feature = "payouts")]
+struct PayoutWebhookPreCondition {
+    is_non_terminal_status: bool,
+    is_source_verified: bool,
+}
+
+#[cfg(feature = "payouts")]
+enum PaoyoutWebhookAction {
+    UpdateStatus,
+    RetrieveStatus,
+    NoAction,
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutWebhookPreCondition {
+    pub fn new(is_non_terminal_status: bool, is_source_verified: bool) -> Self {
+        Self {
+            is_non_terminal_status,
+            is_source_verified,
+        }
+    }
+
+    // only update if the payout is in non-terminal status
+    // if source verified, update the payout attempt and trigger outgoing webhook
+    // if not source verified, do a payout retrieve call and update the status
+    pub fn get_payout_webhook_action(&self) -> PaoyoutWebhookAction {
+        match (self.is_non_terminal_status, self.is_source_verified) {
+            (true, true) => PaoyoutWebhookAction::UpdateStatus,
+            (true, false) => PaoyoutWebhookAction::RetrieveStatus,
+            (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+async fn get_payout_id_from_object_reference_id(
+    state: &SessionState,
+    platform: &domain::Platform,
+    webhook_details: &api::IncomingWebhookDetails,
+) -> CustomResult<common_utils::id_type::PayoutId, errors::ApiErrorResponse> {
     let db = &*state.store;
-    //find payout_attempt by object_reference_id
-    let payout_attempt = match webhook_details.object_reference_id {
+    let payout_attempt = match webhook_details.object_reference_id.clone() {
         webhooks::ObjectReferenceId::PayoutId(payout_id_type) => match payout_id_type {
             webhooks::PayoutIdType::PayoutAttemptId(id) => db
                 .find_payout_attempt_by_merchant_id_payout_attempt_id(
@@ -1503,18 +1584,27 @@ async fn payouts_incoming_webhook_flow(
             .attach_printable("received a non-payout id when processing payout webhooks")?,
     };
 
-    let payouts = db
-        .find_payout_by_merchant_id_payout_id(
-            platform.get_processor().get_account().get_id(),
-            &payout_attempt.payout_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable("Failed to fetch the payout")?;
+    Ok(payout_attempt.payout_id)
+}
+
+#[cfg(feature = "payouts")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+async fn process_payout_incoming_webhook(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    event_type: webhooks::IncomingWebhookEvent,
+    payout_id: common_utils::id_type::PayoutId,
+    source_verified: bool,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector: &ConnectorEnum,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
+
     let action_req =
         payout_models::PayoutRequest::PayoutActionRequest(payout_models::PayoutActionRequest {
-            payout_id: payouts.payout_id.clone(),
+            payout_id,
         });
 
     let mut payout_data = Box::pin(payouts::make_payout_data(
@@ -1526,10 +1616,11 @@ async fn payouts_incoming_webhook_flow(
     ))
     .await?;
 
-    let payout_webhook_action = get_payout_webhook_action(
-        payout_attempt.status.is_non_terminal_status(),
+    let payout_webhook_action = PayoutWebhookPreCondition::new(
+        payout_data.payout_attempt.status.is_non_terminal_status(),
         source_verified,
-    );
+    )
+    .get_payout_webhook_action();
     match payout_webhook_action {
         PaoyoutWebhookAction::UpdateStatus => {
             payout_incoming_webhook_update_status(
@@ -1539,44 +1630,17 @@ async fn payouts_incoming_webhook_flow(
                 event_type,
                 request_details,
                 connector,
-                payout_attempt,
                 &mut payout_data,
             )
             .await
         }
         PaoyoutWebhookAction::RetrieveStatus => {
-            payout_incoming_webhook_retrieve_status(
-                state,
-                platform,
-                payout_attempt,
-                &mut payout_data,
-            )
-            .await
+            payout_incoming_webhook_retrieve_status(state, platform, &mut payout_data).await
         }
         PaoyoutWebhookAction::NoAction => Ok(WebhookResponseTracker::Payout {
             payout_id: payout_data.payout_attempt.payout_id,
             status: payout_data.payout_attempt.status,
         }),
-    }
-}
-
-enum PaoyoutWebhookAction {
-    UpdateStatus,
-    RetrieveStatus,
-    NoAction,
-}
-
-// only update if the payout is in non-terminal status
-// if source verified, update the payout attempt and trigger outgoing webhook
-// if not source verified, do a payout retrieve call and update the status
-fn get_payout_webhook_action(
-    is_non_terminal_status: bool,
-    is_source_verified: bool,
-) -> PaoyoutWebhookAction {
-    match (is_non_terminal_status, is_source_verified) {
-        (true, true) => PaoyoutWebhookAction::UpdateStatus,
-        (true, false) => PaoyoutWebhookAction::RetrieveStatus,
-        (false, true) | (false, false) => PaoyoutWebhookAction::NoAction,
     }
 }
 
@@ -1590,9 +1654,9 @@ async fn payout_incoming_webhook_update_status(
     event_type: webhooks::IncomingWebhookEvent,
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
-    payout_attempt: PayoutAttempt,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let payout_attempt = &payout_data.payout_attempt;
     let db = &*state.store;
     let status = common_enums::PayoutStatus::foreign_try_from(event_type)
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -1602,6 +1666,25 @@ async fn payout_incoming_webhook_update_status(
         .get_payout_webhook_details(request_details)
         .switch()
         .attach_printable("Failed to get error object for payouts")?;
+
+    let payouts_update = PayoutsUpdate::StatusUpdate { status };
+
+    let updated_payouts = db
+        .update_payout(
+            &payout_data.payouts,
+            payouts_update,
+            payout_attempt,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating payouts: payout_id: {}",
+                payout_data.payouts.payout_id.get_string_repr()
+            )
+        })?;
+    payout_data.payouts = updated_payouts;
 
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
@@ -1621,7 +1704,7 @@ async fn payout_incoming_webhook_update_status(
             status,
             error_message: None,
             error_code: None,
-            is_eligible: payout_attempt.is_eligible,
+            is_eligible: payout_data.payout_attempt.is_eligible,
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
@@ -1630,13 +1713,13 @@ async fn payout_incoming_webhook_update_status(
 
     let updated_payout_attempt = db
         .update_payout_attempt(
-            &payout_attempt,
+            payout_attempt,
             payout_attempt_update,
             &payout_data.payouts,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payout attempt: payout_attempt_id: {}",
@@ -1682,17 +1765,16 @@ async fn payout_incoming_webhook_update_status(
 async fn payout_incoming_webhook_retrieve_status(
     state: SessionState,
     platform: domain::Platform,
-    payout_attempt: PayoutAttempt,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
     // Form connector data
-    let connector_data = match &payout_attempt.connector {
+    let connector_data = match &payout_data.payout_attempt.connector {
         Some(connector) => ConnectorData::get_payout_connector_by_name(
             &state.conf.connectors,
             connector,
             GetToken::Connector,
-            payout_attempt.merchant_connector_id.clone(),
+            payout_data.payout_attempt.merchant_connector_id.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the connector data")?,
@@ -1960,6 +2042,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 platform.get_processor().get_account().get_id(),
                 id,
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
@@ -1968,6 +2051,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
@@ -1976,6 +2060,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
@@ -2615,6 +2700,7 @@ async fn get_payment_id(
     payment_id: &api::PaymentIdType,
     merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: enums::MerchantStorageScheme,
+    key_store: &MerchantKeyStore,
 ) -> errors::RouterResult<common_utils::id_type::PaymentId> {
     let pay_id = || async {
         match payment_id {
@@ -2624,11 +2710,17 @@ async fn get_payment_id(
                     merchant_id,
                     id,
                     storage_scheme,
+                    key_store,
                 )
                 .await
                 .map(|p| p.payment_id),
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => db
-                .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                .find_payment_attempt_by_attempt_id_merchant_id(
+                    id,
+                    merchant_id,
+                    storage_scheme,
+                    key_store,
+                )
                 .await
                 .map(|p| p.payment_id),
             api_models::payments::PaymentIdType::PreprocessingId(ref id) => db
@@ -2636,6 +2728,7 @@ async fn get_payment_id(
                     id,
                     merchant_id,
                     storage_scheme,
+                    key_store,
                 )
                 .await
                 .map(|p| p.payment_id),
@@ -2852,7 +2945,7 @@ async fn update_additional_payment_method_data(
 
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
-        platform.clone(),
+        platform.get_provider().clone(),
         payment_method_update,
         &payment_method_id,
         Some(pm),
@@ -2955,6 +3048,7 @@ async fn update_connector_mandate_details(
                                 payment_attempt.clone(),
                                 attempt_update,
                                 platform.get_processor().get_account().storage_scheme,
+                                platform.get_processor().get_key_store(),
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

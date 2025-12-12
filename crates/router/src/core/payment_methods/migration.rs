@@ -69,9 +69,9 @@ pub async fn update_payment_method_record(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             &payment_method_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -102,7 +102,7 @@ pub async fn update_payment_method_record(
                         Some(
                             create_encrypted_data(
                                 &key_manager_state,
-                                platform.get_processor().get_key_store(),
+                                platform.get_provider().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
                             )
                             .await
@@ -359,10 +359,10 @@ pub async fn update_payment_method_record(
 
     let response = db
         .update_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method,
             pm_update,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

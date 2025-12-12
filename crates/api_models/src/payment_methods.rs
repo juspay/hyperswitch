@@ -2152,6 +2152,9 @@ pub struct PaymentMethodListResponse {
     /// indicates the next action to be performed by the SDK
     #[schema(value_type = SdkNextAction)]
     pub sdk_next_action: payments::SdkNextAction,
+
+    /// indicates whether this is a guest customer flow
+    pub is_guest_customer: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2758,6 +2761,7 @@ pub struct TokenizedBankRedirectValue2 {
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
     pub name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
@@ -3028,7 +3032,7 @@ impl
                     .unwrap_or_else(|| record.card_number_masked.clone()),
                 card_exp_month: record.card_expiry_month.clone(),
                 card_exp_year: record.card_expiry_year.clone(),
-                card_holder_name: record.name.clone(),
+                card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                 card_network: None,
                 card_type: None,
                 card_issuer: None,
@@ -3046,7 +3050,7 @@ impl
                         .network_token_expiry_year
                         .clone()
                         .unwrap_or_default(),
-                    card_holder_name: record.name.clone(),
+                    card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
@@ -3217,8 +3221,8 @@ impl From<&Card> for MigrateCardDetail {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionRequest {
     /// The customer id for which the payment methods session is to be created
-    #[schema(value_type = String, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: id_type::GlobalCustomerId,
+    #[schema(value_type = Option<String>, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
@@ -3313,8 +3317,8 @@ pub struct PaymentMethodSessionResponse {
     pub id: id_type::GlobalPaymentMethodSessionId,
 
     /// The customer id for which the payment methods session is to be created
-    #[schema(value_type = String, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
-    pub customer_id: id_type::GlobalCustomerId,
+    #[schema(value_type = Option<String>, example = "12345_cus_01926c58bc6e77c09e809964e72af8c8")]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
