@@ -146,7 +146,8 @@ pub async fn make_payout_method_data(
                     payout_token.as_ref(),
                 )
                 .await
-                .attach_printable("Payout method [card] could not be fetched from HS locker")?;
+                .attach_printable("Payout method [card] could not be fetched from HS locker")?
+                .get_card();
                 Ok(Some({
                     api::PayoutMethodData::Card(api::CardPayout {
                         card_number: resp.card_number,

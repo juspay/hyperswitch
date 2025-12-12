@@ -17,9 +17,9 @@ use api_models::{
     payment_methods::{
         BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
         CountryCodeWithName, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
-        MaskedBankDetails, PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes,
-        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
-        ResponsePaymentMethodsEnabled,
+        LockerCardResponse, MaskedBankDetails, PaymentExperienceTypes, PaymentMethodsData,
+        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
+        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
     pm_auth::PaymentMethodAuthConfig,
@@ -916,27 +916,35 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        let card = if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-            let card_detail = if self.state.conf.locker.locker_enabled {
-                let card = get_card_from_locker(
-                    self.state,
-                    &pm.customer_id,
-                    &pm.merchant_id,
-                    pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting card from card vault")?;
-                payment_methods::get_card_detail(&pm, card)
+        let (card, payload_metadata) =
+            if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
+                let (card_detail, payload_metadata) = if self.state.conf.locker.locker_enabled {
+                    let locker_card_response = get_card_from_locker(
+                        self.state,
+                        &pm.customer_id,
+                        &pm.merchant_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                    )
+                    .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting card details from locker")?
+                    .attach_printable("Error getting card from card vault")?;
+
+                    (
+                        payment_methods::get_card_detail(&pm, locker_card_response.get_card())
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while getting card details from locker")?,
+                        locker_card_response.get_metadata(),
+                    )
+                } else {
+                    (
+                        self.get_card_details_without_locker_fallback(&pm).await?,
+                        None,
+                    )
+                };
+                (Some(card_detail), payload_metadata)
             } else {
-                self.get_card_details_without_locker_fallback(&pm).await?
+                (None, None)
             };
-            Some(card_detail)
-        } else {
-            None
-        };
         Ok(services::ApplicationResponse::Json(
             api::PaymentMethodResponse {
                 merchant_id: pm.merchant_id.clone(),
@@ -947,7 +955,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card,
-                metadata: pm.metadata,
+                // append payload metadata with pm metadata
+                metadata: payload_metadata.or(pm.metadata),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),
@@ -1687,7 +1696,8 @@ pub async fn update_customer_payment_method(
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .attach_printable("Error getting card from locker")?;
+            .attach_printable("Error getting card from locker")?
+            .get_card();
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
                 helpers::validate_card_expiry(
@@ -1972,7 +1982,7 @@ pub async fn get_card_from_locker(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
-) -> errors::RouterResult<Card> {
+) -> errors::RouterResult<LockerCardResponse> {
     metrics::GET_FROM_LOCKER.add(1, &[]);
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
@@ -2295,7 +2305,7 @@ pub async fn get_card_from_hs_locker<'a>(
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
     locker_choice: api_enums::LockerChoice,
-) -> errors::CustomResult<Card, errors::VaultError> {
+) -> errors::CustomResult<LockerCardResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
 
@@ -2326,14 +2336,22 @@ pub async fn get_card_from_hs_locker<'a>(
             .payload
             .get_required_value("RetrieveCardRespPayload")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        retrieve_card_resp
-            .card
-            .get_required_value("Card")
-            .change_context(errors::VaultError::FetchCardFailed)
+
+        Ok(LockerCardResponse::new(
+            retrieve_card_resp
+                .card
+                .get_required_value("Card")
+                .change_context(errors::VaultError::FetchCardFailed)?,
+            retrieve_card_resp.metadata,
+        ))
     } else {
         let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
-        payment_methods::mk_get_card_response(get_card_resp)
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
+
+        Ok(LockerCardResponse::new(
+            payment_methods::mk_get_card_response(get_card_resp)
+                .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+            None,
+        ))
     }
 }
 
@@ -4689,7 +4707,8 @@ pub async fn get_card_details_from_locker(
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
     .await
-    .attach_printable("Error getting card from card vault")?;
+    .attach_printable("Error getting card from card vault")?
+    .get_card();
 
     payment_methods::get_card_detail(pm, card)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5200,7 +5219,8 @@ pub async fn execute_payment_method_tokenization(
         executor.merchant_account.get_id(),
         &locker_id,
     )
-    .await?;
+    .await?
+    .get_card();
 
     // Perform BIN lookup and validate card network
     let optional_card_info = executor
