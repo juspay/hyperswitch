@@ -396,6 +396,7 @@ impl
         let payment_method = router_data
             .request
             .payment_method_data
+            .clone()
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
