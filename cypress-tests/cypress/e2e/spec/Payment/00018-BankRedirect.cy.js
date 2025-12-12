@@ -299,7 +299,7 @@ describe("Bank Redirect tests", () => {
         expected_redirection
       );
     });
-  });  
+  });
   context("OnlineBankingFpx Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -310,7 +310,6 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-
       if (!shouldContinue) {
         this.skip();
       }
@@ -350,7 +349,7 @@ describe("Bank Redirect tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-   it("Handle bank redirect redirection", () => {
+    it("Handle bank redirect redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(

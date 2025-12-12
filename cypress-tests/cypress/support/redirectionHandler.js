@@ -628,9 +628,7 @@ function bankRedirectRedirection(
 
               cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
                 if ($body.find("#txtUsername").length > 0) {
-                  cy.get("#txtUsername")
-                    .clear()
-                    .type("Gaara", { delay: 10 });
+                  cy.get("#txtUsername").clear().type("Gaara", { delay: 10 });
                 }
 
                 if ($body.find("#txtPassword").length > 0) {
@@ -645,7 +643,9 @@ function bankRedirectRedirection(
               });
 
               cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                const requestTacButton = $body.find("button.pay-btn:contains('Request TAC')");
+                const requestTacButton = $body.find(
+                  "button.pay-btn:contains('Request TAC')"
+                );
                 if (requestTacButton.length > 0) {
                   cy.wrap(requestTacButton).click();
                 }
