@@ -1910,7 +1910,7 @@ pub struct PaypalThreeDsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PaypalPreProcessingResponse {
+pub enum PaypalLiabilityCheckResponse {
     PaypalLiabilityResponse(PaypalLiabilityResponse),
     PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
