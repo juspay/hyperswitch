@@ -5540,11 +5540,7 @@ type="Text"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.credit]]
-  payment_method_type = "Mastercard"
-[[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "Mastercard"
 [[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
 [worldpayxml_payout.metadata.purpose_of_payment]

@@ -2036,9 +2036,7 @@ impl TryFrom<&RefundSyncRouterData> for PaymentService {
 #[cfg(feature = "payouts")]
 impl TryFrom<ApplePayDecrypt> for PaymentInstrument {
     type Error = errors::ConnectorError;
-    fn try_from(
-        apple_pay_decrypted_data: ApplePayDecrypt,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(apple_pay_decrypted_data: ApplePayDecrypt) -> Result<Self, Self::Error> {
         let card_data = CardSSL {
             card_number: apple_pay_decrypted_data.dpan.clone(),
             expiry_date: ExpiryDate {
@@ -2051,11 +2049,10 @@ impl TryFrom<ApplePayDecrypt> for PaymentInstrument {
             cvc: None,
         };
 
-
         Ok(Self {
             card_details: CardDetails {
-                card_ssl: card_data
-            }
+                card_ssl: card_data,
+            },
         })
     }
 }
@@ -2063,9 +2060,7 @@ impl TryFrom<ApplePayDecrypt> for PaymentInstrument {
 #[cfg(feature = "payouts")]
 impl TryFrom<CardPayout> for PaymentInstrument {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        card_payout: CardPayout,
-        ) -> Result<Self, Self::Error> {
+    fn try_from(card_payout: CardPayout) -> Result<Self, Self::Error> {
         let card_data = CardSSL {
             card_number: card_payout.card_number.clone(),
             expiry_date: ExpiryDate {
@@ -2080,8 +2075,8 @@ impl TryFrom<CardPayout> for PaymentInstrument {
 
         Ok(Self {
             card_details: CardDetails {
-                card_ssl: card_data
-            }
+                card_ssl: card_data,
+            },
         })
     }
 }
@@ -2117,7 +2112,10 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
     fn try_from(
         item: &WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
-        let billing_details = item.router_data.get_optional_billing().and_then(get_address_details);
+        let billing_details = item
+            .router_data
+            .get_optional_billing()
+            .and_then(get_address_details);
         let address = billing_details.map(|details| details.address);
 
         let purpose_of_payment: Option<WorldpayxmlPayoutConnectorMetadataObject> =
@@ -2137,9 +2135,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
         let payment_instrument = match payout_method_data {
             api_models::payouts::PayoutMethodData::Wallet(
                 api_models::payouts::Wallet::ApplePayDecrypt(apple_pay_decrypted_data),
-            ) => PaymentInstrument::try_from(
-                apple_pay_decrypted_data
-            )?,
+            ) => PaymentInstrument::try_from(apple_pay_decrypted_data)?,
             api_models::payouts::PayoutMethodData::Card(card_payout) => {
                 PaymentInstrument::try_from(card_payout)?
             }
@@ -2165,7 +2161,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             session: None,
         };
 
-        let order_code = item.router_data.connector_request_reference_id.to_owned(); 
+        let order_code = item.router_data.connector_request_reference_id.to_owned();
 
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -2552,21 +2548,6 @@ fn process_payment_response(
 #[cfg(feature = "payouts")]
 pub fn map_purpose_code(value: Option<String>) -> Option<String> {
     let code = match value?.as_str() {
-        "Family Support" => "00",
-        "Regular Labour Transfers" => "01",
-        "Travel and Tourism" => "02",
-        "Education" => "03",
-        "Hospitalisation and Medical Treatment" => "04",
-        "Emergency Need" => "05",
-        "Savings" => "06",
-        "Gifts" => "07",
-        "Salary" => "09",
-        "Crowd Lending" => "10",
-        "Crypto Currency" => "11",
-        "Gaming Repayment" => "12",
-        "Stock Market Proceeds" => "13",
-        "Refund to a original card" => "M1",
-        "Refund to a new card" => "M2",
         "Account management" => "ISACCT",
         "Transaction is the payment of allowance" => "ISALLW",
         "Settlement of annuity" => "ISANNI",
@@ -2645,6 +2626,7 @@ pub fn map_purpose_code(value: Option<String>) -> Option<String> {
         "Value added tax payment" => "ISVATX",
         "With holding" => "ISWHLD",
         "Payment of water bill" => "ISWTER",
+        "Other" => "ISOTHR",
         _ => return None,
     };
 
@@ -2677,11 +2659,12 @@ pub struct OrderStatusEvent {
 
 pub fn get_payout_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
     match status {
-        LastEvent::PushRequested
-        | LastEvent::PushPending => {
+        LastEvent::PushRequested | LastEvent::PushPending => {
             api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
         }
-        LastEvent::SettledByMerchant | LastEvent::PushApproved => api_models::webhooks::IncomingWebhookEvent::PayoutSuccess,
+        LastEvent::SettledByMerchant | LastEvent::PushApproved => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess
+        }
         LastEvent::Cancelled => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
         LastEvent::PushRefused | LastEvent::Error => {
             api_models::webhooks::IncomingWebhookEvent::PayoutFailure

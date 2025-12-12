@@ -1198,8 +1198,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         let body: worldpayxml::WorldpayXmlWebhookBody =
             utils::deserialize_xml_to_struct(request.body)?;
         let order_code = body.notify.order_status_event.order_code.clone();
-        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event)
-        {
+        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
@@ -1210,8 +1209,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             ));
         }
         #[cfg(feature = "payouts")]
-        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event)
-        {
+        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
