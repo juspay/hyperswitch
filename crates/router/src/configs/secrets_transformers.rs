@@ -489,6 +489,7 @@ pub(crate) async fn fetch_raw_secrets(
 
     Settings {
         server: conf.server,
+        application_source: conf.application_source,
         chat,
         master_database,
         redis: conf.redis,
@@ -578,6 +579,7 @@ pub(crate) async fn fetch_raw_secrets(
         theme: conf.theme,
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
+        preprocessing_flow_config: conf.preprocessing_flow_config.clone(),
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]

@@ -32,6 +32,7 @@ pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod platform_wrapper;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;

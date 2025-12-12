@@ -154,6 +154,15 @@ impl ApiEventMetric for id_type::PaymentId {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ApiEventMetric for id_type::PayoutId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout {
+            payout_id: self.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ApiEventMetric for id_type::GlobalPaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

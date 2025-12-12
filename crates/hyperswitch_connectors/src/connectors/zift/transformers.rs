@@ -135,6 +135,7 @@ pub struct ZiftCardPaymentRequest {
     account_type: AccountType,
     account_number: cards::CardNumber,
     account_accessory: Secret<String>,
+    transaction_code: String,
     csc: Secret<String>,
     transaction_industry_type: TransactionIndustryType,
     holder_name: Secret<String>,
@@ -171,6 +172,7 @@ pub struct ZiftMandatePaymentRequest {
     holder_type: HolderType,
     amount: StringMinorUnit,
     transaction_mode_type: TransactionModeType,
+    transaction_code: String,
 
     // Required for MIT
     transaction_category_type: TransactionCategoryType,
@@ -205,6 +207,7 @@ pub struct ZiftExternalThreeDsPaymentRequest {
     transaction_industry_type: TransactionIndustryType,
     holder_name: Secret<String>,
     holder_type: HolderType,
+    transaction_code: String,
     amount: StringMinorUnit,
     // 3DS authentication fields
     authentication_status: AuthenticationStatus,
@@ -332,6 +335,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         country_code: item.router_data.get_optional_billing_country(),
                         email: item.router_data.get_optional_billing_email(),
                         phone: item.router_data.get_optional_billing_phone_number(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::ExternalThreeDs(external_3ds_request))
                 } else {
@@ -353,6 +357,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         country_code: item.router_data.get_optional_billing_country(),
                         email: item.router_data.get_optional_billing_email(),
                         phone: item.router_data.get_optional_billing_phone_number(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::Card(card_request))
                 }
@@ -396,6 +401,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     country_code: item.router_data.get_optional_billing_country(),
                     email: item.router_data.get_optional_billing_email(),
                     phone: item.router_data.get_optional_billing_phone_number(),
+                    transaction_code: item.router_data.connector_request_reference_id.clone(),
                 };
                 Ok(Self::Mandate(mandate_request))
             }
@@ -437,6 +443,7 @@ pub struct ZiftAuthPaymentsResponse {
     pub response_code: String,
     pub response_message: String,
     pub transaction_id: Option<i64>,
+    pub transaction_code: Option<String>,
     pub token: Option<String>,
 }
 
@@ -548,7 +555,7 @@ impl<F>
                     mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item.response.transaction_code.clone(),
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
