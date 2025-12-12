@@ -287,7 +287,10 @@ pub async fn handle_metadata_update(
             let payment_method_request: api::payment_methods::PaymentMethodCreate =
                 PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
-            let pm_cards = cards::PmCards { state, platform };
+            let pm_cards = cards::PmCards {
+                state,
+                provider: platform.get_provider(),
+            };
 
             pm_cards
                 .delete_card_from_locker(customer_id, merchant_id, &locker_id)

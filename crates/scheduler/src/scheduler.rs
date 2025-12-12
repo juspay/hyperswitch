@@ -56,6 +56,7 @@ pub trait SchedulerAppState: Send + Sync + Clone {
 }
 #[async_trait::async_trait]
 pub trait SchedulerSessionState: Send + Sync + Clone {
+    fn get_application_source(&self) -> diesel_models::enums::ApplicationSource;
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 pub async fn start_process_tracker<

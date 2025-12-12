@@ -33,14 +33,14 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let merchant_id = platform.get_provider().get_account().get_id().clone();
     #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
             &merchant_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
     {

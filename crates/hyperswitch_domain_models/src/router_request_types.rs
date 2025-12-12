@@ -437,7 +437,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: data.amount,
-            split_payments: None,
+            split_payments: data.split_payments,
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             setup_mandate_details: data.setup_mandate_details,

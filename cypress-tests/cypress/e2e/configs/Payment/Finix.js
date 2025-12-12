@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField } from "./Commons";
+import { cardRequiredField, customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Card details for non-3DS payment
@@ -404,6 +404,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

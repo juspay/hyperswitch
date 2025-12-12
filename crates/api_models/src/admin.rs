@@ -3295,14 +3295,14 @@ pub struct BusinessPaymentLinkConfig {
 }
 
 impl BusinessPaymentLinkConfig {
-    pub fn validate(&self) -> Result<(), &str> {
+    pub fn validate(&self) -> Result<(), String> {
         let host_domain_valid = self
             .domain_name
             .clone()
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received in payment_link_config");
+            return Err("Invalid host domain name received in payment_link_config".to_string());
         }
 
         let are_allowed_domains_valid = self
@@ -3315,7 +3315,17 @@ impl BusinessPaymentLinkConfig {
             })
             .unwrap_or(true);
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received in payment_link_config");
+            return Err("Invalid allowed domain names received in payment_link_config".to_string());
+        }
+
+        if let Some(default_cfg) = self.default_config.as_ref() {
+            default_cfg.validate()?;
+        }
+
+        if let Some(biz_cfgs) = self.business_specific_configs.as_ref() {
+            for config in biz_cfgs.values() {
+                config.validate()?;
+            }
         }
 
         Ok(())
@@ -3360,9 +3370,9 @@ pub struct PaymentLinkConfigRequest {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<CustomTermsByPaymentMethodTypes>)]
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
@@ -3389,8 +3399,15 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
-    /// Indicates whether the merchant is testing or live
-    pub payment_test_mode: Option<bool>,
+}
+
+impl PaymentLinkConfigRequest {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
+            custom_message.validate().map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3465,9 +3482,9 @@ pub struct PaymentLinkConfig {
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
     /// Text for customizing message for different Payment Method Types
-    #[schema(value_type = Option<CustomTermsByPaymentMethodTypes>)]
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion

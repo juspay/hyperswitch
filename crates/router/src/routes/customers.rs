@@ -389,8 +389,8 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            let platform = auth.into();
-            delete_customer(state, platform, id)
+            let platform: domain::Platform = auth.into();
+            delete_customer(state, platform.get_provider().clone(), id)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -423,13 +423,13 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let platform = auth.into();
-            delete_customer(state, platform, customer_id)
+            let platform: domain::Platform = auth.into();
+            delete_customer(state, platform.get_provider().clone(), customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,

@@ -12,7 +12,7 @@ use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::RouterData;
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
 use crate::{
     api_client::{self, ApiClientWrapper},
@@ -210,44 +210,49 @@ where
             let direct_router_data_clone = direct_router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context.clone();
-            tokio::spawn(async move {
-                let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>> =
-                    F::get_gateway(execution_path);
-                let ucs_shadow_result = gateway
-                    .execute(
-                        &state_clone,
-                        connector_integration,
-                        &router_data_clone,
-                        call_connector_action,
-                        None,
-                        return_raw_connector_response_clone,
-                        context_clone,
-                    )
-                    .await
-                    .attach_printable("Gateway execution failed");
-                // Send comparison data asynchronously
-                match ucs_shadow_result {
-                    Ok(ucs_router_data) => {
-                        // Send comparison data asynchronously
-                        if let Some(comparison_service_config) =
-                            state_clone.get_comparison_service_config()
-                        {
-                            let request_id = state_clone.get_request_id_str();
-                            let _ = helpers::serialize_router_data_and_send_to_comparison_service(
-                                &state_clone,
-                                direct_router_data_clone,
-                                ucs_router_data,
-                                comparison_service_config,
-                                request_id,
-                            )
-                            .await;
-                        };
-                    }
-                    Err(e) => {
-                        logger::error!("UCS shadow execution failed: {:?}", e);
+            tokio::spawn(
+                async move {
+                    let gateway: Box<
+                        dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>,
+                    > = F::get_gateway(execution_path);
+                    let ucs_shadow_result = gateway
+                        .execute(
+                            &state_clone,
+                            connector_integration,
+                            &router_data_clone,
+                            call_connector_action,
+                            None,
+                            return_raw_connector_response_clone,
+                            context_clone,
+                        )
+                        .await
+                        .attach_printable("Gateway execution failed");
+                    // Send comparison data asynchronously
+                    match ucs_shadow_result {
+                        Ok(ucs_router_data) => {
+                            // Send comparison data asynchronously
+                            if let Some(comparison_service_config) =
+                                state_clone.get_comparison_service_config()
+                            {
+                                let request_id = state_clone.get_request_id_str();
+                                let _ =
+                                    helpers::serialize_router_data_and_send_to_comparison_service(
+                                        &state_clone,
+                                        direct_router_data_clone,
+                                        ucs_router_data,
+                                        comparison_service_config,
+                                        request_id,
+                                    )
+                                    .await;
+                            };
+                        }
+                        Err(e) => {
+                            logger::error!(error=?e, "UCS shadow execution failed");
+                        }
                     }
                 }
-            });
+                .instrument(router_env::tracing::Span::current()),
+            );
             Ok(direct_router_data)
         }
     }

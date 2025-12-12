@@ -975,12 +975,23 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         // This supports changing the business profile by passing in the profile_id
         let business_profile_id_update = if let Some(ref profile_id) = self.default_profile {
+            let merchant_account = db
+                .find_merchant_account_by_merchant_id(merchant_id, key_store)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store.clone(),
+            );
+
             // Validate whether profile_id passed in request is valid and is linked to the merchant
             core_utils::validate_and_get_business_profile(
                 state.store.as_ref(),
-                key_store,
+                platform.get_processor(),
                 Some(profile_id),
-                merchant_id,
             )
             .await?
             .map(|business_profile| Some(business_profile.get_id().to_owned()))
@@ -2169,9 +2180,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             Some(&profile_id),
-            platform.get_processor().get_account().get_id(),
         )
         .await?
         .get_required_value("Profile")
@@ -2380,9 +2390,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
                 let business_profile = core_utils::validate_and_get_business_profile(
                     db,
-                    platform.get_processor().get_key_store(),
+                    platform.get_processor(),
                     Some(&profile_id),
-                    platform.get_processor().get_account().get_id(),
                 )
                 .await?
                 .get_required_value("Profile")
@@ -2447,7 +2456,7 @@ pub async fn create_connector(
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        &platform,
+        platform.get_processor(),
     )?;
 
     let business_profile = req

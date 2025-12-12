@@ -145,7 +145,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
-    pub worldpayxml: ConnectorParams,
+    pub worldpayxml: ConnectorParamsWithSecondaryBaseUrl,
     pub xendit: ConnectorParams,
     pub zift: ConnectorParams,
     pub zen: ConnectorParams,

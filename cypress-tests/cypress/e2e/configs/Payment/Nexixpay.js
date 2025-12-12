@@ -465,6 +465,8 @@ export const connectorDetails = {
         },
         currency: "EUR",
         billing: billingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 400,
