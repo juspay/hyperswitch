@@ -35,6 +35,7 @@ router_env = { version = "0.1.0", path = "../router_env" }
 # Third party deps
 actix-web = "4.11.0"
 async-trait = "0.1.88"
+base64 = "0.22.1"
 error-stack = "0.4.1"
 futures = "0.3.31"
 http = "0.2.12"

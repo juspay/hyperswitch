@@ -6,7 +6,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, StrongSecret};
 
 use crate::{consts::BASE64_ENGINE, errors, types::domain::UserKeyStore, SessionState};
 
@@ -31,7 +31,7 @@ pub async fn send_request_to_key_service_for_merchant(
         let key_encoded = BASE64_ENGINE.encode(key.key.clone().into_inner().expose());
         let req = EncryptionTransferRequest {
             identifier: Identifier::Merchant(key.merchant_id.clone()),
-            key: key_encoded,
+            key: StrongSecret::new(key_encoded),
         };
         transfer_key_to_key_manager(&state.into(), req)
             .await
@@ -48,7 +48,7 @@ pub async fn send_request_to_key_service_for_user(
         let key_encoded = BASE64_ENGINE.encode(key.key.clone().into_inner().expose());
         let req = EncryptionTransferRequest {
             identifier: Identifier::User(key.user_id.clone()),
-            key: key_encoded,
+            key: StrongSecret::new(key_encoded),
         };
         transfer_key_to_key_manager(&state.into(), req).await
     }))

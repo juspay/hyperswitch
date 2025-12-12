@@ -4364,6 +4364,7 @@ dependencies = [
  "actix-web",
  "api_models",
  "async-trait",
+ "base64 0.22.1",
  "cards",
  "common_enums",
  "common_types",
