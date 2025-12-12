@@ -77,7 +77,7 @@ pub enum TransactionData<'a> {
     Payout(&'a payouts::PayoutData),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PaymentsDslInput<'a> {
     pub setup_mandate: Option<&'a mandates::MandateData>,
     pub payment_attempt: &'a storage::PaymentAttempt,

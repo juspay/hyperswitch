@@ -22,6 +22,7 @@ pub fn generate_card_from_details(
         nick_name: None,
         card_type: None,
         card_issuing_country: None,
+        card_issuing_country_code: None,
         bank_code: None,
         card_holder_name: None,
         co_badged_card_data: None,

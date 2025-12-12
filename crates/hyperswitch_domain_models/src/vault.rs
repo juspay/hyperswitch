@@ -36,6 +36,7 @@ impl PaymentMethodVaultingData {
                 payment_method_data::CardDetailsPaymentMethod {
                     last4_digits: None,
                     issuer_country: None,
+                    issuer_country_code: None,
                     expiry_month: None,
                     expiry_year: None,
                     nick_name: None,
