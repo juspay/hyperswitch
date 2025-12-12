@@ -1240,7 +1240,6 @@ where
         external_latency,
     ))
 }
-
 #[cfg(feature = "v1")]
 // This function is intended for use when the feature being implemented is not aligned with the
 // core payment operations.

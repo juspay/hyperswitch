@@ -10303,3 +10303,22 @@ pub enum VaultTokenType {
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ConnectorWebhookEventType {
+    Standard,
+    SpecificEvent(EventType),
+}

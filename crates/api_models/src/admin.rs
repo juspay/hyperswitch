@@ -1483,6 +1483,11 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Details about the connector’s webhook configuration
+    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    pub webhook_setup_capabilities:
+        Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
 
 #[cfg(feature = "v1")]
@@ -3573,3 +3578,17 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
         &self.0
     }
 }
+
+/// Register a webhook at the connector
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookRegisterRequest {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    pub event_type: common_enums::ConnectorWebhookEventType,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RegisterConnectorWebhookResponse {}

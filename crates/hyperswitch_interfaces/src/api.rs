@@ -4,6 +4,7 @@
 pub mod authentication;
 /// authentication_v2 module
 pub mod authentication_v2;
+pub mod configure_connector_webhook;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -571,6 +572,17 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+            is_webhook_auto_configuration_supported: false,
+            requires_webhook_secret: None,
+            config_type: None,
+        }
     }
 }
 

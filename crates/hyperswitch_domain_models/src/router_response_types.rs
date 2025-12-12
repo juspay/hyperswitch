@@ -1,3 +1,4 @@
+pub mod configure_connector_webhook;
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;

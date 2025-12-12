@@ -59,6 +59,7 @@ pub use hyperswitch_interfaces::{
             ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
+        configure_connector_webhook::WebhookRegister,
         fraud_check::FraudCheck,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
