@@ -198,8 +198,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
     ) -> errors::CustomResult<
         (
             PaymentPostSessionTokensOperation<'a, F>,
@@ -258,11 +257,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsPostSessionT
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _platform: &domain::Platform,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentPostSessionTokensOperation<'b, F>, PaymentData<F>)>

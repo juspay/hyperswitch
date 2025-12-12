@@ -233,11 +233,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _platform: &domain::Platform,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
@@ -292,8 +291,7 @@ where
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -303,9 +301,7 @@ where
             Box::new(self),
             payment_data,
             request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
+            platform,
         )
         .await
     }

@@ -616,13 +616,7 @@ where
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
-        .get_or_create_customer_details(
-            state,
-            &mut payment_data,
-            customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .get_or_create_customer_details(state, &mut payment_data, customer_details, platform)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
@@ -1159,11 +1153,10 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform,
                     payment_data.clone(),
                     customer.clone(),
-                    validate_result.storage_scheme,
                     None,
-                    platform.get_processor().get_key_store(),
                     #[cfg(feature = "frm")]
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
@@ -1195,11 +1188,10 @@ where
             .update_trackers(
                 state,
                 req_state,
+                platform,
                 payment_data.clone(),
                 customer.clone(),
-                validate_result.storage_scheme,
                 None,
-                platform.get_processor().get_key_store(),
                 None,
                 header_payload.clone(),
             )
@@ -1361,13 +1353,7 @@ where
 
     let (operation, customer) = operation
         .to_domain()?
-        .get_or_create_customer_details(
-            state,
-            &mut payment_data,
-            customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .get_or_create_customer_details(state, &mut payment_data, customer_details, &platform)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
@@ -1744,11 +1730,10 @@ where
         .update_trackers(
             state,
             req_state,
+            &platform,
             payment_data,
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload,
         )
@@ -1822,11 +1807,10 @@ where
         .update_trackers(
             state,
             req_state,
+            &platform,
             payment_data,
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload,
         )
@@ -2532,11 +2516,10 @@ pub async fn record_attempt_core(
         .update_trackers(
             &state,
             req_state,
+            &platform,
             record_payment_data,
             None,
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )
@@ -4271,11 +4254,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
             updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -4791,11 +4773,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
             updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -5176,11 +5157,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             None, // customer is not used in internal flows
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
         )
@@ -5298,11 +5278,10 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform,
                     payment_data.clone(),
                     customer.clone(),
-                    platform.get_processor().get_account().storage_scheme,
                     None,
-                    platform.get_processor().get_key_store(),
                     frm_suggestion,
                     header_payload.clone(),
                 )
@@ -5440,11 +5419,10 @@ where
             .update_trackers(
                 state,
                 req_state,
+                platform,
                 payment_data.clone(),
                 customer.clone(),
-                platform.get_processor().get_account().storage_scheme,
                 None,
-                platform.get_processor().get_key_store(),
                 frm_suggestion,
                 header_payload.clone(),
             )
@@ -5628,11 +5606,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
             updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -5763,11 +5740,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             None,
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )
@@ -5883,11 +5859,10 @@ where
         .update_trackers(
             state,
             req_state,
+            platform,
             payment_data.clone(),
             None,
-            platform.get_processor().get_account().storage_scheme,
             None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )

@@ -65,8 +65,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        platform: &domain::Platform,
     ) -> CustomResult<
         (
             PaymentStatusOperation<'a, F, api::PaymentsRequest>,
@@ -79,9 +78,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             Box::new(self),
             payment_data,
             request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
+            platform,
         )
         .await
     }
@@ -142,11 +139,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         &'b self,
         _state: &'b SessionState,
         req_state: ReqState,
+        _platform: &domain::Platform,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -174,11 +170,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequ
         &'b self,
         _state: &'b SessionState,
         req_state: ReqState,
+        _platform: &domain::Platform,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
+use storage_impl::platform_wrapper;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -293,11 +294,10 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
         &'b self,
         db: &'b SessionState,
         req_state: ReqState,
+        platform: &domain::Platform,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
-        merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCaptureOperation<'b, F>, payments::PaymentData<F>)>
@@ -313,19 +313,22 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
                 .map(|multiple_capture_data| multiple_capture_data.get_captures_count())
                 .transpose()?;
             let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
-            db.store
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt,
-                    storage::PaymentAttemptUpdate::CaptureUpdate {
-                        amount_to_capture,
-                        multiple_capture_count,
-                        updated_by: storage_scheme.to_string(),
-                    },
-                    storage_scheme,
-                    merchant_key_store,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+            platform_wrapper::payment_attempt::update_payment_attempt_with_attempt_id(
+                db.store.as_ref(),
+                platform.get_processor(),
+                payment_data.payment_attempt,
+                storage::PaymentAttemptUpdate::CaptureUpdate {
+                    amount_to_capture,
+                    multiple_capture_count,
+                    updated_by: platform
+                        .get_processor()
+                        .get_account()
+                        .storage_scheme
+                        .to_string(),
+                },
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         } else {
             payment_data.payment_attempt
         };
