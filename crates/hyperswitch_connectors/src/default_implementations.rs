@@ -1334,7 +1334,6 @@ default_imp_for_complete_authorize!(
     connectors::Wellsfargopayout,
     connectors::Worldline,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zift,

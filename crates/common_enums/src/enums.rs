@@ -2125,13 +2125,6 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-/// Custom T&C Message to be shown per payment method type
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<String, Option<String>>)]
-    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
-);
-
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
@@ -2272,6 +2265,7 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    OpenBanking,
 }
 
 impl PaymentMethodType {
@@ -2397,6 +2391,7 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
+            Self::OpenBanking => "Open Banking",
         };
         display_name.to_string()
     }
@@ -9962,6 +9957,28 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplicationSource {
+    #[default]
+    Main,
+    Cug,
 }
 
 #[derive(Debug)]

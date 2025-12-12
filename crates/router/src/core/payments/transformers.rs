@@ -172,7 +172,7 @@ where
         recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -1901,7 +1901,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -2099,7 +2099,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -3946,9 +3946,6 @@ where
             business_label: payment_intent.business_label,
             business_sub_label: payment_attempt.business_sub_label,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
-            ephemeral_key: payment_data
-                .get_ephemeral_key()
-                .map(ForeignFrom::foreign_from),
             manual_retry_allowed,
             connector_transaction_id,
             frm_message,
@@ -4269,7 +4266,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_experience: None,
             connector_label: None,
             allowed_payment_method_types: None,
-            ephemeral_key: None,
             manual_retry_allowed: None,
             frm_message: None,
             connector_metadata: None,
@@ -6671,7 +6667,6 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
-            payment_test_mode: None,
         }
     }
 }

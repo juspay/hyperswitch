@@ -4955,6 +4955,8 @@ merchant_secret = "Source verification key"
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking"
 [volt.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"
@@ -6714,6 +6716,8 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[worldpayxml.wallet]]
   payment_method_type = "google_pay"
+[[worldpayxml.wallet]]
+  payment_method_type = "apple_pay"
 
 [[worldpayxml.metadata.google_pay]]
 name="merchant_name"
@@ -6785,10 +6789,79 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[worldpayxml.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
+
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.jwt_mac_key]
+name="jwt_mac_key"
+label="JWT MAC KEY"
+placeholder="Enter your JWT MAC Key"
+required=false
+type="Text"
 
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
