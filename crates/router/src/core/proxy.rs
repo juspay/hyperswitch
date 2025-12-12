@@ -9,6 +9,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Response;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub async fn proxy_core(
     state: SessionState,
@@ -83,17 +84,53 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
     }
 }
 
+fn convert_json_to_form_data(obj: serde_json::Map<String, Value>) -> HashMap<String, String> {
+    obj.into_iter()
+        .filter_map(|(k, v)| {
+            let val_str = match v {
+                Value::String(s) => s,
+                Value::Number(n) => n.to_string(),
+                Value::Bool(b) => b.to_string(),
+                Value::Null => String::new(),
+                _ => serde_json::to_string(&v).unwrap_or_default(),
+            };
+            Some((k, val_str))
+        })
+        .collect()
+}
+
 async fn execute_proxy_request(
     state: &SessionState,
     req_wrapper: &utils::ProxyRequestWrapper,
     processed_body: Value,
 ) -> RouterResult<Response> {
+
+    let headers = req_wrapper.get_headers();
+    let content_type = headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("content-type"))
+        .map(|(_, value)| value.clone().into_inner())
+        .unwrap_or_default();
+
+    let request_body = if content_type.eq_ignore_ascii_case("application/x-www-form-urlencoded") {
+
+        match processed_body {
+            Value::Object(obj) => {
+                let form_data = convert_json_to_form_data(obj);
+                request::RequestContent::FormUrlEncoded(Box::new(form_data))
+            }
+            _ => request::RequestContent::Json(Box::new(processed_body)),
+        }
+    } else {
+        request::RequestContent::Json(Box::new(processed_body))
+    };
+
     let request = RequestBuilder::new()
         .method(req_wrapper.get_method())
         .attach_default_headers()
         .headers(req_wrapper.get_headers())
         .url(req_wrapper.get_destination_url())
-        .set_body(request::RequestContent::Json(Box::new(processed_body)))
+        .set_body(request_body)
         .build();
 
     let response = services::call_connector_api(state, request, "proxy")
