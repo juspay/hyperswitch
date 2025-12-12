@@ -13700,50 +13700,34 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
     }
 }
 
-#[cfg(feature = "v1")]
-pub trait PaymentIntentStateMetadataExt {
-    fn validate_refund_against_intent_state_metadata(
-        self,
-        refund: &api::RefundRequest,
-        payment_intent: &payments::PaymentIntent,
-    ) -> CustomResult<(), errors::ApiErrorResponse>;
-    fn update_intent_state_metadata_for_refund(
-        self,
-        state: &SessionState,
-        platform: &domain::Platform,
-        payment_intent: payments::PaymentIntent,
-    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>>
-    where
-        Self: Sized;
+#[derive(Debug, Clone)]
+pub struct PaymentIntentStateMetadataExt(pub common_payments_types::PaymentIntentStateMetadata);
 
-    fn update_intent_state_metadata_for_dispute(
-        self,
-        state: &SessionState,
-        platform: &domain::Platform,
-        payment_intent: payments::PaymentIntent,
-        dispute: &diesel_models::dispute::Dispute,
-    ) -> futures::future::BoxFuture<'static, CustomResult<(), errors::ApiErrorResponse>>
-    where
-        Self: Sized;
+impl From<common_payments_types::PaymentIntentStateMetadata> for PaymentIntentStateMetadataExt {
+    fn from(meta: common_payments_types::PaymentIntentStateMetadata) -> Self {
+        Self(meta)
+    }
 }
 
 #[cfg(feature = "v1")]
-impl PaymentIntentStateMetadataExt for common_types::payments::PaymentIntentStateMetadata {
-    fn validate_refund_against_intent_state_metadata(
+impl PaymentIntentStateMetadataExt {
+    pub fn validate_refund_against_intent_state_metadata(
         self,
-        refund: &api::RefundRequest,
+        refund_amount: Option<MinorUnit>,
         payment_intent: &payments::PaymentIntent,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let requested_amount = refund.amount.unwrap_or(MinorUnit::zero());
+        let requested_amount = rrefund_amount.unwrap_or(MinorUnit::zero());
 
         // Block refund if total disputed amount + total refunded amount + requested refund amount > amount captured
         if let Some(amount_captured) = payment_intent.amount_captured {
             let captured = amount_captured.get_amount_as_i64();
             let total_disputed = self
+                .0
                 .total_disputed_amount
                 .unwrap_or(MinorUnit::zero())
                 .get_amount_as_i64();
             let total_refunded = self
+                .0
                 .total_refunded_amount
                 .unwrap_or(MinorUnit::zero())
                 .get_amount_as_i64();
@@ -13773,7 +13757,7 @@ impl PaymentIntentStateMetadataExt for common_types::payments::PaymentIntentStat
         Ok(())
     }
 
-    fn update_intent_state_metadata_for_refund(
+    pub fn update_intent_state_metadata_for_refund(
         self,
         state: &SessionState,
         platform: &domain::Platform,
@@ -13831,7 +13815,7 @@ impl PaymentIntentStateMetadataExt for common_types::payments::PaymentIntentStat
         })
     }
 
-    fn update_intent_state_metadata_for_dispute(
+    pub fn update_intent_state_metadata_for_dispute(
         self,
         state: &SessionState,
         platform: &domain::Platform,

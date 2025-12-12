@@ -87,11 +87,8 @@ pub async fn refund_create_core(
         },
     )?;
 
-    payment_intent
-        .state_metadata
-        .clone()
-        .unwrap_or_default()
-        .validate_refund_against_intent_state_metadata(&req, &payment_intent)?;
+    PaymentIntentStateMetadataExt::from(payment_intent.state_metadata.clone().unwrap_or_default())
+        .validate_refund_against_intent_state_metadata(req.amount, &payment_intent)?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
@@ -1330,12 +1327,12 @@ pub async fn validate_and_create_refund(
                 req.all_keys_required,
             ))
             .await?;
-            payment_intent
-                .state_metadata
-                .clone()
-                .unwrap_or_default()
-                .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
-                .await?;
+
+            PaymentIntentStateMetadataExt::from(
+                payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
+            .await?;
             (updated_refund, raw_response)
         }
         Err(err) => {

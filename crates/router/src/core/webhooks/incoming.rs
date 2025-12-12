@@ -1983,10 +1983,7 @@ async fn refunds_incoming_webhook_flow(
             )
         })?;
 
-    payment_intent
-        .state_metadata
-        .clone()
-        .unwrap_or_default()
+    PaymentIntentStateMetadataExt::from(payment_intent.state_metadata.clone().unwrap_or_default())
         .update_intent_state_metadata_for_refund(&state, &platform, payment_intent)
         .await?;
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
@@ -2620,17 +2617,16 @@ async fn disputes_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch payment_intent")?;
 
-            payment_intent
-                .state_metadata
-                .clone()
-                .unwrap_or_default()
-                .update_intent_state_metadata_for_dispute(
-                    &state,
-                    &platform,
-                    payment_intent,
-                    &dispute_object,
-                )
-                .await?;
+            PaymentIntentStateMetadataExt::from(
+                payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_dispute(
+                &state,
+                &platform,
+                payment_intent,
+                &dispute_object,
+            )
+            .await?;
         }
 
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
