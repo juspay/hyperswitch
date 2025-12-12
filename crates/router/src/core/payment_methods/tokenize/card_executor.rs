@@ -252,7 +252,6 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
         let card_detail_from_locker = self.card.as_ref().map(|card| api::CardDetailFromLocker {
             scheme: None,
             issuer_country: card.card_issuing_country.clone(),
-            issuer_country_code: card.card_issuing_country_code.clone(),
             last4_digits: Some(card.card_number.clone().get_last4()),
             card_number: None,
             expiry_month: Some(card.card_exp_month.clone().clone()),
@@ -560,7 +559,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
                 card_issuing_country: card_details.card_issuing_country.clone(),
-                card_issuing_country_code: card_details.card_issuing_country_code.clone(),
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),

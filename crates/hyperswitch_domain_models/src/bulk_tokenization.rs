@@ -203,7 +203,6 @@ impl ForeignFrom<&TokenizeCardRequest> for payment_methods_api::MigrateCardDetai
             card_holder_name: card.card_holder_name.clone(),
             nick_name: card.nick_name.clone(),
             card_issuing_country: card.card_issuing_country.clone(),
-            card_issuing_country_code: card.card_issuing_country_code.clone(),
             card_network: card.card_network.clone(),
             card_issuer: card.card_issuer.clone(),
             card_type: card

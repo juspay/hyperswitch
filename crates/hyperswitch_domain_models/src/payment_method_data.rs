@@ -2527,9 +2527,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {
             issuer_country: item.card_issuing_country.map(|c| c.to_string()),
-            issuer_country_code: item
-                .card_issuing_country_code
-                .map(|country_code| country_code.to_string()),
+            issuer_country_code: None,
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),
@@ -2647,7 +2645,6 @@ impl From<Card> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
-            card_issuing_country_code: None,
             card_network: card_data.card_network.clone(),
             card_issuer: None,
             card_type: None,
@@ -2666,7 +2663,6 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_holder_name: None,
             nick_name: None,
             card_issuing_country: None,
-            card_issuing_country_code: None,
             card_network: network_token_data.card_network.clone(),
             card_issuer: None,
             card_type: None,
@@ -2699,7 +2695,6 @@ impl
                 card_network,
                 card_issuer,
                 card_issuing_country,
-                card_issuing_country_code,
                 card_type,
                 ..
             },
@@ -2734,7 +2729,7 @@ impl
             card_network,
             card_type,
             card_issuing_country,
-            card_issuing_country_code,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name,
             co_badged_card_data,
