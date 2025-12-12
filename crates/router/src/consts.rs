@@ -223,6 +223,12 @@ pub const CLICK_TO_PAY: &str = "click_to_pay";
 pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
     "merchants_eligible_for_authentication_service";
 
+/// Payment flow identifier used for performing GSM operations
+pub const PAYMENT_FLOW_STR: &str = "Payment";
+
+/// Default subflow identifier used for performing GSM operations
+pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
+
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
 
