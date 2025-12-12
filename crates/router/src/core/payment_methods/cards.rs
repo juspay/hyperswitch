@@ -1541,7 +1541,7 @@ pub async fn add_payment_method_data(
                                 .and_then(|ci| ci.card_issuing_country.clone()),
                             issuer_country_code: card_info
                                 .as_ref()
-                                .and_then(|ci| ci.country_code.clone()),
+                                .and_then(|code| code.country_code.clone()),
                             last4_digits: Some(card.card_number.get_last4()),
                             expiry_month: Some(card.card_exp_month),
                             expiry_year: Some(card.card_exp_year),
