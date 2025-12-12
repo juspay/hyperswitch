@@ -1907,80 +1907,21 @@ pub struct PaypalThreeDsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PaypalLiabilityCheckResponse {
+pub enum PaypalPreProcessingResponse {
     PaypalLiabilityResponse(PaypalLiabilityResponse),
     PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
 
-impl TryFrom<PaypalLiabilityCheckResponse> for PaymentsResponseData {
+impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
     type Error = ErrorResponse;
 
-    fn try_from(response: PaypalLiabilityCheckResponse) -> Result<Self, Self::Error> {
+    fn try_from(response: PaypalPreProcessingResponse) -> Result<Self, Self::Error> {
         match response {
-            PaypalLiabilityCheckResponse::PaypalNonLiabilityResponse(_) => {
+            PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
                 Ok(auth_success_response())
             }
-            PaypalLiabilityCheckResponse::PaypalLiabilityResponse(liability_response) => {
-                let three_ds = &liability_response
-                    .payment_source
-                    .card
-                    .authentication_result
-                    .three_d_secure;
-                let auth_result = &liability_response.payment_source.card.authentication_result;
-
-                let allowed = matches!(
-                    (
-                        three_ds.enrollment_status.as_ref(),
-                        three_ds.authentication_status.as_ref(),
-                        auth_result.liability_shift.clone(),
-                    ),
-                    (
-                        Some(EnrollmentStatus::Ready),
-                        Some(AuthenticationStatus::Success),
-                        LiabilityShift::Possible,
-                    ) | (
-                        Some(EnrollmentStatus::Ready),
-                        Some(AuthenticationStatus::Attempted),
-                        LiabilityShift::Possible,
-                    ) | (Some(EnrollmentStatus::NotReady), None, LiabilityShift::No)
-                        | (
-                            Some(EnrollmentStatus::Unavailable),
-                            None,
-                            LiabilityShift::No
-                        )
-                        | (Some(EnrollmentStatus::Bypassed), None, LiabilityShift::No)
-                );
-
-                if allowed {
-                    Ok(auth_success_response())
-                } else {
-                    let reason = format!(
-                        "{} Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
-                        constants::CANNOT_CONTINUE_AUTH,
-                        auth_result.liability_shift,
-                        three_ds
-                            .enrollment_status
-                            .clone()
-                            .unwrap_or(EnrollmentStatus::Null),
-                        three_ds
-                            .authentication_status
-                            .clone()
-                            .unwrap_or(AuthenticationStatus::Null),
-                    );
-
-                    Err(ErrorResponse {
-                        attempt_status: Some(enums::AttemptStatus::Failure),
-                        code: NO_ERROR_CODE.to_string(),
-                        message: NO_ERROR_MESSAGE.to_string(),
-                        connector_transaction_id: None,
-                        reason: Some(reason),
-                        status_code: 400, // Will be overridden by caller
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                        connector_metadata: None,
-                    })
-                }
+            PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
+                validate_liability_response(liability_response)
             }
         }
     }
@@ -1996,6 +1937,86 @@ fn auth_success_response() -> PaymentsResponseData {
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         charges: None,
+    }
+}
+
+fn validate_liability_response(
+    liability_response: PaypalLiabilityResponse,
+) -> Result<PaymentsResponseData, ErrorResponse> {
+    let three_ds = &liability_response
+        .payment_source
+        .card
+        .authentication_result
+        .three_d_secure;
+    let auth_result = &liability_response.payment_source.card.authentication_result;
+
+    let allowed = matches!(
+        (
+            three_ds.enrollment_status.as_ref(),
+            three_ds.authentication_status.as_ref(),
+            auth_result.liability_shift.clone(),
+        ),
+        (
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Success),
+            LiabilityShift::Possible,
+        ) | (
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Attempted),
+            LiabilityShift::Possible,
+        ) | (Some(EnrollmentStatus::NotReady), None, LiabilityShift::No)
+            | (
+                Some(EnrollmentStatus::Unavailable),
+                None,
+                LiabilityShift::No
+            )
+            | (Some(EnrollmentStatus::Bypassed), None, LiabilityShift::No)
+    );
+
+    if allowed {
+        Ok(auth_success_response())
+    } else {
+        let reason = format!(
+            "{} Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+            constants::CANNOT_CONTINUE_AUTH,
+            auth_result.liability_shift,
+            three_ds
+                .enrollment_status
+                .clone()
+                .unwrap_or(EnrollmentStatus::Null),
+            three_ds
+                .authentication_status
+                .clone()
+                .unwrap_or(AuthenticationStatus::Null),
+        );
+
+        Err(ErrorResponse {
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            code: NO_ERROR_CODE.to_string(),
+            message: NO_ERROR_MESSAGE.to_string(),
+            connector_transaction_id: None,
+            reason: Some(reason),
+            status_code: 400, // Will be overridden by caller
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
+
+impl TryFrom<PaypalPostAuthenticateResponse> for PaymentsResponseData {
+    type Error = ErrorResponse;
+
+    fn try_from(response: PaypalPostAuthenticateResponse) -> Result<Self, Self::Error> {
+        match response {
+            PaypalPostAuthenticateResponse::PaypalNonLiabilityResponse(_) => {
+                Ok(auth_success_response())
+            }
+            PaypalPostAuthenticateResponse::PaypalLiabilityResponse(liability_response) => {
+                validate_liability_response(liability_response)
+            }
+        }
     }
 }
 

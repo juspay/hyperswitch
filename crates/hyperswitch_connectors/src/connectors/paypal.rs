@@ -1371,7 +1371,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalLiabilityCheckResponse = res
+        let response: paypal::PaypalPreProcessingResponse = res
             .response
             .parse_struct("paypal PaypalPreProcessingResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -1379,7 +1379,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let (status, response) = match response.try_into() {
+        let (status, response) = match PaymentsResponseData::try_from(response) {
             Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
             Err(error) => {
                 let mut error: ErrorResponse = error;
@@ -1459,7 +1459,7 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPostAuthenticateRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalLiabilityCheckResponse = res
+        let response: paypal::PaypalPostAuthenticateResponse = res
             .response
             .parse_struct("paypal PaypalPostAuthenticateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -1467,7 +1467,7 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let (status, response) = match response.try_into() {
+        let (status, response) = match PaymentsResponseData::try_from(response) {
             Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
             Err(error) => {
                 let mut error: ErrorResponse = error;
