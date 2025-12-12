@@ -226,11 +226,14 @@ impl Feature<api::Void, types::PaymentsCancelData>
             payment_void_request,
             header_payload,
             |mut router_data, payment_void_request, grpc_headers| async move {
-                let response = client
-                    .payment_cancel(payment_void_request, connector_auth_metadata, grpc_headers)
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to Cancel payment")?;
+                let response = Box::pin(client.payment_cancel(
+                    payment_void_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to Cancel payment")?;
 
                 let payment_void_response = response.into_inner();
 

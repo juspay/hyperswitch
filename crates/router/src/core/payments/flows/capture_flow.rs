@@ -232,15 +232,14 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             payment_capture_request,
             header_payload,
             |mut router_data, payment_capture_request, grpc_headers| async move {
-                let response = client
-                    .payment_capture(
-                        payment_capture_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to capture payment")?;
+                let response = Box::pin(client.payment_capture(
+                    payment_capture_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to capture payment")?;
 
                 let payment_capture_response = response.into_inner();
 
