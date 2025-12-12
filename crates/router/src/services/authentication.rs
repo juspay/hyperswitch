@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v2")]
@@ -9,6 +9,7 @@ use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use async_trait::async_trait;
+use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
 use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
@@ -39,6 +40,7 @@ use crate::core::errors::UserResult;
 use crate::core::metrics;
 use crate::{
     configs::settings,
+    consts::BASE64_ENGINE,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -157,6 +159,9 @@ pub enum AuthenticationType {
         org_id: id_type::OrganizationId,
         user_id: String,
     },
+    BasicAuth {
+        username: String,
+    },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
@@ -224,6 +229,7 @@ impl AuthenticationType {
             | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
+            | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
@@ -396,6 +402,56 @@ pub struct ApiKeyAuth {
 
 pub struct NoAuth;
 
+pub trait BasicAuthProvider {
+    type Identity;
+
+    fn get_credentials<A>(
+        state: &A,
+        identifier: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo;
+}
+
+#[derive(Debug, Default)]
+pub struct BasicAuth<P> {
+    _marker: PhantomData<P>,
+}
+
+impl<P> BasicAuth<P> {
+    pub const fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+pub struct OidcAuthProvider;
+
+impl BasicAuthProvider for OidcAuthProvider {
+    type Identity = String;
+
+    fn get_credentials<A>(
+        state: &A,
+        identifier: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo,
+    {
+        let session = state.session_state();
+        let client = session
+            .conf
+            .oidc
+            .get_inner()
+            .get_client(identifier)
+            .ok_or(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+        Ok((client.client_id.clone(), client.client_secret.clone()))
+    }
+}
+
+pub const OIDC_CLIENT_AUTH: BasicAuth<OidcAuthProvider> = BasicAuth::<OidcAuthProvider>::new();
+
 #[cfg(feature = "partial-auth")]
 impl GetAuthType for ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
@@ -460,6 +516,36 @@ where
         _state: &A,
     ) -> RouterResult<(Option<T>, AuthenticationType)> {
         Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
+impl<A, P> AuthenticateAndFetch<P::Identity, A> for BasicAuth<P>
+where
+    A: SessionStateInfo + Sync,
+    P: BasicAuthProvider + Send + Sync,
+    P::Identity: Clone,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(P::Identity, AuthenticationType)> {
+        let (provided_identifier, provided_secret) = parse_basic_auth_credentials(request_headers)?;
+
+        let (authenticated_entity, expected_secret) =
+            P::get_credentials(state, &provided_identifier)?;
+
+        if provided_secret.peek() != expected_secret.peek() {
+            return Err(errors::ApiErrorResponse::InvalidBasicAuth.into());
+        }
+
+        Ok((
+            authenticated_entity.clone(),
+            AuthenticationType::BasicAuth {
+                username: provided_identifier,
+            },
+        ))
     }
 }
 
@@ -4066,6 +4152,27 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<UserFromToken>, A> for DashboardNoPermissionAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<UserFromToken>, AuthenticationType)> {
+        <Self as AuthenticateAndFetch<UserFromToken, A>>::authenticate_and_fetch(
+            self,
+            request_headers,
+            state,
+        )
+        .await
+        .map(|(user, auth_type)| (Some(user), auth_type))
+    }
+}
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
@@ -4509,6 +4616,45 @@ pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn strip_basic_auth_token(token: &str) -> RouterResult<&str> {
+    token
+        .strip_prefix("Basic ")
+        .ok_or_else(|| errors::ApiErrorResponse::InvalidBasicAuth.into())
+}
+
+fn parse_basic_auth_credentials(
+    headers: &HeaderMap,
+) -> RouterResult<(String, masking::Secret<String>)> {
+    let authorization_header = get_header_value_by_key(headers::AUTHORIZATION.to_string(), headers)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?
+        .get_required_value(headers::AUTHORIZATION)?;
+
+    let encoded_credentials = strip_basic_auth_token(authorization_header)?;
+
+    let decoded_bytes = BASE64_ENGINE
+        .decode(encoded_credentials)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let credential_string = String::from_utf8(decoded_bytes)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let (identifier, secret) = credential_string
+        .split_once(':')
+        .ok_or(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let identifier = identifier.trim();
+    let secret = secret.trim();
+
+    if identifier.is_empty() || secret.is_empty() {
+        return Err(errors::ApiErrorResponse::InvalidBasicAuth.into());
+    }
+
+    Ok((
+        identifier.to_string(),
+        masking::Secret::new(secret.to_string()),
+    ))
 }
 
 pub fn auth_type<'a, T, A>(

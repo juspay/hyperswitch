@@ -288,6 +288,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::OidcDiscovery
+            | Flow::OidcJwks
+            | Flow::OidcAuthorize
+            | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
