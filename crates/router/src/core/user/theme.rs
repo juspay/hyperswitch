@@ -382,6 +382,11 @@ pub async fn update_user_theme(
                 .attach_printable("Failed to parse ThemeData")?,
         )
         .await?;
+        state
+            .store
+            .update_theme_by_theme_id(theme_id.clone(), ThemeUpdate::ThemeConfig)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
     }
 
     let file = theme_utils::retrieve_file_from_theme_bucket(
@@ -570,5 +575,21 @@ pub async fn get_user_theme_using_lineage(
         merchant_id: theme.merchant_id,
         profile_id: theme.profile_id,
         theme_data: parsed_data,
+    }))
+}
+
+pub async fn get_user_theme_config_version(
+    state: SessionState,
+    theme_id: String,
+) -> UserResponse<theme_api::ThemeVersionResponse> {
+    let theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    Ok(ApplicationResponse::Json(theme_api::ThemeVersionResponse {
+        theme_id: theme.theme_id,
+        theme_config_version: theme.theme_config_version,
     }))
 }
