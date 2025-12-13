@@ -3399,8 +3399,6 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
-    /// Indicates whether the merchant is testing or live
-    pub payment_test_mode: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {

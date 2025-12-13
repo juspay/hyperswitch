@@ -2152,6 +2152,9 @@ pub struct PaymentMethodListResponse {
     /// indicates the next action to be performed by the SDK
     #[schema(value_type = SdkNextAction)]
     pub sdk_next_action: payments::SdkNextAction,
+
+    /// indicates whether this is a guest customer flow
+    pub is_guest_customer: bool,
 }
 
 #[cfg(feature = "v1")]
