@@ -14,6 +14,7 @@ class State {
     this.data["proxyHttp"] = Cypress.env("PROXY_HTTP");
     this.data["proxyHttps"] = Cypress.env("PROXY_HTTPS");
     this.data["methodFlow"] = Cypress.env("METHOD_FLOW");
+    this.data["ucsMode"] = Cypress.env("UCS_MODE");
     this.data["validationServiceUrl"] = Cypress.env("VALIDATION_SERVICE_URL");
   }
 

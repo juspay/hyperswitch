@@ -45,19 +45,36 @@ function createIndividualRolloutConfig(
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const connector = globalState.get("connectorId");
-  const httpUrl = globalState.get("proxyHttp");
-  const httpsUrl = globalState.get("proxyHttps");
 
-  const keySuffix = configType === "shadow" ? "_shadow" : "";
-  const rolloutPercent = configType === "shadow" ? 0.9 : 0.1;
+  // Determine config parameters based on type
+  let keySuffix = "";
+  let rolloutPercent = 0.1;
+  let value;
+
+  if (configType === "shadow") {
+    keySuffix = "_shadow";
+    rolloutPercent = 0.9;
+  } else if (configType === "direct_bridge") {
+    keySuffix = "";
+    rolloutPercent = 1.0;
+  }
+
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
 
-  const configValue = {
-    rollout_percent: rolloutPercent,
-    http_url: httpUrl,
-    https_url: httpsUrl,
-  };
-  const value = JSON.stringify(configValue);
+  // Generate config value based on type
+  if (configType === "direct_bridge") {
+    value = "1.0";
+  } else {
+    const httpUrl = globalState.get("proxyHttp");
+    const httpsUrl = globalState.get("proxyHttps");
+
+    const configValue = {
+      rollout_percent: rolloutPercent,
+      http_url: httpUrl,
+      https_url: httpsUrl,
+    };
+    value = JSON.stringify(configValue);
+  }
 
   const headers = {
     "Content-Type": "application/json",
@@ -139,13 +156,17 @@ function createUcsConfigs(globalState, flow, type) {
     return;
   }
 
-  const httpUrl = globalState.get("proxyHttp");
-  const httpsUrl = globalState.get("proxyHttps");
   const connector = globalState.get("connectorId");
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing proxyHttp or proxyHttps in globalState");
+  // Only validate proxy URLs for modes that require them
+  if (type !== "direct_bridge") {
+    const httpUrl = globalState.get("proxyHttp");
+    const httpsUrl = globalState.get("proxyHttps");
+
+    if (!httpUrl || !httpsUrl) {
+      throw new Error("Missing proxyHttp or proxyHttps in globalState");
+    }
   }
 
   if (!connector || !methodFlowInput) {
@@ -4657,6 +4678,31 @@ Cypress.Commands.add(
     return createUcsConfigs(globalState, flow, "shadow");
   }
 );
+
+Cypress.Commands.add("createDirectBridgeConfig", (globalState, flow = null) => {
+  return createUcsConfigs(globalState, flow, "direct_bridge");
+});
+
+Cypress.Commands.add("createUcsConfigsByMode", (globalState, flow = null) => {
+  const ucsMode = globalState.get("ucsMode");
+
+  if (!ucsMode || ucsMode === "shadow") {
+    // Default behavior: create both rollout and shadow configs
+    cy.task("cli_log", "Creating both rollout and shadow configs");
+    return cy.createRolloutConfig(globalState, flow).then(() => {
+      return cy.createShadowRolloutConfig(globalState, flow);
+    });
+  }
+
+  if (ucsMode === "direct_bridge") {
+    cy.task("cli_log", "Creating UCS configs in direct_bridge mode");
+    return cy.createDirectBridgeConfig(globalState, flow);
+  }
+
+  throw new Error(
+    `Invalid UCS_MODE: ${ucsMode}. Expected: shadow or direct_bridge`
+  );
+});
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",

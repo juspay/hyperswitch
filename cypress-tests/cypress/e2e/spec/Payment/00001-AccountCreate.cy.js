@@ -21,9 +21,9 @@ describe("Account Create flow test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
 
-  it("create-shadow-config-if-shadow-mode-enabled", () => {
-    // Automatically create rollout configs and shadow config after successful merchant creation
-    cy.createRolloutConfig(globalState);
-    cy.createShadowRolloutConfig(globalState);
+  it("create-ucs-configs-based-on-mode", () => {
+    // Automatically create UCS configs based on UCS_MODE environment variable
+    // If UCS_MODE not set, creates both rollout and shadow configs (backward compatible)
+    cy.createUcsConfigsByMode(globalState);
   });
 });
