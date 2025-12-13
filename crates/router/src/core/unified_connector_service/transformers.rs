@@ -204,6 +204,7 @@ impl
             customer_id: None,
             address: None,
             metadata: HashMap::new(),
+            return_url: router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -294,7 +295,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            order_id: router_data.request.order_id.clone(),
+            connector_order_reference_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -379,6 +380,8 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            billing_descriptor: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -552,6 +555,8 @@ impl
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
+            connector_metadata: None,
+            setup_future_usage: None,
         })
     }
 }
@@ -762,6 +767,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            connector_order_reference_id: None,
         })
     }
 }
@@ -878,12 +884,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
 
         Ok(Self {
@@ -1050,6 +1052,9 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1207,6 +1212,9 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1360,6 +1368,9 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
+            billing_descriptor: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1489,6 +1500,7 @@ impl
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
+            billing_descriptor: None,
         })
     }
 }
@@ -1593,6 +1605,7 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+            shipping_cost: None,
         })
     }
 }
@@ -4157,6 +4170,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             state,
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            payment_method_type: None,
         })
     }
 }
@@ -4228,6 +4242,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .transpose()?
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
+            payment_method_type: None,
         })
     }
 }

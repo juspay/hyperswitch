@@ -325,15 +325,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             payment_register_request,
             header_payload,
             |mut router_data, payment_register_request, grpc_headers| async move {
-                let response = client
-                    .payment_setup_mandate(
-                        payment_register_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to Setup Mandate payment")?;
+                let response = Box::pin(client.payment_setup_mandate(
+                    payment_register_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to Setup Mandate payment")?;
 
                 let payment_register_response = response.into_inner();
 
