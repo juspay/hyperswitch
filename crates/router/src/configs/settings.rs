@@ -109,6 +109,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
@@ -277,14 +278,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -310,14 +311,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)
@@ -699,6 +700,40 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        self.key.values().next()
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
