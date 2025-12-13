@@ -2266,6 +2266,7 @@ pub enum PaymentMethodType {
     RevolutPay,
     IndonesianBankTransfer,
     OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2392,6 +2393,7 @@ impl PaymentMethodType {
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2440,6 +2442,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2459,7 +2462,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2479,7 +2483,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
