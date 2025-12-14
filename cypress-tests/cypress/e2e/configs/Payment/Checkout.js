@@ -96,6 +96,10 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -113,6 +117,10 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -138,6 +146,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -196,6 +208,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -343,6 +359,10 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -359,6 +379,10 @@ export const connectorDetails = {
         },
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -375,6 +399,10 @@ export const connectorDetails = {
         },
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -393,6 +421,10 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -410,6 +442,10 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -438,6 +474,10 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -454,6 +494,10 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -481,6 +525,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -497,6 +545,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -513,6 +565,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -529,6 +585,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -545,6 +605,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -561,6 +625,10 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -578,6 +646,10 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
