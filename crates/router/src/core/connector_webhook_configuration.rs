@@ -62,9 +62,6 @@ use crate::{
     utils,
 };
 
-
-
-
 #[cfg(feature = "v1")]
 pub async fn register_connector_webhook(
     state: SessionState,

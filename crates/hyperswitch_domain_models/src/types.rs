@@ -236,6 +236,3 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
 
 pub type SubscriptionCreateRouterData =
     RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
-
-pub type WebhookRegisterRouterData =
-    RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;

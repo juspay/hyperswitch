@@ -16,9 +16,7 @@ use diesel_models::{business_profile::CardTestingGuardConfig, organization::Orga
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
-use hyperswitch_domain_models::{router_data::ErrorResponse,
-    router_request_types::configure_connector_webhook::ConnectorWebhookRegisterData,
-    router_response_types::configure_connector_webhook::ConnectorWebhookRegisterResponse,
+use hyperswitch_domain_models::{
     merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 }};
