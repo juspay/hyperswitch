@@ -669,10 +669,9 @@ async fn handle_invitation(
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
     if inviter_user.get_email() == request.email {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
+        Err(report!(UserErrors::InvalidRoleOperationWithMessage(
             "User Inviting themselves".to_string(),
-        )
-        .into());
+        )))?;
     }
 
     let inviter_role_info = roles::RoleInfo::from_role_id_in_lineage(
@@ -704,19 +703,19 @@ async fn handle_invitation(
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if inviter_role_info.get_entity_type() < req_role_info.get_entity_type() {
-        return Err(report!(UserErrors::InvalidRoleOperationWithMessage(
+        Err(report!(UserErrors::InvalidRoleOperationWithMessage(
             "Inviter role entity type is lower than requested role entity type".to_string(),
         )))
         .attach_printable(format!(
             "{} is trying to invite {}",
             inviter_role_info.get_entity_type(),
             req_role_info.get_entity_type()
-        ));
+        ))?;
     };
 
     if !req_role_info.is_invitable() {
-        return Err(report!(UserErrors::InvalidRoleId))
-            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+        Err(report!(UserErrors::InvalidRoleId))
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id))?;
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
