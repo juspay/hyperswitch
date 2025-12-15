@@ -704,10 +704,9 @@ async fn handle_invitation(
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if inviter_role_info.get_entity_type() < req_role_info.get_entity_type() {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
+        return Err(report!(UserErrors::InvalidRoleOperationWithMessage(
             "Inviter role entity type is lower than requested role entity type".to_string(),
-        )
-        .into())
+        )))
         .attach_printable(format!(
             "{} is trying to invite {}",
             inviter_role_info.get_entity_type(),
