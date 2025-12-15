@@ -884,8 +884,7 @@ pub struct CardVerificationDetails {
     account_type: AccountType,
     account_number: cards::CardNumber,
     account_accessory: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    csc: Option<Secret<String>>,
+    csc: Secret<String>,
 }
 
 impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
@@ -902,7 +901,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                         account_type: AccountType::PaymentCard,
                         account_number: card.card_number.clone(),
                         account_accessory: card.get_expiry_date_as_mmyy()?,
-                        csc: Some(card.card_cvc.clone()),
+                        csc: card.card_cvc.clone(),
                     }),
                 ),
                 _ => Err(errors::ConnectorError::NotSupported {
