@@ -116,6 +116,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
+    pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
 }
@@ -477,6 +478,7 @@ impl
                     source: COF_DATA_SOURCE.to_string(),
                     mode: COF_DATA_MODE.to_string(),
                 },
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
             },
         );
