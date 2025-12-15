@@ -122,7 +122,7 @@ where
                     .change_context(ConnectorError::RequestEncodingFailed)
                     .attach_printable("Failed to construct Payment Repeat Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 payment_repeat_request,
@@ -184,7 +184,7 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Get Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 granular_authorize_request,
