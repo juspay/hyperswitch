@@ -146,7 +146,6 @@ pub struct ZiftCardPaymentRequest {
     holder_type: HolderType,
     amount: StringMinorUnit,
     //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
-
 }
 // Mandate payment (MIT - Merchant Initiated)
 #[derive(Debug, Serialize)]
