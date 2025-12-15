@@ -214,6 +214,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
                 connector_response: None,
+                should_continue_further: should_continue_payment,
             })
         }
     }

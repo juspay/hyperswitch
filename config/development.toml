@@ -1045,6 +1045,12 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
+nmi = { long_lived_token = false, payment_method = "card" }
+paysafe = { long_lived_token = false, payment_method = "card,wallet", payment_method_type = { type = "enable_only", list = "apple_pay" }, authentication_type = "no_three_ds" }
+
+[preprocessing_flow_config]
+authentication_bloated_connectors = "cybersource"
+payment_method_token_bloated_connectors = "nmi,paysafe"
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }

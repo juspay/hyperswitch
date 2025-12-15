@@ -130,7 +130,7 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
-        _should_continue_payment: bool,
+        should_continue_payment: bool,
         _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult>
     where
@@ -142,6 +142,7 @@ pub trait Feature<F, T> {
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
             connector_response: None,
+            should_continue_further: should_continue_payment,
         })
     }
 
