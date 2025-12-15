@@ -1732,6 +1732,13 @@ fn get_bank_redirect_required_fields(
             ]),
         ),
         (
+            enums::PaymentMethodType::OpenBanking,
+            connectors(vec![(
+                Connector::Volt,
+                fields(vec![], billing_name(), vec![]),
+            )]),
+        ),
+        (
             enums::PaymentMethodType::Trustly,
             connectors(vec![
                 (Connector::Adyen, fields(vec![], vec![], vec![])),

@@ -1152,6 +1152,25 @@ pub struct CoBadgedCardDataToBeSaved {
     pub regulated_name: Option<common_enums::RegulatedName>,
 }
 
+impl From<CoBadgedCardDataToBeSaved> for CoBadgedCardData {
+    fn from(data: CoBadgedCardDataToBeSaved) -> Self {
+        Self {
+            co_badged_card_networks_info: open_router::CoBadgedCardNetworks(
+                data.co_badged_card_networks
+                    .iter()
+                    .map(|card_network| open_router::CoBadgedCardNetworksInfo {
+                        network: card_network.clone(),
+                        saving_percentage: None,
+                    })
+                    .collect(),
+            ),
+            issuer_country_code: data.issuer_country_code,
+            is_regulated: data.is_regulated,
+            regulated_name: data.regulated_name,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -2152,6 +2171,9 @@ pub struct PaymentMethodListResponse {
     /// indicates the next action to be performed by the SDK
     #[schema(value_type = SdkNextAction)]
     pub sdk_next_action: payments::SdkNextAction,
+
+    /// indicates whether this is a guest customer flow
+    pub is_guest_customer: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2758,6 +2780,7 @@ pub struct TokenizedBankRedirectValue2 {
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
     pub name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
     pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String>>,
     pub phone_country_code: Option<String>,
@@ -3028,7 +3051,7 @@ impl
                     .unwrap_or_else(|| record.card_number_masked.clone()),
                 card_exp_month: record.card_expiry_month.clone(),
                 card_exp_year: record.card_expiry_year.clone(),
-                card_holder_name: record.name.clone(),
+                card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                 card_network: None,
                 card_type: None,
                 card_issuer: None,
@@ -3046,7 +3069,7 @@ impl
                         .network_token_expiry_year
                         .clone()
                         .unwrap_or_default(),
-                    card_holder_name: record.name.clone(),
+                    card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,

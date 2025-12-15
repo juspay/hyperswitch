@@ -362,7 +362,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
-        api_models::enums::CustomTermsByPaymentMethodTypes,
         api_models::enums::AdyenSplitType,
         api_models::enums::PaymentType,
         api_models::enums::MitCategory,
@@ -984,6 +983,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::subscription::CancelSubscriptionRequest,
         api_models::subscription::CancelSubscriptionResponse,
         api_models::subscription::SubscriptionItemType,
+        common_types::payments::SdkDisplayMode,
+        common_types::payments::CustomMessage,
+        common_types::payments::CustomTerms,
+        common_types::payments::PaymentMethodConfig,
+        common_types::payments::PaymentMethodsConfig,
     )),
     modifiers(&SecurityAddon)
 )]

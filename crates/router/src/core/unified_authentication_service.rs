@@ -673,7 +673,7 @@ pub async fn authentication_create_core(
     let profile_id = core_utils::get_profile_id_from_business_details(
         None,
         None,
-        &platform,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         db,
         true,
@@ -1033,7 +1033,7 @@ pub async fn authentication_eligibility_core(
     let profile_id = core_utils::get_profile_id_from_business_details(
         None,
         None,
-        &platform,
+        platform.get_processor(),
         req.profile_id.as_ref(),
         db,
         true,

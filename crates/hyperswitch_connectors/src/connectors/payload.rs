@@ -55,7 +55,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentsSyncRequestData, RefundsRequestData},
+};
 
 #[derive(Clone)]
 pub struct Payload {
@@ -461,12 +465,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let payment_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
@@ -783,13 +782,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        self.get_auth_header(&req.connector_auth_type)
     }
 
     fn get_url(
@@ -797,11 +792,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req
-            .request
-            .connector_refund_id
-            .as_ref()
-            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+        let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
@@ -820,9 +811,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }

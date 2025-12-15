@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
+use common_enums;
 use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
@@ -73,6 +74,7 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
@@ -167,6 +169,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
@@ -177,6 +180,12 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PreProcessingFlowConfig {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub authentication_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
