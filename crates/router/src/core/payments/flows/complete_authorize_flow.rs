@@ -257,6 +257,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
                 request_data: &self.request,
+                payment_method: Some(self.payment_method),
             },
         ) {
             let router_data = self;
@@ -337,6 +338,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
                 request_data: &self.request,
+                payment_method: Some(self.payment_method),
             },
         ) {
             let router_data = self;
@@ -419,6 +421,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<(Self, bool)> {
         let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
             request_data: &self.request,
+            payment_method: Some(self.payment_method),
         };
         let optional_preprocessing_flow = connector_data
             .connector
