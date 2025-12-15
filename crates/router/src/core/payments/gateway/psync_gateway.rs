@@ -15,7 +15,10 @@ use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{
+        payments::gateway::context::RouterGatewayContext,
+        unified_connector_service::{self, extract_connector_response_from_ucs},
+    },
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom, MinorUnit},
@@ -183,6 +186,13 @@ where
                     router_data.status = status;
                     response
                 });
+                let connector_response = extract_connector_response_from_ucs(
+                    payment_get_response.connector_response.as_ref(),
+                );
+                if let Some(connector_response) = connector_response {
+                    router_data.connector_response = Some(connector_response);
+                }
+
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_get_response.captured_amount;
                 router_data.minor_amount_captured = payment_get_response

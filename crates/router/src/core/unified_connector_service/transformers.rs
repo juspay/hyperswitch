@@ -1977,7 +1977,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate
+                                .connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -2078,7 +2079,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate
+                                .connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -2179,6 +2181,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
         } else {
             let status = AttemptStatus::foreign_try_from(response.status())?;
 
+            // Extract connector_metadata from response if present
+            let connector_metadata = (!response.connector_metadata.is_empty())
+                .then(|| {
+                    serde_json::to_value(&response.connector_metadata)
+                        .map_err(|e| {
+                            tracing::warn!(
+                                serialization_error=?e,
+                                metadata=?response.connector_metadata,
+                                "Failed to serialize connector_metadata from UCS register response"
+                            );
+                            e
+                        })
+                        .ok()
+                })
+                .flatten();
+
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: response
@@ -2219,10 +2237,11 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate
+                                .connector_mandate_request_reference_id,
                         }
                     })),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: response.network_txn_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
@@ -2320,7 +2339,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate
+                                .connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
@@ -4052,7 +4072,7 @@ impl transformers::ForeignTryFrom<&common_enums::PaymentChannel> for payments_gr
             common_enums::PaymentChannel::TelephoneOrder => Ok(Self::TelephoneOrder),
             common_enums::PaymentChannel::Other(_) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "This payment channel variants is not yet supported".to_string(),
+                    "This payment channel variant is not yet supported".to_string(),
                 ),
             )?,
         }
@@ -4620,7 +4640,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                             connector_mandate_id: grpc_mandate.mandate_id,
                             payment_method_id: grpc_mandate.payment_method_id,
                             mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
+                            connector_mandate_request_reference_id: grpc_mandate
+                                .connector_mandate_request_reference_id,
                         }
                     })),
                     connector_metadata,
