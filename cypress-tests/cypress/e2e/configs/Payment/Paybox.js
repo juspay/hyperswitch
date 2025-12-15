@@ -559,6 +559,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: billingData,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

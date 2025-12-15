@@ -1,5 +1,10 @@
 # For explanantion of each config, please refer to the `config/config.example.toml` file
 
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
+application_source = "main"
+
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
 password = "clickhouse_password"     # Clickhouse password (optional)

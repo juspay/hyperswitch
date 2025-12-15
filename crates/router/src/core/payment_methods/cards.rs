@@ -4471,24 +4471,12 @@ pub async fn get_pm_list_context(
         }
 
         enums::PaymentMethod::BankDebit => {
-            // Retrieve the pm_auth connector details so that it can be tokenized
-            let bank_account_token_data = get_bank_account_connector_details(pm)
+            get_pm_list_context_for_bank_debit(pm, is_payment_associated)
                 .await
                 .unwrap_or_else(|err| {
                     logger::error!(error=?err);
                     None
-                });
-
-            bank_account_token_data.map(|data| {
-                let token_data = PaymentTokenData::AuthBankDebit(data);
-
-                PaymentMethodListContext {
-                    card_details: None,
-                    #[cfg(feature = "payouts")]
-                    bank_transfer_details: None,
-                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
-                }
-            })
+                })
         }
 
         enums::PaymentMethod::Wallet => Some(PaymentMethodListContext {
@@ -4726,8 +4714,11 @@ pub async fn get_masked_bank_details(
         .clone()
         .map(|x| x.into_inner().expose())
         .map(
-            |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+            |v| -> Result<
+                domain::PaymentMethodsData,
+                error_stack::Report<errors::ApiErrorResponse>,
+            > {
+                v.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
                     .change_context(errors::StorageError::DeserializationFailed)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
@@ -4735,33 +4726,62 @@ pub async fn get_masked_bank_details(
         )
         .transpose()?;
 
-    #[cfg(feature = "v2")]
-    let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
-
+    #[cfg(feature = "v1")]
     match payment_method_data {
         Some(pmd) => match pmd {
-            PaymentMethodsData::Card(_) => Ok(None),
-            PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+            domain::PaymentMethodsData::Card(_) => Ok(None),
+            domain::PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
             })),
-            PaymentMethodsData::WalletDetails(_) => Ok(None),
+            domain::PaymentMethodsData::BankDebit(
+                domain::BankDebitDetailsPaymentMethod::AchBankDebit {
+                    masked_account_number,
+                    ..
+                },
+            ) => Ok(Some(MaskedBankDetails {
+                mask: masked_account_number,
+            })),
+            domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
+            _ => Ok(None),
         },
         None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
     }
+
+    // TODO: Migrate PaymentMethodsData to domain model in v2 and remove this
+    #[cfg(feature = "v2")]
+    {
+        let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
+        match payment_method_data {
+            Some(pmd) => match pmd {
+                PaymentMethodsData::Card(_) => Ok(None),
+                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+                    mask: bank_details.mask,
+                })),
+                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                _ => Ok(None),
+            },
+            None => Err(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable("Unable to fetch payment method data"),
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_bank_account_connector_details(
+pub async fn get_pm_list_context_for_bank_debit(
     pm: &domain::PaymentMethod,
-) -> errors::RouterResult<Option<BankAccountTokenData>> {
+    is_payment_associated: bool,
+) -> errors::RouterResult<Option<PaymentMethodListContext>> {
     let payment_method_data = pm
         .payment_method_data
         .clone()
         .map(|x| x.into_inner().expose())
         .map(
-            |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+            |v| -> Result<
+                domain::PaymentMethodsData,
+                error_stack::Report<errors::ApiErrorResponse>,
+            > {
+                v.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
                     .change_context(errors::StorageError::DeserializationFailed)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
@@ -4771,17 +4791,20 @@ pub async fn get_bank_account_connector_details(
 
     match payment_method_data {
         Some(pmd) => match pmd {
-            PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Card is not a valid entity".to_string(),
+            domain::PaymentMethodsData::Card(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Card is not a valid entity".to_string(),
+                }
+                .into())
             }
-            .into()),
-            PaymentMethodsData::WalletDetails(_) => {
+            domain::PaymentMethodsData::WalletDetails(_) => {
                 Err(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Wallet is not a valid entity".to_string(),
                 }
                 .into())
             }
-            PaymentMethodsData::BankDetails(bank_details) => {
+            domain::PaymentMethodsData::BankDetails(bank_details) => {
+                // Retrieve the pm_auth connector details so that it can be tokenized
                 let connector_details = bank_details
                     .connector_details
                     .first()
@@ -4803,7 +4826,34 @@ pub async fn get_bank_account_connector_details(
                     connector_details: connector_details.clone(),
                 };
 
-                Ok(Some(token_data))
+                let token_data = PaymentTokenData::AuthBankDebit(token_data);
+                let payment_method_list_context = PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                };
+
+                Ok(Some(payment_method_list_context))
+            }
+            domain::PaymentMethodsData::BankDebit(_) => {
+                let token_data = PaymentTokenData::BankDebit(storage::BankDebitTokenData {
+                    payment_method_id: pm.payment_method_id.clone(),
+                    locker_id: pm.locker_id.clone(),
+                });
+
+                Ok(Some(PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                }))
+            }
+            domain::PaymentMethodsData::NetworkToken(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Network Token is not a valid entity".to_string(),
+                }
+                .into())
             }
         },
         None => Ok(None),
