@@ -14,13 +14,15 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CompleteAuthorize, Execute, PSync, PaymentMethodToken,
-        PreProcessing, RSync, Session, SetupMandate, Void,
+        unified_authentication_service::PreAuthenticate, AccessTokenAuth, Authorize, Capture,
+        CompleteAuthorize, Execute, PSync, PaymentMethodToken, PreProcessing, RSync, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -28,8 +30,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,8 +45,8 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response, SetupMandateType, TokenizationType,
+        PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
@@ -81,6 +84,7 @@ impl api::Refund for Nmi {}
 impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
 impl api::PaymentToken for Nmi {}
+impl api::PaymentsPreAuthenticate for Nmi {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
 where
@@ -164,12 +168,12 @@ impl ConnectorValidation for Nmi {
     }
 }
 
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
     for Nmi
 {
     fn get_headers(
         &self,
-        req: &TokenizationRouterData,
+        req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
@@ -181,7 +185,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_url(
         &self,
-        _req: &TokenizationRouterData,
+        _req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         Ok(format!("{}api/transact.php", self.base_url(connectors)))
@@ -189,7 +193,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_request_body(
         &self,
-        req: &TokenizationRouterData,
+        req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
         let connector_req = nmi::NmiVaultRequest::try_from(req)?;
@@ -198,16 +202,22 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn build_request(
         &self,
-        req: &TokenizationRouterData,
+        req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
         let req = Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .attach_default_headers()
-                .headers(TokenizationType::get_headers(self, req, connectors)?)
-                .url(&TokenizationType::get_url(self, req, connectors)?)
-                .set_body(TokenizationType::get_request_body(self, req, connectors)?)
+                .headers(PaymentsPreAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPreAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         );
         Ok(req)
@@ -215,10 +225,10 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn handle_response(
         &self,
-        data: &TokenizationRouterData,
+        data: &PaymentsPreAuthenticateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<TokenizationRouterData, ConnectorError> {
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, ConnectorError> {
         let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -237,6 +247,11 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Nmi
+{
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nmi {}

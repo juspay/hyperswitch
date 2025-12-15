@@ -18,9 +18,9 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
-        TokenizationRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::errors::ConnectorError;
@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData, TokenizationResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
@@ -155,9 +155,9 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for NmiVaultRequest {
     }
 }
 
-impl TryFrom<&TokenizationRouterData> for NmiVaultRequest {
+impl TryFrom<&PaymentsPreAuthenticateRouterData> for NmiVaultRequest {
     type Error = Error;
-    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsPreAuthenticateRouterData) -> Result<Self, Self::Error> {
         try_build_nmi_vault_request_from_router_data(
             &item.connector_auth_type,
             Some(item.request.payment_method_data.clone()),
@@ -300,15 +300,17 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
     }
 }
 
-impl TryFrom<TokenizationResponseRouterData<NmiVaultResponse>> for TokenizationRouterData {
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
+    for PaymentsPreAuthenticateRouterData
+{
     type Error = Error;
     fn try_from(
-        item: TokenizationResponseRouterData<NmiVaultResponse>,
+        item: PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = process_nmi_vault_response(
             &item.data.connector_auth_type,
-            item.data.request.amount,
-            Some(item.data.request.currency),
+            Some(item.data.request.amount),
+            item.data.request.currency,
             &item.response,
             item.http_code,
             item.data.connector_request_reference_id.clone(),
