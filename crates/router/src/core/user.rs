@@ -675,7 +675,21 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_lineage(
+    let inviter_role_info = roles::RoleInfo::from_role_id_in_lineage(
+        state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+        &user_from_token.profile_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InternalServerError)?;
+
+    let req_role_info = roles::RoleInfo::from_role_id_in_lineage(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -689,7 +703,19 @@ async fn handle_invitation(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    if !role_info.is_invitable() {
+    if inviter_role_info.get_entity_type() < req_role_info.get_entity_type() {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Inviter role entity type is lower than requested role entity type".to_string(),
+        )
+        .into())
+        .attach_printable(format!(
+            "{} is trying to invite {}",
+            inviter_role_info.get_entity_type(),
+            req_role_info.get_entity_type()
+        ));
+    };
+
+    if !req_role_info.is_invitable() {
         return Err(report!(UserErrors::InvalidRoleId))
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
@@ -703,7 +729,7 @@ async fn handle_invitation(
             user_from_token,
             request,
             invitee_user.into(),
-            role_info,
+            req_role_info,
             auth_id,
         )
         .await
@@ -717,7 +743,7 @@ async fn handle_invitation(
             state,
             user_from_token,
             request,
-            role_info,
+            req_role_info,
             req_state.clone(),
             auth_id,
         )
