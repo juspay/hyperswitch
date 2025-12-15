@@ -4,6 +4,9 @@ use crate::redis::kv_store::KvStorePartition;
 
 impl KvStorePartition for PaymentMethod {}
 
+#[cfg(feature = "v1")]
+use std::collections::HashSet;
+
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
@@ -18,8 +21,6 @@ use hyperswitch_domain_models::{
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
 use router_env::{instrument, tracing};
-#[cfg(feature = "v1")]
-use std::collections::HashSet;
 
 use super::MockDb;
 use crate::{
