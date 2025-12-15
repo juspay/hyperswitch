@@ -1435,8 +1435,6 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     types::ErrorResponse,
                 > = Err(types::ErrorResponse::default());
 
-                let original_request_data = router_data.request.clone();
-
                 let pm_token_router_data =
                     helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
                         router_data.clone(),
@@ -1448,7 +1446,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let resp = gateway::execute_payment_gateway(
+                let mut resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &pm_token_router_data,
@@ -1460,15 +1458,8 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                 .await
                 .to_payment_failed_response()?;
 
-                let pmt_response_data = resp.response.clone();
-                *router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                    resp,
-                    original_request_data,
-                    pmt_response_data,
-                );
-
                 // checks for metadata in the ErrorResponse, if present bypasses it and constructs an Ok response
-                handle_tokenization_response(router_data);
+                handle_tokenization_response(&mut resp);
 
                 metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                     1,
@@ -1478,47 +1469,24 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     ),
                 );
 
-                let payment_token_resp = router_data.response.clone().map(|res| {
+                let payment_token_resp = resp.response.map(|res| {
                     if let types::PaymentsResponseData::TokenizationResponse { token } = res {
-                        Some(token.clone())
+                        Some(token)
                     } else {
                         None
                     }
                 });
 
-                let should_continue_further = router_data
-                    .response
-                    .as_ref()
-                    .ok()
-                    .and_then(|response_data| {
-                        if let types::PaymentsResponseData::TransactionResponse {
-                            redirection_data,
-                            ..
-                        } = response_data
-                        {
-                            (**redirection_data).as_ref()
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|redirection_data| {
-                        // If Nmi redirection response, don't continue. Return control to SDK
-                        !redirection_data.is_nmi_redirection()
-                    })
-                    .unwrap_or(should_continue_payment);
-
                 Ok(types::PaymentMethodTokenResult {
                     payment_method_token_result: payment_token_resp,
                     is_payment_method_tokenization_performed: true,
-                    connector_response: router_data.connector_response.clone(),
-                    should_continue_further,
+                    connector_response: resp.connector_response.clone(),
                 })
             }
             _ => Ok(types::PaymentMethodTokenResult {
                 payment_method_token_result: Ok(None),
                 is_payment_method_tokenization_performed: false,
                 connector_response: None,
-                should_continue_further: should_continue_payment,
             }),
         }
     } else {
@@ -1527,7 +1495,6 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             payment_method_token_result: Ok(None),
             is_payment_method_tokenization_performed: false,
             connector_response: None,
-            should_continue_further: should_continue_payment,
         })
     }
 }
@@ -1550,7 +1517,7 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
                     router_data.connector_response =
                         payment_method_token_result.connector_response.clone();
                 }
-                payment_method_token_result.should_continue_further
+                true
             }
             Err(err) => {
                 if is_retry_payment {

@@ -4214,21 +4214,6 @@ where
             (router_data, false)
         };
         (router_data, should_continue_further)
-    } else if state
-        .conf
-        .preprocessing_flow_config
-        .as_ref()
-        .is_some_and(|config| {
-            config
-                .payment_method_token_bloated_connectors
-                .contains(&connector.connector_name)
-        })
-    {
-        logger::info!(
-                "Payment method token create call already made in the previous step for : {}, So preprocessing steps are skipped",
-                connector.connector_name
-            );
-        (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
             state,
@@ -7538,7 +7523,6 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
-    authentication_type: Option<storage_enums::AuthenticationType>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -7566,29 +7550,9 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     mandate_flow_enabled,
                     connector_filter.flow.clone(),
                 )
-                && is_authentication_type_allowed_for_connector(
-                    authentication_type,
-                    connector_filter.authentication_type.clone(),
-                )
         })
         .unwrap_or(false))
 }
-
-#[cfg(feature = "v1")]
-fn is_authentication_type_allowed_for_connector(
-    flow_authentication_type: Option<storage_enums::AuthenticationType>,
-    config_authentication_type: Option<HashSet<storage_enums::AuthenticationType>>,
-) -> bool {
-    match (config_authentication_type, flow_authentication_type) {
-        (Some(supported_auth_types), Some(flow_auth_type)) => {
-            supported_auth_types.contains(&flow_auth_type)
-        }
-        (Some(_supported_auth_types), None) => true, // if no authentication type in flow, allow all types supported by connector
-        (None, Some(_)) => true, // if no authentication type restriction in config, allow all types
-        (None, None) => true,    // if no authentication type restriction in config, allow all types
-    }
-}
-
 #[cfg(feature = "v1")]
 fn is_payment_flow_allowed_for_connector(
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
@@ -7952,7 +7916,6 @@ where
                     payment_method_type,
                     payment_data.get_payment_method_token(),
                     mandate_flow_enabled,
-                    payment_data.get_payment_attempt().authentication_type,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(

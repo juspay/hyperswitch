@@ -364,12 +364,6 @@ pub enum RedirectForm {
     },
 }
 
-impl RedirectForm {
-    pub fn is_nmi_redirection(&self) -> bool {
-        matches!(self, Self::Nmi { .. })
-    }
-}
-
 impl From<(url::Url, Method)> for RedirectForm {
     fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
         let form_fields = HashMap::from_iter(

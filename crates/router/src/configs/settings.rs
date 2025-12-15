@@ -186,8 +186,6 @@ pub struct Settings<S: SecretState> {
 pub struct PreProcessingFlowConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub authentication_bloated_connectors: HashSet<enums::Connector>,
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub payment_method_token_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -592,8 +590,6 @@ pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
-    #[serde(default, deserialize_with = "deserialize_optional_hashset")]
-    pub authentication_type: Option<HashSet<enums::AuthenticationType>>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
     pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,

@@ -717,7 +717,6 @@ pub struct PaymentMethodTokenResult {
     pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
     pub is_payment_method_tokenization_performed: bool,
     pub connector_response: Option<ConnectorResponseData>,
-    pub should_continue_further: bool,
 }
 
 #[derive(Clone)]
