@@ -145,6 +145,8 @@ pub struct ZiftCardPaymentRequest {
     holder_name: Secret<String>,
     holder_type: HolderType,
     amount: StringMinorUnit,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
+
 }
 // Mandate payment (MIT - Merchant Initiated)
 #[derive(Debug, Serialize)]
@@ -167,6 +169,7 @@ pub struct ZiftMandatePaymentRequest {
     // Required for MIT
     transaction_category_type: TransactionCategoryType,
     sequence_number: i32,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
 }
 
 // External 3DS payment request
@@ -868,6 +871,7 @@ pub struct ZiftSetupMandateRequest {
     transaction_code: String,
     #[serde(flatten)]
     payment_method_details: SetupMandatePaymentMethod,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
 }
 
 // Enum for payment method specific fields
