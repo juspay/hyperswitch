@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        RefundsData, SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
@@ -204,6 +204,7 @@ impl
             customer_id: None,
             address: None,
             metadata: HashMap::new(),
+            return_url: None,
         })
     }
 }
@@ -294,7 +295,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            order_id: router_data.request.order_id.clone(),
+            connector_order_reference_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -379,6 +380,22 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            enable_partial_authorization: router_data
+                .request
+                .enable_partial_authorization
+                .map(|e| e.is_true()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
+            payment_channel: router_data
+                .request
+                .payment_channel
+                .as_ref()
+                .map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
         })
     }
 }
@@ -542,16 +559,32 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             request_ref_id: connector_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
-
+            setup_future_usage: setup_future_usage.map(|s| s.into()),
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
+                .unwrap_or_default(),
+            sync_type: Some(
+                payments_grpc::SyncRequestType::foreign_from(&router_data.request.sync_type).into(),
+            ),
         })
     }
 }
@@ -762,6 +795,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            connector_order_reference_id: None,
         })
     }
 }
@@ -1050,6 +1084,10 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
+            billing_descriptor: None,
+            payment_channel: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1207,6 +1245,23 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
+            enable_partial_authorization: router_data
+                .request
+                .enable_partial_authorization
+                .map(|e| e.is_true()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
+            payment_channel: router_data
+                .request
+                .payment_channel
+                .as_ref()
+                .map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
+            connector_order_reference_id: router_data.request.order_id.clone(),
         })
     }
 }
@@ -1360,6 +1415,10 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
+            billing_descriptor: None,
+            payment_channel: None,
+            connector_order_reference_id: None,
+            enable_partial_authorization: None,
         })
     }
 }
@@ -1489,6 +1548,11 @@ impl
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
+            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
+            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
+            payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
         })
     }
 }
@@ -1519,7 +1583,8 @@ impl
         let payment_method_type = router_data
             .request
             .payment_method_type
-            .map(payments_grpc::PaymentMethodType::foreign_from)
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?
             .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -1531,6 +1596,8 @@ impl
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id: connector_mandate_id.get_connector_mandate_id(),
                     payment_method_id: connector_mandate_id.get_payment_method_id(),
+                    connector_mandate_request_reference_id: connector_mandate_id
+                        .get_connector_mandate_request_reference_id(),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
@@ -1593,6 +1660,24 @@ impl
             address: Some(address),
             off_session: router_data.request.off_session,
             recurring_mandate_payment_data: None,
+            enable_partial_authorization: router_data
+                .request
+                .enable_partial_authorization
+                .map(|e| e.is_true()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(|mit_category| mit_category.into()),
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
         })
     }
 }
@@ -3913,6 +3998,67 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
     }
 }
 
+impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
+    fn foreign_from(mit_category: common_enums::MitCategory) -> Self {
+        match mit_category {
+            common_enums::MitCategory::Installment => Self::InstallmentMit,
+            common_enums::MitCategory::Recurring => Self::RecurringMit,
+            common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
+            common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
+        }
+    }
+}
+
+impl ForeignFrom<&SyncRequestType> for payments_grpc::SyncRequestType {
+    fn foreign_from(sync_type: &SyncRequestType) -> Self {
+        match sync_type {
+            SyncRequestType::MultipleCaptureSync(_) => Self::MultipleCaptureSync,
+            SyncRequestType::SinglePaymentSync => Self::SinglePaymentSync,
+        }
+    }
+}
+
+impl ForeignFrom<&common_types::payments::BillingDescriptor> for payments_grpc::BillingDescriptor {
+    fn foreign_from(billing_descriptor: &common_types::payments::BillingDescriptor) -> Self {
+        Self {
+            name: billing_descriptor
+                .name
+                .clone()
+                .map(|name| name.expose().into()),
+            city: billing_descriptor
+                .city
+                .clone()
+                .map(|city| city.expose().into()),
+            phone: billing_descriptor
+                .phone
+                .clone()
+                .map(|phone| phone.expose().into()),
+            statement_descriptor: billing_descriptor.statement_descriptor.clone(),
+            statement_descriptor_suffix: billing_descriptor.statement_descriptor_suffix.clone(),
+            reference: billing_descriptor.reference.clone(),
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&common_enums::PaymentChannel> for payments_grpc::PaymentChannel {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        payment_channel: &common_enums::PaymentChannel,
+    ) -> Result<Self, Self::Error> {
+        match payment_channel {
+            common_enums::PaymentChannel::MailOrder => Ok(Self::MailOrder),
+            common_enums::PaymentChannel::Ecommerce => Ok(Self::Ecommerce),
+            common_enums::PaymentChannel::TelephoneOrder => Ok(Self::TelephoneOrder),
+            common_enums::PaymentChannel::Other(_) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "This payment channel variants is not yet supported".to_string(),
+                ),
+            )?,
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
     for Result<PaymentsResponseData, ErrorResponse>
 {
@@ -4114,6 +4260,12 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             })
             .unwrap_or_default();
 
+        let payment_method_type = router_data
+            .payment_method_type
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?
+            .map(|payment_method_type| payment_method_type.into());
+
         Ok(Self {
             request_ref_id,
             refund_id: router_data.request.refund_id.clone(),
@@ -4157,6 +4309,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             state,
             merchant_account_metadata,
             test_mode: router_data.test_mode,
+            payment_method_type,
         })
     }
 }
@@ -4198,6 +4351,12 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             })
             .unwrap_or_default();
 
+        let payment_method_type = router_data
+            .payment_method_type
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?
+            .map(|payment_method_type| payment_method_type.into());
+
         Ok(Self {
             request_ref_id,
             transaction_id: Some(transaction_id),
@@ -4228,6 +4387,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .transpose()?
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
+            payment_method_type,
         })
     }
 }
