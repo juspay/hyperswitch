@@ -1,9 +1,3 @@
-use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::SessionState,
-    services::authentication::UserFromToken,
-    utils::user::theme as theme_utils,
-};
 use api_models::user::theme as theme_api;
 use common_enums::EntityType;
 use common_utils::{
@@ -16,6 +10,13 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use rdkafka::message::ToBytes;
 use uuid::Uuid;
+
+use crate::{
+    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    routes::SessionState,
+    services::authentication::UserFromToken,
+    utils::user::theme as theme_utils,
+};
 
 // TODO: To be deprecated
 pub async fn get_theme_using_lineage(
