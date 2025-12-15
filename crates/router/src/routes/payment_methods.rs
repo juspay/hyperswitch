@@ -98,6 +98,39 @@ pub async fn create_payment_method_api(
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::NetworkTokenEligibilityCheck))]
+pub async fn get_pm_nt_eligibility_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_methods::NetworkTokenEligibilityRequest>,
+) -> HttpResponse {
+    let flow = Flow::NetworkTokenEligibilityCheck;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _req_state| async move {
+            let platform = auth.clone().into();
+            Box::pin(payment_methods_routes::get_card_nt_eligibility(
+                &state,
+                req,
+                &platform,
+                &auth.profile,
+            ))
+            .await
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_intent_api(
     state: web::Data<AppState>,

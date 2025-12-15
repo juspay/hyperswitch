@@ -569,6 +569,7 @@ pub struct NetworkTokenizationSupportedCardNetworks {
 pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
     pub fetch_token_url: url::Url,
+    pub check_tokenize_eligibility_url: url::Url,
     pub token_service_api_key: Secret<String>,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,

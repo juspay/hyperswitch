@@ -1221,6 +1221,7 @@ key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
+check_tokenize_eligibility_url="" # base url to check tokenize eligibility from token service
 
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization

@@ -153,6 +153,79 @@ pub async fn mk_tokenization_req(
 }
 
 #[cfg(feature = "v2")]
+pub async fn make_nt_eligibility_call(
+    state: &routes::SessionState,
+    payload: api_payment_methods::NetworkTokenEligibilityRequest,
+) -> CustomResult<pm_types::NTEligibilityResponse, errors::NetworkTokenizationError> {
+    let tokenization_service = match &state.conf.network_tokenization_service {
+        Some(nt_service) => Ok(nt_service.get_inner()),
+        None => Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+        )),
+    }?;
+
+    let url_string = format!(
+        "{}/{}?options.check_tokenize_support={}",
+        tokenization_service.check_tokenize_eligibility_url.as_str(),
+        payload.card_bin.clone(),
+        true
+    );
+
+    let mut request = services::Request::new(services::Method::Get, &url_string);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::AUTHORIZATION,
+        tokenization_service
+            .token_service_api_key
+            .peek()
+            .clone()
+            .into_masked(),
+    );
+    request.add_default_headers();
+
+    let response = services::call_connector_api(state, request, "fetch_nt_eligibility")
+        .await
+        .change_context(errors::NetworkTokenizationError::ApiError);
+
+    let res = response
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                logger::error!("Error response from nt eligibility call: {:?}", err_res);
+                let parsed_error: pm_types::NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Card Network Tokenization Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {:?}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ApiError).attach_printable(format!(
+                    "Network Tokenization ApiError : {:?}",
+                    parsed_error.error_info.code
+                ))
+            }
+            Ok(res) => Ok(res),
+        })
+        .inspect_err(|err| {
+            logger::error!("Error while deserializing response: {:?}", err);
+        })?;
+
+    let network_response: pm_types::NTEligibilityResponse = res
+        .response
+        .parse_struct("NTEligibilityResponse")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+    logger::debug!("Network Token Response: {:?}", network_response);
+
+    Ok(network_response)
+}
+
+#[cfg(feature = "v2")]
 pub async fn generate_network_token(
     state: &routes::SessionState,
     payload_bytes: &[u8],

@@ -211,6 +211,39 @@ pub struct CardNetworkTokenResponse {
     pub payload: Secret<String>, //encrypted payload
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize)]
+pub struct NTEligibilityRequest {
+    pub check_tokenize_support: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NTEligibilityResponse {
+    pub country: Option<String>,
+
+    pub extended_card_type: Option<String>,
+
+    pub brand: Option<String>,
+
+    pub juspay_bank_code: Option<String>,
+
+    pub object: Option<String>,
+
+    pub id: String,
+
+    pub card_sub_type: Option<String>,
+
+    #[serde(default)]
+    pub tokenize_support: bool,
+
+    // "type" is a reserved keyword in Rust, so we rename the struct field
+    // but map it to the "type" key in JSON.
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
+
+    pub bank: Option<String>,
+}
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

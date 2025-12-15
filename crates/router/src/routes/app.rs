@@ -1577,6 +1577,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
                 )
                 .service(
+                    web::resource("/get-network-token-eligibility")
+                        .route(web::get().to(payment_methods::get_pm_nt_eligibility_api)),
+                )
+                .service(
                     web::resource("/{payment_method_id}/check-network-token-status")
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
                 );

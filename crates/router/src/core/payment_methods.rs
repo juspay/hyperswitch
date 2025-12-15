@@ -868,6 +868,26 @@ fn get_card_network_with_us_local_debit_network_override(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+pub async fn get_card_nt_eligibility(
+    state: &SessionState,
+    req: api::NetworkTokenEligibilityRequest,
+    _platform: &domain::Platform,
+    _profile: &domain::Profile,
+) -> RouterResponse<api::GetNetworkTokenEiligibilityResponse> {
+    let response = network_tokenization::make_nt_eligibility_call(state, req)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to fetch network token eligibility from tokenization service")?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::GetNetworkTokenEiligibilityResponse {
+            eligible_for_network_tokenization: response.tokenize_support,
+        },
+    ))
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
 pub async fn create_payment_method(
     state: &SessionState,
     request_state: &routes::app::ReqState,
