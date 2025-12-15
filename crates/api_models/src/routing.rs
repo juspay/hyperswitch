@@ -9,6 +9,7 @@ use common_utils::{
 use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{DirKeyKind, EuclidDirFilter},
@@ -17,10 +18,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{RoutableConnectors, TransactionType},
-    open_router,
-};
+use crate::{enums::TransactionType, open_router};
 
 // Define constants for default values
 const DEFAULT_LATENCY_THRESHOLD: f64 = 90.0;
@@ -776,7 +774,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 success_based_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -794,7 +791,6 @@ impl DynamicRoutingAlgorithmRef {
                 }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
