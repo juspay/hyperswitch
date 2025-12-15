@@ -740,7 +740,7 @@ async fn handle_existing_user_invitation(
 
     if state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             invitee_user_from_db.get_user_id(),
             user_from_token
                 .tenant_id
@@ -760,7 +760,7 @@ async fn handle_existing_user_invitation(
 
     if state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             invitee_user_from_db.get_user_id(),
             user_from_token
                 .tenant_id
@@ -1152,7 +1152,7 @@ pub async fn resend_invite(
 
     let user_role = match state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             user.get_user_id(),
             user_from_token
                 .tenant_id
@@ -1179,7 +1179,7 @@ pub async fn resend_invite(
         Some(user_role) => user_role,
         None => state
             .global_store
-            .find_user_role_by_user_id_and_lineage(
+            .find_user_role_by_user_id_and_lineage_with_entity_type(
                 user.get_user_id(),
                 user_from_token
                     .tenant_id
