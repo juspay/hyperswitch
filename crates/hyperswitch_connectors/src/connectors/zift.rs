@@ -110,13 +110,9 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::SetupMandateType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::SetupMandateType::get_headers(
-                    self, req, connectors,
-                )?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
                 .set_body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
