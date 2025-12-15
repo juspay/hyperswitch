@@ -1259,8 +1259,9 @@ pub async fn create_volatile_payment_method_card_core(
             .attach_printable("failed to construct payment method")?
             .convert()
             .await
-            .change_context(errors::StorageError::DecryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::StorageError::EncryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment method")?;
 
             let redis_connection = state
                 .store
@@ -1289,8 +1290,9 @@ pub async fn create_volatile_payment_method_card_core(
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::EncryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to convert payment method")?;
 
             let resp = pm_transforms::generate_payment_method_response(
                 &domain_payment_method,

@@ -226,7 +226,7 @@ impl ProxyRecord {
                     .get_customer_id()?
                     .get_required_value("customer_id")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Locker id not present in Payment Method Entry")?;
+                    .attach_printable("Locker id not present in Tokenization Record")?;
                 let vault_request = pm_types::VaultRetrieveRequest {
                     entity_id: customer_id,
                     vault_id: self.get_vault_id()?,
