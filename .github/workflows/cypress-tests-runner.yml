@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYMENTS_CONNECTORS: "cybersource stripe adyen noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -136,7 +136,7 @@ jobs:
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
 
     services:
       redis:
@@ -286,7 +286,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel 4
 
           kill "${{ env.PID }}"
 
@@ -302,7 +302,7 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
 
     services:
       redis:
