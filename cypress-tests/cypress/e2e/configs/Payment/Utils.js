@@ -66,6 +66,7 @@ import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
+import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -131,6 +132,7 @@ const connectorDetails = {
   worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
+  zift: ziftConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -408,6 +410,7 @@ export const CONNECTOR_LISTS = {
       "wellsfargo",
       "worldpayxml",
       "finix",
+      "zift",
     ],
     // Add more exclusion lists
   },
