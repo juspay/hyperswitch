@@ -1,3 +1,6 @@
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use std::collections::{HashMap, HashSet};
+
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -5,18 +8,25 @@ use ::payment_methods::{
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
+use api_models::payment_methods::PaymentMethodsBatchRetrieveResponse;
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, id_type, transformers::ForeignFrom,
+};
 use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
+use masking::ExposeInterface;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use crate::core::{customers, payment_methods::tokenize};
+use crate::core::{
+    customers,
+    payment_methods::{batch_retrieve, tokenize},
+};
 use crate::{
     core::{
         api_locking,
@@ -351,7 +361,7 @@ pub async fn migrate_payment_methods(
                     key_store,
                 );
 
-                let mut mca_cache = std::collections::HashMap::new();
+                let mut mca_cache = HashMap::new();
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
@@ -443,6 +453,145 @@ pub async fn update_payment_methods(
                     &platform,
                 ))
                 .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchRetrieve))]
+pub async fn payment_methods_batch_retrieve_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<batch_retrieve::PaymentMethodsBatchRetrieveForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchRetrieve;
+    let (merchant_id, records) = match batch_retrieve::get_payment_method_batch_records(form) {
+        Ok(result) => result,
+        Err(error) => return api::log_and_return_error_response(error.into()),
+    };
+
+    if records.is_empty() {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "No payment_method_ids provided".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    if records.len() > 200 {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "A maximum of 200 payment_method_ids are allowed per request".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    let payload_records = records.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload_records,
+        |state, _, _, _| {
+            let merchant_id = merchant_id.clone();
+            let records = records.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                );
+
+                let storage_scheme = platform.get_provider().get_account().storage_scheme;
+                let mut seen_ids = HashSet::new();
+                let mut unique_ids = Vec::new();
+                for record in &records {
+                    if seen_ids.insert(record.payment_method_id.clone()) {
+                        unique_ids.push(record.payment_method_id.clone());
+                    }
+                }
+
+                let payment_methods = if unique_ids.is_empty() {
+                    Vec::new()
+                } else {
+                    state
+                        .store
+                        .find_payment_methods_by_merchant_id_payment_method_ids(
+                            platform.get_provider().get_key_store(),
+                            &merchant_id,
+                            &unique_ids,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                };
+
+                let pm_map: HashMap<_, _> = payment_methods
+                    .into_iter()
+                    .map(|pm| (pm.payment_method_id.clone(), pm))
+                    .collect();
+
+                let responses: Vec<PaymentMethodsBatchRetrieveResponse> = records
+                    .into_iter()
+                    .map(|record| {
+                        if let Some(payment_method) = pm_map.get(&record.payment_method_id) {
+                            let mut error_message = None;
+                            let payment_method_data = if let Some(raw_payment_method_data) =
+                                payment_method.payment_method_data.clone()
+                            {
+                                let value = raw_payment_method_data.into_inner().expose();
+                                match value.parse_value::<payment_methods::PaymentMethodsData>(
+                                    "PaymentMethodsData",
+                                ) {
+                                    Ok(data) => Some(data),
+                                    Err(err) => {
+                                        logger::error!(
+                                            "Failed to deserialize payment_method_data: {:?}",
+                                            err
+                                        );
+                                        error_message = Some(
+                                            "Failed to deserialize payment_method_data".to_string(),
+                                        );
+                                        None
+                                    }
+                                }
+                            } else {
+                                error_message = Some("payment_method_data not found".to_string());
+                                None
+                            };
+
+                            PaymentMethodsBatchRetrieveResponse {
+                                payment_method_id: record.payment_method_id,
+                                payment_method_type: payment_method.get_payment_method_type(),
+                                payment_method_subtype: payment_method.get_payment_method_subtype(),
+                                payment_method_data,
+                                error_message,
+                                line_number: record.line_number,
+                            }
+                        } else {
+                            PaymentMethodsBatchRetrieveResponse {
+                                payment_method_id: record.payment_method_id,
+                                payment_method_type: None,
+                                payment_method_subtype: None,
+                                payment_method_data: None,
+                                error_message: Some("Payment method not found".to_string()),
+                                line_number: record.line_number,
+                            }
+                        }
+                    })
+                    .collect();
+
+                Ok(services::ApplicationResponse::Json(responses))
             }
         },
         &auth::AdminApiAuth,

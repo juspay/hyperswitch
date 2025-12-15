@@ -1,4 +1,6 @@
 pub mod access_token;
+#[cfg(feature = "v1")]
+pub mod batch_retrieve;
 pub mod cards;
 pub mod migration;
 pub mod network_tokenization;
