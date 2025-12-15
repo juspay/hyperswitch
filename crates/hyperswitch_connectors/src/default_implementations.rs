@@ -9383,6 +9383,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Boku,
     connectors::Breadpay,
     connectors::Cashtocode,
+    connectors::Chargebee,
     connectors::Celero,
     connectors::Checkbook,
     connectors::Checkout,
@@ -9470,6 +9471,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Signifyd,
     connectors::Stax,
     connectors::Stripe,
+    connectors::Stripebilling,
     connectors::Square,
     connectors::Taxjar,
     connectors::Tesouro,
@@ -9982,6 +9984,16 @@ impl<const T: u8>
     for connectors::DummyConnector<T>
 {
 }
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}

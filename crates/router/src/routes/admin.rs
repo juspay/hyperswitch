@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{admin::*, api_locking, errors},
+    core::{admin::*, connector_webhook_configuration::*, api_locking, errors},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::admin,
 };

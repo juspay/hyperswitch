@@ -12,6 +12,7 @@ pub mod cards_info;
 pub mod chat;
 pub mod conditional_config;
 pub mod configs;
+pub mod connector_webhook_configuration;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod connector_validation;

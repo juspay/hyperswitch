@@ -22,6 +22,7 @@ pub trait ConnectorV2:
     + api::payments_v2::PaymentV2
     + api::ConnectorRedirectResponse
     + webhooks::IncomingWebhook
+    + api::WebhookRegisterV2
     + api::ConnectorAuthenticationTokenV2
     + api::ConnectorAccessTokenV2
     + api::disputes_v2::DisputeV2
@@ -44,6 +45,7 @@ impl<
             + api::ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + api::WebhookRegisterV2
             + api::ConnectorAuthenticationTokenV2
             + api::ConnectorAccessTokenV2
             + api::disputes_v2::DisputeV2
@@ -57,7 +59,7 @@ impl<
             + api::UnifiedAuthenticationServiceV2
             + api::revenue_recovery_v2::RevenueRecoveryV2
             + api::ExternalVaultV2
-            + subscriptions_v2::SubscriptionsV2,
+            + subscriptions_v2::SubscriptionsV2
     > ConnectorV2 for T
 {
 }

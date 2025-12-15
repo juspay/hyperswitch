@@ -5,6 +5,7 @@ pub mod authentication;
 /// authentication_v2 module
 pub mod authentication_v2;
 pub mod configure_connector_webhook;
+pub mod configure_connector_webhook_v2;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -51,12 +52,12 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData, ConnectorWebhookConfigurationFlowData},
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,  ConnectorWebhookRegister,
     },
     router_request_types::{
         self,
@@ -65,12 +66,13 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
+        SupportedPaymentMethods, VerifyWebhookSourceResponseData,   configure_connector_webhook::ConnectorWebhookRegisterResponse  ,
     },
 };
 use masking::Maskable;
@@ -86,7 +88,7 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    api::{configure_connector_webhook::WebhookRegister, subscriptions::Subscriptions}, connector_integration_v2::ConnectorIntegrationV2, consts,
     errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
@@ -112,6 +114,7 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
+    + WebhookRegister
 {
 }
 
@@ -121,6 +124,7 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + WebhookRegister
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -661,6 +665,17 @@ pub trait ConnectorVerifyWebhookSourceV2:
     WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait ConnectorVerifyWebhookSource
+pub trait WebhookRegisterV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookRegister,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
 >
 {
 }

@@ -2,6 +2,7 @@ pub mod admin;
 pub mod api_keys;
 pub mod authentication;
 pub mod configs;
+pub mod configure_connector_webhook;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod customers;
@@ -29,6 +30,7 @@ pub mod webhooks;
 pub mod authentication_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
+pub mod configure_connector_webhook_v2; 
 pub mod feature_matrix;
 pub mod files_v2;
 #[cfg(feature = "frm")]
@@ -66,6 +68,7 @@ pub use hyperswitch_interfaces::{
             RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
+        configure_connector_webhook_v2::WebhookRegisterV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2,
         ConnectorAuthenticationToken, ConnectorAuthenticationTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
@@ -83,7 +86,7 @@ pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
     disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*,
+    refunds_v2::*, webhooks::*, configure_connector_webhook::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

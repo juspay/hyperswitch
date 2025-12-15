@@ -68,6 +68,10 @@ pub mod authentication {
     pub use hyperswitch_domain_models::router_request_types::authentication::*;
 }
 
+pub mod configure_connector_webhook {
+    pub use hyperswitch_domain_models::router_request_types::configure_connector_webhook::*;
+}
+
 #[cfg(feature = "v2")]
 pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
@@ -92,6 +96,7 @@ pub use address::*;
 pub use business_profile::*;
 pub use callback_mapper::*;
 pub use consts::*;
+pub use configure_connector_webhook::*;
 pub use event::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;

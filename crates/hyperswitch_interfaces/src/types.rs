@@ -271,6 +271,13 @@ pub type VerifyWebhookSourceType = dyn ConnectorIntegration<
     VerifyWebhookSourceResponseData,
 >;
 
+/// Type alias for `ConnectorIntegration<VerifyWebhookSource, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>`
+pub type WebhookRegisterType = dyn ConnectorIntegration<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>`
 pub type SubmitEvidenceType =
     dyn ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
