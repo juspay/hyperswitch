@@ -1,16 +1,67 @@
-use std::path::PathBuf;
-
 use common_enums::EntityType;
 use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
 use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
+use std::path::PathBuf;
+
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::SessionState,
     services::authentication::UserFromToken,
 };
+
+// Redis key format: {theme_id}_version
+pub fn get_theme_version_redis_key(theme_id: &str) -> String {
+    format!("{}_version", theme_id)
+}
+
+// Get theme version from Redis
+pub async fn get_theme_version_from_redis(
+    state: &SessionState,
+    theme_id: &str,
+) -> UserResult<Option<String>> {
+    let redis_key = get_theme_version_redis_key(theme_id);
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+
+    redis_conn
+        .get_key(&redis_key.into())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to get theme version from Redis")
+}
+// Set theme version in Redis
+pub async fn set_theme_version_in_redis(
+    state: &SessionState,
+    theme_id: &str,
+    version: String,
+    expiry: i64,
+) -> UserResult<()> {
+    let redis_key = get_theme_version_redis_key(theme_id);
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+
+    redis_conn
+        .set_key_with_expiry(&redis_key.into(), version, expiry)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to write theme version to Redis")
+}
+
+// Delete theme version from Redis
+pub async fn delete_theme_version_from_redis(
+    state: &SessionState,
+    theme_id: &str,
+) -> UserResult<()> {
+    let redis_key = get_theme_version_redis_key(theme_id);
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+
+    redis_conn
+        .delete_key(&redis_key.into())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
+}
 
 fn get_theme_dir_key(theme_id: &str) -> PathBuf {
     ["themes", theme_id].iter().collect()

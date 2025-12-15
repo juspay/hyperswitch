@@ -1,3 +1,3 @@
 -- Your SQL goes here
 ALTER TABLE themes
-ADD COLUMN theme_config_version  VARCHAR(13) NOT NULL DEFAULT '0';
+ADD COLUMN IF NOT EXISTS theme_config_version VARCHAR(32) NOT NULL DEFAULT extract(epoch from now())::text;
