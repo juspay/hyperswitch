@@ -15,7 +15,10 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers, transformers,
+            PaymentData,
+        },
         unified_connector_service as ucs_core,
     },
     logger,
@@ -107,7 +110,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        gateway_context: payments::flows::gateway_context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CompleteAuthorize,
@@ -159,12 +162,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -175,6 +180,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
@@ -186,6 +192,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 self,
                 types::PaymentMethodTokenizationData::try_from(request)?,
                 should_continue_payment,
+                gateway_context,
             )
             .await
         } else {
@@ -229,6 +236,149 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         complete_authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
+    async fn authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_authentication_flow_required(
+            api_interface::CurrentFlowInfo::CompleteAuthorize {
+                request_data: &self.request,
+            },
+        ) {
+            let router_data = self;
+            logger::info!(
+                "Authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let mut complete_authorize_request_data = router_data.request.clone();
+            let authenticate_request_data =
+                types::PaymentsAuthenticateData::try_from(router_data.request.to_owned())?;
+            let authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::Authenticate, _, _, _, _>(
+                    router_data.clone(),
+                    authenticate_request_data,
+                    authenticate_response_data,
+                );
+
+            // Call UCS for Authenticate flow and store authentication result for next step
+            let authenticate_router_data = Box::pin(handle_authenticate_connector_call(
+                state,
+                authenticate_router_data,
+                connector,
+                gateway_context,
+            ))
+            .await?;
+
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let authenticate_response = authenticate_router_data.response.clone();
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &authenticate_router_data.response
+            {
+                connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+            };
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    authenticate_router_data,
+                    complete_authorize_request_data,
+                    authenticate_response,
+                );
+            // check if redirection is not present in the response and attempt status is not AuthenticationFailed
+            // if condition does not satisfy, then we don't need to proceed further
+            let should_continue = (matches!(
+                complete_authorize_router_data.response,
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    ref redirection_data,
+                    ..
+                }) if redirection_data.is_none()
+            ) && complete_authorize_router_data.status
+                != common_enums::AttemptStatus::AuthenticationFailed);
+            Ok((complete_authorize_router_data, should_continue))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn post_authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_post_authentication_flow_required(
+            api_interface::CurrentFlowInfo::CompleteAuthorize {
+                request_data: &self.request,
+            },
+        ) {
+            let router_data = self;
+            logger::info!(
+                "Post-authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            // Convert CompleteAuthorize to PostAuthenticate for UCS call
+            let mut complete_authorize_request_data = router_data.request.clone();
+            let post_authenticate_request_data =
+                types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
+            let post_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let post_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+                    router_data.clone(),
+                    post_authenticate_request_data,
+                    post_authenticate_response_data,
+                );
+
+            let post_authenticate_router_data = Box::pin(handle_post_authenticate_connector_call(
+                state,
+                post_authenticate_router_data,
+                connector,
+                gateway_context,
+            ))
+            .await?;
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let post_authenticate_response = post_authenticate_router_data.response.clone();
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &post_authenticate_router_data.response
+            {
+                connector_metadata.clone_into(&mut complete_authorize_request_data.connector_meta);
+            };
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    post_authenticate_router_data,
+                    complete_authorize_request_data,
+                    post_authenticate_response,
+                );
+            // check if redirection is not present in the response and attempt status is not AuthenticationFailed
+            // if condition does not satisfy, then we don't need to proceed further
+            let should_continue = (matches!(
+                complete_authorize_router_data.response,
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    ref redirection_data,
+                    ..
+                }) if redirection_data.is_none()
+            ) && complete_authorize_router_data.status
+                != common_enums::AttemptStatus::AuthenticationFailed);
+            Ok((complete_authorize_router_data, should_continue))
+        } else {
+            Ok((self, true))
+        }
+    }
+
     async fn call_preprocessing_through_unified_connector_service<'a>(
         self,
         state: &SessionState,
@@ -264,20 +414,16 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                         preprocessing_flow,
                     ))
                     .await?;
-                let pre_processing_flow_response = api_interface::PreProcessingFlowResponse {
-                    response: &updated_router_data.response,
-                    attempt_status: updated_router_data.status,
-                };
-                let current_flow = api_interface::CurrentFlowInfo::CompleteAuthorize {
-                    request_data: &updated_router_data.request,
-                };
-                let should_continue = connector_data
-                    .connector
-                    .decide_should_continue_after_preprocessing(
-                        current_flow,
-                        preprocessing_flow,
-                        pre_processing_flow_response,
-                    );
+                // check if redirection is not present in the response and attempt status is not AuthenticationFailed
+                // if condition does not satisfy, then we don't need to proceed further
+                let should_continue = (matches!(
+                    updated_router_data.response,
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        ref redirection_data,
+                        ..
+                    }) if redirection_data.is_none()
+                ) && updated_router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed);
                 Ok((updated_router_data, should_continue))
             }
             None => Ok((self, true)),
@@ -428,6 +574,79 @@ async fn handle_preprocessing_through_unified_connector_service(
     }
 }
 
+pub async fn handle_authenticate_connector_call(
+    state: &SessionState,
+    router_data: types::RouterData<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+    connector: &api::ConnectorData,
+    _gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::Authenticate,
+        types::PaymentsAuthenticateData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+
+    // TODO: Handle gateway_context later
+    let resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        // gateway_context.clone(),
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(resp)
+}
+
+pub async fn handle_post_authenticate_connector_call(
+    state: &SessionState,
+    router_data: types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+    connector: &api::ConnectorData,
+    _gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<
+    types::RouterData<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+    // TODO: Handle gateway_context later
+    let resp = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        // gateway_context.clone(),
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(resp)
+}
+
 fn transform_redirection_response_for_authenticate_flow(
     connector: connector_enums::Connector,
     response_data: router_response_types::RedirectForm,
@@ -535,6 +754,7 @@ async fn call_unified_connector_service_authenticate(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -652,6 +872,7 @@ async fn call_unified_connector_service_post_authenticate(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -871,6 +1092,7 @@ async fn call_unified_connector_service_complete_authorize(
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
         platform,
+        router_data.connector.clone(),
     )
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct request metadata")?;
@@ -966,7 +1188,7 @@ async fn process_capture_flow(
     call_connector_action: payments::CallConnectorAction,
     business_profile: &domain::Profile,
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    gateway_context: payments::flows::gateway_context::RouterGatewayContext,
+    gateway_context: gateway_context::RouterGatewayContext,
 ) -> RouterResult<
     types::RouterData<
         api::CompleteAuthorize,

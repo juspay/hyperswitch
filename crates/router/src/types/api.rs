@@ -43,8 +43,8 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
-use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
+use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
     mandate_revoke::MandateRevoke,

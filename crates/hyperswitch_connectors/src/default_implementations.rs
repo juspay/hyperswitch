@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
             PreProcessing, Reject, SdkSessionUpdate, UpdateMetadata,
         },
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionPause, SubscriptionResume,
         },
         webhooks::VerifyWebhookSource,
@@ -53,8 +53,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         configure_connector_webhook::ConnectorWebhookRegisterData,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
@@ -77,8 +77,8 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         configure_connector_webhook::ConnectorWebhookRegisterResponse,
@@ -150,7 +150,7 @@ use hyperswitch_interfaces::{
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
-            GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
+            GetSubscriptionEstimateFlow, GetSubscriptionItemsFlow, GetSubscriptionPlanPricesFlow,
             SubscriptionCancelFlow, SubscriptionCreate, SubscriptionPauseFlow,
             SubscriptionRecordBackFlow, SubscriptionResumeFlow, Subscriptions,
         },
@@ -1340,7 +1340,6 @@ default_imp_for_complete_authorize!(
     connectors::Wellsfargopayout,
     connectors::Worldline,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zift,
@@ -1668,7 +1667,6 @@ default_imp_for_create_customer!(
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
-    connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
@@ -1722,7 +1720,6 @@ default_imp_for_create_customer!(
     connectors::Klarna,
     connectors::Loonio,
     connectors::Mifinity,
-    connectors::Mollie,
     connectors::Moneris,
     connectors::Mpgs,
     connectors::Multisafepay,
@@ -1741,7 +1738,6 @@ default_imp_for_create_customer!(
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payme,
-    connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
     connectors::Paystack,
@@ -4456,7 +4452,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Worldpayvantiv,
-    connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Volt,
@@ -4898,7 +4893,6 @@ default_imp_for_payouts_cancel!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Worldpayvantiv,
-    // connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Volt,
@@ -7487,14 +7481,14 @@ default_imp_for_revenue_recovery!(
 macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
         $(  impl Subscriptions for $path::$connector {}
-            impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl GetSubscriptionItemsFlow for $path::$connector {}
             impl SubscriptionRecordBackFlow for $path::$connector {}
             impl SubscriptionCreate for $path::$connector {}
             impl
             ConnectorIntegration<
-            GetSubscriptionPlans,
-            GetSubscriptionPlansRequest,
-            GetSubscriptionPlansResponse
+            GetSubscriptionItems,
+            GetSubscriptionItemsRequest,
+            GetSubscriptionItemsResponse
             > for $path::$connector
             {}
             impl
@@ -7503,9 +7497,9 @@ macro_rules! default_imp_for_subscriptions {
             impl GetSubscriptionPlanPricesFlow for $path::$connector {}
             impl
             ConnectorIntegration<
-            GetSubscriptionPlanPrices,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse
+            GetSubscriptionItemPrices,
+            GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemPricesResponse
             > for $path::$connector
             {}
             impl
@@ -10108,24 +10102,24 @@ impl<const T: u8> GetSubscriptionPlanPricesFlow for connectors::DummyConnector<T
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
-        GetSubscriptionPlanPrices,
-        GetSubscriptionPlanPricesRequest,
-        GetSubscriptionPlanPricesResponse,
+        GetSubscriptionItemPrices,
+        GetSubscriptionItemPricesRequest,
+        GetSubscriptionItemPricesResponse,
     > for connectors::DummyConnector<T>
 {
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+impl<const T: u8> GetSubscriptionItemsFlow for connectors::DummyConnector<T> {}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> SubscriptionRecordBackFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
-        GetSubscriptionPlans,
-        GetSubscriptionPlansRequest,
-        GetSubscriptionPlansResponse,
+        GetSubscriptionItems,
+        GetSubscriptionItemsRequest,
+        GetSubscriptionItemsResponse,
     > for connectors::DummyConnector<T>
 {
 }

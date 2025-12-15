@@ -74,6 +74,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
+        refund_id: Option<String>,
     },
     #[cfg(feature = "v1")]
     NetworkTokenWebhook {
@@ -83,6 +84,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: id_type::MerchantConnectorAccountId,
         payment_id: Option<id_type::GlobalPaymentId>,
+        refund_id: Option<id_type::GlobalRefundId>,
     },
     Routing,
     Subscription,
@@ -150,6 +152,15 @@ impl ApiEventMetric for id_type::PaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for id_type::PayoutId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payout {
+            payout_id: self.clone(),
         })
     }
 }

@@ -150,6 +150,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
     }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
+    }
 }
 impl SessionState {
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
@@ -1305,7 +1308,7 @@ impl Subscription {
             ))
             .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
-                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+                web::resource("/items").route(web::get().to(subscription::get_subscription_items)),
             )
             .service(web::resource("/list").route(web::get().to(subscription::list_subscriptions)))
             .service(
@@ -1514,6 +1517,11 @@ impl Payouts {
                     web::resource("/list")
                         .route(web::get().to(payouts_list))
                         .route(web::post().to(payouts_list_by_filter)),
+                )
+                .service(web::resource("/aggregate").route(web::get().to(get_payouts_aggregates)))
+                .service(
+                    web::resource("/profile/aggregate")
+                        .route(web::get().to(get_payouts_aggregates_profile)),
                 )
                 .service(
                     web::resource("/profile/list")
@@ -2411,10 +2419,6 @@ impl Profile {
                     .service(
                         web::scope("/success_based")
                             .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_success_based_routing)),
-                            )
-                            .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
                             )
@@ -2436,10 +2440,6 @@ impl Profile {
                     )
                     .service(
                         web::scope("/elimination")
-                            .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_elimination_routing)),
-                            )
                             .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
