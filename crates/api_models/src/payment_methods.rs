@@ -1442,6 +1442,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
             card_network: item.card_network,
             card_type: item.card_type,
             card_issuing_country: item.issuer_country.map(|country| country.to_string()),
+            card_issuing_country_code: None,
             bank_code: None,
             last4: item.last4_digits,
             card_isin: item.card_isin,
@@ -1586,6 +1587,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
             co_badged_card_data: None,
+            issuer_country_code: None,
         }
     }
 }
@@ -1629,6 +1631,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
             co_badged_card_data: None,
+            issuer_country_code: None,
         }
     }
 }

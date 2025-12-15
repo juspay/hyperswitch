@@ -935,6 +935,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_network,
                 card_type: card_type.map(|card_type| card_type.to_string()),
                 card_issuing_country: card_issuing_country.map(|country| country.to_string()),
+                card_issuing_country_code: None,
                 bank_code: None,
                 nick_name,
                 card_holder_name,
@@ -1134,6 +1135,7 @@ impl
             card_network: card_detail.card_network,
             card_type: card_detail.card_type.map(|val| val.to_string()),
             card_issuing_country: card_detail.card_issuing_country.map(|val| val.to_string()),
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: card_detail.nick_name,
             card_holder_name: card_holder_name.or(card_detail.card_holder_name),
@@ -2528,7 +2530,9 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
         Self {
             issuer_country: item.card_issuing_country.map(|c| c.to_string()),
-            issuer_country_code: item.card_issuing_country_code.map(|country_code| country_code.to_string()),
+            issuer_country_code: item
+                .card_issuing_country_code
+                .map(|country_code| country_code.to_string()),
             last4_digits: Some(item.card_number.get_last4()),
             expiry_month: Some(item.card_exp_month),
             expiry_year: Some(item.card_exp_year),

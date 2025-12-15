@@ -1472,6 +1472,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     card_holder_name: card_details.card_holder_name,
                     nick_name: card_details.nick_name,
                     issuer_country: card_details.card_issuing_country,
+                    issuer_country_code: None,
                     card_network: card_details.card_network,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details.card_type,
@@ -1490,6 +1491,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                         .card_issuing_country
                         .map(|country| country.to_string()),
                     card_network: card_details.card_network,
+                    issuer_country_code: None,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details
                         .card_type

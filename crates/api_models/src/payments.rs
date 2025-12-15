@@ -2659,6 +2659,7 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name,
         })
