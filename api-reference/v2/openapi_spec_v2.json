@@ -19493,7 +19493,7 @@
           "storage_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_enums.StorageType"
+                "$ref": "#/components/schemas/StorageType"
               }
             ],
             "nullable": true

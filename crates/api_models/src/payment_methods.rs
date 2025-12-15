@@ -3376,6 +3376,8 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
     pub storage_type: Option<common_enums::StorageType>,
 }
 
