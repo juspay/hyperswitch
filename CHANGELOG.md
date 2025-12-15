@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix7
+
+### Features
+
+- **connector:** [Zift] Remove billing address fields and add mandate setup (account verification) support ([#10669](https://github.com/juspay/hyperswitch/pull/10669)) ([`14a14c8`](https://github.com/juspay/hyperswitch/commit/14a14c825c926feabbc939518aef8d0dbfc96586))
+- **core:** Add requires_capture to default payment webhook statuses ([#10671](https://github.com/juspay/hyperswitch/pull/10671)) ([`a96117d`](https://github.com/juspay/hyperswitch/commit/a96117d66d7c8b437bdfb39e9c1135811ab6d6cc))
+
+**Full Changelog:** [`2025.12.03.0-hotfix6...2025.12.03.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix6...2025.12.03.0-hotfix7)
+
+- - -
+
 ## 2025.12.03.0-hotfix6
 
 ### Features
