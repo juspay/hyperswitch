@@ -592,7 +592,7 @@ pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
-    #[serde(deserialize_with = "deserialize_optional_hashset")]
+    #[serde(default, deserialize_with = "deserialize_optional_hashset")]
     pub authentication_type: Option<HashSet<enums::AuthenticationType>>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
