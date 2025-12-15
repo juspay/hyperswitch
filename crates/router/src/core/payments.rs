@@ -13711,52 +13711,6 @@ impl From<common_payments_types::PaymentIntentStateMetadata> for PaymentIntentSt
 
 #[cfg(feature = "v1")]
 impl PaymentIntentStateMetadataExt {
-    pub fn validate_refund_against_intent_state_metadata(
-        self,
-        refund_amount: Option<MinorUnit>,
-        payment_intent: &payments::PaymentIntent,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let requested_amount = rrefund_amount.unwrap_or(MinorUnit::zero());
-
-        // Block refund if total disputed amount + total refunded amount + requested refund amount > amount captured
-        if let Some(amount_captured) = payment_intent.amount_captured {
-            let captured = amount_captured.get_amount_as_i64();
-            let total_disputed = self
-                .0
-                .total_disputed_amount
-                .unwrap_or(MinorUnit::zero())
-                .get_amount_as_i64();
-            let total_refunded = self
-                .0
-                .total_refunded_amount
-                .unwrap_or(MinorUnit::zero())
-                .get_amount_as_i64();
-            let requested = requested_amount.get_amount_as_i64();
-
-            let available_refund = captured - (total_refunded + total_disputed);
-
-            utils::when(
-                total_disputed + total_refunded + requested > captured,
-                || {
-                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Refund amount exceeds available refundable amount.".to_string(),
-                    })
-                    .attach_printable(format!(
-                        "Refund not allowed because total_disputed_amount ({}) \
-                 + total_refunded_amount ({}) + requested_amount ({}) \
-                 exceeds amount_captured ({}). Available refund amount: {}",
-                        total_disputed,
-                        total_refunded,
-                        requested,
-                        captured,
-                        available_refund.max(0)
-                    )))
-                },
-            )?;
-        }
-        Ok(())
-    }
-
     pub fn update_intent_state_metadata_for_refund(
         self,
         state: &SessionState,

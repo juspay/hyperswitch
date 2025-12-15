@@ -23,6 +23,7 @@ use common_utils::{
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
 use diesel_models::payment_intent::TaxDetails;
+use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -335,6 +336,42 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    pub fn validate_against_intent_state_metadata(
+        &self,
+        blocked_amount: MinorUnit,
+        requested_amount: Option<MinorUnit>,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        let captured = self
+            .amount_captured
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64();
+
+        let blocked = blocked_amount.get_amount_as_i64();
+        let requested = requested_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64();
+
+        let total = blocked + requested;
+
+        if total > captured {
+            return Err(
+                Report::new(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Requested amount exceeds available captured amount.".to_string(),
+                })
+                .attach_printable(format!(
+                    "Validation failed because blocked_amount ({}) + requested_amount ({}) \
+             exceeds amount_captured ({}). Available amount: {}",
+                    blocked,
+                    requested,
+                    captured,
+                    (captured - blocked).max(0),
+                )),
+            );
+        }
+
+        Ok(())
     }
 }
 

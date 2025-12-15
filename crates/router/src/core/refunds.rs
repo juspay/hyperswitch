@@ -87,8 +87,26 @@ pub async fn refund_create_core(
         },
     )?;
 
-    PaymentIntentStateMetadataExt::from(payment_intent.state_metadata.clone().unwrap_or_default())
-        .validate_refund_against_intent_state_metadata(req.amount, &payment_intent)?;
+    let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+    let blocked_amount = MinorUnit::new(
+        state_metadata
+            .total_refunded_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            + state_metadata
+                .total_disputed_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64(),
+    );
+
+    payment_intent
+        .validate_against_intent_state_metadata(blocked_amount, req.amount)
+        .map_err(|err| {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Refund amount exceeds captured amount".to_string(),
+            })
+        })?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req

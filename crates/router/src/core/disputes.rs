@@ -164,22 +164,16 @@ pub async fn retrieve_dispute(
         } else {
             api_models::disputes::DisputeResponse::foreign_from(dispute.clone())
         };
+
     #[cfg(feature = "v1")]
     {
-        let current_state = payment_intent.state_metadata.unwrap_or_default();
+        let state = payment_intent.state_metadata.clone().unwrap_or_default();
+
+        let blocked_amount = state.total_refunded_amount.unwrap_or(MinorUnit::zero());
 
         dispute_response.is_already_refunded = payment_intent
-            .amount_captured
-            .unwrap_or(MinorUnit::zero())
-            .get_amount_as_i64()
-            - current_state
-                .total_refunded_amount
-                .unwrap_or(MinorUnit::zero())
-                .get_amount_as_i64()
-            < current_state
-                .total_disputed_amount
-                .unwrap_or(MinorUnit::zero())
-                .get_amount_as_i64();
+            .validate_against_intent_state_metadata(blocked_amount, state.total_disputed_amount)
+            .is_err();
     }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
