@@ -1,4 +1,3 @@
-use crate::utils::PaymentsSetupMandateRequestData;
 use api_models::payments::AdditionalPaymentData;
 use common_enums::enums;
 use common_utils::types::StringMinorUnit;
@@ -259,11 +258,11 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                 if item.router_data.is_three_ds()
                     && item.router_data.request.authentication_data.is_none()
                 {
-                    return Err(errors::ConnectorError::NotSupported {
+                    Err(errors::ConnectorError::NotSupported {
                         message: "3DS flow".to_string(),
                         connector: "Zift",
                     }
-                    .into());
+                    .into())
                 }
                 // Check if this is an external 3DS payment - both is_three_ds() and authentication_data must be present
                 else if item.router_data.is_three_ds()
@@ -876,7 +875,6 @@ pub struct ZiftSetupMandateRequest {
 #[serde(untagged)]
 pub enum SetupMandatePaymentMethod {
     Card(CardVerificationDetails),
-    BankDebit(BankDebitVerificationDetails),
 }
 
 // Card specific fields for account verification
@@ -888,14 +886,6 @@ pub struct CardVerificationDetails {
     account_accessory: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     csc: Option<Secret<String>>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BankDebitVerificationDetails {
-    account_type: AccountType,
-    account_number: Secret<String>,
-    account_accessory: Secret<String>,
 }
 
 impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
@@ -915,32 +905,8 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                         csc: Some(card.card_cvc.clone()),
                     }),
                 ),
-
-                PaymentMethodData::BankDebit(
-                    hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
-                        account_number,
-                        routing_number,
-                        bank_type,
-                        ..
-                    },
-                ) => {
-                    let acc_type = match bank_type {
-                        Some(common_enums::BankType::Savings) => AccountType::Savings,
-                        _ => AccountType::Checking,
-                    };
-
-                    (
-                        TransactionIndustryType::CardNotPresent,
-                        SetupMandatePaymentMethod::BankDebit(BankDebitVerificationDetails {
-                            account_type: acc_type,
-                            account_number: account_number.clone(),
-                            account_accessory: routing_number.clone(),
-                        }),
-                    )
-                }
-
                 _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Only card and ACH bank debit supported for mandate setup".to_string(),
+                    message: "Only card supported for mandate setup".to_string(),
                     connector: "Zift",
                 })?,
             };
