@@ -3434,6 +3434,11 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
     /// The customer ID associated with the payment method
     #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
     pub customer_id: id_type::GlobalCustomerId,
+
+    /// The payment method ID that was created during this session confirmation
+    /// This can be used with the proxy endpoint using token_type: "payment_method_id"
+    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub associated_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
 #[cfg(feature = "v2")]
