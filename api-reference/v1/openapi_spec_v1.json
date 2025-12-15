@@ -13444,6 +13444,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -13572,6 +13577,11 @@
             "description": "Card Issuing Country",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "description": "Card Issuing Country Code",
+            "nullable": true
+          },
           "card_network": {
             "allOf": [
               {
@@ -13604,6 +13614,10 @@
             "nullable": true
           },
           "issuer_country": {
+            "type": "string",
+            "nullable": true
+          },
+          "issuer_country_code": {
             "type": "string",
             "nullable": true
           },
@@ -13704,6 +13718,12 @@
           "issuer_country": {
             "type": "string",
             "description": "The country where that particular card was issued",
+            "example": "US",
+            "nullable": true
+          },
+          "issuer_country_code": {
+            "type": "string",
+            "description": "The country code where that particular card was issued",
             "example": "US",
             "nullable": true
           },
@@ -22595,6 +22615,11 @@
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
             "nullable": true
           },
           "bank_code": {
@@ -36955,6 +36980,11 @@
             "nullable": true
           },
           "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
             "type": "string",
             "description": "Card Issuing Country",
             "nullable": true
