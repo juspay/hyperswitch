@@ -169,10 +169,11 @@ where
                         router_data.connector_response = Some(connector_response);
                     });
 
-                    Ok((router_data, payment_repeat_response))
+                    Ok((router_data, (), payment_repeat_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
@@ -226,10 +227,11 @@ where
                         router_data.connector_response = Some(customer_response);
                     });
 
-                    Ok((router_data, payment_authorize_response))
+                    Ok((router_data, (), payment_authorize_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         };
 
