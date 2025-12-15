@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix5
+
+### Bug Fixes
+
+- **connector:** [gigadat] make strict type and mask gigadat webhook payload ([#10643](https://github.com/juspay/hyperswitch/pull/10643)) ([`fd635eb`](https://github.com/juspay/hyperswitch/commit/fd635eb07a1a65a65773081a88f573725bf1dcd2))
+- **payouts:** Concurrency issue in payout webhooks ([#10650](https://github.com/juspay/hyperswitch/pull/10650)) ([`4ccb0b8`](https://github.com/juspay/hyperswitch/commit/4ccb0b8eeac566de0072cb1d8fed31c9b8b8e65b))
+
+**Full Changelog:** [`2025.12.03.0-hotfix4...2025.12.03.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix4...2025.12.03.0-hotfix5)
+
+- - -
+
 ## 2025.12.03.0-hotfix4
 
 ### Features
