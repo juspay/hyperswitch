@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix6
+
+### Features
+
+- **connector:** Add transaction_code support across Zift payment flows ([#10651](https://github.com/juspay/hyperswitch/pull/10651)) ([`0b44135`](https://github.com/juspay/hyperswitch/commit/0b4413530e403ebca2198f24c03fb4ee3f39e87d))
+- **euclid:** Add configs to disable pre-routing for certain specific PMs and PMTs ([#10648](https://github.com/juspay/hyperswitch/pull/10648)) ([`0246b82`](https://github.com/juspay/hyperswitch/commit/0246b82e15c8445cf711bbff76d7529c4ff1a8d5))
+- **payment_links:** Verify payment method mapping for custom tnc ([#10649](https://github.com/juspay/hyperswitch/pull/10649)) ([`b8c352f`](https://github.com/juspay/hyperswitch/commit/b8c352f20cde2a0f593452fed0eb1fadd3ceff97))
+
+**Full Changelog:** [`2025.12.03.0-hotfix5...2025.12.03.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix5...2025.12.03.0-hotfix6)
+
+- - -
+
 ## 2025.12.03.0-hotfix5
 
 ### Bug Fixes
