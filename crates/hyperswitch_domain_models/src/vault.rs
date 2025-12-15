@@ -32,6 +32,26 @@ impl PaymentMethodVaultingData {
                     ),
                 )
             }
+            #[cfg(feature = "v1")]
+            Self::CardNumber(_card_number) => payment_method_data::PaymentMethodsData::Card(
+                payment_method_data::CardDetailsPaymentMethod {
+                    last4_digits: None,
+                    issuer_country: None,
+                    issuer_country_code: None,
+                    expiry_month: None,
+                    expiry_year: None,
+                    nick_name: None,
+                    card_holder_name: None,
+                    card_isin: None,
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    saved_to_locker: false,
+                    #[cfg(feature = "v1")]
+                    co_badged_card_data: None,
+                },
+            ),
+            #[cfg(feature = "v2")]
             Self::CardNumber(_card_number) => payment_method_data::PaymentMethodsData::Card(
                 payment_method_data::CardDetailsPaymentMethod {
                     last4_digits: None,
