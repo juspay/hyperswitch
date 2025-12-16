@@ -34,6 +34,7 @@ pub static GRANULAR_GATEWAY_SUPPORTED_FLOWS: sync::LazyLock<Vec<&'static str>> =
         vec![
             std::any::type_name::<payments::PSync>(),
             std::any::type_name::<payments::Authorize>(),
+            std::any::type_name::<payments::CompleteAuthorize>(),
             std::any::type_name::<payments::SetupMandate>(),
         ]
     });

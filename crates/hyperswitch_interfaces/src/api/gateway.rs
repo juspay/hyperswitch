@@ -263,7 +263,7 @@ where
             > = F::get_gateway(ExecutionPath::UnifiedConnectorService);
 
             // Execute through selected gateway
-            let ucs_shadow_result = gateway
+            let ucs_result = gateway
                 .execute(
                     state,
                     connector_integration,
@@ -275,7 +275,7 @@ where
                 )
                 .await
                 .attach_printable("Gateway execution failed")?;
-            Ok(ucs_shadow_result)
+            Ok(ucs_result)
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
             let gateway: Box<
