@@ -185,6 +185,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::SetupFutureUsage,
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
+        DirKeyKind::IssuerCountry,
         DirKeyKind::BusinessCountry,
         DirKeyKind::BusinessLabel,
         DirKeyKind::MetaData,
