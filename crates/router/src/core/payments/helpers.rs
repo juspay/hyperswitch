@@ -7420,6 +7420,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
+
             let acquirer_details = payment_connector_mca
                 .get_metadata()
                 .clone()
@@ -7441,6 +7442,30 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                     })
                     .ok()
                 });
+
+            let profile_acquirer_id = Some("dlqehdfqwhnd".to_string());
+
+            let acquirer_config = if let Some(profile_acquirer_id) = profile_acquirer_id {
+                    business_profile.acquirer_config_map
+                        .as_ref()
+                        .and_then(|map| map.0.get(&profile_acquirer_id).cloned())
+                } else {
+                    card.card_network.and_then(|network| {
+                        business_profile.acquirer_config_map
+                            .as_ref()
+                            .and_then(|map| {
+                                map.0.iter()
+                                    .find(|(_, config)| config.network == network)
+                                    .map(|(_, config)| config.clone())
+                            })
+                    })
+                }.ok_or(
+                    errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Acquirer configuration not found for the given profile_acquirer_id or card_network".to_string()
+                    }
+                )?;
+
+
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
                 token,
