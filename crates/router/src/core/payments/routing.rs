@@ -165,6 +165,7 @@ pub fn make_dsl_input_for_payouts(
     let payment = dsl_inputs::PaymentInput {
         amount: payout_data.payouts.amount,
         card_bin: None,
+        transaction_initiator: None,
         extended_card_bin: None,
         currency: payout_data.payouts.destination_currency,
         authentication_type: None,
@@ -296,6 +297,7 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: None,
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -416,6 +418,10 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: match payments_dsl_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -1167,6 +1173,7 @@ pub async fn perform_session_flow_routing<'a>(
             .payment_intent
             .amount_details
             .calculate_net_amount(),
+        transaction_initiator: None,
         currency: session_input.payment_intent.amount_details.currency,
         authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
@@ -1311,6 +1318,10 @@ pub async fn perform_session_flow_routing(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: session_input.payment_attempt.get_total_amount(),
+        transaction_initiator: match session_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         currency: session_input
             .payment_intent
             .currency
@@ -1648,6 +1659,10 @@ pub fn make_dsl_input_for_surcharge(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: payment_attempt.get_total_amount(),
+        transaction_initiator: match payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency

@@ -356,6 +356,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
         dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
         dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::TransactionInitiator => dir_enums::TransactionInitiator::VARIANTS,
         dir::DirKeyKind::CustomerDeviceDisplaySize => {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
