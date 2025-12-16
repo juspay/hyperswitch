@@ -297,6 +297,7 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: None,
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -1172,6 +1173,7 @@ pub async fn perform_session_flow_routing<'a>(
             .payment_intent
             .amount_details
             .calculate_net_amount(),
+        transaction_initiator: None,
         currency: session_input.payment_intent.amount_details.currency,
         authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
