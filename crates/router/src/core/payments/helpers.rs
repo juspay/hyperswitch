@@ -1667,36 +1667,19 @@ pub async fn get_connector_data_from_request(
     Ok(connector_data)
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-#[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
-    _state: &SessionState,
-    _operation: BoxedOperation<'a, F, R, D>,
-    _payment_data: &mut PaymentData<F>,
-    _req: Option<CustomerDetails>,
-    _merchant_id: &id_type::MerchantId,
-    _key_store: &domain::MerchantKeyStore,
-    _storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
-    todo!()
-}
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-#[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
+pub async fn populate_raw_customer_details<F: Clone>(
     state: &SessionState,
-    operation: BoxedOperation<'a, F, R, D>,
     payment_data: &mut PaymentData<F>,
-    req: Option<CustomerDetails>,
-    merchant_id: &id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
+    req: Option<&CustomerDetails>,
+    processor: &domain::Processor,
+) -> CustomResult<(), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
+
+    let key_store = processor.get_key_store();
 
     let temp_customer_data = if request_customer_details.name.is_some()
         || request_customer_details.email.is_some()
@@ -1753,9 +1736,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .or(parsed_customer_data.tax_registration_id.clone()),
         })
         .or(temp_customer_data);
+
     let key_manager_state = state.into();
     payment_data.payment_intent.customer_details = raw_customer_details
-        .clone()
         .async_map(|customer_details| {
             create_encrypted_data(&key_manager_state, key_store, customer_details)
         })
@@ -1763,6 +1746,39 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         .transpose()
         .change_context(errors::StorageError::EncryptionError)
         .attach_printable("Unable to encrypt customer details")?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
+    _state: &SessionState,
+    _operation: BoxedOperation<'a, F, R, D>,
+    _payment_data: &mut PaymentData<F>,
+    _req: Option<CustomerDetails>,
+    _provider: &domain::Provider,
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
+    state: &SessionState,
+    operation: BoxedOperation<'a, F, R, D>,
+    payment_data: &mut PaymentData<F>,
+    req: Option<CustomerDetails>,
+    provider: &domain::Provider,
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
+    let merchant_id = provider.get_account().get_id();
+    let storage_scheme = provider.get_account().storage_scheme;
+    let key_store = provider.get_key_store();
+    let request_customer_details = req
+        .get_required_value("customer")
+        .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
 
     let customer_id = request_customer_details
         .customer_id
@@ -1918,6 +1934,50 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             None => None,
         },
     ))
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn get_customer_if_exists<'a, F: Clone, R, D>(
+    state: &SessionState,
+    operation: BoxedOperation<'a, F, R, D>,
+    payment_data: &mut PaymentData<F>,
+    req: Option<CustomerDetails>,
+    provider: &domain::Provider,
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
+    let merchant_id = provider.get_account().get_id();
+    let storage_scheme = provider.get_account().storage_scheme;
+    let key_store = provider.get_key_store();
+    let db = &*state.store;
+
+    // Same customer_id resolution as create_customer_if_not_exist
+    let customer_id = req
+        .as_ref()
+        .and_then(|r| r.customer_id.clone())
+        .or(payment_data.payment_intent.customer_id.clone());
+
+    let customer = match customer_id {
+        Some(customer_id) => {
+            db.find_customer_optional_by_customer_id_merchant_id(
+                &customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await?
+        }
+        None => None,
+    };
+
+    if let Some(ref c) = customer {
+        payment_data.payment_intent.customer_id = Some(c.customer_id.clone());
+        if let Some(email) = c.email.clone() {
+            payment_data.email = payment_data.email.clone().or(Some(email.into()));
+        }
+    }
+
+    Ok((operation, customer))
 }
 
 #[cfg(feature = "v1")]
