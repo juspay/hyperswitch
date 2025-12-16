@@ -6908,6 +6908,11 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, AdyenWebhookRegisterResponse, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>,
     ) -> Result<Self, Self::Error> {
-        
+            Ok(Self {
+                response: Ok(ConnectorWebhookRegisterResponse {
+                    connector_webhook_id: item.response.id.clone(),
+                }),
+                ..item.data
+            })
     }
 }
