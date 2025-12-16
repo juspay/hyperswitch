@@ -289,6 +289,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::CustomerDeviceDisplaySize => lower_enum!(CustomerDeviceDisplaySize, value),
         dir::DirKeyKind::AcquirerCountry => lower_enum!(AcquirerCountry, value),
         dir::DirKeyKind::AcquirerFraudRate => lower_number!(AcquirerFraudRate, value, comparison),
+        dir::DirKeyKind::TransactionInitiator => lower_enum!(TransactionInitiator, value),
     }
 }
 

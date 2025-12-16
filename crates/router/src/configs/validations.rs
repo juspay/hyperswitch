@@ -34,16 +34,7 @@ impl super::settings::Locker {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "locker host must not be empty when mock locker is disabled".into(),
             ))
-        })?;
-
-        when(
-            !self.mock_locker && self.basilisk_host.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "basilisk host must not be empty when mock locker is disabled".into(),
-                ))
-            },
-        )
+        })
     }
 }
 

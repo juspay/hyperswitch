@@ -66,6 +66,7 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
             last4: data.last_four_digits.clone(),
             card_isin: data.card_isin.clone(),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             card_extended_bin: None,
             card_holder_name: None,
