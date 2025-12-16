@@ -8,6 +8,7 @@ use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
+use hyperswitch_domain_models::authentication;
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -35,7 +36,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    authentication_data: hyperswitch_domain_models::authentication::Authentication,
+    authentication_data: authentication::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
