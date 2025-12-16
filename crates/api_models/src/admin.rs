@@ -633,6 +633,30 @@ pub struct MerchantAccountResponse {
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct MerchantAccountDetailsResponse {
+    /// Used to indicate the status of the recon module for a merchant account
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: api_enums::ReconStatus,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
+    pub product_type: Option<api_enums::MerchantProductType>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct MerchantAccountDetailsResponse {
+    /// Used to indicate the status of the recon module for a merchant account
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: api_enums::ReconStatus,
+
+    /// Product Type of this merchant account
+    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
+    pub product_type: Option<api_enums::MerchantProductType>,
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantDetails {

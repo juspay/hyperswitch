@@ -1899,6 +1899,10 @@ impl MerchantAccount {
                     .route(web::get().to(admin::merchant_account_kv_status)),
             )
             .service(
+                web::resource("/{id}/details")
+                    .route(web::get().to(admin::get_merchant_account_details)),
+            )
+            .service(
                 web::resource("/transfer")
                     .route(web::post().to(admin::merchant_account_transfer_keys)),
             )
