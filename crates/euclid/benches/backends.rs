@@ -39,6 +39,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
         metadata: None,
         payment: inputs::PaymentInput {
             amount: MinorUnit::new(32),
+            transaction_initiator: None,
             card_bin: None,
             extended_card_bin: None,
             currency: enums::Currency::USD,

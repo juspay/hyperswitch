@@ -2379,6 +2379,7 @@ impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
             card_issuer: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             last4: None,
             card_extended_bin: None,
@@ -2614,6 +2615,10 @@ pub struct Card {
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
+
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
@@ -2654,6 +2659,7 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name,
         })
@@ -2782,6 +2788,10 @@ impl Card {
                 .card_issuing_country
                 .clone()
                 .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
         })
@@ -3857,6 +3867,7 @@ pub struct AdditionalCardInfo {
     pub card_type: Option<String>,
 
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
 
     /// Last 4 digits of the card number
@@ -11267,7 +11278,7 @@ pub struct PaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11294,7 +11305,7 @@ pub struct SecurePaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,

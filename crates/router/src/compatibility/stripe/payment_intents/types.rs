@@ -134,6 +134,7 @@ impl From<StripeCard> for payments::Card {
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: None,
         }
