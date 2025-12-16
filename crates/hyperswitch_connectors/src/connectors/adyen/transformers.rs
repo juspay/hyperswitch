@@ -6838,7 +6838,7 @@ impl CardExpiry {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum WebhooRegisterType {
     Standard,
