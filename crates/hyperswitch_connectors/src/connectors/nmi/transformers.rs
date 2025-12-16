@@ -469,7 +469,13 @@ impl NmiMerchantDefinedField {
             .enumerate()
             .map(|(index, (hs_key, hs_value))| {
                 let nmi_key = format!("merchant_defined_field_{}", index + 1);
-                let nmi_value = format!("{hs_key}={hs_value}");
+                let val = match hs_value {
+                    serde_json::Value::Bool(boolean) => boolean.to_string(),
+                    serde_json::Value::Number(number) => number.to_string(),
+                    serde_json::Value::String(string) => string.to_string(),
+                    _ => hs_value.to_string(),
+                };
+                let nmi_value = format!("{hs_key}={val}");
                 (nmi_key, Secret::new(nmi_value))
             })
             .collect();
