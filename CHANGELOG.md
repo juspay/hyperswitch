@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.16.0
+
+### Features
+
+- **connector:**
+  - [BRAINTREE] Add support for external 3DS pass-through authentication ([#10591](https://github.com/juspay/hyperswitch/pull/10591)) ([`c844cbf`](https://github.com/juspay/hyperswitch/commit/c844cbf9bec3261f6dfce935915dc55b8f8da161))
+  - [Zift] Remove billing address fields and add mandate setup (account verification) support ([#10665](https://github.com/juspay/hyperswitch/pull/10665)) ([`6cab96d`](https://github.com/juspay/hyperswitch/commit/6cab96d312844f05100d56162abfa519e05afca4))
+- **core:** Add requires_capture to default payment webhook statuses ([#10660](https://github.com/juspay/hyperswitch/pull/10660)) ([`3195bd0`](https://github.com/juspay/hyperswitch/commit/3195bd021fb6b8d338153f57e14e7b7804a6fe94))
+- **oidc:** Add OIDC infrastructure and discovery endpoints ([#10145](https://github.com/juspay/hyperswitch/pull/10145)) ([`356c2f7`](https://github.com/juspay/hyperswitch/commit/356c2f756d811846ccde66ddd4556da3104faa71))
+- Implement generic Locker api handler ([#10242](https://github.com/juspay/hyperswitch/pull/10242)) ([`3c695d0`](https://github.com/juspay/hyperswitch/commit/3c695d0adb104a5a2339b83489c50eb78845644f))
+
+### Bug Fixes
+
+- **connector:** Nmi merchant_defined_fields are double encoded ([#10603](https://github.com/juspay/hyperswitch/pull/10603)) ([`f8fa541`](https://github.com/juspay/hyperswitch/commit/f8fa541cf3b620defe456d7b9574c9858b9f3e6d))
+- **user-role:** Add entity type validation in user role lineage queries ([#10608](https://github.com/juspay/hyperswitch/pull/10608)) ([`771cad5`](https://github.com/juspay/hyperswitch/commit/771cad5c6c6505a84153845bee6ef2266ea9dd90))
+
+**Full Changelog:** [`2025.12.15.0...2025.12.16.0`](https://github.com/juspay/hyperswitch/compare/2025.12.15.0...2025.12.16.0)
+
+- - -
+
 ## 2025.12.15.0
 
 ### Features
