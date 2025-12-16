@@ -10,6 +10,7 @@ use router_env::{
 };
 
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
@@ -303,11 +304,16 @@ pub async fn get_gsm<F, FData>(
     let error_code = error_response.map(|err| err.code.to_owned());
     let error_message = error_response.map(|err| err.message.to_owned());
     let connector_name = router_data.connector.to_string();
-    let flow = get_flow_name::<F>()?;
-    Ok(
-        payments::helpers::get_gsm_record(state, error_code, error_message, connector_name, flow)
-            .await,
+    let subflow = get_flow_name::<F>()?;
+    Ok(payments::helpers::get_gsm_record(
+        state,
+        error_code,
+        error_message,
+        connector_name,
+        consts::PAYMENT_FLOW_STR,
+        subflow.as_str(),
     )
+    .await)
 }
 
 #[instrument(skip_all)]
@@ -467,7 +473,7 @@ where
     );
 
     let db = &*state.store;
-    let additional_payment_method_data =
+    let additional_payment_method_data_intermediate =
         payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
             payment_data
                 .get_payment_attempt()
@@ -478,6 +484,17 @@ where
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
+    let key_manager_state = &state.into();
+
+    // If the additional PM data is sensitive, encrypt it and populate encrypted_payment_method_data; otherwise populate additional_payment_method_data
+    let (additional_payment_method_data, encrypted_payment_method_data) =
+        payments::helpers::get_payment_method_data_and_encrypted_payment_method_data(
+            payment_data.get_payment_attempt(),
+            key_manager_state,
+            key_store,
+            additional_payment_method_data_intermediate,
+        )
+        .await?;
 
     let debit_routing_savings = payment_data.get_payment_method_data().and_then(|data| {
         payments::helpers::get_debit_routing_savings_amount(
@@ -539,6 +556,7 @@ where
                 extended_authorization_applied: None,
                 extended_authorization_last_applied_at: None,
                 payment_method_data: additional_payment_method_data,
+                encrypted_payment_method_data,
                 connector_mandate_detail: None,
                 charges,
                 setup_future_usage_applied: None,
@@ -557,6 +575,7 @@ where
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
                 storage_scheme,
+                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -598,6 +617,7 @@ where
                 unified_message: option_gsm.map(|gsm| gsm.unified_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
+                encrypted_payment_method_data,
                 authentication_type: auth_update,
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
@@ -609,6 +629,7 @@ where
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
                 storage_scheme,
+                key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -628,7 +649,7 @@ where
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .insert_payment_attempt(new_payment_attempt, storage_scheme)
+        .insert_payment_attempt(new_payment_attempt, storage_scheme, key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error inserting payment attempt")?;
@@ -670,9 +691,9 @@ pub fn make_new_payment_attempt(
     new_attempt_count: i16,
     is_step_up: bool,
     setup_future_usage_intent: Option<storage_enums::FutureUsage>,
-) -> storage::PaymentAttemptNew {
-    let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-    storage::PaymentAttemptNew {
+) -> storage::PaymentAttempt {
+    let created_at @ modified_at @ last_synced = common_utils::date_time::now();
+    storage::PaymentAttempt {
         connector: Some(connector),
         attempt_id: old_payment_attempt
             .payment_id
@@ -702,7 +723,7 @@ pub fn make_new_payment_attempt(
         client_version: old_payment_attempt.client_version,
         created_at,
         modified_at,
-        last_synced,
+        last_synced: Some(last_synced),
         profile_id: old_payment_attempt.profile_id,
         organization_id: old_payment_attempt.organization_id,
         net_amount: old_payment_attempt.net_amount,
@@ -749,6 +770,14 @@ pub fn make_new_payment_attempt(
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
         tokenization: Default::default(),
+        encrypted_payment_method_data: Default::default(),
+        connector_transaction_id: Default::default(),
+        charge_id: Default::default(),
+        charges: Default::default(),
+        issuer_error_code: Default::default(),
+        issuer_error_message: Default::default(),
+        debit_routing_savings: Default::default(),
+        is_overcapture_enabled: Default::default(),
     }
 }
 

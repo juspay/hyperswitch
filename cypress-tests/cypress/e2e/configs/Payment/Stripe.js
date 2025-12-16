@@ -1,7 +1,7 @@
 import {
-  customerAcceptance,
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -294,7 +294,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "card_declined",
-          error_message: "Your card was declined.",
+          error_message:
+            "message - Your card was declined., decline_code - generic_decline",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
@@ -594,6 +595,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

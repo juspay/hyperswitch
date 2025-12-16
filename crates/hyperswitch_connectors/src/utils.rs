@@ -37,7 +37,7 @@ use common_enums::{
     },
 };
 use common_utils::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD},
     errors::{CustomResult, ParsingError, ReportSwitchExt},
     ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
@@ -135,6 +135,12 @@ pub(crate) fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     BASE64_ENGINE
         .decode(data)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+pub(crate) fn safe_base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    [&BASE64_ENGINE, &BASE64_ENGINE_STD_NO_PAD]
+        .iter()
+        .find_map(|d| d.decode(&data).ok())
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed.into())
 }
 
 pub(crate) fn to_currency_base_unit(
@@ -439,6 +445,39 @@ pub(crate) fn convert_back_amount_to_minor_units<T>(
     amount_convertor
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
+pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => true,
+        AttemptStatus::Started
+        | AttemptStatus::Authorized
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Failure
+        | AttemptStatus::Pending
+        | AttemptStatus::Unresolved
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::Expired => false,
+    }
 }
 
 pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
@@ -2023,13 +2062,25 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 }
 
 pub trait CustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>>;
+    fn get_optional_email(&self) -> Option<Email>;
     fn get_email(&self) -> Result<Email, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl CustomerData for ConnectorCustomerData {
+    fn get_optional_name(&self) -> Option<Secret<String>> {
+        self.name.clone()
+    }
+    fn get_optional_email(&self) -> Option<Email> {
+        self.email.clone()
+    }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
     }
     fn is_mandate_payment(&self) -> bool {
         // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
@@ -2053,6 +2104,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
+    fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
@@ -2162,6 +2214,9 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+    fn is_mit_payment(&self) -> bool {
+        matches!(self.payment_method_data, PaymentMethodData::MandatePayment)
     }
 
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
@@ -6491,6 +6546,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankRedirectData::LocalBankRedirect {} => {
                     Self::LocalBankRedirect
                 }
+                payment_method_data::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
@@ -6704,7 +6760,9 @@ pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
 }
 
 pub fn is_html_response(response: &str) -> bool {
-    response.starts_with("<html>") || response.starts_with("<!DOCTYPE html>")
+    response.starts_with("<html>")
+        || response.starts_with("<!DOCTYPE html>")
+        || response.starts_with("<!doctype html>")
 }
 
 #[cfg(feature = "payouts")]
@@ -6717,6 +6775,9 @@ pub trait PayoutsData {
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6753,7 +6814,26 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData> {
+        self.additional_payout_method_data.clone()
+    }
 }
+
+pub trait AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>>;
+}
+
+impl AdditionalPayoutMethodData for common_utils::payout_method_utils::AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>> {
+        match self.clone() {
+            Self::Card(card_data) => card_data.card_holder_name,
+            _ => None,
+        }
+    }
+}
+
 pub trait RevokeMandateRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }

@@ -619,6 +619,12 @@ diesel::table! {
         feature_data -> Nullable<Jsonb>,
         #[max_length = 64]
         feature -> Nullable<Varchar>,
+        #[max_length = 64]
+        standardised_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        description -> Nullable<Varchar>,
+        #[max_length = 1024]
+        user_guidance_message -> Nullable<Varchar>,
     }
 }
 
@@ -1096,6 +1102,7 @@ diesel::table! {
         extended_authorization_last_applied_at -> Nullable<Timestamp>,
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
+        encrypted_payment_method_data -> Nullable<Bytea>,
     }
 }
 
@@ -1425,6 +1432,8 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         version -> ApiVersion,
+        #[max_length = 64]
+        application_source -> Nullable<Varchar>,
     }
 }
 

@@ -32,20 +32,13 @@ impl SecretsHandler for settings::Jwekey {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let jwekey = value.get_inner();
-        let (
-            vault_encryption_key,
-            rust_locker_encryption_key,
-            vault_private_key,
-            tunnel_private_key,
-        ) = tokio::try_join!(
+        let (vault_encryption_key, vault_private_key, tunnel_private_key) = tokio::try_join!(
             secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
-            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
             secret_management_client.get_secret(jwekey.vault_private_key.clone()),
             secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
         )?;
         Ok(value.transition_state(|_| Self {
             vault_encryption_key,
-            rust_locker_encryption_key,
             vault_private_key,
             tunnel_private_key,
         }))
@@ -351,6 +344,50 @@ impl SecretsHandler for settings::NetworkTokenizationService {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::OidcSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let oidc_settings = value.get_inner();
+
+        let mut decrypted_keys = std::collections::HashMap::new();
+        for (key_id, oidc_key) in &oidc_settings.key {
+            let private_key = secret_management_client
+                .get_secret(oidc_key.private_key.clone())
+                .await?;
+            decrypted_keys.insert(
+                key_id.clone(),
+                settings::OidcKey {
+                    kid: oidc_key.kid.clone(),
+                    private_key,
+                },
+            );
+        }
+
+        let mut decrypted_clients = std::collections::HashMap::new();
+        for (client_key, oidc_client) in &oidc_settings.client {
+            let client_secret = secret_management_client
+                .get_secret(oidc_client.client_secret.clone())
+                .await?;
+            decrypted_clients.insert(
+                client_key.clone(),
+                settings::OidcClient {
+                    client_id: oidc_client.client_id.clone(),
+                    client_secret,
+                    redirect_uri: oidc_client.redirect_uri.clone(),
+                },
+            );
+        }
+
+        Ok(value.transition_state(|_| Self {
+            key: decrypted_keys,
+            client: decrypted_clients,
+        }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -487,8 +524,14 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt superposition config");
 
+    #[allow(clippy::expect_used)]
+    let oidc = settings::OidcSettings::convert_to_raw_secret(conf.oidc, secret_management_client)
+        .await
+        .expect("Failed to decrypt oidc configs");
+
     Settings {
         server: conf.server,
+        application_source: conf.application_source,
         chat,
         master_database,
         redis: conf.redis,
@@ -524,6 +567,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "email")]
         email: conf.email,
         user: conf.user,
+        oidc,
         mandates: conf.mandates,
         zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
@@ -578,6 +622,7 @@ pub(crate) async fn fetch_raw_secrets(
         theme: conf.theme,
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
+        preprocessing_flow_config: conf.preprocessing_flow_config.clone(),
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]
