@@ -259,6 +259,12 @@ pub type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncR
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
 
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
+
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 

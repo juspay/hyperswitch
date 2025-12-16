@@ -5316,10 +5316,19 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
-    pub error_type: String,
+    pub message: Option<String>,
+    pub error_type: Option<String>,
     pub psp_reference: Option<String>,
+    pub invalid_fields: Option<Vec<InvalidFieldErrorResponse>>,
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvalidFieldErrorResponse {
+    pub name: String,
+    pub message: String,
+}
+
 
 // #[cfg(test)]
 // mod test_adyen_transformers {
@@ -6866,7 +6875,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
         match item {
-            enums::ConnectorWebhookEventType::Standard => todo!(),
+            enums::ConnectorWebhookEventType::Standard => Ok(WebhooRegisterType::Standard),
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
@@ -6883,10 +6892,10 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
         let webhook_type = item.request.event_type.clone();
         let webhook_type: WebhooRegisterType = WebhooRegisterType::try_from(&webhook_type)?;
-
+//         let webhook_url = item.request.webhook_url.clone(); "https://webhook.site/71e31fac-3d17-4711-b136-994baa72d589".to_string(),
         Ok(Self {
             webhook_type,
-            url: item.request.webhook_url.clone(),
+            url:  item.request.webhook_url.clone(),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
@@ -6897,8 +6906,6 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
     id: String,
-    #[serde(rename = "type")]
-    webhook_type: WebhooRegisterType,
 }
 
 impl
