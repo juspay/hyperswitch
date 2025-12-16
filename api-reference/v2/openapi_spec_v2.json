@@ -8089,6 +8089,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -16030,6 +16035,11 @@
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
             "nullable": true
           },
           "bank_code": {
@@ -27181,6 +27191,11 @@
             "nullable": true
           },
           "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
             "type": "string",
             "description": "Card Issuing Country",
             "nullable": true

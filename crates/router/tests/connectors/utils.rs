@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
                 webhook_url: None,
                 browser_info: None,
                 payout_connector_metadata: None,
+                additional_payout_method_data: None,
             },
             payment_info,
         )
@@ -954,6 +955,7 @@ impl Default for CCardType {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),

@@ -1457,7 +1457,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     locale: &Option<String>,
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connectors: Vec<
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connectors: Vec<
         RoutableConnectorChoice,
     >,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
@@ -1553,13 +1553,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     }
                     None => {
                         let connector_name = router_data.connector.to_string();
-                        let flow_name = core_utils::get_flow_name::<F>()?;
+                        let sub_flow = core_utils::get_flow_name::<F>()?;
                         let option_gsm = payments_helpers::get_gsm_record(
                             state,
                             Some(err.code.clone()),
                             Some(err.message.clone()),
                             connector_name,
-                            flow_name.clone(),
+                            consts::PAYMENT_FLOW_STR,
+                            sub_flow.as_str(),
                         )
                         .await;
 
@@ -1598,13 +1599,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             None =>
                             // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
                             {
-                                if flow_name == "PSync" || flow_name == "ExtendAuthorization" {
+                                if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
                                     match err.status_code {
                                         // marking failure for 2xx because this is genuine payment failure
                                         200..=299 => enums::AttemptStatus::Failure,
                                         _ => router_data.status,
                                     }
-                                } else if flow_name == "Capture" {
+                                } else if sub_flow == "Capture" {
                                     match err.status_code {
                                         500..=511 => enums::AttemptStatus::Pending,
                                         // don't update the status for 429 error status
@@ -2320,36 +2321,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let state = state.clone();
             let profile_id = business_profile.get_id().to_owned();
             let payment_attempt = payment_attempt.clone();
-            let dynamic_routing_config_params_interpolator =
-                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
-                    payment_attempt.payment_method,
-                    payment_attempt.payment_method_type,
-                    payment_attempt.authentication_type,
-                    payment_attempt.currency,
-                    payment_data
-                        .address
-                        .get_payment_billing()
-                        .and_then(|address| address.clone().address)
-                        .and_then(|address| address.country),
-                    payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_network"))
-                        .and_then(|network| network.as_str())
-                        .map(|network| network.to_string()),
-                    payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_isin"))
-                        .and_then(|card_isin| card_isin.as_str())
-                        .map(|card_isin| card_isin.to_string()),
-                );
+
             tokio::spawn(
                 async move {
                     let should_route_to_open_router =
@@ -2370,47 +2342,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .await
                         .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
                         .ok();
-                    } else {
-                        routing_helpers::push_metrics_with_update_window_for_success_based_routing(
-                            &state,
-                            &payment_attempt,
-                            routable_connectors.clone(),
-                            &profile_id,
-                            dynamic_routing_algo_ref.clone(),
-                            dynamic_routing_config_params_interpolator.clone(),
-                        )
-                        .await
-                        .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
-                        .ok();
-
-                        if let Some(gsm_error_category) = gsm_error_category {
-                            if gsm_error_category.should_perform_elimination_routing() {
-                                logger::info!("Performing update window for elimination routing");
-                                routing_helpers::update_window_for_elimination_routing(
-                                    &state,
-                                    &payment_attempt,
-                                    &profile_id,
-                                    dynamic_routing_algo_ref.clone(),
-                                    dynamic_routing_config_params_interpolator.clone(),
-                                    gsm_error_category,
-                                )
-                                .await
-                                .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
-                                .ok();
-                            };
-                        };
-
-                        routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
-                        &state,
-                        &payment_attempt,
-                        routable_connectors,
-                        &profile_id,
-                        dynamic_routing_algo_ref,
-                        dynamic_routing_config_params_interpolator,
-                    )
-                    .await
-                    .map_err(|e| logger::error!(contract_based_routing_metrics_error=?e))
-                    .ok();
                     }
                 }
                 .in_current_span(),

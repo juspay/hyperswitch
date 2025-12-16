@@ -450,6 +450,7 @@ fn get_vault_details(
                     card_network: None,
                     card_type: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_holder_name: None,
                     nick_name: None,
                 },

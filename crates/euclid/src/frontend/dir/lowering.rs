@@ -290,6 +290,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         }
         dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
         dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
+        dir::DirValue::TransactionInitiator(ti) => EuclidValue::TransactionInitiator(ti),
     })
 }
 
