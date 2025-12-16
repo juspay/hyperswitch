@@ -31,11 +31,12 @@ use hyperswitch_domain_models::{
     router_flow_types::GiftCardBalanceCheck,
     router_request_types::{
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
+        configure_connector_webhook::ConnectorWebhookRegisterData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
-        SubmitEvidenceResponse,
+        SubmitEvidenceResponse, configure_connector_webhook::ConnectorWebhookRegisterResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -6868,7 +6869,8 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
                     connector: "Adyen",
-                })
+                }
+                .into())
             }
         }
     }
@@ -6886,5 +6888,26 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
             active: true,
             communication_format: CommunicationFormat::Json,
         })
+    }
+}
+
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenWebhookRegisterResponse {
+  id: String,
+  #[serde(rename = "type")]
+  webhook_type: WebhooRegisterType,
+}
+
+impl<F>
+    TryFrom<ResponseRouterData<F, AdyenWebhookRegisterResponse, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>>
+    for RouterData<F, ConnectorWebhookRegisterData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AdyenWebhookRegisterResponse, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>,
+    ) -> Result<Self, Self::Error> {
+        
     }
 }

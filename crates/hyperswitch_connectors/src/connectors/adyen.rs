@@ -20,6 +20,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        configure_connector_webhook::ConnectorWebhookRegister,
         payments::{
             Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
             Session, SetupMandate, Void,
@@ -28,18 +29,19 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
-        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        SyncRequestType, UploadFileRequestData,
+        configure_connector_webhook::ConnectorWebhookRegisterData, AcceptDisputeRequestData,
+        AccessTokenRequestData, DefendDisputeRequestData, GiftCardBalanceCheckRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
-        GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, UploadFileResponse,
+        configure_connector_webhook::ConnectorWebhookRegisterResponse, AcceptDisputeResponse,
+        ConnectorInfo, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
+        PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -63,6 +65,7 @@ use hyperswitch_interfaces::{
         self,
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
+        configure_connector_webhook::WebhookRegister,
         CaptureSyncMethod, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
@@ -2489,7 +2492,7 @@ impl RetrieveFile for Adyen {}
 impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse> for Adyen {}
 impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Adyen {}
 
-impl api::WebhookRegister for Adyen {}
+impl WebhookRegister for Adyen {}
 impl
     ConnectorIntegration<
         ConnectorWebhookRegister,
@@ -2519,10 +2522,10 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = connectors.adyen.management_base_url.as_str();
-        let auth = adyen::AdyenAuthType::try_from(req.connector_auth_type)
+        let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
-        Ok(format!("{endpoint}/v3/merchants/{merchantId}/webhook",))
+        Ok(format!("{endpoint}/v3/merchants/{merchant_id}/webhook",))
     }
 
     fn get_request_body(
@@ -2561,11 +2564,11 @@ impl
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
-        let response: adyen::AdyenDisputeResponse = res
+        let response: adyen::AdyenWebhookRegisterResponse = res
             .response
-            .parse_struct("AdyenDisputeResponse")
+            .parse_struct("AdyenWebhookRegisterResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        RouterData::foreign_try_from((data, response))
+        RouterData::try_from((data, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
