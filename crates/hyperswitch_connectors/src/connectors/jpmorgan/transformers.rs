@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use common_enums::enums::CaptureMethod;
 use common_utils::types::MinorUnit;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -373,9 +371,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureRequest {
-    capture_method: Option<CapMethod>,
+    capture_method: CapMethod,
     amount: MinorUnit,
-    currency: Option<common_enums::Currency>,
+    currency: common_enums::Currency,
 }
 
 #[derive(Debug, Default, Copy, Serialize, Deserialize, Clone)]
@@ -392,13 +390,14 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     fn try_from(
         item: &JpmorganRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = Some(map_capture_method(
-            item.router_data.request.capture_method.unwrap_or_default(),
-        )?);
+        let amount_to_capture = item.amount;
+
+        // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
+        // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
         Ok(Self {
-            capture_method,
-            amount: item.amount,
-            currency: Some(item.router_data.request.currency),
+            capture_method: CapMethod::Now,
+            amount: amount_to_capture,
+            currency: item.router_data.request.currency,
         })
     }
 }
@@ -655,62 +654,17 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ReversalReason {
-    NoResponse,
-    LateResponse,
-    UnableToDeliver,
-    CardDeclined,
-    MacNotVerified,
-    MacSyncError,
-    ZekSyncError,
-    SystemMalfunction,
-    SuspectedFraud,
-}
-
-impl FromStr for ReversalReason {
-    type Err = error_stack::Report<errors::ConnectorError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "NO_RESPONSE" => Ok(Self::NoResponse),
-            "LATE_RESPONSE" => Ok(Self::LateResponse),
-            "UNABLE_TO_DELIVER" => Ok(Self::UnableToDeliver),
-            "CARD_DECLINED" => Ok(Self::CardDeclined),
-            "MAC_NOT_VERIFIED" => Ok(Self::MacNotVerified),
-            "MAC_SYNC_ERROR" => Ok(Self::MacSyncError),
-            "ZEK_SYNC_ERROR" => Ok(Self::ZekSyncError),
-            "SYSTEM_MALFUNCTION" => Ok(Self::SystemMalfunction),
-            "SUSPECTED_FRAUD" => Ok(Self::SuspectedFraud),
-            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
-                field_name: "cancellation_reason",
-            })),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
-    pub amount: Option<i64>,
-    pub is_void: Option<bool>,
-    pub reversal_reason: Option<ReversalReason>,
+    // As per the docs, this is not a required field
+    // Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
+    pub is_void: bool,
 }
 
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.router_data.request.amount,
-            is_void: Some(true),
-            reversal_reason: item
-                .router_data
-                .request
-                .cancellation_reason
-                .as_ref()
-                .map(|reason| ReversalReason::from_str(reason))
-                .transpose()?,
-        })
+    fn try_from(_item: JpmorganRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
+        Ok(Self { is_void: true })
     }
 }
 

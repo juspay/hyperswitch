@@ -1,10 +1,10 @@
+use std::path::PathBuf;
+
 use common_enums::EntityType;
 use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
 use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-
-use std::path::PathBuf;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
