@@ -504,6 +504,8 @@ mod tests {
             ("abc", r#""a**""#),                                   // 3 chars <= 6
             ("abcdef", r#""a**""#),                                // 6 chars <= 6
             ("abcdefg", r#""a**5**g""#),                           // 7 chars > 6
+            ("Homyel’ Voblasc’", r#""H**14**’""#),
+            ("кпукпукп", r#""к**6**п""#),
         ];
 
         for (input, expected_mask) in unicode_test_cases {
