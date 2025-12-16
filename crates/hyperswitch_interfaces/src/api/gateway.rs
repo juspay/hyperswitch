@@ -178,7 +178,7 @@ where
             return_raw_connector_response,
         )
         .await
-        .map(|rd| (rd, None))
+        .map(|router_data| (router_data, None))
     }
 }
 
