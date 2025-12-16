@@ -2338,7 +2338,7 @@ where
                 )?;
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2517,7 +2517,7 @@ pub async fn perform_elimination_routing(
 
             let routable_connector = api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2746,7 +2746,7 @@ where
 
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),

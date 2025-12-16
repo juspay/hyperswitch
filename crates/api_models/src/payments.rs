@@ -84,7 +84,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+use crate::{disputes, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -7136,10 +7136,6 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
 
-    /// ephemeral_key for the customer_id mentioned
-    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
-    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
-
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
     #[smithy(value_type = "Option<bool>")]
     pub manual_retry_allowed: Option<bool>,
@@ -11282,7 +11278,7 @@ pub struct PaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11309,7 +11305,7 @@ pub struct SecurePaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,

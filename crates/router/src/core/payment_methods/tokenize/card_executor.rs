@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, PmCards},
+        cards::{add_card_to_vault, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -514,15 +514,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_hs_locker(
-            self.state,
-            &locker_req,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let stored_resp = add_card_to_vault(self.state, &locker_req, customer_id)
+            .await
+            .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(stored_resp)
     }
@@ -580,14 +575,15 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
+        let platform = domain::Platform::new(
+            self.merchant_account.clone(),
+            self.key_store.clone(),
+            self.merchant_account.clone(),
+            self.key_store.clone(),
+        );
         PmCards {
             state: self.state,
-            platform: &domain::Platform::new(
-                self.merchant_account.clone(),
-                self.key_store.clone(),
-                self.merchant_account.clone(),
-                self.key_store.clone(),
-            ),
+            provider: platform.get_provider(),
         }
         .create_payment_method(
             &payment_method_create,
