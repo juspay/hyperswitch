@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+#! initialinzing temp file
+tmp_file=""
+
+cleanup() {
+  print_color yellow "Cleaning up..."
+  if [[ -n "${tmp_file:-}" && -f "$tmp_file" ]]; then
+    rm -f "$tmp_file"
+  fi
+}
+
+trap cleanup EXIT
+
 # -----------------------------
 # Color logging
 # -----------------------------
