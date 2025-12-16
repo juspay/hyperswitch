@@ -63,9 +63,9 @@ use hyperswitch_interfaces::types::{
 use hyperswitch_interfaces::{
     api::{
         self,
+        configure_connector_webhook::WebhookRegister,
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
-        configure_connector_webhook::WebhookRegister,
         CaptureSyncMethod, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },

@@ -9,9 +9,9 @@ use hyperswitch_domain_models::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
         configure_connector_webhook::ConnectorWebhookRegister,
-        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend,
-        Dsync, Evidence, ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing,
-        Retrieve, Session, Upload, Void,  
+        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
+        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
+        Upload, Void,
     },
     router_request_types::{
         authentication::{

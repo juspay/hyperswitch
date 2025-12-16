@@ -28,15 +28,17 @@ use hyperswitch_domain_models::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_flow_types::{GiftCardBalanceCheck, configure_connector_webhook::ConnectorWebhookRegister},
+    router_flow_types::{
+        configure_connector_webhook::ConnectorWebhookRegister, GiftCardBalanceCheck,
+    },
     router_request_types::{
-        GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
-        configure_connector_webhook::ConnectorWebhookRegisterData,
+        configure_connector_webhook::ConnectorWebhookRegisterData, GiftCardBalanceCheckRequestData,
+        ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
-        SubmitEvidenceResponse, configure_connector_webhook::ConnectorWebhookRegisterResponse,
+        configure_connector_webhook::ConnectorWebhookRegisterResponse, AcceptDisputeResponse,
+        DefendDisputeResponse, GiftCardBalanceCheckResponseData, MandateReference,
+        PaymentsResponseData, RedirectForm, RefundsResponseData, SubmitEvidenceResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -6891,13 +6893,12 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     }
 }
 
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
-  id: String,
-  #[serde(rename = "type")]
-  webhook_type: WebhooRegisterType,
+    id: String,
+    #[serde(rename = "type")]
+    webhook_type: WebhooRegisterType,
 }
 
 impl
@@ -6908,7 +6909,12 @@ impl
             ConnectorWebhookRegisterData,
             ConnectorWebhookRegisterResponse,
         >,
-    > for RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>
+    >
+    for RouterData<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -6919,11 +6925,11 @@ impl
             ConnectorWebhookRegisterResponse,
         >,
     ) -> Result<Self, Self::Error> {
-          Ok(ConnectorWebhookRegisterRouterData {
-                response: Ok(ConnectorWebhookRegisterResponse {
-                    connector_webhook_id: item.response.id.clone(),
-                }),
-                ..item.data
-            })
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                connector_webhook_id: item.response.id.clone(),
+            }),
+            ..item.data
+        })
     }
 }
