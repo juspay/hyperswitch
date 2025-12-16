@@ -8,7 +8,7 @@ use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
-    id_type, pii,
+    id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -1374,6 +1374,7 @@ pub struct PayoutsData {
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone)]
