@@ -154,35 +154,37 @@ pub enum AuthFlow {
 fn extract_connector_http_status_code(
     response_headers: &[(String, Maskable<String>)],
     proxy_enabled: bool,
-) -> Option<u16> {
-    if !proxy_enabled {
-        return None;
-    }
-
-    response_headers
-        .iter()
-        .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
-        .and_then(
-            |(_, value)| match value.clone().into_inner().parse::<u16>() {
-                Ok(code) => match http::StatusCode::from_u16(code) {
-                    Ok(_) => Some(code),
-                    Err(err) => {
-                        logger::error!(
-                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
-                            err
-                        );
-                        None
-                    }
-                },
-                Err(err) => {
+) -> Option<http::StatusCode> {
+    proxy_enabled
+        .then_some(response_headers)
+        .and_then(|headers| {
+            headers
+                .iter()
+                .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+        })
+        .and_then(|(_, value)| {
+            value
+                .clone()
+                .into_inner()
+                .parse::<u16>()
+                .map_err(|err| {
                     logger::error!(
                         "Failed to parse connector_http_status_code from header: {:?}",
                         err
                     );
-                    None
-                }
-            },
-        )
+                })
+                .ok()
+        })
+        .and_then(|code| {
+            http::StatusCode::from_u16(code)
+                .map_err(|err| {
+                    logger::error!(
+                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                        err
+                    );
+                })
+                .ok()
+        })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -318,7 +320,7 @@ where
 
     let status_code = match output.as_ref() {
         Ok(res) => {
-            let mut extracted_status_code: Option<u16> = None;
+            let mut extracted_status_code: Option<http::StatusCode> = None;
 
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
@@ -352,7 +354,7 @@ where
 
             // Use extracted status code if available, otherwise fall back to default
             extracted_status_code
-                .map(|code| code as i64)
+                .map(|code| code.as_u16().into())
                 .unwrap_or_else(|| metrics::request::track_response_status_code(res))
         }
         Err(err) => {
@@ -575,8 +577,7 @@ where
                     .conf
                     .proxy_status_mapping
                     .proxy_connector_http_status_code,
-            )
-            .and_then(|code| http::StatusCode::from_u16(code).ok());
+            );
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(
                     res,
