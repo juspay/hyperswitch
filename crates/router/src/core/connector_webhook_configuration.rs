@@ -79,7 +79,7 @@ pub async fn register_connector_webhook(
     .to_webhook_configuration_failed_response()
     .attach_printable("Failed while calling register webhook connector api")?;
 
-    let _register_webhook_response = response.response.as_ref().map_err(|err| {
+    let register_webhook_response = response.response.as_ref().map_err(|err| {
         errors::ApiErrorResponse::ExternalConnectorError {
             code: err.code.clone(),
             message: err.message.clone(),
@@ -89,12 +89,13 @@ pub async fn register_connector_webhook(
         }
     })?;
 
-    let connector_webhook_registration_details =
+    let (should_update_db, connector_webhook_registration_details) =
         configure_connector_webhook_flow::construct_connector_webhook_registration_details(
-            &mca, &response,
+            &register_webhook_response,
+            &mca, &router_data.request,
         )?;
 
-    let _updated_mca =
+    if should_update_db {
         db.update_merchant_connector_account(mca.clone(), connector_webhook_registration_details.into(), &key_store)
             .await
             .change_context(
@@ -108,10 +109,13 @@ pub async fn register_connector_webhook(
                     "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
                 )
             })?;
+    };
+
 
     let response =
         configure_connector_webhook_flow::construct_connector_webhook_registration_response(
-            response,
+            register_webhook_response,
+            &router_data.request,
         )?;
 
     Ok(service_api::ApplicationResponse::Json(response))

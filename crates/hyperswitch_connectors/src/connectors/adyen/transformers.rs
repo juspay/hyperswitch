@@ -5329,7 +5329,6 @@ pub struct InvalidFieldErrorResponse {
     pub message: String,
 }
 
-
 // #[cfg(test)]
 // mod test_adyen_transformers {
 //     use super::*;
@@ -6892,10 +6891,9 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
         let webhook_type = item.request.event_type.clone();
         let webhook_type: WebhooRegisterType = WebhooRegisterType::try_from(&webhook_type)?;
-//         let webhook_url = item.request.webhook_url.clone(); "https://webhook.site/71e31fac-3d17-4711-b136-994baa72d589".to_string(),
         Ok(Self {
             webhook_type,
-            url:  item.request.webhook_url.clone(),
+            url: item.request.webhook_url.clone(),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
@@ -6907,6 +6905,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
 pub struct AdyenWebhookRegisterResponse {
     id: String,
 }
+
 
 impl
     TryFrom<
@@ -6934,7 +6933,10 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
-                connector_webhook_id: item.response.id.clone(),
+                connector_webhook_id: Some(item.response.id.clone()),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                 error_code: None,
+                error_message: None,
             }),
             ..item.data
         })

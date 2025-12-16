@@ -8,7 +8,7 @@ use crate::{
     consts,
     core::errors::RouterResult,
     errors, types,
-    types::{domain, ConnectorWebhookRegisterRouterData, ErrorResponse},
+    types::{domain, ConnectorWebhookRegisterRouterData, ErrorResponse, ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterData},
     SessionState,
 };
 
@@ -33,7 +33,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         .merchant_connector_id
         .get_string_repr();
     let router_base_url = state.base_url.clone();
-    let request = domain::ConnectorWebhookRegisterData {
+    let request = ConnectorWebhookRegisterData {
         webhook_url: format!("{router_base_url}/webhooks/{merchant_id}/{merchant_connector_id}",),
         event_type: webhook_register_request.event_type,
     };
@@ -103,52 +103,53 @@ pub async fn construct_webhook_register_router_data<'a>(
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
+    register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    webhook_register_data_router_data: &ConnectorWebhookRegisterRouterData,
-) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    let webhook_event = webhook_register_data_router_data.request.event_type;
-    let webhook_id = match &webhook_register_data_router_data.response {
-        Ok(response) => response.connector_webhook_id.clone(),
-        Err(_) => {
-            return Err(errors::ApiErrorResponse::InternalServerError.into());
-        }
-    };
+    connector_webhook_register_data: &ConnectorWebhookRegisterData,
+) -> RouterResult<(bool, domain::MerchantConnectorAccountUpdate)> {
+            if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
+                let webhook_event = connector_webhook_register_data.event_type;
 
-    let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
-        event_type: webhook_event,
-    })
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
+                    event_type: webhook_event
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let mut connector_webhook_registration_details = merchant_connector_account
-        .get_connector_webhook_registration_details()
-        .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+                let mut connector_webhook_registration_details = merchant_connector_account
+                    .get_connector_webhook_registration_details()
+                    .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
-    let map = connector_webhook_registration_details
-        .as_object_mut()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                let map = connector_webhook_registration_details
+                    .as_object_mut()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-    map.insert(webhook_id, connector_webhook_value);
+                map.insert(connector_webhook_id, connector_webhook_value);
 
-    Ok(
-        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-            connector_webhook_registration_details: Some(connector_webhook_registration_details),
-        },
-    )
+                Ok((true,
+                    domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+                        connector_webhook_registration_details: Some(connector_webhook_registration_details),
+                    },
+                ))
+            } else {
+                Ok((false,
+                    domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+                        connector_webhook_registration_details: None,
+                    },
+                ))
+            }
 }
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_response(
-    webhook_register_data_router_data: ConnectorWebhookRegisterRouterData,
+    register_webhook_response: &ConnectorWebhookRegisterResponse,
+    connector_webhook_register_data: &ConnectorWebhookRegisterData,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
-    let connector_webhook_id = match webhook_register_data_router_data.response {
-        Ok(response) => response.connector_webhook_id.clone(),
-        Err(_) => {
-            return Err(errors::ApiErrorResponse::InternalServerError.into());
-        }
-    };
 
-    Ok(RegisterConnectorWebhookResponse {
-        event_type: webhook_register_data_router_data.request.event_type,
-        connector_webhook_id,
+        Ok(RegisterConnectorWebhookResponse {
+        event_type: connector_webhook_register_data.event_type,
+        connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
+        webhook_registration_status: register_webhook_response.status,
+        error_code: register_webhook_response.error_code.clone(),
+        error_message: register_webhook_response.error_message.clone(),
     })
 }

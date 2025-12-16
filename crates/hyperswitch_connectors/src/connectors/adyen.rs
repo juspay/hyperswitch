@@ -144,11 +144,7 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let debugg = String::from_utf8(
-        res.response.to_vec()
-    ).unwrap();
-
-    println!("ssssssResponse Body: {}", debugg);
+        let debugg = String::from_utf8(res.response.to_vec()).unwrap();
 
         let response: adyen::AdyenErrorResponse = res
             .response
@@ -158,17 +154,22 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-
-        let message = response.invalid_fields
-        .map(|fields| fields.iter()
-    .map(|f| format!("{}: {}", f.name, f.message))
-    .collect::<Vec<_>>()
-    .join(", "));
+        let message = response.invalid_fields.map(|fields| {
+            fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, f.message))
+                .collect::<Vec<_>>()
+                .join(", ")
+        });
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.message.clone().or(message.clone()).unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            message: response
+                .message
+                .clone()
+                .or(message.clone())
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.message.clone().or(message.clone()),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,

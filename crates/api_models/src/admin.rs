@@ -3593,5 +3593,8 @@ pub struct ConnectorWebhookRegisterRequest {
 #[serde(deny_unknown_fields)]
 pub struct RegisterConnectorWebhookResponse {
     pub event_type: common_enums::ConnectorWebhookEventType,
-    pub connector_webhook_id: String,
+    pub connector_webhook_id: Option<String>,
+    pub webhook_registration_status: common_enums::WebhookRegistrationStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
