@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_flow_types::GiftCardBalanceCheck,
+    router_flow_types::{GiftCardBalanceCheck, configure_connector_webhook::ConnectorWebhookRegister},
     router_request_types::{
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
         configure_connector_webhook::ConnectorWebhookRegisterData,
@@ -6892,7 +6892,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
 }
 
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
   id: String,
@@ -6900,15 +6900,26 @@ pub struct AdyenWebhookRegisterResponse {
   webhook_type: WebhooRegisterType,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, AdyenWebhookRegisterResponse, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>>
-    for RouterData<F, ConnectorWebhookRegisterData, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            AdyenWebhookRegisterResponse,
+            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for RouterData<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, AdyenWebhookRegisterResponse, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>,
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            AdyenWebhookRegisterResponse,
+            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterResponse,
+        >,
     ) -> Result<Self, Self::Error> {
-            Ok(Self {
+          Ok(ConnectorWebhookRegisterRouterData {
                 response: Ok(ConnectorWebhookRegisterResponse {
                     connector_webhook_id: item.response.id.clone(),
                 }),
