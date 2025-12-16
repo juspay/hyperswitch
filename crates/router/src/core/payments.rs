@@ -6326,13 +6326,12 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
             let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_str))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert to CustomerId")?;
-            let locker_resp = cards::get_payment_method_from_hs_locker(
+            let locker_resp = cards::get_encrypted_data_from_vault(
                 state,
                 platform.get_processor().get_key_store(),
                 &cust_id,
                 platform.get_processor().get_account().get_id(),
                 id.as_str(),
-                Some(enums::LockerChoice::HyperswitchCardVault),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -11195,7 +11194,8 @@ pub async fn payments_manual_update(
             Some(message.to_string()),
             connector_name.to_string(),
             // We need to get the unified_code and unified_message of the Authorize flow
-            "Authorize".to_string(),
+            consts::PAYMENT_FLOW_STR,
+            consts::AUTHORIZE_FLOW_STR,
         )
         .await
     } else {
