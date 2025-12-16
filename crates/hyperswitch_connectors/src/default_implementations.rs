@@ -2000,7 +2000,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
-    connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
     connectors::Nordea,
