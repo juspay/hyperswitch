@@ -2228,6 +2228,7 @@ impl IncomingWebhook for Adyen {
                 card_holder_name: None,
                 nick_name: None,
                 issuer_country: notif.additional_data.card_issuing_country.clone(),
+                issuer_country_code: None,
                 card_issuer: notif.additional_data.card_issuing_bank.clone(),
                 last4_digits: notif
                     .additional_data
