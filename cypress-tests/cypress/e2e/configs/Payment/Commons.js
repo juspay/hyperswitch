@@ -222,6 +222,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "bancontact_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "sofort",
         payment_experience: null,
         card_networks: null,
@@ -647,6 +658,30 @@ export const connectorDetails = {
                 email: "guest@juspay.in",
               },
             },
+          },
+        },
+      },
+    }),
+    Bancontact: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Brussels",
+            state: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "john",
+            last_name: "doe",
           },
         },
       },
