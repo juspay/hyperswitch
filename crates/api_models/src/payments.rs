@@ -151,6 +151,11 @@ pub struct CustomerDetails {
     #[schema(value_type=Option<String>,max_length = 255)]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
+
+    /// Document number of the customer
+    #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
+    #[smithy(value_type = "Option<String>")]
+    pub customer_document_number: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1769,6 +1774,7 @@ mod payments_request_test {
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            customer_document_number: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1794,6 +1800,7 @@ mod payments_request_test {
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
+            customer_document_number: None,
         };
 
         let payments_request = PaymentsRequest {

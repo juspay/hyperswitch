@@ -39,8 +39,9 @@ pub mod split_payments;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use masking::ExposeInterface;
 
-use self::payment_attempt::PaymentAttempt;
+use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -334,6 +335,20 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    pub fn get_customer_document_number(&self) -> Option<Secret<String>> {
+        self.customer_details
+            .as_ref()
+            .and_then(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                let customer_data: serde_json::Result<CustomerData> =
+                    serde_json::from_value(decrypted_value);
+
+                customer_data.ok()
+            })
+            .and_then(|cd| cd.customer_document_number)
     }
 }
 

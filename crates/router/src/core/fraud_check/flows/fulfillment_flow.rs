@@ -137,6 +137,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: payment_intent.get_customer_document_number(),
     };
     Ok(router_data)
 }

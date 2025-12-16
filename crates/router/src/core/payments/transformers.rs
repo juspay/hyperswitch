@@ -203,6 +203,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
     Ok(router_data)
 }
@@ -553,6 +554,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -901,6 +903,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1034,6 +1037,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1400,6 +1404,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1631,6 +1636,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1936,6 +1942,7 @@ where
         l2_l3_data,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: payment_data.payment_intent.get_customer_document_number(),
     };
 
     Ok(router_data)
@@ -2134,6 +2141,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: payment_data.payment_intent.get_customer_document_number(),
     };
 
     Ok(router_data)
@@ -6243,6 +6251,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            customer_document_number: customer.customer_document_number,
         }
     }
 }

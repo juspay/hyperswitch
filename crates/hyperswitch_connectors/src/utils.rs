@@ -551,6 +551,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_customer_document_number(&self) -> Result<Secret<String>, Error>;
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -1060,6 +1061,11 @@ impl<Flow, Request, Response> RouterData
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
+    }
+    fn get_customer_document_number(&self) -> Result<Secret<String>, Error> {
+        self.customer_document_number
+            .to_owned()
+            .ok_or_else(missing_field_err("customer_document_number"))
     }
     fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
@@ -7213,6 +7219,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
+        customer_document_number: data.customer_document_number.clone(),
     }
 }
 

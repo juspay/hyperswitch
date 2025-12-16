@@ -1383,6 +1383,7 @@ pub struct CustomerDetails {
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+    pub customer_document_number: Option<Secret<String, masking::WithType>>,
 }
 
 #[derive(Debug, Clone)]

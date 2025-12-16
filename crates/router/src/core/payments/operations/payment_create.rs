@@ -1485,6 +1485,7 @@ impl PaymentCreate {
                 email: request.email.clone(),
                 phone_country_code: request.phone_country_code.clone(),
                 tax_registration_id: None,
+                customer_document_number: None,
             })
         } else {
             None
