@@ -2568,8 +2568,12 @@ impl
             .response
             .parse_struct("AdyenWebhookRegisterResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        RouterData::try_from(response)
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
