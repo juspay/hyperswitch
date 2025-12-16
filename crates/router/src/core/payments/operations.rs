@@ -483,6 +483,21 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait UpdateTracker<F, D, Req>: Send {
+    /// Update customer information at provider level
+    /// This handles connector_customer_id updates in the Customer table
+    async fn update_customer<'b>(
+        &'b self,
+        _db: &'b SessionState,
+        _provider: &domain::Provider,
+        _customer: Option<domain::Customer>,
+        _updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()>
+    where
+        F: 'b + Send,
+    {
+        Ok(())
+    }
+
     /// Update the tracker information with the new data from request or calculated by the operations performed after get trackers
     /// This will persist the SessionData ( PaymentData ) in the database
     ///
@@ -491,11 +506,9 @@ pub trait UpdateTracker<F, D, Req>: Send {
         &'b self,
         db: &'b SessionState,
         req_state: ReqState,
+        processor: &domain::Processor,
         payment_data: D,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        updated_customer: Option<storage::CustomerUpdate>,
-        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
