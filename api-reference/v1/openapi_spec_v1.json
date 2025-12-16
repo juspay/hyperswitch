@@ -37442,6 +37442,14 @@
             "type": "string",
             "example": "successtest@iata",
             "nullable": true
+          },
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -37483,10 +37491,30 @@
         ]
       },
       "UpiIntentData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiQrData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "upi_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpiSource"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "UpiResponse": {
         "allOf": [
