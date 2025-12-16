@@ -2629,6 +2629,7 @@ impl
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
             expiry_month: item.expiry_month,
+            issuer_country_code: item.issuer_country_code,
             expiry_year: item.expiry_year,
             nick_name: item.nick_name,
             card_holder_name: item.card_holder_name,
