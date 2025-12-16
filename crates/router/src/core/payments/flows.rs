@@ -255,28 +255,6 @@ pub trait Feature<F, T> {
     ) {
     }
 
-    async fn call_preprocessing_through_unified_connector_service<'a>(
-        self,
-        _state: &SessionState,
-        _header_payload: &domain_payments::HeaderPayload,
-        _lineage_ids: &grpc_client::LineageIds,
-        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _platform: &domain::Platform,
-        _connector_data: &api::ConnectorData,
-        _unified_connector_service_execution_mode: ExecutionMode,
-        _merchant_order_reference_id: Option<String>,
-    ) -> RouterResult<(Self, bool)>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        // Default behaviour is to do nothing and continue further
-        Ok((self, true))
-    }
-
     async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,
