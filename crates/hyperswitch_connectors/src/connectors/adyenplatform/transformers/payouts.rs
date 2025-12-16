@@ -444,11 +444,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for Name {
         let mut should_fallback = billing_first_name.is_none() || billing_last_name.is_none();
         //check for empty first name
         billing_first_name.clone().inspect(|first_name| {
-            should_fallback = first_name.peek().is_empty();
+            should_fallback = first_name.peek().is_empty() || should_fallback;
         });
         // check for empty last name
-        billing_last_name.clone().inspect(|first_name| {
-            should_fallback = first_name.peek().is_empty();
+        billing_last_name.clone().inspect(|last_name| {
+            should_fallback = last_name.peek().is_empty() || should_fallback;
         });
 
         // get first_name from the billing
