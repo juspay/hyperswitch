@@ -37,6 +37,8 @@ pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 
+pub const REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS: i64 = 7 * 24 * 60 * 60; // 7 days
+
 pub const DEFAULT_PROFILE_NAME: &str = "default";
 pub const DEFAULT_PRODUCT_TYPE: common_enums::MerchantProductType =
     common_enums::MerchantProductType::Orchestration;

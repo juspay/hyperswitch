@@ -607,7 +607,7 @@ pub async fn get_user_theme_config_version(
         &state,
         &theme_id,
         theme.theme_config_version.clone(),
-        604800,
+        crate::consts::user::REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS,
     )
     .await?;
 
