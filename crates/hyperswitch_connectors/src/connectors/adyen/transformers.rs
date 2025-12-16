@@ -60,10 +60,10 @@ use url::Url;
 use crate::{types::PayoutsResponseRouterData, utils::PayoutsData};
 use crate::{
     types::{
-        AcceptDisputeRouterData, DefendDisputeRouterData, PaymentsCancelResponseRouterData,
-        PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-        SubmitEvidenceRouterData, ConnectorWebhookRegisterRouterData,
+        AcceptDisputeRouterData, ConnectorWebhookRegisterRouterData, DefendDisputeRouterData,
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsExtendAuthorizationResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData, SubmitEvidenceRouterData,
     },
     utils::{
         self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
@@ -6302,7 +6302,6 @@ pub struct DefenseDocuments {
     defense_document_type_code: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct AdyenTestingData {
     holder_name: Option<Secret<String>>,
@@ -6841,31 +6840,36 @@ impl CardExpiry {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum WebhooRegisterType {
-  Standard,
+    Standard,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CommunicationFormat {
-  Json,
+    Json,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WebhookRegister {
     #[serde(rename = "type")]
-  webhook_type: WebhooRegisterType,
-  url: String,
-  active: bool,
-  communication_format: CommunicationFormat,
+    webhook_type: WebhooRegisterType,
+    url: String,
+    active: bool,
+    communication_format: CommunicationFormat,
 }
 
 impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &common_enums::ConnectorWebhookEventType,) -> Result<Self, Self::Error> {
+    fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
         match item {
             enums::ConnectorWebhookEventType::Standard => todo!(),
-            enums::ConnectorWebhookEventType::SpecificEvent(event_type) => Err(errors::ConnectorError::NotSupported{ message: format!("Webhook Register for {} event type", event_type), connector: "Adyen" }),
+            enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("Webhook Register for {} event type", event_type),
+                    connector: "Adyen",
+                })
+            }
         }
     }
 }
@@ -6880,8 +6884,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
             webhook_type,
             url: item.request.webhook_url.clone(),
             active: true,
-            communication_format: CommunicationFormat::Json
-        }
-        )
+            communication_format: CommunicationFormat::Json,
+        })
     }
 }

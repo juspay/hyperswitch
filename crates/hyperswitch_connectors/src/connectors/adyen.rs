@@ -71,10 +71,10 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
-        SubmitEvidenceType, ConnectorWebhookRegisterType,
+        AcceptDisputeType, ConnectorWebhookRegisterType, DefendDisputeType,
+        ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType,
+        PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -89,8 +89,8 @@ use crate::{
     capture_method_not_supported,
     constants::{self, headers},
     types::{
-        AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
-        SubmitEvidenceRouterData, ConnectorWebhookRegisterRouterData,
+        AcceptDisputeRouterData, ConnectorWebhookRegisterRouterData, DefendDisputeRouterData,
+        ResponseRouterData, SubmitEvidenceRouterData,
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
@@ -2497,7 +2497,7 @@ impl
         ConnectorWebhookRegisterResponse,
     > for Adyen
 {
-        fn get_headers(
+    fn get_headers(
         &self,
         req: &ConnectorWebhookRegisterRouterData,
         _connectors: &Connectors,
@@ -2519,12 +2519,10 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = connectors.adyen.management_base_url.as_str();
-           let auth = adyen::AdyenAuthType::try_from(req.connector_auth_type)
+        let auth = adyen::AdyenAuthType::try_from(req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let merchant_id =  auth.merchant_account.expose();
-        Ok(format!(
-            "{endpoint}/v3/merchants/{merchantId}/webhook",
-        ))
+        let merchant_id = auth.merchant_account.expose();
+        Ok(format!("{endpoint}/v3/merchants/{merchantId}/webhook",))
     }
 
     fn get_request_body(
@@ -2543,10 +2541,16 @@ impl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&ConnectorWebhookRegisterType::get_url(self, req, connectors)?)
+            .url(&ConnectorWebhookRegisterType::get_url(
+                self, req, connectors,
+            )?)
             .attach_default_headers()
-            .headers(ConnectorWebhookRegisterType::get_headers(self, req, connectors)?)
-            .set_body(ConnectorWebhookRegisterType::get_request_body(self, req, connectors)?)
+            .headers(ConnectorWebhookRegisterType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(ConnectorWebhookRegisterType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }

@@ -8,9 +8,9 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
-        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
-        Upload, Void, ConnectorWebhookRegister,
+        Accept, AccessTokenAuth, Authorize, Capture, ConnectorWebhookRegister, CreateOrder, Defend,
+        Dsync, Evidence, ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing,
+        Retrieve, Session, Upload, Void,
     },
     router_request_types::{
         authentication::{
@@ -26,10 +26,10 @@ use hyperswitch_domain_models::{
         UploadFileRequestData,
     },
     router_response_types::{
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, PaymentsResponseData, RefundsResponseData,
-        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
+        configure_connector_webhook::ConnectorWebhookRegisterResponse, AcceptDisputeResponse,
+        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, UploadFileResponse,
     },
 };
 #[cfg(feature = "frm")]
@@ -80,8 +80,6 @@ pub(crate) type DefendDisputeRouterData =
 pub(crate) type FetchDisputeRouterData =
     RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
 pub(crate) type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>;
-
-
 
 pub(crate) type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
