@@ -301,7 +301,7 @@ where
                 async move {
                     let gateway: Box<
                         dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
-                    > = F::get_gateway(ShadowUnifiedConnectorService);
+                    > = F::get_gateway(ExecutionPath::ShadowUnifiedConnectorService);
                     let ucs_shadow_result = gateway
                         .execute(
                             &state_clone,
