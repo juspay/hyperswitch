@@ -174,7 +174,8 @@ pub enum RecurringDetails {
 
     /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
     /// is not stored in the application
-    NetworkTransactionIdAndNetworkTokenDetails(NetworkTransactionIdAndNetworkTokenDetails),
+    #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
+    NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available

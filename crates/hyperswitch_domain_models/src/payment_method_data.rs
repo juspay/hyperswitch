@@ -65,11 +65,11 @@ pub enum RecurringDetails {
     ProcessorPaymentToken(ProcessorPaymentToken),
     /// Network transaction ID and Card Details for MIT payments when payment_method_data
     /// is not stored in the application
-    NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
+    NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
 
     /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
     /// is not stored in the application
-    NetworkTransactionIdAndNetworkTokenDetails(NetworkTransactionIdAndNetworkTokenDetails),
+    NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -101,6 +101,8 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub card_type: Option<String>,
 
     pub card_issuing_country: Option<String>,
+
+    pub card_issuing_country_code: Option<String>,
 
     pub bank_code: Option<String>,
 
@@ -364,9 +366,7 @@ impl NetworkTokenDetailsForNetworkTransactionId {
 
         Some((
             mandate_reference_id,
-            network_transaction_id_and_network_token_details
-                .clone()
-                .into(),
+            (*network_transaction_id_and_network_token_details.clone()).into(),
         ))
     }
 }
@@ -3211,14 +3211,14 @@ impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
             }
             mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
                 network_transaction_id_and_card_details,
-            ) => Ok(Self::NetworkTransactionIdAndCardDetails(
-                network_transaction_id_and_card_details.into(),
-            )),
+            ) => Ok(Self::NetworkTransactionIdAndCardDetails(Box::new(
+                (*network_transaction_id_and_card_details).into(),
+            ))),
             mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(
                 network_transaction_id_and_network_token_details,
-            ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(
-                network_transaction_id_and_network_token_details.into(),
-            )),
+            ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+                (*network_transaction_id_and_network_token_details).into(),
+            ))),
         }
     }
 }
@@ -3235,6 +3235,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for NetworkTransactionId
             card_network: value.card_network,
             card_type: value.card_type,
             card_issuing_country: value.card_issuing_country,
+            card_issuing_country_code: value.card_issuing_country_code,
             bank_code: value.bank_code,
             nick_name: value.nick_name,
         }
