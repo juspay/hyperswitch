@@ -6775,6 +6775,9 @@ pub trait PayoutsData {
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6811,7 +6814,26 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_additional_payout_method_data(
+        &self,
+    ) -> Option<common_utils::payout_method_utils::AdditionalPayoutMethodData> {
+        self.additional_payout_method_data.clone()
+    }
 }
+
+pub trait AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>>;
+}
+
+impl AdditionalPayoutMethodData for common_utils::payout_method_utils::AdditionalPayoutMethodData {
+    fn get_optional_card_holder_name(&self) -> Option<Secret<String>> {
+        match self.clone() {
+            Self::Card(card_data) => card_data.card_holder_name,
+            _ => None,
+        }
+    }
+}
+
 pub trait RevokeMandateRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }

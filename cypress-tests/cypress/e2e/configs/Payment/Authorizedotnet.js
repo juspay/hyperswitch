@@ -1,9 +1,9 @@
+import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -533,6 +533,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
         email: generateRandomEmail(),
       },
       Response: {

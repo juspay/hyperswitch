@@ -306,7 +306,6 @@ pub async fn should_payment_be_blocked(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret.clone()),
-                api_models::enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .attach_printable("error in pm fingerprint creation")
@@ -469,7 +468,6 @@ pub async fn generate_payment_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
-                api_models::enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .attach_printable("error in pm fingerprint creation")

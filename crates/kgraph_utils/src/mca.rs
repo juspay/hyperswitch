@@ -907,7 +907,7 @@ fn compile_merchant_connector_graph(
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::try_from(mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::try_from(mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
@@ -978,7 +978,7 @@ fn compile_merchant_connector_graph(
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();

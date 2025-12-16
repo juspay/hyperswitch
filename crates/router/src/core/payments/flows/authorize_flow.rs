@@ -3,16 +3,20 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{id_type, types::MinorUnit, ucs_types};
+use common_utils::{errors, id_type, types::MinorUnit, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-    router_response_types,
+    router_data_v2::PaymentFlowData, router_response_types,
 };
-use hyperswitch_interfaces::api::{self as api_interface, gateway, ConnectorSpecifications};
+use hyperswitch_interfaces::{
+    api::{self as api_interface, gateway, ConnectorSpecifications},
+    errors as interface_errors,
+    unified_connector_service::transformers as ucs_transformers,
+};
 use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -24,15 +28,15 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, helpers, session_token,
-            tokenization, transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, gateway as payments_gateway,
+            helpers, session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
             get_access_token_from_ucs_response,
             handle_unified_connector_service_response_for_payment_authorize,
             handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-            ucs_logging_wrapper,
+            ucs_logging_wrapper, ucs_logging_wrapper_granular,
         },
     },
     logger,
@@ -186,12 +190,6 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
-    fn get_current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo<'_>> {
-        Some(api_interface::CurrentFlowInfo::Authorize {
-            auth_type: &self.auth_type,
-            request_data: &self.request,
-        })
-    }
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -314,6 +312,67 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             gateway_context,
         )
         .await
+    }
+
+    async fn pre_authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_pre_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) {
+            logger::info!(
+                "Pre-authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let authorize_request_data = self.request.clone();
+            let pre_authenticate_request_data =
+                types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+            let pre_authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let pre_authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
+                    self.clone(),
+                    pre_authenticate_request_data,
+                    pre_authenticate_response_data,
+                );
+            let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
+                _,
+                _,
+                _,
+                PaymentFlowData,
+                _,
+            >(
+                state,
+                pre_authenticate_router_data,
+                connector,
+                gateway_context,
+            ))
+            .await?;
+            // Convert back to CompleteAuthorize router data while preserving preprocessing response data
+            let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+            let authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                    pre_authenticate_router_data,
+                    authorize_request_data,
+                    pre_authenticate_response,
+                );
+            // After doing pre_authentication, step, we should not proceed with authorize call.
+            // control must be returned to SDK.
+            Ok((authorize_router_data, false))
+        } else {
+            Ok((self, true))
+        }
     }
 
     async fn preprocessing_steps<'a>(
@@ -569,7 +628,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         types::PaymentsResponseData,
                         types::ErrorResponse,
                     > = Err(types::ErrorResponse::default());
-                    let mut pre_authenticate_router_data = helpers::router_data_type_conversion::<
+                    let pre_authenticate_router_data = helpers::router_data_type_conversion::<
                         _,
                         api::PreAuthenticate,
                         _,
@@ -581,18 +640,20 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         pre_authneticate_request_data,
                         pre_authneticate_response_data,
                     );
-                    let _ = call_unified_connector_service_pre_authenticate(
-                        &mut pre_authenticate_router_data,
-                        state,
-                        header_payload,
-                        lineage_ids,
-                        merchant_connector_account,
-                        platform,
-                        connector_data.connector_name,
-                        unified_connector_service_execution_mode,
-                        merchant_order_reference_id,
-                    )
-                    .await;
+                    let (pre_authenticate_router_data, _) =
+                        call_unified_connector_service_pre_authenticate(
+                            &pre_authenticate_router_data,
+                            state,
+                            header_payload,
+                            lineage_ids,
+                            merchant_connector_account,
+                            platform,
+                            connector_data.connector_name,
+                            unified_connector_service_execution_mode,
+                            merchant_order_reference_id,
+                        )
+                        .await
+                        .to_payment_failed_response()?;
                     // Convert back to authorize router data while preserving preprocessing response data.
                     let pre_authenticate_response = pre_authenticate_router_data.response.clone();
                     let authorize_router_data =
@@ -602,7 +663,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             pre_authenticate_response,
                         );
                     *self = authorize_router_data;
-
                     Ok(())
                 }
                 None => {
@@ -1052,7 +1112,10 @@ async fn call_unified_connector_service_authorize(
 fn transform_redirection_response_for_pre_authenticate_flow(
     connector: enums::connector_enums::Connector,
     response_data: router_response_types::RedirectForm,
-) -> RouterResult<router_response_types::RedirectForm> {
+) -> errors::CustomResult<
+    router_response_types::RedirectForm,
+    ucs_transformers::UnifiedConnectorServiceError,
+> {
     match (connector, &response_data) {
         (
             enums::connector_enums::Connector::Cybersource,
@@ -1063,13 +1126,13 @@ fn transform_redirection_response_for_pre_authenticate_flow(
             },
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
-                ApiErrorResponse::MissingRequiredField {
+                ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "access_token",
                 },
             )?;
             let ddc_url = form_fields.get("ddc_url").unwrap_or(endpoint).clone();
             let reference_id = form_fields.get("reference_id").cloned().ok_or(
-                ApiErrorResponse::MissingRequiredField {
+                ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "reference_id",
                 },
             )?;
@@ -1085,7 +1148,10 @@ fn transform_redirection_response_for_pre_authenticate_flow(
 fn transform_response_for_pre_authenticate_flow(
     connector: enums::connector_enums::Connector,
     response_data: router_response_types::PaymentsResponseData,
-) -> RouterResult<router_response_types::PaymentsResponseData> {
+) -> errors::CustomResult<
+    router_response_types::PaymentsResponseData,
+    ucs_transformers::UnifiedConnectorServiceError,
+> {
     match (connector, response_data.clone()) {
         (
             enums::connector_enums::Connector::Cybersource,
@@ -1129,8 +1195,8 @@ fn transform_response_for_pre_authenticate_flow(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn call_unified_connector_service_pre_authenticate(
-    router_data: &mut types::RouterData<
+pub async fn call_unified_connector_service_pre_authenticate(
+    router_data: &types::RouterData<
         api::PreAuthenticate,
         types::PaymentsPreAuthenticateData,
         types::PaymentsResponseData,
@@ -1144,17 +1210,27 @@ async fn call_unified_connector_service_pre_authenticate(
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
-) -> RouterResult<()> {
+) -> errors::CustomResult<
+    (
+        types::RouterData<
+            api::PreAuthenticate,
+            types::PaymentsPreAuthenticateData,
+            types::PaymentsResponseData,
+        >,
+        (),
+    ),
+    interface_errors::ConnectorError,
+> {
     let client = state
         .grpc_client
         .unified_connector_service_client
         .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)
+        .ok_or(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_pre_authenticate_request =
-        payments_grpc::PaymentServicePreAuthenticateRequest::foreign_try_from(&*router_data)
-            .change_context(ApiErrorResponse::InternalServerError)
+        payments_grpc::PaymentServicePreAuthenticateRequest::foreign_try_from(router_data)
+            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
@@ -1162,7 +1238,7 @@ async fn call_unified_connector_service_pre_authenticate(
         platform,
         router_data.connector.clone(),
     )
-    .change_context(ApiErrorResponse::InternalServerError)
+    .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
     let merchant_reference_id = header_payload
         .x_reference_id
@@ -1179,7 +1255,7 @@ async fn call_unified_connector_service_pre_authenticate(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .lineage_ids(lineage_ids);
-    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
+    Box::pin(ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_pre_authenticate_request,
@@ -1192,7 +1268,6 @@ async fn call_unified_connector_service_pre_authenticate(
                     grpc_headers,
                 )
                 .await
-                .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to authorize payment")?;
 
             let payment_pre_authenticate_response = response.into_inner();
@@ -1201,7 +1276,6 @@ async fn call_unified_connector_service_pre_authenticate(
                 unified_connector_service::handle_unified_connector_service_response_for_payment_pre_authenticate(
                     payment_pre_authenticate_response.clone(),
                 )
-                .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
             let router_data_response = router_data_response.map(|(response, status)| {
@@ -1219,14 +1293,11 @@ async fn call_unified_connector_service_pre_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            Ok((router_data,(), payment_pre_authenticate_response))
+            Ok((router_data, (), payment_pre_authenticate_response))
         },
     ))
-    .await?;
-
-    // Copy back the updated data
-    *router_data = updated_router_data;
-    Ok(())
+    .await
+    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
 }
 
 #[allow(clippy::too_many_arguments)]
