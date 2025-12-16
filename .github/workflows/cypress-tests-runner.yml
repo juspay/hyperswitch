@@ -84,6 +84,9 @@ jobs:
   build-hyperswitch:
     name: Build hyperswitch server
     runs-on: hyperswitch-runners
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -137,6 +140,9 @@ jobs:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
     runs-on: hyperswitch-runners
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -220,6 +226,13 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+      
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
