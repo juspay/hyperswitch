@@ -109,6 +109,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
@@ -169,6 +170,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
@@ -179,6 +181,12 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PreProcessingFlowConfig {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub authentication_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -270,14 +278,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -303,14 +311,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)
@@ -695,17 +703,57 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        self.key.values().next()
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -734,7 +782,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }

@@ -388,14 +388,9 @@ pub async fn save_payout_data_to_locker(
         };
 
     // Store payout method in locker
-    let stored_resp = cards::add_card_to_hs_locker(
-        state,
-        &locker_req,
-        customer_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let stored_resp = cards::add_card_to_vault(state, &locker_req, customer_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let db = &*state.store;
 
@@ -664,7 +659,7 @@ pub async fn save_payout_data_to_locker(
             .clone()
             .unwrap_or(existing_pm.payment_method_id.clone());
         // Delete from locker
-        cards::delete_card_from_hs_locker(
+        cards::delete_card_from_vault(
             state,
             customer_id,
             platform.get_processor().get_account().get_id(),
@@ -679,14 +674,9 @@ pub async fn save_payout_data_to_locker(
         locker_req.update_requestor_card_reference(Some(card_reference.to_string()));
 
         // Store in locker
-        let stored_resp = cards::add_card_to_hs_locker(
-            state,
-            &locker_req,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError);
+        let stored_resp = cards::add_card_to_vault(state, &locker_req, customer_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError);
 
         // Check if locker operation was successful or not, if not, delete the entry from payment_methods table
         if let Err(err) = stored_resp {
@@ -1118,13 +1108,14 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: Option<String>,
     flow: &str,
+    sub_flow: &str,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),
                 flow.to_string(),
-                "sub_flow".to_string(),
+                sub_flow.to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
@@ -1132,9 +1123,10 @@ pub async fn get_gsm_record(
             .map_err(|err| {
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
-                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        "GSM miss for connector - {}, flow - {}, sub_flow - {}, error_code - {:?}, error_message - {:?}",
                         connector_name,
                         flow,
+                        sub_flow,
                         error_code,
                         error_message
                     );
