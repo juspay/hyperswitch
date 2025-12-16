@@ -124,7 +124,7 @@ run_tests() {
       print_color yellow \
         "[${service}] Running connectors (${connectors[*]}) with ${jobs} parallel jobs"
 
-      parallel --jobs "$jobs" --ungroup \
+      parallel --jobs "$jobs" --group \
         execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file"
     fi
   done
