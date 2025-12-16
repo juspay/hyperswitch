@@ -184,3 +184,14 @@ pub struct AuthenticationStore {
     pub cavv: Option<masking::Secret<String>>,
     pub authentication: authentication::Authentication,
 }
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationInfo {
+    pub billing_address: Option<address::Address>,
+    pub shipping_address: Option<address::Address>,
+    pub browser_info: Option<BrowserInformation>,
+    pub email: Option<Email>,
+    pub device_details: Option<api_models::payments::DeviceDetails>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
+}

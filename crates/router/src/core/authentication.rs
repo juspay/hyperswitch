@@ -78,19 +78,25 @@ pub async fn perform_authentication(
         router_data,
     ))
     .await?;
+
+    let authentication_info =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+            billing_address: Some(billing_address),
+            shipping_address,
+            browser_info: browser_details,
+            email,
+            device_details: sdk_information
+                .and_then(|sdk_information| sdk_information.device_details),
+            merchant_category_code: None,
+            merchant_country_code: None,
+        };
     let authentication = Box::pin(utils::update_trackers(
         state,
         response.clone(),
         authentication_data,
         None,
         merchant_key_store,
-        sdk_information.and_then(|sdk_information| sdk_information.device_details),
-        None,
-        None,
-        Some(billing_address),
-        shipping_address,
-        browser_details,
-        email,
+        authentication_info,
     ))
     .await?;
     response
@@ -156,19 +162,25 @@ pub async fn perform_post_authentication(
         let router_data =
             utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
                 .await?;
+
+        let authentication_info =
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: None,
+                shipping_address: None,
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+            };
+
         utils::update_trackers(
             state,
             router_data,
             authentication,
             None,
             key_store,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
+            authentication_info,
         )
         .await?
     } else {
@@ -253,19 +265,24 @@ pub async fn perform_pre_authentication(
         )
         .await?;
 
+        let authentication_info =
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: billing_address.clone(),
+                shipping_address: shipping_address.clone(),
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+            };
+
         let updated_authentication = utils::update_trackers(
             state,
             router_data,
             authentication,
             acquirer_details.clone(),
             key_store,
-            None,
-            None,
-            None,
-            billing_address.clone(),
-            shipping_address.clone(),
-            None,
-            None,
+            authentication_info,
         )
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -293,19 +310,24 @@ pub async fn perform_pre_authentication(
     let router_data =
         utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
 
+    let authentication_info =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+            billing_address,
+            shipping_address,
+            browser_info: None,
+            email: None,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+        };
+
     let authentication_update = utils::update_trackers(
         state,
         router_data,
         authentication,
         acquirer_details,
         key_store,
-        None,
-        None,
-        None,
-        billing_address,
-        shipping_address,
-        None,
-        None,
+        authentication_info,
     )
     .await?;
 
