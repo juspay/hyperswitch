@@ -149,6 +149,42 @@ pub enum AuthFlow {
     Merchant,
 }
 
+/// Extracts the connector HTTP status code from response headers when proxy_connector_http_status_code is enabled.
+/// Returns None if the feature is disabled, the header is missing, or if parsing fails.
+fn extract_connector_http_status_code(
+    response_headers: &[(String, Maskable<String>)],
+    proxy_enabled: bool,
+) -> Option<u16> {
+    if !proxy_enabled {
+        return None;
+    }
+
+    response_headers
+        .iter()
+        .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+        .and_then(|(_, value)| {
+            match value.clone().into_inner().parse::<u16>() {
+                Ok(code) => match http::StatusCode::from_u16(code) {
+                    Ok(_) => Some(code),
+                    Err(err) => {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                        None
+                    }
+                },
+                Err(err) => {
+                    logger::error!(
+                        "Failed to parse connector_http_status_code from header: {:?}",
+                        err
+                    );
+                    None
+                }
+            }
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(
     skip(request, payload, state, func, api_auth, incoming_request_header),
@@ -282,6 +318,8 @@ where
 
     let status_code = match output.as_ref() {
         Ok(res) => {
+            let mut extracted_status_code: Option<u16> = None;
+
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
@@ -300,10 +338,19 @@ where
                         overhead_latency.replace(external_latency);
                     }
                 }
+
+                // Extract connector HTTP status code for ApiEvent logging
+                extracted_status_code = extract_connector_http_status_code(
+                    headers,
+                    state.conf.proxy_status_mapping.proxy_connector_http_status_code,
+                );
             }
             event_type = res.get_api_event_type().or(event_type);
 
-            metrics::request::track_response_status_code(res)
+            // Use extracted status code if available, otherwise fall back to default
+            extracted_status_code
+                .map(|code| code as i64)
+                .unwrap_or_else(|| metrics::request::track_response_status_code(res))
         }
         Err(err) => {
             error.replace(
@@ -519,38 +566,11 @@ where
                     None
                 }
             });
-            let proxy_connector_http_status_code = if state
-                .conf
-                .proxy_status_mapping
-                .proxy_connector_http_status_code
-            {
-                headers
-                    .iter()
-                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
-                    .and_then(|(_, value)| {
-                        match value.clone().into_inner().parse::<u16>() {
-                            Ok(code) => match http::StatusCode::from_u16(code) {
-                                Ok(status_code) => Some(status_code),
-                                Err(err) => {
-                                    logger::error!(
-                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
-                                        err
-                                    );
-                                    None
-                                }
-                            },
-                            Err(err) => {
-                                logger::error!(
-                                    "Failed to parse connector_http_status_code from header: {:?}",
-                                    err
-                                );
-                                None
-                            }
-                        }
-                    })
-            } else {
-                None
-            };
+            let proxy_connector_http_status_code = extract_connector_http_status_code(
+                &headers,
+                state.conf.proxy_status_mapping.proxy_connector_http_status_code,
+            )
+            .and_then(|code| http::StatusCode::from_u16(code).ok());
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(
                     res,
