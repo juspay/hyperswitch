@@ -1255,6 +1255,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
             version: t.version,
+            connector_webhook_registration_details: t.connector_webhook_registration_details,
         };
         accounts.push(account.clone());
         account

@@ -5,6 +5,7 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        configure_connector_webhook::ConnectorWebhookRegister,
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
@@ -15,7 +16,6 @@ use hyperswitch_domain_models::{
             PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SetupMandate,
             UpdateMetadata, Void,
         },
-        configure_connector_webhook::ConnectorWebhookRegister,
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::{
@@ -33,11 +33,11 @@ use hyperswitch_domain_models::{
         AccessTokenAuthentication, BillingConnectorInvoiceSync, GiftCardBalanceCheck,
     },
     router_request_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterData,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -63,6 +63,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -72,7 +73,6 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -104,7 +104,11 @@ pub struct Response {
 }
 
 /// Type alias for `ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>`
-pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>;
+pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
 
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsAuthorizeType =

@@ -32,10 +32,10 @@ pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
     self,
     access_token_auth::AccessTokenAuth,
+    configure_connector_webhook::ConnectorWebhookRegister,
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
-    configure_connector_webhook::ConnectorWebhookRegister,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
@@ -60,6 +60,7 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -69,7 +70,6 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterData,
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
@@ -88,11 +88,11 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, DisputeSyncResponse,
         FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
         PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -113,15 +113,15 @@ pub use hyperswitch_interfaces::types::{
 pub use hyperswitch_interfaces::{
     disputes::DisputePayload,
     types::{
-        AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
-        IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
+        AcceptDisputeType, ConnectorCustomerType, ConnectorWebhookRegisterType, DefendDisputeType,
+        FetchDisputesType, IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
         PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
         PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
         PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
         RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
         SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
-        ConnectorWebhookRegisterType, WebhookRegisterType,
+        WebhookRegisterType,
     },
 };
 
@@ -260,7 +260,10 @@ pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
 
 pub type ConnectorWebhookRegisterRouterData = RouterData<
-    ConnectorWebhookRegister,ConnectorWebhookRegisterData,ConnectorWebhookRegisterResponse>;
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;

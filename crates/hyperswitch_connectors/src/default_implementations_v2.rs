@@ -3,9 +3,9 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
-            DisputesFlowData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
-            ConnectorWebhookConfigurationFlowData,
+            ConnectorWebhookConfigurationFlowData, DisputesFlowData, GiftCardBalanceCheckFlowData,
+            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            WebhookSourceVerifyData,
         },
         AccessTokenFlowData, AuthenticationTokenFlowData, ExternalAuthenticationFlowData,
         FilesFlowData, VaultConnectorFlowData,
@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         configure_connector_webhook::ConnectorWebhookRegister,
+        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
@@ -36,11 +36,11 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterData,
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
@@ -57,11 +57,11 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
@@ -105,7 +105,7 @@ use hyperswitch_interfaces::{
             ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
-        configure_connector_webhook_v2::WebhookRegisterV2,
+        configure_connector_webhook_v2::{ConfigureConnectorWebhookV2, WebhookRegisterV2},
         disputes_v2::{
             AcceptDisputeV2, DefendDisputeV2, DisputeSyncV2, DisputeV2, FetchDisputesV2,
             SubmitEvidenceV2,
@@ -3208,24 +3208,22 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Zsl
 );
 
-
-macro_rules! default_imp_for_new_connector_integration_webhook_register {  
-    ($($path:ident::$connector:ident),*) => {  
-        $(  
-            impl WebhookRegisterV2 for $path::$connector {}  
-            impl  
-                ConnectorIntegrationV2<  
-                ConnectorWebhookRegister,  
-                ConnectorWebhookConfigurationFlowData,  
-                ConnectorWebhookRegisterData,  
-                ConnectorWebhookRegisterResponse,  
-            > for $path::$connector  
-            {}  
-        )*  
-    };  
+macro_rules! default_imp_for_new_connector_integration_webhook_register {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ConfigureConnectorWebhookV2 for $path::$connector {}
+            impl WebhookRegisterV2 for $path::$connector {}
+            impl
+                ConnectorIntegrationV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookConfigurationFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponse,
+            > for $path::$connector
+            {}
+        )*
+    };
 }
-
-
 
 default_imp_for_new_connector_integration_webhook_register!(
     connectors::Aci,
@@ -3364,7 +3362,6 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Zen,
     connectors::Zsl
 );
-
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm_sale {

@@ -74,7 +74,7 @@ use hyperswitch_interfaces::{
         AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
         PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
-        SubmitEvidenceType,
+        SubmitEvidenceType, ConnectorWebhookRegisterType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -90,7 +90,7 @@ use crate::{
     constants::{self, headers},
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
-        SubmitEvidenceRouterData,
+        SubmitEvidenceRouterData, ConnectorWebhookRegisterRouterData,
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
@@ -2488,6 +2488,92 @@ impl UploadFile for Adyen {}
 impl RetrieveFile for Adyen {}
 impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse> for Adyen {}
 impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for Adyen {}
+
+impl api::WebhookRegister for Adyen {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    > for Adyen
+{
+        fn get_headers(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            ConnectorWebhookRegisterType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = connectors.adyen.management_base_url.as_str();
+           let auth = adyen::AdyenAuthType::try_from(req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let merchant_id =  auth.merchant_account.expose();
+        Ok(format!(
+            "{endpoint}/v3/merchants/{merchantId}/webhook",
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::WebhookRegister::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&ConnectorWebhookRegisterType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(ConnectorWebhookRegisterType::get_headers(self, req, connectors)?)
+            .set_body(ConnectorWebhookRegisterType::get_request_body(self, req, connectors)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookRegisterRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[async_trait::async_trait]
 impl FileUpload for Adyen {
     fn validate_file_upload(

@@ -1896,11 +1896,7 @@ impl MerchantAccount {
                     .route(web::get().to(admin::retrieve_merchant_account))
                     .route(web::post().to(admin::update_merchant_account))
                     .route(web::delete().to(admin::delete_merchant_account)),
-            ).service(
-                    web::resource("/{merchant_id}/webhooks/{merchant_connector_id}/") // <-- start
-                        .route(web::post().to(admin::connector_webhook_register))
-                )
-            ;
+            );
         if state.conf.platform.enabled {
             routes = routes.service(
                 web::resource("/{id}/platform")
@@ -1959,6 +1955,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/webhooks/{merchant_connector_id}") // <-- start
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]

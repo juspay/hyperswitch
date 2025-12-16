@@ -1,19 +1,10 @@
 //! Connector Webhooks Interface for V2
 
 use hyperswitch_domain_models::{
-    router_flow_types::{
-        configure_connector_webhook::{
-            ConnectorWebhookRegister
-        },
-    },
-    router_request_types::{
-        configure_connector_webhook::ConnectorWebhookRegisterData
-    },
-    router_response_types::{
-        configure_connector_webhook::
-           ConnectorWebhookRegisterResponse
-    },
-    router_data_v2::flow_common_types::ConnectorWebhookConfigurationFlowData
+    router_data_v2::flow_common_types::ConnectorWebhookConfigurationFlowData,
+    router_flow_types::configure_connector_webhook::ConnectorWebhookRegister,
+    router_request_types::configure_connector_webhook::ConnectorWebhookRegisterData,
+    router_response_types::configure_connector_webhook::ConnectorWebhookRegisterResponse,
 };
 
 use crate::api::ConnectorIntegrationV2;
@@ -29,9 +20,5 @@ pub trait WebhookRegisterV2:
 {
 }
 
-/// trait ConfigureConnectorWebhook for V1
-pub trait ConfigureConnectorWebhook:
-    super::ConnectorCommon
-    + WebhookRegisterV2
-{
-}
+/// trait ConfigureConnectorWebhook for V2
+pub trait ConfigureConnectorWebhookV2: super::ConnectorCommon + WebhookRegisterV2 {}

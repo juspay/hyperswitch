@@ -50,8 +50,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        revenue_recovery::InvoiceRecordBackRequest,
         configure_connector_webhook::ConnectorWebhookRegisterData,
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -75,13 +75,13 @@ use hyperswitch_domain_models::{
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
@@ -117,9 +117,6 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
     PayoutRecipientAccount, PayoutSync,
 };
-
-use hyperswitch_interfaces::api::configure_connector_webhook::WebhookRegister;
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -135,6 +132,7 @@ use hyperswitch_interfaces::{
             ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
             ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
         },
+        configure_connector_webhook::WebhookRegister,
         disputes::{
             AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
         },
@@ -9356,7 +9354,6 @@ macro_rules! default_imp_for_connector_webhook_register {
 default_imp_for_connector_webhook_register!(
     connectors::Vgs,
     connectors::Aci,
-    connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
     connectors::Airwallex,
@@ -9490,7 +9487,6 @@ default_imp_for_connector_webhook_register!(
     connectors::Zen,
     connectors::Zsl
 );
-
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
@@ -9983,11 +9979,13 @@ impl<const T: u8>
 impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse>
-    for connectors::DummyConnector<T>
+    ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    > for connectors::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}

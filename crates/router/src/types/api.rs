@@ -28,9 +28,9 @@ pub mod webhook_events;
 pub mod webhooks;
 
 pub mod authentication_v2;
+pub mod configure_connector_webhook_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
-pub mod configure_connector_webhook_v2; 
 pub mod feature_matrix;
 pub mod files_v2;
 #[cfg(feature = "frm")]
@@ -62,13 +62,13 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         configure_connector_webhook::WebhookRegister,
+        configure_connector_webhook_v2::WebhookRegisterV2,
         fraud_check::FraudCheck,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
             RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
-        configure_connector_webhook_v2::WebhookRegisterV2,
         BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2,
         ConnectorAuthenticationToken, ConnectorAuthenticationTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
@@ -84,9 +84,9 @@ pub use self::fraud_check::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
 pub use self::{
-    admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
-    disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*, configure_connector_webhook::*,
+    admin::*, api_keys::*, authentication::*, configs::*, configure_connector_webhook::*,
+    connector_mapping::*, customers::*, disputes::*, files::*, payment_link::*, payment_methods::*,
+    payments::*, poll::*, refunds::*, refunds_v2::*, webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

@@ -10,13 +10,14 @@ use hyperswitch_domain_models::{
         },
         Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
         ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
-        Upload, Void,
+        Upload, Void, ConnectorWebhookRegister,
     },
     router_request_types::{
         authentication::{
             ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
             PreAuthNRequestData,
         },
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         AcceptDisputeRequestData, AccessTokenRequestData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
@@ -25,6 +26,7 @@ use hyperswitch_domain_models::{
         UploadFileRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, PaymentsResponseData, RefundsResponseData,
         RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
@@ -78,6 +80,14 @@ pub(crate) type DefendDisputeRouterData =
 pub(crate) type FetchDisputeRouterData =
     RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
 pub(crate) type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>;
+
+
+
+pub(crate) type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
 
 #[cfg(feature = "payouts")]
 pub(crate) type PayoutsResponseRouterData<F, R> =

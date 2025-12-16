@@ -10,13 +10,13 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
-            BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
-            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
-            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
-            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
-            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
-            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
-            WebhookSourceVerifyData, ConnectorWebhookConfigurationFlowData
+            BillingConnectorPaymentsSyncFlowData, ConnectorWebhookConfigurationFlowData,
+            DisputesFlowData, ExternalAuthenticationFlowData, ExternalVaultProxyFlowData,
+            FilesFlowData, GetSubscriptionEstimateData, GetSubscriptionItemPricesData,
+            GetSubscriptionItemsData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, SubscriptionCancelData,
+            SubscriptionCreateData, SubscriptionCustomerData, SubscriptionPauseData,
+            SubscriptionResumeData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -848,17 +848,16 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for InvoiceR
     }
 }
 
-
-impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for ConnectorWebhookConfigurationFlowData {
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
+    for ConnectorWebhookConfigurationFlowData
+{
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
     ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
     where
         Self: Sized,
     {
-        let resource_common_data = Self {
-
-        };
+        let resource_common_data = Self {};
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
             tenant_id: old_router_data.tenant_id.clone(),
@@ -875,7 +874,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Connecto
     where
         Self: Sized,
     {
-   
         let router_data = get_default_router_data(
             new_router_data.tenant_id.clone(),
             "files",
@@ -886,9 +884,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Connecto
         Ok(router_data)
     }
 }
-
-
-
 
 macro_rules! default_router_data_conversion {
     ($flow_name:ty) => {

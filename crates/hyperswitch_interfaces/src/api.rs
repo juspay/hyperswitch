@@ -52,27 +52,32 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData, ConnectorWebhookConfigurationFlowData},
+        flow_common_types::{
+            AuthenticationTokenFlowData, ConnectorWebhookConfigurationFlowData,
+            WebhookSourceVerifyData,
+        },
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,  ConnectorWebhookRegister,
+        AuthenticationConfirmation, ConnectorWebhookRegister, PostAuthenticate, PreAuthenticate,
+        VerifyWebhookSource,
     },
     router_request_types::{
         self,
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        configure_connector_webhook::ConnectorWebhookRegisterData,
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        SupportedPaymentMethods, VerifyWebhookSourceResponseData,   configure_connector_webhook::ConnectorWebhookRegisterResponse  ,
+        self, configure_connector_webhook::ConnectorWebhookRegisterResponse, ConnectorInfo,
+        MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -88,8 +93,11 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    api::{configure_connector_webhook::WebhookRegister, subscriptions::Subscriptions}, connector_integration_v2::ConnectorIntegrationV2, consts,
-    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::{configure_connector_webhook::WebhookRegister, subscriptions::Subscriptions},
+    connector_integration_v2::ConnectorIntegrationV2,
+    consts, errors,
+    events::connector_api_logs::ConnectorEvent,
+    metrics, types, webhooks,
 };
 
 /// Connector trait

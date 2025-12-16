@@ -242,6 +242,8 @@ pub struct AdyenParamsWithThreeBaseUrls {
     pub payout_base_url: String,
     /// third base url
     pub dispute_base_url: String,
+    // fourth base url
+    pub management_base_url: String,
 }
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]

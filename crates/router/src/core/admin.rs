@@ -16,10 +16,9 @@ use diesel_models::{business_profile::CardTestingGuardConfig, organization::Orga
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
-use hyperswitch_domain_models::{
-    merchant_connector_account::{
+use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
-}};
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
@@ -2369,6 +2368,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
+            connector_webhook_registration_details: None,
         })
     }
 

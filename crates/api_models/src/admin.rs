@@ -3579,19 +3579,19 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     }
 }
 
-
 /// Register a webhook at the connector
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookRegisterRequest {
     #[schema(value_type = Option<ConnectorWebhookEventType>)]
-    pub event_type: common_enums::ConnectorWebhookEventType
+    pub event_type: common_enums::ConnectorWebhookEventType,
 }
-
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RegisterConnectorWebhookResponse {
+    pub event_type: common_enums::ConnectorWebhookEventType,
+    pub connector_webhook_id: String,
 }
