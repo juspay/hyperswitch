@@ -110,10 +110,7 @@ export -f execute_test
 # -----------------------------
 run_tests() {
   local jobs="${1:-1}"
-  local tmp_file
   tmp_file=$(mktemp)
-
-  trap 'rm -f "$tmp_file"' EXIT
 
   for service in "${connector_map[@]}"; do
     declare -n connectors="$service"
@@ -121,34 +118,31 @@ run_tests() {
     if (( ${#connectors[@]} == 0 )); then
       [[ "$service" == "payment_method_list" ]] && service="payment-method-list"
 
-      print_color yellow "[${service}] START service-level tests"
-      local start_ts end_ts duration
-
-      start_ts=$(date +%s)
       if ! npm run "cypress:${service}"; then
         echo "$service" >> "$tmp_file"
       fi
-      end_ts=$(date +%s)
-      duration=$(( end_ts - start_ts ))
-
-      print_color green "[${service}] END took ${duration}s"
     else
       print_color yellow \
         "[${service}] Running connectors (${connectors[*]}) with ${jobs} parallel jobs"
 
+      # 🔥 IMPORTANT: prevent set -e from exiting early
       parallel --jobs "$jobs" --group \
-        execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file"
+        execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file" || true
     fi
   done
 
+  # ✅ FAILURE SUMMARY (ALWAYS RUNS)
   if [[ -s "$tmp_file" ]]; then
-    print_color red "❌ Failures detected:"
-    cat "$tmp_file"
+    print_color red "❌ Cypress failures detected:"
+    sort -u "$tmp_file" | sed 's/^/  - /'
+    rm -f "$tmp_file"
     exit 1
   else
     print_color green "✅ All Cypress tests passed"
+    rm -f "$tmp_file"
   fi
 }
+
 
 # -----------------------------
 # Main
