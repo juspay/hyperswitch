@@ -50,6 +50,10 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -79,6 +83,10 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
       },
       Response: {
         status: 200,
@@ -330,6 +338,12 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        billing_descriptor: {
+          name: "joseph",
+          city: "San Fransico",
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -359,6 +373,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
         billing_descriptor: {
           name: "joseph",
           city: "San Fransico",
@@ -379,6 +395,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        card_cvc: "123",
         billing_descriptor: {
           name: "joseph",
           city: "San Fransico",
