@@ -300,6 +300,7 @@ describe("Bank Redirect tests", () => {
       );
     });
   });
+  
   context("OnlineBankingFpx Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -357,6 +358,27 @@ describe("Bank Redirect tests", () => {
         payment_method_type,
         expected_redirection
       );
+    });
+
+    it("Sync payment status", () => {
+      const paymentIntentId = globalState.get("paymentID");
+      const syncUrl = `${globalState.get("baseUrl")}/payments/${paymentIntentId}?force_sync=true`;
+
+      cy.request({
+        method: "GET",
+        url: syncUrl,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body.payment_id).to.equal(paymentIntentId);
+        expect(response.body.connector).to.equal(globalState.get("connectorId"));
+        expect(response.body.payment_method_type).to.equal("online_banking_fpx");
+        expect(response.body.status).to.equal("succeeded");
+      });
     });
   });
 });
