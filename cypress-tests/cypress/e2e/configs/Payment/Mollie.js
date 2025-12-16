@@ -10,7 +10,7 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "5555555555554444",
   card_exp_month: "01",
   card_exp_year: "28",
   card_holder_name: "Joseph",
@@ -116,22 +116,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "3DS flow is not supported by Mollie",
-            type: "invalid_request",
-          },
+          status: "requires_customer_action",
         },
       },
     },
     // 3DS automatic capture
     "3DSAutoCapture": {
-      config: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -143,14 +135,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "3DS flow is not supported by Mollie",
-            type: "invalid_request",
-          },
+          status: "requires_customer_action",
         },
       },
     },
@@ -288,6 +275,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          reason: "FRAUD",
         },
       },
     }),
@@ -316,6 +304,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          reason: "FRAUD",
         },
       },
     }),
@@ -331,6 +320,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          reason: "FRAUD",
         },
       },
     }),
@@ -340,15 +330,14 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_04",
-            message: "Missing required param: payment_method_token",
-            type: "invalid_request",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -418,9 +407,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -436,6 +422,23 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
@@ -448,9 +451,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -475,6 +475,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -484,9 +485,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -498,14 +496,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "succeeded",
         },
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -513,6 +508,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -522,9 +518,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -532,6 +525,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -541,9 +535,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -590,7 +581,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
         amount: 6000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,
@@ -604,35 +595,78 @@ export const connectorDetails = {
         },
       },
     },
-  },
-  SaveCardConfirmAutoCaptureOffSession: {
-    Request: {},
-    Response: {
-      status: 200,
-      body: {
-        status: "succeeded",
+    MITManualCapture: {
+      Request: {
+        currency: "USD",
+        description: "Test Payment",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     },
-  },
-  MITManualCapture: {
-    Request: {
-      currency: "EUR",
-    },
-    Response: {
-      status: 200,
-      body: {
-        status: "succeeded",
+    MITWithoutBillingAddress: {
+      Request: {
+        description: "Test Payment",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     },
-  },
-  MITWithoutBillingAddress: {
-    Request: {
-      description: "Test Payment",
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
     },
-    Response: {
-      status: 200,
-      body: {
-        status: "succeeded",
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        currency: "USD",
+        authentication_type: "no_three_ds",
+        setup_future_usage: "off_session",
+        customer_acceptance: null,
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     },
   },

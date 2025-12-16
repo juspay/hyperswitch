@@ -256,9 +256,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
-        let m_merchant_id = merchant_id.clone();
         let store = state.clone().store;
         let m_request_merchant_connector_details = request.merchant_connector_details.clone();
+        let m_processor = platform.get_processor().clone();
 
         let config_update_fut = tokio::spawn(
             async move {
@@ -266,7 +266,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .async_map(|mcd| async {
                         helpers::insert_merchant_connector_creds_to_config(
                             store.as_ref(),
-                            &m_merchant_id,
+                            &m_processor,
                             mcd,
                         )
                         .await
@@ -810,7 +810,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data,
-            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,

@@ -1,6 +1,4 @@
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(feature = "v1")]
-use api_models::enums as api_enums;
 use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
@@ -165,12 +163,11 @@ pub async fn call_to_locker(
 
         let add_card_result = cards::PmCards{
             state,
-            platform,
+            provider: platform.get_provider(),
         }.add_card_hs(
                 pm_create,
                 &card_details,
                 customer_id,
-                api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
 
             )

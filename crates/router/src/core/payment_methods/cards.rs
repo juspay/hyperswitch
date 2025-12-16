@@ -111,9 +111,10 @@ use crate::{
     core::payment_methods as pm_core, headers, types::payment_methods as pm_types,
     utils::ConnectorResponseExt,
 };
+
 pub struct PmCards<'a> {
     pub state: &'a routes::SessionState,
-    pub platform: &'a domain::Platform,
+    pub provider: &'a domain::Provider,
 }
 
 #[async_trait::async_trait]
@@ -146,8 +147,8 @@ impl PaymentMethodsController for PmCards<'_> {
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -161,7 +162,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let response = db
             .insert_payment_method(
-                self.platform.get_processor().get_key_store(),
+                self.provider.get_key_store(),
                 domain::PaymentMethod {
                     customer_id: customer_id.to_owned(),
                     merchant_id: merchant_id.to_owned(),
@@ -202,7 +203,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     created_by: None,
                     last_modified_by: None,
                 },
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -280,7 +281,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .find_payment_method(
                     key_store,
                     &payment_method_id,
-                    self.platform.get_processor().get_account().storage_scheme,
+                    self.provider.get_account().storage_scheme,
                 )
                 .await;
 
@@ -291,7 +292,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .find_payment_method_by_locker_id(
                             key_store,
                             &payment_method_id,
-                            self.platform.get_processor().get_account().storage_scheme,
+                            self.provider.get_account().storage_scheme,
                         )
                         .await;
 
@@ -317,7 +318,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         resp,
                         &req,
                         key_store,
-                        self.platform.get_processor().get_account().get_id(),
+                        self.provider.get_account().get_id(),
                         customer_id,
                         resp.metadata.clone().map(|val| val.expose()),
                         None,
@@ -425,7 +426,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .find_payment_method(
                         key_store,
                         &pm_id,
-                        self.platform.get_processor().get_account().storage_scheme,
+                        self.provider.get_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -437,7 +438,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     key_store,
                     existing_pm,
                     pm_update,
-                    self.platform.get_processor().get_account().storage_scheme,
+                    self.provider.get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -585,28 +586,17 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let payload =
             payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
-                merchant_id: self
-                    .platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .to_owned(),
+                merchant_id: self.provider.get_account().get_id().to_owned(),
                 merchant_customer_id: customer_id.to_owned(),
                 enc_data,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
-        let store_resp = add_card_to_hs_locker(
-            self.state,
-            &payload,
-            customer_id,
-            api_enums::LockerChoice::HyperswitchCardVault,
-        )
-        .await?;
+        let store_resp = add_card_to_vault(self.state, &payload, customer_id).await?;
         let payment_method_resp = payment_methods::mk_add_bank_response_hs(
             bank.clone(),
             store_resp.card_reference,
             req,
-            self.platform.get_processor().get_account().get_id(),
+            self.provider.get_account().get_id(),
         );
         Ok((payment_method_resp, store_resp.duplication_check))
     }
@@ -628,20 +618,17 @@ impl PaymentMethodsController for PmCards<'_> {
         metrics::STORED_TO_LOCKER.add(1, &[]);
         let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
             async {
-                self.add_card_hs(
-                    req.clone(),
-                    card,
-                    customer_id,
-                    api_enums::LockerChoice::HyperswitchCardVault,
-                    card_reference,
-                )
-                .await
-                .inspect_err(|_| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        1,
-                        router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
-                    );
-                })
+                self.add_card_hs(req.clone(), card, customer_id, card_reference)
+                    .await
+                    .inspect_err(|_| {
+                        metrics::CARD_LOCKER_FAILURES.add(
+                            1,
+                            router_env::metric_attributes!(
+                                ("locker", "rust"),
+                                ("operation", "add")
+                            ),
+                        );
+                    })
             },
             &metrics::CARD_ADD_TIME,
             router_env::metric_attributes!(("locker", "rust")),
@@ -662,7 +649,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
         common_utils::metrics::utils::record_operation_time(
             async move {
-                delete_card_from_hs_locker(self.state, customer_id, merchant_id, card_reference)
+                delete_card_from_vault(self.state, customer_id, merchant_id, card_reference)
                     .await
                     .inspect_err(|_| {
                         metrics::CARD_LOCKER_FAILURES.add(
@@ -688,7 +675,6 @@ impl PaymentMethodsController for PmCards<'_> {
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
-        locker_choice: api_enums::LockerChoice,
         card_reference: Option<&str>,
     ) -> errors::CustomResult<
         (
@@ -698,12 +684,7 @@ impl PaymentMethodsController for PmCards<'_> {
         errors::VaultError,
     > {
         let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
-            merchant_id: self
-                .platform
-                .get_processor()
-                .get_account()
-                .get_id()
-                .to_owned(),
+            merchant_id: self.provider.get_account().get_id().to_owned(),
             merchant_customer_id: customer_id.to_owned(),
             requestor_card_reference: card_reference.map(str::to_string),
             card: Card {
@@ -718,14 +699,13 @@ impl PaymentMethodsController for PmCards<'_> {
             ttl: self.state.conf.locker.ttl_for_storage_in_secs,
         });
 
-        let store_card_payload =
-            add_card_to_hs_locker(self.state, &payload, customer_id, locker_choice).await?;
+        let store_card_payload = add_card_to_vault(self.state, &payload, customer_id).await?;
 
         let payment_method_resp = payment_methods::mk_add_card_response_hs(
             card.clone(),
             store_card_payload.card_reference,
             req,
-            self.platform.get_processor().get_account().get_id(),
+            self.provider.get_account().get_id(),
         );
         Ok((payment_method_resp, store_card_payload.duplication_check))
     }
@@ -797,17 +777,17 @@ impl PaymentMethodsController for PmCards<'_> {
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
         // check for the presence of payment_method
         let payment_method = db
             .find_payment_method(
-                self.platform.get_processor().get_key_store(),
+                self.provider.get_key_store(),
                 &payment_method_id,
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -848,8 +828,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 merchant_id.to_owned(),
                 customer,
                 customer_update,
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -879,6 +859,7 @@ impl PaymentMethodsController for PmCards<'_> {
             prev_status,
             curr_status,
             merchant_id,
+            self.state.conf.application_source,
         )
         .await
     }
@@ -918,9 +899,9 @@ impl PaymentMethodsController for PmCards<'_> {
         let db = self.state.store.as_ref();
         let pm = db
             .find_payment_method(
-                self.platform.get_processor().get_key_store(),
+                self.provider.get_key_store(),
                 &pm.payment_method_id,
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -976,9 +957,9 @@ impl PaymentMethodsController for PmCards<'_> {
         let db = self.state.store.as_ref();
         let key = db
             .find_payment_method(
-                self.platform.get_processor().get_key_store(),
+                self.provider.get_key_store(),
                 pm_id.payment_method_id.as_str(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -986,9 +967,9 @@ impl PaymentMethodsController for PmCards<'_> {
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 &key.customer_id,
-                self.platform.get_processor().get_account().get_id(),
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_account().get_id(),
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1012,7 +993,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         key.payment_method_id.clone(),
                         key.network_token_locker_id,
                         network_token_ref_id,
-                        self.platform,
+                        self.provider,
                     )
                     .await?;
 
@@ -1032,8 +1013,8 @@ impl PaymentMethodsController for PmCards<'_> {
         }
 
         db.delete_payment_method_by_merchant_id_payment_method_id(
-            self.platform.get_processor().get_key_store(),
-            self.platform.get_processor().get_account().get_id(),
+            self.provider.get_key_store(),
+            self.provider.get_account().get_id(),
             pm_id.payment_method_id.as_str(),
         )
         .await
@@ -1049,8 +1030,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 key.merchant_id,
                 customer,
                 customer_update,
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().storage_scheme,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1073,7 +1054,7 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResponse<api::PaymentMethodResponse> {
         req.validate()?;
         let db = &*self.state.store;
-        let merchant_id = self.platform.get_processor().get_account().get_id();
+        let merchant_id = self.provider.get_account().get_id();
         let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
         let payment_method = req.payment_method.get_required_value("payment_method")?;
         let key_manager_state = self.state.into();
@@ -1081,11 +1062,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .billing
             .clone()
             .async_map(|billing| {
-                create_encrypted_data(
-                    &key_manager_state,
-                    self.platform.get_processor().get_key_store(),
-                    billing,
-                )
+                create_encrypted_data(&key_manager_state, self.provider.get_key_store(), billing)
             })
             .await
             .transpose()
@@ -1104,7 +1081,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(bank) => self
                     .add_bank_to_locker(
                         req.clone(),
-                        self.platform.get_processor().get_key_store(),
+                        self.provider.get_key_store(),
                         &bank,
                         &customer_id,
                     )
@@ -1150,7 +1127,7 @@ impl PaymentMethodsController for PmCards<'_> {
                             req.clone(),
                             &mut resp,
                             &customer_id,
-                            self.platform.get_processor().get_key_store(),
+                            self.provider.get_key_store(),
                         )
                         .await?;
 
@@ -1163,7 +1140,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                 req.clone(),
                                 &mut resp,
                                 &customer_id,
-                                self.platform.get_processor().get_key_store(),
+                                self.provider.get_key_store(),
                             )
                             .await?;
 
@@ -1184,7 +1161,6 @@ impl PaymentMethodsController for PmCards<'_> {
                                 req.clone(),
                                 &card,
                                 &customer_id,
-                                api::enums::LockerChoice::HyperswitchCardVault,
                                 Some(
                                     existing_pm
                                         .locker_id
@@ -1197,7 +1173,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         if let Err(err) = add_card_resp {
                             logger::error!(vault_err=?err);
                             db.delete_payment_method_by_merchant_id_payment_method_id(
-                                self.platform.get_processor().get_key_store(),
+                                self.provider.get_key_store(),
                                 merchant_id,
                                 &resp.payment_method_id,
                             )
@@ -1247,7 +1223,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                 .async_map(|updated_pmd| {
                                     create_encrypted_data(
                                         &key_manager_state,
-                                        self.platform.get_processor().get_key_store(),
+                                        self.provider.get_key_store(),
                                         updated_pmd,
                                     )
                                 })
@@ -1262,10 +1238,10 @@ impl PaymentMethodsController for PmCards<'_> {
                         };
 
                         db.update_payment_method(
-                            self.platform.get_processor().get_key_store(),
+                            self.provider.get_key_store(),
                             existing_pm,
                             pm_update,
-                            self.platform.get_processor().get_account().storage_scheme,
+                            self.provider.get_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1290,7 +1266,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .insert_payment_method(
                         &resp,
                         req,
-                        self.platform.get_processor().get_key_store(),
+                        self.provider.get_key_store(),
                         merchant_id,
                         &customer_id,
                         pm_metadata.cloned(),
@@ -1319,11 +1295,11 @@ impl PaymentMethodsController for PmCards<'_> {
 pub async fn get_client_secret_or_add_payment_method(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = provider.get_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
-    let cards = PmCards { state, platform };
+    let cards = PmCards { state, provider };
     #[cfg(not(feature = "payouts"))]
     let condition = req.card.is_some();
     #[cfg(feature = "payouts")]
@@ -1333,11 +1309,7 @@ pub async fn get_client_secret_or_add_payment_method(
         .billing
         .clone()
         .async_map(|billing| {
-            create_encrypted_data(
-                &key_manager_state,
-                platform.get_processor().get_key_store(),
-                billing,
-            )
+            create_encrypted_data(&key_manager_state, provider.get_key_store(), billing)
         })
         .await
         .transpose()
@@ -1385,6 +1357,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 enums::PaymentMethodStatus::AwaitingData,
                 enums::PaymentMethodStatus::Inactive,
                 merchant_id,
+                state.conf.application_source,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1432,13 +1405,13 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
 pub async fn add_payment_method_data(
     state: routes::SessionState,
     req: api::PaymentMethodCreate,
-    platform: domain::Platform,
+    provider: domain::Provider,
     pm_id: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let cards = PmCards {
         state: &state,
-        platform: &platform,
+        provider: &provider,
     };
 
     let pmd = req
@@ -1452,9 +1425,9 @@ pub async fn add_payment_method_data(
         .get_required_value("client_secret")?;
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            provider.get_key_store(),
             pm_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            provider.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1469,9 +1442,9 @@ pub async fn add_payment_method_data(
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1499,10 +1472,10 @@ pub async fn add_payment_method_data(
                         };
 
                         db.update_payment_method(
-                            platform.get_processor().get_key_store(),
+                            provider.get_key_store(),
                             payment_method,
                             pm_update,
-                            platform.get_processor().get_account().storage_scheme,
+                            provider.get_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1513,7 +1486,7 @@ pub async fn add_payment_method_data(
                                 req.clone(),
                                 &mut pm_resp,
                                 &customer_id,
-                                platform.get_processor().get_key_store(),
+                                provider.get_key_store(),
                             )
                             .await?;
 
@@ -1550,7 +1523,7 @@ pub async fn add_payment_method_data(
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
                             create_encrypted_data(
                                 &key_manager_state,
-                                platform.get_processor().get_key_store(),
+                                provider.get_key_store(),
                                 PaymentMethodsData::Card(updated_card),
                             )
                             .await
@@ -1571,10 +1544,10 @@ pub async fn add_payment_method_data(
                         };
 
                         db.update_payment_method(
-                            platform.get_processor().get_key_store(),
+                            provider.get_key_store(),
                             payment_method,
                             pm_update,
-                            platform.get_processor().get_account().storage_scheme,
+                            provider.get_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1583,7 +1556,7 @@ pub async fn add_payment_method_data(
                         if customer.default_payment_method_id.is_none() {
                             let _ = cards
                                 .set_default_payment_method(
-                                    platform.get_processor().get_account().get_id(),
+                                    provider.get_account().get_id(),
                                     &customer_id,
                                     pm_id,
                                 )
@@ -1606,10 +1579,10 @@ pub async fn add_payment_method_data(
                     };
 
                     db.update_payment_method(
-                        platform.get_processor().get_key_store(),
+                        provider.get_key_store(),
                         payment_method,
                         pm_update,
-                        platform.get_processor().get_account().storage_scheme,
+                        provider.get_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1626,10 +1599,9 @@ pub async fn add_payment_method_data(
 #[instrument(skip_all)]
 pub async fn update_customer_payment_method(
     state: routes::SessionState,
-    platform: domain::Platform,
+    provider: domain::Provider,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
-
     pm_data: Option<domain::PaymentMethod>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodUpdateResponse> {
     let db = state.store.as_ref();
@@ -1638,9 +1610,9 @@ pub async fn update_customer_payment_method(
         pm
     } else {
         db.find_payment_method(
-            platform.get_processor().get_key_store(),
+            provider.get_key_store(),
             payment_method_id,
-            platform.get_processor().get_account().storage_scheme,
+            provider.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
@@ -1744,7 +1716,7 @@ pub async fn update_customer_payment_method(
             new_pm.validate()?;
             let cards = PmCards {
                 state: &state,
-                platform: &platform,
+                provider: &provider,
             };
             // Delete old payment method from locker
             cards
@@ -1799,11 +1771,7 @@ pub async fn update_customer_payment_method(
             let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
                 .async_map(|updated_pmd| {
-                    create_encrypted_data(
-                        &key_manager_state,
-                        platform.get_processor().get_key_store(),
-                        updated_pmd,
-                    )
+                    create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
                 })
                 .await
                 .transpose()
@@ -1820,10 +1788,10 @@ pub async fn update_customer_payment_method(
                 .clone_from(&pm.payment_method_id);
 
             db.update_payment_method(
-                platform.get_processor().get_key_store(),
+                provider.get_key_store(),
                 pm,
                 pm_update,
-                platform.get_processor().get_account().storage_scheme,
+                provider.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1880,14 +1848,11 @@ pub async fn update_customer_payment_method(
 
         let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
         let key_manager_state = (&state).into();
-        let pm_data_encrypted = create_encrypted_data(
-            &key_manager_state,
-            platform.get_processor().get_key_store(),
-            updated_pmd,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt payment method data")?;
+        let pm_data_encrypted =
+            create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt payment method data")?;
 
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
@@ -1896,10 +1861,10 @@ pub async fn update_customer_payment_method(
 
         let pm = db
             .update_payment_method(
-                platform.get_processor().get_key_store(),
+                provider.get_key_store(),
                 pm,
                 pm_update,
-                platform.get_processor().get_account().storage_scheme,
+                provider.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2001,30 +1966,24 @@ pub async fn get_card_from_locker(
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
-            get_card_from_hs_locker(
-                state,
-                customer_id,
-                merchant_id,
-                card_reference,
-                api_enums::LockerChoice::HyperswitchCardVault,
-            )
-            .await
-            .map_err(|err| match err.current_context() {
-                errors::VaultError::FetchCardFailed => {
-                    err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "Card not found in vault".to_string(),
-                    })
-                }
-                _ => err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error getting card from card vault"),
-            })
-            .inspect_err(|_| {
-                metrics::CARD_LOCKER_FAILURES.add(
-                    1,
-                    router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
-                );
-            })
+            get_card_from_vault(state, customer_id, merchant_id, card_reference)
+                .await
+                .map_err(|err| match err.current_context() {
+                    errors::VaultError::FetchCardFailed => {
+                        err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Card not found in vault".to_string(),
+                        })
+                    }
+                    _ => err
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error getting card from card vault"),
+                })
+                .inspect_err(|_| {
+                    metrics::CARD_LOCKER_FAILURES.add(
+                        1,
+                        router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
+                    );
+                })
         },
         &metrics::CARD_GET_TIME,
         router_env::metric_attributes!(("locker", "rust")),
@@ -2074,40 +2033,35 @@ pub async fn decode_and_decrypt_locker_data(
 }
 
 #[instrument(skip_all)]
-pub async fn get_payment_method_from_hs_locker<'a>(
+pub async fn get_encrypted_data_from_vault<'a>(
     state: &'a routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     payment_method_reference: &'a str,
-    locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
     let payment_method_data = if !locker.mock_locker {
-        let request = payment_methods::mk_get_card_request_hs(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: payment_method_reference.to_string(),
+        };
+
+        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::call_vault_api(
+            state,
             jwekey,
             locker,
-            customer_id,
-            merchant_id,
-            payment_method_reference,
-            locker_choice,
+            &payload,
+            router_consts::LOCKER_RETRIEVE_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)
         .attach_printable("Making get payment method request failed")?;
-
-        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
-            state,
-            request,
-            "get_pm_from_locker",
-            locker_choice,
-        )
-        .await
-        .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
 
         let retrieve_card_resp = get_card_resp
             .payload
@@ -2132,30 +2086,23 @@ pub async fn get_payment_method_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn add_card_to_hs_locker(
+pub async fn add_card_to_vault(
     state: &routes::SessionState,
     payload: &payment_methods::StoreLockerReq,
     customer_id: &id_type::CustomerId,
-    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
-        let request = payment_methods::mk_add_locker_request_hs(
+        payment_methods::call_vault_api(
+            state,
             jwekey,
             locker,
             payload,
-            locker_choice,
+            router_consts::LOCKER_ADD_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
-        )
-        .await?;
-        call_locker_api::<payment_methods::StoreCardResp>(
-            state,
-            request,
-            "add_card_to_hs_locker",
-            Some(locker_choice),
         )
         .await
         .change_context(errors::VaultError::SaveCardFailed)?
@@ -2172,11 +2119,10 @@ pub async fn add_card_to_hs_locker(
 }
 
 #[instrument(skip_all)]
-pub async fn call_locker_api<T>(
+pub async fn call_vault_service<T>(
     state: &routes::SessionState,
     request: Request,
     flow_name: &str,
-    locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<T, errors::VaultError>
 where
     T: serde::de::DeserializeOwned,
@@ -2201,7 +2147,6 @@ where
     let decrypted_payload = payment_methods::get_decrypted_response_payload(
         jwekey,
         jwe_body,
-        locker_choice,
         locker.decryption_scheme.clone(),
     )
     .await
@@ -2313,38 +2258,34 @@ pub async fn update_payment_method_connector_mandate_details(
     Ok(())
 }
 #[instrument(skip_all)]
-pub async fn get_card_from_hs_locker<'a>(
+pub async fn get_card_from_vault<'a>(
     state: &'a routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
-    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<Card, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
 
     if !locker.mock_locker {
-        let request = payment_methods::mk_get_card_request_hs(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: card_reference.to_string(),
+        };
+
+        let get_card_resp: payment_methods::RetrieveCardResp = payment_methods::call_vault_api(
+            state,
             jwekey,
             locker,
-            customer_id,
-            merchant_id,
-            card_reference,
-            Some(locker_choice),
+            &payload,
+            router_consts::LOCKER_RETRIEVE_CARD_PATH,
             state.tenant.tenant_id.clone(),
             state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Making get card request failed")?;
-        let get_card_resp = call_locker_api::<payment_methods::RetrieveCardResp>(
-            state,
-            request,
-            "get_card_from_locker",
-            Some(locker_choice),
-        )
-        .await
-        .change_context(errors::VaultError::FetchCardFailed)?;
 
         let retrieve_card_resp = get_card_resp
             .payload
@@ -2362,7 +2303,7 @@ pub async fn get_card_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn delete_card_from_hs_locker<'a>(
+pub async fn delete_card_from_vault<'a>(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
@@ -2371,45 +2312,30 @@ pub async fn delete_card_from_hs_locker<'a>(
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
 
-    let request = payment_methods::mk_delete_card_request_hs(
-        jwekey,
-        locker,
-        customer_id,
-        merchant_id,
-        card_reference,
-        state.tenant.tenant_id.clone(),
-        state.request_id.clone(),
-    )
-    .await
-    .change_context(errors::VaultError::DeleteCardFailed)
-    .attach_printable("Making delete card request failed")?;
-
     if !locker.mock_locker {
-        call_locker_api::<payment_methods::DeleteCardResp>(
+        let payload = payment_methods::CardReqBody {
+            merchant_id: merchant_id.to_owned(),
+            merchant_customer_id: customer_id.to_owned(),
+            card_reference: card_reference.to_string(),
+        };
+
+        payment_methods::call_vault_api(
             state,
-            request,
-            "delete_card_from_locker",
-            Some(api_enums::LockerChoice::HyperswitchCardVault),
+            jwekey,
+            locker,
+            &payload,
+            router_consts::LOCKER_DELETE_CARD_PATH,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
         )
         .await
         .change_context(errors::VaultError::DeleteCardFailed)
+        .attach_printable("Making delete card request failed")
     } else {
         Ok(mock_delete_card_hs(&*state.store, card_reference)
             .await
             .change_context(errors::VaultError::DeleteCardFailed)?)
     }
-}
-
-// Need to fix this function while completing v2
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn delete_card_from_hs_locker_by_global_id<'a>(
-    state: &routes::SessionState,
-    id: &str,
-    merchant_id: &id_type::MerchantId,
-    card_reference: &'a str,
-) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    todo!()
 }
 
 ///Mock api for local testing
@@ -2721,8 +2647,8 @@ pub async fn list_payment_methods(
                     db.find_customer_by_customer_id_merchant_id(
                         cust,
                         &pi.merchant_id,
-                        platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_provider().get_key_store(),
+                        platform.get_provider().get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2739,8 +2665,8 @@ pub async fn list_payment_methods(
                 &pi.payment_id,
                 &pi.merchant_id,
                 &pi.active_attempt.get_id(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -3130,7 +3056,7 @@ pub async fn list_payment_methods(
             straight_through_algorithm: Some(encoded),
             amount_capturable: None,
             updated_by: platform
-                .get_processor()
+                .get_provider()
                 .get_account()
                 .storage_scheme
                 .to_string(),
@@ -3146,8 +3072,8 @@ pub async fn list_payment_methods(
             .update_payment_attempt_with_attempt_id(
                 payment_attempt.clone(),
                 attempt_update,
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -3568,6 +3494,10 @@ pub async fn list_payment_methods(
         platform.get_processor().get_account().get_id(),
     )
     .await;
+    let is_guest_customer = payment_intent
+        .as_ref()
+        .map(|payment_intent| payment_intent.customer_id.is_none())
+        .unwrap_or(true);
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent)
     {
@@ -3649,6 +3579,7 @@ pub async fn list_payment_methods(
             collect_billing_details_from_wallets,
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
             sdk_next_action,
+            is_guest_customer,
         },
     ))
 }
@@ -3702,9 +3633,9 @@ async fn validate_payment_method_and_client_secret(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             pm_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -3770,13 +3701,13 @@ pub async fn call_surcharge_decision_management(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: platform
-                        .get_processor()
+                        .get_provider()
                         .get_account()
                         .storage_scheme
                         .to_string(),
                 },
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -3830,13 +3761,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: platform
-                        .get_processor()
+                        .get_provider()
                         .get_account()
                         .storage_scheme
                         .to_string(),
                 },
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -4223,9 +4154,9 @@ pub async fn list_customer_payment_method(
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             customer_id,
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -4256,12 +4187,12 @@ pub async fn list_customer_payment_method(
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             customer_id,
-            platform.get_processor().get_account().get_id(),
+            platform.get_provider().get_account().get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -4281,9 +4212,8 @@ pub async fn list_customer_payment_method(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
         profile_id.as_ref(),
-        platform.get_processor().get_account().get_id(),
     )
     .await?;
 
@@ -4302,12 +4232,12 @@ pub async fn list_customer_payment_method(
         let pm_list_context = get_pm_list_context(
             state,
             &payment_method,
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             &pm,
             Some(parent_payment_method_token.clone()),
             true,
             false,
-            &platform,
+            platform.get_provider(),
         )
         .await?;
 
@@ -4462,9 +4392,9 @@ pub async fn get_pm_list_context(
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
     force_fetch_card_from_vault: bool,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
-    let cards = PmCards { state, platform };
+    let cards = PmCards { state, provider };
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
             let card_details = if force_fetch_card_from_vault {
@@ -4491,24 +4421,12 @@ pub async fn get_pm_list_context(
         }
 
         enums::PaymentMethod::BankDebit => {
-            // Retrieve the pm_auth connector details so that it can be tokenized
-            let bank_account_token_data = get_bank_account_connector_details(pm)
+            get_pm_list_context_for_bank_debit(pm, is_payment_associated)
                 .await
                 .unwrap_or_else(|err| {
                     logger::error!(error=?err);
                     None
-                });
-
-            bank_account_token_data.map(|data| {
-                let token_data = PaymentTokenData::AuthBankDebit(data);
-
-                PaymentMethodListContext {
-                    card_details: None,
-                    #[cfg(feature = "payouts")]
-                    bank_transfer_details: None,
-                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
-                }
-            })
+                })
         }
 
         enums::PaymentMethod::Wallet => Some(PaymentMethodListContext {
@@ -4523,7 +4441,7 @@ pub async fn get_pm_list_context(
         enums::PaymentMethod::BankTransfer => Some(PaymentMethodListContext {
             card_details: None,
             bank_transfer_details: Some(
-                get_bank_from_hs_locker(
+                get_bank_from_vault(
                     state,
                     key_store,
                     parent_payment_method_token.as_ref(),
@@ -4565,10 +4483,10 @@ async fn perform_surcharge_ops(
                 .store
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     payment_intent.get_id(),
-                    platform.get_processor().get_account().get_id(),
+                    platform.get_provider().get_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -4746,8 +4664,11 @@ pub async fn get_masked_bank_details(
         .clone()
         .map(|x| x.into_inner().expose())
         .map(
-            |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+            |v| -> Result<
+                domain::PaymentMethodsData,
+                error_stack::Report<errors::ApiErrorResponse>,
+            > {
+                v.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
                     .change_context(errors::StorageError::DeserializationFailed)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
@@ -4755,33 +4676,62 @@ pub async fn get_masked_bank_details(
         )
         .transpose()?;
 
-    #[cfg(feature = "v2")]
-    let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
-
+    #[cfg(feature = "v1")]
     match payment_method_data {
         Some(pmd) => match pmd {
-            PaymentMethodsData::Card(_) => Ok(None),
-            PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+            domain::PaymentMethodsData::Card(_) => Ok(None),
+            domain::PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
             })),
-            PaymentMethodsData::WalletDetails(_) => Ok(None),
+            domain::PaymentMethodsData::BankDebit(
+                domain::BankDebitDetailsPaymentMethod::AchBankDebit {
+                    masked_account_number,
+                    ..
+                },
+            ) => Ok(Some(MaskedBankDetails {
+                mask: masked_account_number,
+            })),
+            domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
+            _ => Ok(None),
         },
         None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
     }
+
+    // TODO: Migrate PaymentMethodsData to domain model in v2 and remove this
+    #[cfg(feature = "v2")]
+    {
+        let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
+        match payment_method_data {
+            Some(pmd) => match pmd {
+                PaymentMethodsData::Card(_) => Ok(None),
+                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
+                    mask: bank_details.mask,
+                })),
+                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                _ => Ok(None),
+            },
+            None => Err(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable("Unable to fetch payment method data"),
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_bank_account_connector_details(
+pub async fn get_pm_list_context_for_bank_debit(
     pm: &domain::PaymentMethod,
-) -> errors::RouterResult<Option<BankAccountTokenData>> {
+    is_payment_associated: bool,
+) -> errors::RouterResult<Option<PaymentMethodListContext>> {
     let payment_method_data = pm
         .payment_method_data
         .clone()
         .map(|x| x.into_inner().expose())
         .map(
-            |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
-                v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+            |v| -> Result<
+                domain::PaymentMethodsData,
+                error_stack::Report<errors::ApiErrorResponse>,
+            > {
+                v.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
                     .change_context(errors::StorageError::DeserializationFailed)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize Payment Method Auth config")
@@ -4791,17 +4741,20 @@ pub async fn get_bank_account_connector_details(
 
     match payment_method_data {
         Some(pmd) => match pmd {
-            PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Card is not a valid entity".to_string(),
+            domain::PaymentMethodsData::Card(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Card is not a valid entity".to_string(),
+                }
+                .into())
             }
-            .into()),
-            PaymentMethodsData::WalletDetails(_) => {
+            domain::PaymentMethodsData::WalletDetails(_) => {
                 Err(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Wallet is not a valid entity".to_string(),
                 }
                 .into())
             }
-            PaymentMethodsData::BankDetails(bank_details) => {
+            domain::PaymentMethodsData::BankDetails(bank_details) => {
+                // Retrieve the pm_auth connector details so that it can be tokenized
                 let connector_details = bank_details
                     .connector_details
                     .first()
@@ -4823,7 +4776,34 @@ pub async fn get_bank_account_connector_details(
                     connector_details: connector_details.clone(),
                 };
 
-                Ok(Some(token_data))
+                let token_data = PaymentTokenData::AuthBankDebit(token_data);
+                let payment_method_list_context = PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                };
+
+                Ok(Some(payment_method_list_context))
+            }
+            domain::PaymentMethodsData::BankDebit(_) => {
+                let token_data = PaymentTokenData::BankDebit(storage::BankDebitTokenData {
+                    payment_method_id: pm.payment_method_id.clone(),
+                    locker_id: pm.locker_id.clone(),
+                });
+
+                Ok(Some(PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                }))
+            }
+            domain::PaymentMethodsData::NetworkToken(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Network Token is not a valid entity".to_string(),
+                }
+                .into())
             }
         },
         None => Ok(None),
@@ -4855,7 +4835,7 @@ pub async fn update_last_used_at(
     Ok(())
 }
 #[cfg(feature = "payouts")]
-pub async fn get_bank_from_hs_locker(
+pub async fn get_bank_from_vault(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     temp_token: Option<&String>,
@@ -4863,17 +4843,11 @@ pub async fn get_bank_from_hs_locker(
     merchant_id: &id_type::MerchantId,
     token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
-    let payment_method = get_payment_method_from_hs_locker(
-        state,
-        key_store,
-        customer_id,
-        merchant_id,
-        token_ref,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting payment method from locker")?;
+    let payment_method =
+        get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting payment method from locker")?;
     let pm_parsed: api::PayoutMethodData = payment_method
         .peek()
         .to_string()
@@ -4995,6 +4969,7 @@ impl TempLockerCardSupport {
             &*state.store,
             &lookup_key,
             enums::PaymentMethod::Card,
+            state.conf.application_source,
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
@@ -5099,13 +5074,13 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
 pub async fn tokenize_card_flow(
     state: &routes::SessionState,
     req: domain::CardNetworkTokenizeRequest,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     match req.data {
         domain::TokenizeDataRequest::Card(ref card_req) => {
             let executor = tokenize::CardNetworkTokenizeExecutor::new(
                 state,
-                platform,
+                provider,
                 card_req,
                 &req.customer,
             );
@@ -5116,7 +5091,7 @@ pub async fn tokenize_card_flow(
         domain::TokenizeDataRequest::ExistingPaymentMethod(ref payment_method) => {
             let executor = tokenize::CardNetworkTokenizeExecutor::new(
                 state,
-                platform,
+                provider,
                 payment_method,
                 &req.customer,
             );
