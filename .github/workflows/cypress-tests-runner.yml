@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "cybersource stripe"
+  PAYMENTS_CONNECTORS: "cybersource stripe adyen"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -226,13 +226,6 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
-      
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -306,7 +299,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 4
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
@@ -322,7 +315,7 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
 
     services:
       redis:
