@@ -88,8 +88,7 @@ ALTER TABLE payment_attempt
     ADD COLUMN authentication_data JSON,
     ADD COLUMN payment_method_billing_address_id VARCHAR(64),
     ADD COLUMN connector_mandate_detail JSONB,
-    ADD COLUMN charge_id VARCHAR(64),
-    ADD COLUMN error_details jsonb;
+    ADD COLUMN charge_id VARCHAR(64);
 
 -- Create the index which was dropped because of dropping the column
 CREATE INDEX payment_attempt_connector_transaction_id_merchant_id_index ON payment_attempt (connector_transaction_id, merchant_id);
