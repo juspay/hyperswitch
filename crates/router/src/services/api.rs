@@ -149,44 +149,6 @@ pub enum AuthFlow {
     Merchant,
 }
 
-/// Extracts the connector HTTP status code from response headers when proxy_connector_http_status_code is enabled.
-/// Returns None if the feature is disabled, the header is missing, or if parsing fails.
-fn extract_connector_http_status_code(
-    response_headers: &[(String, Maskable<String>)],
-    proxy_enabled: bool,
-) -> Option<http::StatusCode> {
-    proxy_enabled
-        .then_some(response_headers)
-        .and_then(|headers| {
-            headers
-                .iter()
-                .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
-        })
-        .and_then(|(_, value)| {
-            value
-                .clone()
-                .into_inner()
-                .parse::<u16>()
-                .map_err(|err| {
-                    logger::error!(
-                        "Failed to parse connector_http_status_code from header: {:?}",
-                        err
-                    );
-                })
-                .ok()
-        })
-        .and_then(|code| {
-            http::StatusCode::from_u16(code)
-                .map_err(|err| {
-                    logger::error!(
-                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
-                        err
-                    );
-                })
-                .ok()
-        })
-}
-
 #[allow(clippy::too_many_arguments)]
 #[instrument(
     skip(request, payload, state, func, api_auth, incoming_request_header),
@@ -342,13 +304,10 @@ where
                 }
 
                 // Extract connector HTTP status code for ApiEvent logging
-                extracted_status_code = extract_connector_http_status_code(
-                    headers,
-                    state
-                        .conf
-                        .proxy_status_mapping
-                        .proxy_connector_http_status_code,
-                );
+                extracted_status_code = state
+                    .conf
+                    .proxy_status_mapping
+                    .extract_connector_http_status_code(headers);
             }
             event_type = res.get_api_event_type().or(event_type);
 
@@ -571,13 +530,10 @@ where
                     None
                 }
             });
-            let proxy_connector_http_status_code = extract_connector_http_status_code(
-                &headers,
-                state
-                    .conf
-                    .proxy_status_mapping
-                    .proxy_connector_http_status_code,
-            );
+            let proxy_connector_http_status_code = state
+                .conf
+                .proxy_status_mapping
+                .extract_connector_http_status_code(&headers);
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(
                     res,
