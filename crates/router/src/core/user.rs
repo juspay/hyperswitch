@@ -3825,4 +3825,18 @@ pub async fn issue_embedded_token(
     })
 }
 
-// pub async fn embedded_token_info(state: Sess
+pub async fn embedded_token_info(
+    _state: SessionState,
+    authentication_data: auth::AuthenticationData,
+) -> UserResponse<user_api::EmbeddedTokenInfoResponse> {
+    Ok(ApplicationResponse::Json(
+        user_api::EmbeddedTokenInfoResponse {
+            org_id: authentication_data.merchant_account.get_org_id().clone(),
+            merchant_id: authentication_data.merchant_account.get_id().clone(),
+            profile_id: authentication_data
+                .profile_id
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Missing Profile ID")?,
+        },
+    ))
+}

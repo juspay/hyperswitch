@@ -11,7 +11,13 @@ pub struct EmbeddedToken {
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
+    pub token_access_type: EmbeddedTokenAllowList,
     exp: u64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum EmbeddedTokenAllowList {
+    All,
 }
 
 impl EmbeddedToken {
@@ -29,6 +35,7 @@ impl EmbeddedToken {
             org_id,
             merchant_id,
             profile_id,
+            token_access_type: EmbeddedTokenAllowList::All,
             exp,
         };
         jwt::generate_jwt(&token_payload, settings).await

@@ -1037,7 +1037,7 @@ pub async fn clone_connector(
     .await
 }
 
-pub async fn issue_emebedded_token(
+pub async fn issue_embedded_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
 ) -> HttpResponse {
@@ -1051,6 +1051,27 @@ pub async fn issue_emebedded_token(
         &auth::ApiKeyAuth {
             is_platform_allowed: false,
             is_connected_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+
+pub async fn embedded_token_info(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::EmbeddedTokenInfo;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, auth_data, _, _| user_core::embedded_token_info(state, auth_data),
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: None
         },
         api_locking::LockAction::NotApplicable,
     ))

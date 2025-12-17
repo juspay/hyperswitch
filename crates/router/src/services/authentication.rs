@@ -198,7 +198,7 @@ impl AuthenticationType {
             | Self::MerchantJwtWithProfileId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id }
             | Self::InternalMerchantIdProfileId { merchant_id, .. }
-            | Self::EmbeddedJwt { merchant_id, .. }=> Some(merchant_id),
+            | Self::EmbeddedJwt { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
             | Self::UserJwt { .. }
@@ -4288,6 +4288,91 @@ where
                 user_id: Some(payload.user_id),
             },
         ))
+    }
+}
+
+pub struct JWTAndEmbeddedAuth {
+    pub merchant_id_from_route: Option<id_type::MerchantId>,
+    pub permission: Option<Permission>,
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAndEmbeddedAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthOrEmbeddedClaims>(request_headers, state).await?;
+
+        if let AuthOrEmbeddedClaims::AuthToken(ref auth_payload) = payload {
+            if auth_payload.check_in_blacklist(state).await? {
+                return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+            }
+            if let Some(required_permission) = self.permission {
+                let role_info = authorization::get_role_info(state, auth_payload).await?;
+                authorization::check_permission(required_permission, &role_info)?;
+            }
+        }
+
+        authorization::check_tenant(
+            payload.get_tenant_id().cloned(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                payload.get_merchant_id(),
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                payload.get_merchant_id(),
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+        let merchant_id = merchant.get_id().clone();
+
+        if self.merchant_id_from_route.as_ref()
+            .is_some_and(|mid_from_route| &merchant_id != mid_from_route) {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+        }
+            
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            platform_merchant_account: None,
+            key_store,
+            profile_id: Some(payload.get_profile_id().clone()),
+        };
+        let auth_type = match payload {
+            AuthOrEmbeddedClaims::AuthToken(auth_payload) => AuthenticationType::MerchantJwt {
+                merchant_id,
+                user_id: Some(auth_payload.user_id),
+            },
+            AuthOrEmbeddedClaims::EmbeddedToken(embedded_payload) => {
+                AuthenticationType::EmbeddedJwt {
+                    merchant_id,
+                    profile_id: embedded_payload.profile_id,
+                }
+            }
+        };
+        Ok((auth, auth_type))
     }
 }
 

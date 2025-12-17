@@ -306,6 +306,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
             | Flow::CloneConnector
+            | Flow::EmbeddedTokenInfo
             | Flow::GetEmbeddedToken => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
