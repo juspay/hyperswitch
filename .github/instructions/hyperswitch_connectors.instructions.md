@@ -1,11 +1,8 @@
+---
+applyTo: "crates/hyperswitch*connectors/**/*.rs"
+---
+
 # Connector Code Review Guidelines
-
----
-
-name: API Crate Guidelines
-applyTo: "crates/hyperswitch*connectors/\**/\_"
-
----
 
 ## Purpose
 
