@@ -11,11 +11,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
 };
 use unified_connector_service_client::payments as payments_grpc;
+
 use crate::{
-    core::{
-        payments::gateway::context::RouterGatewayContext,
-        unified_connector_service,
-    },
+    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom},
@@ -79,13 +77,14 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Void Request")?;
 
-        let connector_auth_metadata = unified_connector_service::build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            platform,
-            router_data.connector.clone(),
-        )
-        .change_context(ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata =
+            unified_connector_service::build_unified_connector_service_auth_metadata(
+                merchant_connector_account,
+                platform,
+                router_data.connector.clone(),
+            )
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to construct request metadata")?;
 
         let merchant_reference_id = header_payload
             .x_reference_id

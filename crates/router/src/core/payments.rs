@@ -113,7 +113,6 @@ use crate::core::debit_routing;
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::vault;
-
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::get_workflow_entries;
 #[cfg(feature = "v2")]
@@ -4528,10 +4527,7 @@ where
         execution_mode,
     };
     // Update feature metadata to track Direct routing usage for stickiness
-    update_gateway_system_in_feature_metadata(
-        payment_data,
-        gateway_context.get_gateway_system(),
-    )?;
+    update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
     call_connector_service(
         &updated_state,
         req_state,
