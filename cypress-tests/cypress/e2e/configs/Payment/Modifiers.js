@@ -126,6 +126,7 @@ const CURRENCY_MAP = {
   Przelewy24: "EUR",
   Sofort: "EUR",
   OnlineBankingFpx: "MYR",// Malaysian payment methods
+  OpenBankingUk: "GBP",
 };
 
 export const getCurrency = (paymentMethodType) => {

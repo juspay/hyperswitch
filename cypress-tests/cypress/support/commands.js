@@ -30,6 +30,7 @@ import {
   extractIntegerAtEnd,
   getValueByKey,
 } from "../e2e/configs/Payment/Utils";
+import { payment_methods_enabled } from "../e2e/configs/Payment/Commons";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -1270,6 +1271,76 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     });
   });
 });
+
+Cypress.Commands.add("ensureMerchantConnectorId", (globalState) => {
+  const cachedId = globalState.get("merchantConnectorId");
+  if (cachedId) {
+    return cy.wrap(cachedId);
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const connectorName = globalState.get("connectorId");
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+
+  if (!merchantId || !connectorName || !baseUrl || !apiKey) {
+    throw new Error("Missing merchant or connector context to fetch connector id");
+  }
+
+  return cy
+    .request({
+      method: "GET",
+      url: `${baseUrl}/account/${merchantId}/connectors`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status).to.equal(200);
+        const connectors = Array.isArray(response.body) ? response.body : [];
+        const connectorEntry = connectors.find(
+          (item) => item.connector_name === connectorName
+        );
+
+        if (!connectorEntry) {
+          throw new Error(
+            `Connector ${connectorName} not found for merchant ${merchantId}`
+          );
+        }
+
+        globalState.set(
+          "merchantConnectorId",
+          connectorEntry.merchant_connector_id
+        );
+      });
+    });
+});
+
+Cypress.Commands.add(
+  "enableVoltBankRedirectPaymentMethods",
+  (globalState) =>
+    cy.ensureMerchantConnectorId(globalState).then(() =>
+      cy.fixture("update-connector-body").then((updateConnectorBody) => {
+        const updateBody = {
+          ...updateConnectorBody,
+          payment_methods_enabled,
+        };
+
+        return cy.connectorUpdateCall(
+          "payment_processor",
+          updateBody,
+          globalState
+        );
+      })
+    )
+);
 
 Cypress.Commands.add(
   "createCustomerCallTest",
