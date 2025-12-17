@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
                 webhook_url: None,
                 browser_info: None,
                 payout_connector_metadata: None,
+                additional_payout_method_data: None,
             },
             payment_info,
         )
