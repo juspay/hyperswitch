@@ -12,6 +12,7 @@ cleanup() {
   local exit_code=$?
   if [[ -f "${tmp_file}" ]]; then rm -f "${tmp_file}"; fi
   if [[ -f "${job_log}" ]]; then rm -f "${job_log}"; fi
+  
   # Kill any stray Xvfb processes owned by this script
   pkill -P $$ Xvfb 2>/dev/null || true
   exit "$exit_code"
@@ -58,17 +59,19 @@ check_dependencies() {
      npm ci
   fi
 
-  # VERIFY CYPRESS ONCE SEQUENTIALLY
-  # This prevents race conditions and crashes during parallel execution
+  # Verify Cypress ONCE (Verbose)
   print_color "blue" "Verifying Cypress binary..."
   
   if command_exists "xvfb-run"; then
     xvfb-run --auto-servernum npm exec cypress verify
   else
     export DISPLAY=:99
-    Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 &
+    Xvfb :99 &
     local xvfb_pid=$!
+    
+    # Run verify
     npm exec cypress verify
+    
     kill $xvfb_pid 2>/dev/null || true
   fi
   print_color "green" "Cypress verified."
@@ -83,38 +86,41 @@ execute_test() {
   local failure_log="$3"
   local job_slot="${4:-1}" 
 
-  local start_time=$(date +%s)
+  # --- CAPTURE START TIME ---
+  local start_ts=$(date +%s)
+  local start_fmt=$(date '+%H:%M:%S')
   
   echo "----------------------------------------------------"
-  print_color "blue" "[START] Service: $service | Connector: $connector (Slot: $job_slot)"
+  print_color "blue" "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
   echo "----------------------------------------------------"
 
   export REPORT_NAME="${service}_${connector}_report"
 
-  # MANUALLY HANDLE XVFB TO PREVENT COLLISIONS
+  # MANUALLY HANDLE XVFB
   local unique_display=$((100 + job_slot))
   export DISPLAY=":${unique_display}"
   
-  Xvfb "$DISPLAY" -screen 0 1280x1024x24 >/dev/null 2>&1 &
+  Xvfb "$DISPLAY" &
   local xvfb_pid=$!
   trap "kill $xvfb_pid 2>/dev/null || true" RETURN
   sleep 1
 
   local exit_code=0
   
-  # EXECUTE CYPRESS
   if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
     exit_code=1
   fi
 
-  local end_time=$(date +%s)
-  local duration=$((end_time - start_time))
+  # --- CAPTURE END TIME ---
+  local end_ts=$(date +%s)
+  local end_fmt=$(date '+%H:%M:%S')
+  local duration=$((end_ts - start_ts))
 
   if [[ $exit_code -eq 0 ]]; then
-    print_color "green" "[PASS] $service:$connector (Time: ${duration}s)"
+    print_color "green" "[PASS] $service:$connector | Time: $start_fmt - $end_fmt (${duration}s)"
     return 0
   else
-    print_color "red" "[FAIL] $service:$connector (Time: ${duration}s)"
+    print_color "red" "[FAIL] $service:$connector | Time: $start_fmt - $end_fmt (${duration}s)"
     echo "${service}:${connector}" >> "$failure_log"
     return 1
   fi
@@ -126,13 +132,11 @@ export -f print_color
 run_tests() {
   local jobs="${1:-1}"
   
-  # 1. Read Env Vars into Arrays
   read -r -a payments <<< "${PAYMENTS_CONNECTORS:-}"
   read -r -a payouts <<< "${PAYOUTS_CONNECTORS:-}"
   read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
   read -r -a routing <<< "${ROUTING:-}"
 
-  # 2. Map Env Vars to Service Names
   declare -A env_to_service=(
     ["PAYMENTS_CONNECTORS"]="payments"
     ["PAYOUTS_CONNECTORS"]="payouts"
@@ -140,23 +144,17 @@ run_tests() {
     ["ROUTING"]="routing"
   )
 
-  # 3. FILTER ACTIVE SERVICES
+  # Filter Active Services
   local active_services=()
   for env_var in "${!env_to_service[@]}"; do
-    # STRICT CHECK: Only proceed if env var is SET and NOT EMPTY
     if [[ -n "${!env_var:-}" ]]; then
       active_services+=("${env_to_service[$env_var]}")
-    else
-      # Debug log to prove we are skipping
-      echo "Skipping ${env_to_service[$env_var]} (Environment variable $env_var is empty)"
     fi
   done
 
-  # 4. EXECUTE ACTIVE SERVICES
   for service in "${active_services[@]}"; do
     declare -n connectors="$service"
 
-    # Case A: Parallel Execution (Connectors exist)
     if [[ ${#connectors[@]} -gt 0 ]]; then
       print_color "yellow" "🚀 Starting Parallel Execution for '$service' (Jobs: $jobs)"
       
@@ -165,7 +163,6 @@ run_tests() {
                --joblog "$job_log" \
                execute_test {} "$service" "${tmp_file}" {%} ::: "${connectors[@]}" || true
 
-    # Case B: Standalone Execution (No connectors list, e.g. Routing)
     else
       local run_service="$service"
       [[ $run_service == "payment_method_list" ]] && run_service="payment-method-list"
@@ -173,17 +170,32 @@ run_tests() {
       print_color "yellow" "Running standalone service: ${run_service}"
       export REPORT_NAME="${run_service}_report"
       
-      # Manual Xvfb for standalone
       export DISPLAY=:99
-      Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 & 
+      Xvfb :99 & 
       local pid=$!
       sleep 1
-      npm run "cypress:${run_service}" || echo "${run_service}" >> "${tmp_file}"
+      
+      # Standalone Timing
+      local s_start=$(date +%s)
+      local s_start_fmt=$(date '+%H:%M:%S')
+      print_color "blue" "[START] $run_service at $s_start_fmt"
+
+      if npm run "cypress:${run_service}"; then
+         local s_end=$(date +%s)
+         local s_end_fmt=$(date '+%H:%M:%S')
+         local s_dur=$((s_end - s_start))
+         print_color "green" "[PASS] $run_service | Time: $s_start_fmt - $s_end_fmt (${s_dur}s)"
+      else
+         local s_end=$(date +%s)
+         local s_end_fmt=$(date '+%H:%M:%S')
+         local s_dur=$((s_end - s_start))
+         print_color "red" "[FAIL] $run_service | Time: $s_start_fmt - $s_end_fmt (${s_dur}s)"
+         echo "${run_service}" >> "${tmp_file}"
+      fi
       kill $pid 2>/dev/null || true
     fi
   done
 
-  # 5. SUMMARY
   if [[ -s "${tmp_file}" ]]; then
     print_color "red" "\n========================================"
     print_color "red" "❌  TEST FAILURE SUMMARY"
