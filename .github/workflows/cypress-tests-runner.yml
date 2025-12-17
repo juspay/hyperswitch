@@ -247,12 +247,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          
-      - name: Setup Chromium
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable      # Similar to 'toolchain: stable'
-          install-chromedriver: true  # Similar to adding 'components'
+
+      # 1. Install Chromium via the package manager (standard for ARM64)
+      - name: Install Chromium and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser libgbm-dev
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
