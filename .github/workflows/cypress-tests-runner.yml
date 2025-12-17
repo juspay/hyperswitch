@@ -298,7 +298,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           DISPLAY: ""
-        shell: bash -euo pipefail {0}
+        shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 3
 
