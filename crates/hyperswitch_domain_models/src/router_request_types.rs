@@ -723,7 +723,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             email: data.email,
             currency: Some(data.currency),
             browser_info: data.browser_info,
-            connector_transaction_id: None,
+            connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
         })
     }
