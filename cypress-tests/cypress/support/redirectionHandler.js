@@ -314,7 +314,7 @@ function bankRedirectRedirection(
       redirectionUrl,
       expectedUrl,
       connectorId,
-      ({ connectorId, paymentMethodType, constants }) => {
+      ({ connectorId, paymentMethodType }) => {
         // Renamed expectedUrl arg for clarity
         // This callback now runs either in cy.origin (if redirected) or directly (if iframe)
         switch (connectorId) {
@@ -618,64 +618,6 @@ function bankRedirectRedirection(
             } else {
               throw new Error(
                 `Unsupported multisafe payment method type: ${paymentMethodType}`
-              );
-            }
-            break;
-
-          case "fiuu":
-            if (paymentMethodType === "online_banking_fpx") {
-              cy.log("Handling FIUU OnlineBankingFpx redirect flow");
-
-              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                if ($body.find("#txtUsername").length > 0) {
-                  cy.get("#txtUsername").clear().type("Gaara", { delay: 10 });
-                }
-
-                if ($body.find("#txtPassword").length > 0) {
-                  cy.get("#txtPassword")
-                    .clear()
-                    .type("letmepaywithsand", { delay: 10 });
-                }
-
-                if ($body.find("#login-btn").length > 0) {
-                  cy.get("#login-btn").click();
-                }
-              });
-
-              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                const requestTacButton = $body.find(
-                  "button.pay-btn:contains('Request TAC')"
-                );
-                if (requestTacButton.length > 0) {
-                  cy.wrap(requestTacButton).click();
-                }
-              });
-
-              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                const otpText = $body.find("div.otp").text();
-                const otpMatch = otpText.match(/\d+/);
-
-                if (otpMatch) {
-                  cy.get("#otp-input")
-                    .should("be.visible")
-                    .should("be.enabled")
-                    .clear()
-                    .type(otpMatch[0]);
-                } else {
-                  cy.log("FIUU FPX OTP text not found; proceeding without OTP");
-                }
-              });
-
-              cy.contains("button.pay-btn", /Pay Now|Request TAC/i, {
-                timeout: constants.TIMEOUT,
-              })
-                .should("be.visible")
-                .click();
-
-              verifyUrl = true;
-            } else {
-              throw new Error(
-                `Unsupported FIUU payment method type: ${paymentMethodType}`
               );
             }
             break;
@@ -1183,21 +1125,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                     .click()
                     .type("1234");
                   cy.get('input[value="SUBMIT"]').click();
-                });
-            });
-          break;
-
-        case "fiuu":
-          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
-            .should("exist")
-            .then(() => {
-              cy.get('button.pay-btn[name="pay"]').click();
-              cy.get("div.otp")
-                .invoke("text")
-                .then((otpText) => {
-                  const otp = otpText.match(/\d+/)[0];
-                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
-                  cy.get("button.pay-btn").click();
                 });
             });
           break;

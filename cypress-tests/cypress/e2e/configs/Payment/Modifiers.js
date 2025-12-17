@@ -125,7 +125,6 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
-  OnlineBankingFpx: "MYR",// Malaysian payment methods
   OpenBankingUk: "GBP",
 };
 

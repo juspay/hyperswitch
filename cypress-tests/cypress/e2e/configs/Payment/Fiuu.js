@@ -103,28 +103,6 @@ export const connectorDetails = {
       },
     },
   },
-  bank_redirect_pm: {
-    OnlineBankingFpx: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "online_banking_fpx",
-        payment_method_data: {
-          bank_redirect: {
-            online_banking_fpx: {
-              issuer: "affin_bank",
-            },
-          },
-        },
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-  },
   card_pm: {
     PaymentIntent: {
       Request: {
