@@ -8,11 +8,12 @@ set -euo pipefail
 tmp_file=$(mktemp)
 job_log=$(mktemp) 
 
-# Cleanup function to remove temp files
 cleanup() {
   local exit_code=$?
   if [[ -f "${tmp_file}" ]]; then rm -f "${tmp_file}"; fi
   if [[ -f "${job_log}" ]]; then rm -f "${job_log}"; fi
+  # Kill any stray Xvfb processes owned by this script
+  pkill -P $$ Xvfb 2>/dev/null || true
   exit "$exit_code"
 }
 trap cleanup EXIT
@@ -56,6 +57,21 @@ check_dependencies() {
      print_color "yellow" "Installing NPM dependencies..."
      npm ci
   fi
+
+  # VERIFY CYPRESS ONCE SEQUENTIALLY
+  # This prevents race conditions and crashes during parallel execution
+  print_color "blue" "Verifying Cypress binary..."
+  
+  if command_exists "xvfb-run"; then
+    xvfb-run --auto-servernum npm exec cypress verify
+  else
+    export DISPLAY=:99
+    Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 &
+    local xvfb_pid=$!
+    npm exec cypress verify
+    kill $xvfb_pid 2>/dev/null || true
+  fi
+  print_color "green" "Cypress verified."
 }
 
 # -----------------------------
@@ -65,7 +81,6 @@ execute_test() {
   local connector="$1"
   local service="$2"
   local failure_log="$3"
-  # Capture the Parallel Job Slot (unique number 1..N) to avoid port conflicts
   local job_slot="${4:-1}" 
 
   local start_time=$(date +%s)
@@ -76,36 +91,20 @@ execute_test() {
 
   export REPORT_NAME="${service}_${connector}_report"
 
-  # ---------------------------------------------------------
-  # EXECUTION WITH DISPLAY HANDLING
-  # ---------------------------------------------------------
+  # MANUALLY HANDLE XVFB TO PREVENT COLLISIONS
+  local unique_display=$((100 + job_slot))
+  export DISPLAY=":${unique_display}"
+  
+  Xvfb "$DISPLAY" -screen 0 1280x1024x24 >/dev/null 2>&1 &
+  local xvfb_pid=$!
+  trap "kill $xvfb_pid 2>/dev/null || true" RETURN
+  sleep 1
+
   local exit_code=0
-
-  if command_exists "xvfb-run"; then
-    # OPTION A: xvfb-run is available (Standard Linux)
-    # We prefix the env var strictly as requested: CYPRESS_CONNECTOR="..."
-    # xvfb-run inherits the env var and passes it to npm
-    if ! CYPRESS_CONNECTOR="$connector" xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" npm run "cypress:$service"; then
-      exit_code=1
-    fi
-  else
-    # OPTION B: Manual Xvfb (Offline/Restricted Runners)
-    # 1. Start Xvfb on a unique port calculated from the job slot (101, 102, etc.)
-    local unique_display=$((100 + job_slot))
-    export DISPLAY=":${unique_display}"
-    
-    print_color "yellow" "xvfb-run not found. Manually starting Xvfb on ${DISPLAY}..."
-    Xvfb "$DISPLAY" -screen 0 1280x1024x24 &
-    local xvfb_pid=$!
-    
-    # Ensure Xvfb is killed when this function returns
-    trap "kill $xvfb_pid 2>/dev/null || true" RETURN
-    sleep 2 # Give Xvfb a moment to initialize
-
-    # 2. Run strictly using the requested syntax
-    if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
-      exit_code=1
-    fi
+  
+  # EXECUTE CYPRESS
+  if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
+    exit_code=1
   fi
 
   local end_time=$(date +%s)
@@ -127,50 +126,64 @@ export -f print_color
 run_tests() {
   local jobs="${1:-1}"
   
+  # 1. Read Env Vars into Arrays
   read -r -a payments <<< "${PAYMENTS_CONNECTORS:-}"
   read -r -a payouts <<< "${PAYOUTS_CONNECTORS:-}"
   read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST:-}"
   read -r -a routing <<< "${ROUTING:-}"
 
-  declare -A service_map=(
-    ["payments"]="payments"
-    ["payouts"]="payouts"
-    ["payment_method_list"]="payment_method_list"
-    ["routing"]="routing"
+  # 2. Map Env Vars to Service Names
+  declare -A env_to_service=(
+    ["PAYMENTS_CONNECTORS"]="payments"
+    ["PAYOUTS_CONNECTORS"]="payouts"
+    ["PAYMENT_METHOD_LIST"]="payment_method_list"
+    ["ROUTING"]="routing"
   )
 
-  for key in "${!service_map[@]}"; do
-    declare -n connectors="$key"
+  # 3. FILTER ACTIVE SERVICES
+  local active_services=()
+  for env_var in "${!env_to_service[@]}"; do
+    # STRICT CHECK: Only proceed if env var is SET and NOT EMPTY
+    if [[ -n "${!env_var:-}" ]]; then
+      active_services+=("${env_to_service[$env_var]}")
+    else
+      # Debug log to prove we are skipping
+      echo "Skipping ${env_to_service[$env_var]} (Environment variable $env_var is empty)"
+    fi
+  done
 
-    if [[ ${#connectors[@]} -eq 0 ]]; then
-      local run_service="${service_map[$key]}"
+  # 4. EXECUTE ACTIVE SERVICES
+  for service in "${active_services[@]}"; do
+    declare -n connectors="$service"
+
+    # Case A: Parallel Execution (Connectors exist)
+    if [[ ${#connectors[@]} -gt 0 ]]; then
+      print_color "yellow" "🚀 Starting Parallel Execution for '$service' (Jobs: $jobs)"
+      
+      parallel --jobs "$jobs" \
+               --group \
+               --joblog "$job_log" \
+               execute_test {} "$service" "${tmp_file}" {%} ::: "${connectors[@]}" || true
+
+    # Case B: Standalone Execution (No connectors list, e.g. Routing)
+    else
+      local run_service="$service"
       [[ $run_service == "payment_method_list" ]] && run_service="payment-method-list"
 
       print_color "yellow" "Running standalone service: ${run_service}"
       export REPORT_NAME="${run_service}_report"
       
-      # Handle standalone execution with Xvfb awareness
-      if command_exists "xvfb-run"; then
-         xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" npm run "cypress:${run_service}" || echo "${run_service}" >> "${tmp_file}"
-      else
-         export DISPLAY=:99
-         Xvfb :99 -screen 0 1280x1024x24 & 
-         local pid=$!
-         npm run "cypress:${run_service}" || echo "${run_service}" >> "${tmp_file}"
-         kill $pid 2>/dev/null || true
-      fi
-
-    else
-      print_color "yellow" "🚀 Starting Parallel Execution for '${service_map[$key]}' (Jobs: $jobs)"
-      
-      # {%} passes the unique Job Slot ID to the function
-      parallel --jobs "$jobs" \
-               --group \
-               --joblog "$job_log" \
-               execute_test {} "${service_map[$key]}" "${tmp_file}" {%} ::: "${connectors[@]}" || true
+      # Manual Xvfb for standalone
+      export DISPLAY=:99
+      Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 & 
+      local pid=$!
+      sleep 1
+      npm run "cypress:${run_service}" || echo "${run_service}" >> "${tmp_file}"
+      kill $pid 2>/dev/null || true
     fi
   done
 
+  # 5. SUMMARY
   if [[ -s "${tmp_file}" ]]; then
     print_color "red" "\n========================================"
     print_color "red" "❌  TEST FAILURE SUMMARY"
