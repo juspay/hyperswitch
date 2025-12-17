@@ -247,6 +247,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          
+      - name: Setup Chromium
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable      # Similar to 'toolchain: stable'
+          install-chromedriver: true  # Similar to adding 'components'
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
