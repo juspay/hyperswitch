@@ -195,13 +195,13 @@ impl TryFrom<(&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card)> for Helci
     fn try_from(
         value: (&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card),
     ) -> Result<Self, Self::Error> {
-        if value.router_data.is_three_ds() {
+        let (item, req_card) = value;
+        if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
                 connector: "Helcim",
             })?
         }
-        let (item, req_card) = value;
         let card_data = HelcimCard {
             card_expiry: req_card
                 .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
