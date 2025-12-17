@@ -300,7 +300,6 @@ impl
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
-            billing_descriptor: None,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -399,8 +398,6 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             connector_metadata: HashMap::new(),
-            enable_partial_authorization: None,
-            payment_channel: None,
         })
     }
 }
@@ -753,15 +750,6 @@ impl
             connector_metadata: None,
             merchant_account_metadata: HashMap::new(),
             metadata: HashMap::new(),
-            setup_future_usage: None,
-            sync_type: None,
-            connector_metadata: router_data
-                .request
-                .connector_meta
-                .as_ref()
-                .map(convert_value_map_to_hashmap)
-                .transpose()?
-                .unwrap_or_default(),
             sync_type: Some(
                 payments_grpc::SyncRequestType::foreign_from(&router_data.request.sync_type).into(),
             ),
@@ -1355,7 +1343,6 @@ impl
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
-            billing_descriptor: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -1371,7 +1358,6 @@ impl
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -1435,8 +1421,6 @@ impl
             order_details: vec![],
             connector_metadata: HashMap::new(),
             connector_order_reference_id: router_data.request.order_id.clone(),
-            enable_partial_authorization: None,
-            payment_channel: None,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -1453,7 +1437,6 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_order_reference_id: router_data.request.order_id.clone(),
         })
     }
 }
@@ -1611,10 +1594,6 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             enable_partial_authorization: None,
             payment_channel: None,
-            billing_descriptor: None,
-            payment_channel: None,
-            connector_order_reference_id: None,
-            enable_partial_authorization: None,
         })
     }
 }
@@ -1680,7 +1659,6 @@ impl
                     hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
                 }
             }),
-            billing_descriptor: None,
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1746,8 +1724,6 @@ impl
             state,
             order_id: None,
             connector_metadata: HashMap::new(),
-            enable_partial_authorization: None,
-            payment_channel: None,
             enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
             billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
             payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
@@ -1826,7 +1802,6 @@ impl
                 )),
             }),
             mandate_reference,
-            shipping_cost: None,
             amount: router_data.request.amount,
             currency: currency.into(),
             minor_amount: router_data.request.amount,
@@ -1879,6 +1854,7 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            connector_metadata: HashMap::new(),
         })
     }
 }
@@ -4532,7 +4508,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             state,
             merchant_account_metadata,
             metadata: HashMap::new(),
-            payment_method_type: None,
             test_mode: router_data.test_mode,
             payment_method_type,
         })
@@ -4611,7 +4586,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
                 .transpose()?
                 .unwrap_or_default(),
-            payment_method_type: None,
             test_mode: router_data.test_mode,
             payment_method_type,
         })
