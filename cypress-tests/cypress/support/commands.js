@@ -1284,7 +1284,9 @@ Cypress.Commands.add("ensureMerchantConnectorId", (globalState) => {
   const apiKey = globalState.get("apiKey");
 
   if (!merchantId || !connectorName || !baseUrl || !apiKey) {
-    throw new Error("Missing merchant or connector context to fetch connector id");
+    throw new Error(
+      "Missing merchant or connector context to fetch connector id"
+    );
   }
 
   return cy
@@ -1323,23 +1325,21 @@ Cypress.Commands.add("ensureMerchantConnectorId", (globalState) => {
     });
 });
 
-Cypress.Commands.add(
-  "enableVoltBankRedirectPaymentMethods",
-  (globalState) =>
-    cy.ensureMerchantConnectorId(globalState).then(() =>
-      cy.fixture("update-connector-body").then((updateConnectorBody) => {
-        const updateBody = {
-          ...updateConnectorBody,
-          payment_methods_enabled,
-        };
+Cypress.Commands.add("enableVoltBankRedirectPaymentMethods", (globalState) =>
+  cy.ensureMerchantConnectorId(globalState).then(() =>
+    cy.fixture("update-connector-body").then((updateConnectorBody) => {
+      const updateBody = {
+        ...updateConnectorBody,
+        payment_methods_enabled,
+      };
 
-        return cy.connectorUpdateCall(
-          "payment_processor",
-          updateBody,
-          globalState
-        );
-      })
-    )
+      return cy.connectorUpdateCall(
+        "payment_processor",
+        updateBody,
+        globalState
+      );
+    })
+  )
 );
 
 Cypress.Commands.add(

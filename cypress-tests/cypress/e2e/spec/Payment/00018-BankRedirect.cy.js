@@ -300,7 +300,7 @@ describe("Bank Redirect tests", () => {
       );
     });
   });
-  
+
   context("OpenBankingUk Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -383,10 +383,12 @@ describe("Bank Redirect tests", () => {
       }).then((response) => {
         expect(response.status).to.equal(200);
         expect(response.body.payment_id).to.equal(paymentIntentId);
-        expect(response.body.connector).to.equal(globalState.get("connectorId"));
+        expect(response.body.connector).to.equal(
+          globalState.get("connectorId")
+        );
         expect(response.body.payment_method_type).to.equal("open_banking_uk");
         expect(response.body.status).to.equal("requires_customer_action");
       });
     });
   });
- });
+});
