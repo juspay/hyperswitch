@@ -294,6 +294,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            order_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method,
@@ -378,9 +379,6 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
-            enable_partial_authorization: None,
-            billing_descriptor: None,
-            connector_order_reference_id: None,
         })
     }
 }
@@ -554,8 +552,6 @@ impl
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
-            setup_future_usage: None,
-            connector_metadata: None,
         })
     }
 }
@@ -766,7 +762,6 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
-            connector_order_reference_id: None,
         })
     }
 }
@@ -1055,9 +1050,6 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_order_reference_id: None,
-            enable_partial_authorization: None,
-            billing_descriptor: None,
         })
     }
 }
@@ -1215,9 +1207,6 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
-            connector_order_reference_id: None,
-            enable_partial_authorization: None,
-            billing_descriptor: None,
         })
     }
 }
@@ -1371,9 +1360,6 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
-            connector_order_reference_id: None,
-            enable_partial_authorization: None,
-            billing_descriptor: None,
         })
     }
 }
@@ -1503,7 +1489,6 @@ impl
                 .unwrap_or_default(),
             connector_customer_id: router_data.connector_customer.clone(),
             state,
-            billing_descriptor: None,
         })
     }
 }
@@ -4172,7 +4157,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             state,
             merchant_account_metadata,
             test_mode: router_data.test_mode,
-            payment_method_type: None,
         })
     }
 }
@@ -4244,7 +4228,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .transpose()?
                 .unwrap_or_default(),
             test_mode: router_data.test_mode,
-            payment_method_type: None,
         })
     }
 }
