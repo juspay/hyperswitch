@@ -247,10 +247,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+      
+
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: npm install cypress --save-dev|
+        run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
