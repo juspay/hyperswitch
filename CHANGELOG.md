@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.10.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** Correct card brand mapping to match supported network list ([#10624](https://github.com/juspay/hyperswitch/pull/10624)) ([`1feebd9`](https://github.com/juspay/hyperswitch/commit/1feebd9b7cc84498f81d1b4fe8c37d8777aaa33c))
+- **payouts:** Add fallback for names for payout via Psp token ([#10685](https://github.com/juspay/hyperswitch/pull/10685)) ([`4fed0a1`](https://github.com/juspay/hyperswitch/commit/4fed0a1577a9b261f21ce8d0a7349669bfc14de2))
+
+**Full Changelog:** [`2025.12.10.0-hotfix1...2025.12.10.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.10.0-hotfix1...2025.12.10.0-hotfix2)
+
+- - -
+
 ## 2025.12.10.0-hotfix1
 
 ### Bug Fixes
