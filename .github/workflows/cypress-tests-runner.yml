@@ -257,7 +257,7 @@ jobs:
         with:
           # Disable running of tests within install job
           runTests: false
-          build: npm run build
+          # build: npm run build
 
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}

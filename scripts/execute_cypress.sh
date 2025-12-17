@@ -111,7 +111,7 @@ execute_test() {
       "[${service}:${connector}] PASSED (PID=$$) took ${duration}s"
   fi
 
-  return 0   # 🔥 never let child exit non-zero
+  return 0   
 }
 export -f execute_test
 
