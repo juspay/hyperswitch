@@ -45,6 +45,7 @@ use crate::{
 };
 
 const MAX_ID_LENGTH: usize = 20;
+const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
@@ -166,7 +167,6 @@ struct TransactionRequest {
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
-    authorization_indicator_type: Option<AuthorizationIndicator>,
 }
 
 #[derive(Debug, Serialize)]
@@ -259,12 +259,6 @@ pub enum Reason {
     Reauthorization,
     #[serde(rename = "noShow")]
     NoShow,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AuthorizationIndicator {
-    authorization_indicator: AuthorizationType,
 }
 
 #[derive(Debug, Serialize)]
@@ -399,9 +393,15 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
             .attach_printable("")?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
+            let string_value = match value {
+                Value::Bool(boolean) => boolean.to_string(),
+                Value::Number(number) => number.to_string(),
+                Value::String(string) => string.to_string(),
+                _ => value.to_string(),
+            };
             vector.push(UserField {
                 name: key,
-                value: value.to_string(),
+                value: string_value,
             });
         }
         Ok(vector)
@@ -466,7 +466,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             .map(|address| BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
-                address: address.line1.clone(),
+                address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
                 state: address.state.clone(),
                 zip: address.zip.clone(),
@@ -789,6 +789,14 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Authorizedotnet",
+            }
+            .into());
+        };
+
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
@@ -936,7 +944,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -955,14 +963,30 @@ impl
                 original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             }),
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
+}
+fn get_address_line(
+    address_line1: &Option<Secret<String>>,
+    address_line2: &Option<Secret<String>>,
+    address_line3: &Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    for lines in [
+        vec![address_line1, address_line2, address_line3],
+        vec![address_line1, address_line2],
+    ] {
+        let combined: String = lines
+            .into_iter()
+            .flatten()
+            .map(|s| s.clone().expose())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if !combined.is_empty() && combined.len() <= ADDRESS_MAX_LENGTH {
+            return Some(Secret::new(combined));
+        }
+    }
+    address_line1.clone()
 }
 
 impl
@@ -1022,12 +1046,6 @@ impl
                 is_subsequent_auth: true,
             }),
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1112,7 +1130,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1126,12 +1144,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1215,7 +1227,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1229,12 +1241,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -2033,13 +2039,14 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
             }
 
             // E00053 indicates "server too busy"
-            // If the server is too busy, we return the already available data
+            // E00104 indicates "Server in maintenance"
+            // If the server is too busy or Server in maintenance, we return the already available data
             None => match item
                 .response
                 .messages
                 .message
                 .iter()
-                .find(|msg| msg.code == "E00053")
+                .find(|msg| msg.code == "E00053" || msg.code == "E00104")
             {
                 Some(_) => Ok(item.data),
                 None => Ok(Self {

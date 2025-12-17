@@ -3,11 +3,13 @@ use std::{collections::HashMap, fs::File, io::BufReader};
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_enums::{CardNetwork, PaymentMethodType};
-use common_utils::{events::ApiEventMetric, pii::PhoneNumberStrategy};
+use common_utils::{events::ApiEventMetric, id_type, pii::PhoneNumberStrategy};
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
+
+use crate::payments;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
@@ -21,11 +23,41 @@ pub struct RevenueRecoveryBackfillRequest {
     pub clean_bank_name: Option<String>,
     pub country_name: Option<String>,
     pub daily_retry_history: Option<String>,
+    pub is_active: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "RevenueRecoveryBackfillRequest::deserialize_history_vec_opt"
+    )]
+    pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
+}
+
+impl RevenueRecoveryBackfillRequest {
+    pub fn deserialize_history_vec_opt<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<Vec<AccountUpdateHistoryRecord>>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::Deserialize;
+        let val = Option::<String>::deserialize(deserializer)?;
+        match val.as_deref().map(str::trim) {
+            None | Some("") => Ok(None),
+            Some(s) => serde_json::from_str::<Vec<AccountUpdateHistoryRecord>>(s)
+                .map(Some)
+                .map_err(serde::de::Error::custom),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 pub struct UnlockStatusResponse {
     pub unlocked: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UnlockStatusRequest {
+    pub connector_customer_id: String,
+    pub payment_intent_id: id_type::GlobalPaymentId,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +78,16 @@ pub struct CsvParsingError {
     pub error: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountUpdateHistoryRecord {
+    pub old_token: String,
+    pub new_token: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub updated_at: PrimitiveDateTime,
+    pub old_token_info: Option<payments::AdditionalCardInfo>,
+    pub new_token_info: Option<payments::AdditionalCardInfo>,
+}
+
 /// Comprehensive card
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComprehensiveCardData {
@@ -55,7 +97,9 @@ pub struct ComprehensiveCardData {
     pub card_network: Option<CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub daily_retry_history: Option<HashMap<Date, i32>>,
+    pub daily_retry_history: Option<HashMap<PrimitiveDateTime, i32>>,
+    pub is_active: Option<bool>,
+    pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
 }
 
 impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
@@ -65,6 +109,12 @@ impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
 }
 
 impl ApiEventMetric for UnlockStatusResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UnlockStatusRequest {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

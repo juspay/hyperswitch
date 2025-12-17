@@ -14,6 +14,7 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -295,6 +296,16 @@ pub struct ExternalVaultConnectorDetails {
     /// External vault to be used for storing payment method information
     #[schema(value_type = Option<VaultSdk>)]
     pub vault_sdk: Option<common_enums::VaultSdk>,
+
+    /// Fields to tokenization in vault
+    pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct VaultTokenField {
+    /// Type of field to be tokenized in
+    #[schema(value_type = Option<VaultTokenType>)]
+    pub token_type: common_enums::VaultTokenType,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -709,6 +720,32 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            webhook_url: other.webhook_url.or(self.webhook_url),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            #[cfg(feature = "payouts")]
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+        }
+    }
+
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
@@ -1988,9 +2025,21 @@ pub struct ToggleAllKVResponse {
 }
 
 /// Merchant connector details used to make payments.
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    ToSchema,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MerchantConnectorDetailsWrap {
     /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info, like encoded_data in this field. And do not send the string "null".
+    #[smithy(value_type = "String")]
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
@@ -2003,16 +2052,20 @@ pub struct MerchantConnectorDetailsWrap {
             "user_defined_field_2": "sample_2",
         },
     }"#)]
+    #[smithy(value_type = "Option<MerchantConnectorDetails>")]
     pub encoded_data: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, SmithyModel, ToSchema)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MerchantConnectorDetails {
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    #[smithy(value_type = "Option<Object>")]
     pub connector_account_details: pii::SecretSerdeValue,
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
@@ -2202,6 +2255,10 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2363,6 +2420,10 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2567,6 +2628,10 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2741,6 +2806,10 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2935,6 +3004,10 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -3210,14 +3283,14 @@ pub struct BusinessPaymentLinkConfig {
 }
 
 impl BusinessPaymentLinkConfig {
-    pub fn validate(&self) -> Result<(), &str> {
+    pub fn validate(&self) -> Result<(), String> {
         let host_domain_valid = self
             .domain_name
             .clone()
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received in payment_link_config");
+            return Err("Invalid host domain name received in payment_link_config".to_string());
         }
 
         let are_allowed_domains_valid = self
@@ -3230,7 +3303,17 @@ impl BusinessPaymentLinkConfig {
             })
             .unwrap_or(true);
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received in payment_link_config");
+            return Err("Invalid allowed domain names received in payment_link_config".to_string());
+        }
+
+        if let Some(default_cfg) = self.default_config.as_ref() {
+            default_cfg.validate()?;
+        }
+
+        if let Some(biz_cfgs) = self.business_specific_configs.as_ref() {
+            for config in biz_cfgs.values() {
+                config.validate()?;
+            }
         }
 
         Ok(())
@@ -3274,6 +3357,10 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion
@@ -3300,6 +3387,15 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+}
+
+impl PaymentLinkConfigRequest {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
+            custom_message.validate().map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3373,6 +3469,10 @@ pub struct PaymentLinkConfig {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Text for customizing message for different Payment Method Types
+    #[schema(value_type = Option<PaymentMethodsConfig>)]
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     /// Custom background colour for payment link's handle confirm button
     pub payment_button_colour: Option<String>,
     /// Skip the status screen after payment completion

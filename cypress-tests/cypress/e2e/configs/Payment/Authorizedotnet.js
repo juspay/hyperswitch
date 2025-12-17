@@ -1,9 +1,9 @@
+import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -133,10 +133,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -152,10 +155,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -326,10 +332,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -344,10 +353,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -433,10 +445,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -451,10 +466,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method_data: paymentMethodData,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -515,6 +533,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
         email: generateRandomEmail(),
       },
       Response: {
@@ -573,9 +593,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -687,9 +711,13 @@ export const connectorDetails = {
         email: generateRandomEmail(),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_16",
+          },
         },
       },
     },

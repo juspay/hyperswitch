@@ -16,10 +16,8 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::api_locking::GetLockingInput,
-    logger,
-    routes::payments::get_or_generate_payment_id,
-    types::{api as api_types, domain},
+    core::api_locking::GetLockingInput, logger, routes::payments::get_or_generate_payment_id,
+    types::api as api_types,
 };
 
 #[cfg(feature = "v1")]
@@ -74,9 +72,7 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -88,12 +84,13 @@ pub async fn payment_intents_create(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -156,9 +153,7 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -169,12 +164,13 @@ pub async fn payment_intents_retrieve(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -242,9 +238,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -255,12 +249,13 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentStatus,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -324,9 +319,7 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -338,12 +331,13 @@ pub async fn payment_intents_update(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -416,9 +410,7 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -430,12 +422,13 @@ pub async fn payment_intents_confirm(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 eligible_connectors,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -490,9 +483,7 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             payments::payments_core::<
                 api_types::Capture,
                 api_types::PaymentsResponse,
@@ -503,12 +494,13 @@ pub async fn payment_intents_capture(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -575,9 +567,7 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let platform = auth.into();
             payments::payments_core::<
                 api_types::Void,
                 api_types::PaymentsResponse,
@@ -588,12 +578,13 @@ pub async fn payment_intents_cancel(
             >(
                 state,
                 req_state,
-                merchant_context,
+                platform,
                 None,
                 payments::PaymentCancel,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -631,10 +622,8 @@ pub async fn payment_intent_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payments::list_payments(state, merchant_context, None, req)
+            let platform = auth.into();
+            payments::list_payments(state, platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

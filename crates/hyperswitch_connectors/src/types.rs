@@ -8,8 +8,10 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence, Fetch,
-        PSync, PostProcessing, PreProcessing, Retrieve, Session, Upload, Void,
+        unified_authentication_service::PreAuthenticate,
+        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
+        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
+        Upload, Void,
     },
     router_request_types::{
         authentication::{
@@ -18,9 +20,10 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        RetrieveFileRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsPostProcessingData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -52,12 +55,20 @@ pub(crate) type RefreshTokenRouterData =
 
 pub(crate) type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub(crate) type PaymentsPreAuthenticateResponseRouterData<R> =
+    ResponseRouterData<PreAuthenticate, R, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
     ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub(crate) type CreateOrderResponseRouterData<R> =
     ResponseRouterData<CreateOrder, R, CreateOrderRequestData, PaymentsResponseData>;
+pub(crate) type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
+    ExtendAuthorization,
+    R,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 
 pub(crate) type AcceptDisputeRouterData =
     RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;

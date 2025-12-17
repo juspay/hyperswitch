@@ -25,21 +25,19 @@ use crate::{
 #[cfg(feature = "v2")]
 pub async fn list_payment_methods(
     state: routes::SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     payment_id: id_type::GlobalPaymentId,
     req: api_models::payments::ListMethodsForPaymentsRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
 ) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponseForPayments> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let payment_intent = db
         .find_payment_intent_by_id(
-            key_manager_state,
             &payment_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -48,9 +46,8 @@ pub async fn list_payment_methods(
 
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
             profile.get_id(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await
@@ -61,7 +58,7 @@ pub async fn list_payment_methods(
         Some(customer_id) => Some(
             payment_methods::list_customer_payment_methods_core(
                 &state,
-                &merchant_context,
+                platform.get_provider(),
                 customer_id,
             )
             .await?,
@@ -73,7 +70,7 @@ pub async fn list_payment_methods(
         FlattenedPaymentMethodsEnabled(hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts))
             .perform_filtering(
                 &state,
-                &merchant_context,
+                &platform,
                 profile.get_id(),
                 &req,
                 &payment_intent,
@@ -493,7 +490,7 @@ impl FlattenedPaymentMethodsEnabled {
     async fn perform_filtering(
         self,
         state: &routes::SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         profile_id: &id_type::ProfileId,
         req: &api_models::payments::ListMethodsForPaymentsRequest,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
@@ -790,6 +787,7 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::RequiresCapture
         | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | common_enums::IntentStatus::PartiallyCaptured
+        | common_enums::IntentStatus::PartiallyCapturedAndProcessing
         | common_enums::IntentStatus::RequiresConfirmation
         | common_enums::IntentStatus::PartiallyCapturedAndCapturable
         | common_enums::IntentStatus::Expired => {

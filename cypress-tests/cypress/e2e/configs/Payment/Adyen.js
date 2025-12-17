@@ -207,7 +207,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },
@@ -221,7 +221,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0, // Amount is updated via webhooks
+          amount_received: null, // Amount is updated via webhooks
         },
       },
     },
@@ -235,7 +235,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 0,
+          amount_received: null,
         },
       },
     },
@@ -500,6 +500,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

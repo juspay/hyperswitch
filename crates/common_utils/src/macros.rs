@@ -587,11 +587,22 @@ macro_rules! impl_enum_str {
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 // Check for explicit "Invalid" string first
                 if s == "Invalid" {
+                    #[cfg(feature = "logs")]
+                    router_env::logger::warn!(
+                        "Failed to parse {} enum from 'Invalid': explicit Invalid variant encountered",
+                        stringify!($enum_name)
+                    );
                     return Ok(Self::Invalid);
                 }
 
                 let Some((tag, associated_data)) = s.split_once($tag_delim) else {
                     // Missing delimiter -> Invalid
+                    #[cfg(feature = "logs")]
+                    router_env::logger::warn!(
+                        "Failed to parse {} enum from '{}': missing delimiter",
+                        stringify!($enum_name),
+                        s
+                    );
                     return Ok(Self::Invalid);
                 };
 
@@ -606,13 +617,29 @@ macro_rules! impl_enum_str {
                                 },
                                 Err(_) => {
                                      // Field parse failure -> Invalid
+                                     #[cfg(feature = "logs")]
+                                     router_env::logger::warn!(
+                                         "Failed to parse {} enum from '{}': field parse failure for variant '{}'",
+                                         stringify!($enum_name),
+                                         s,
+                                         stringify!($variant)
+                                     );
                                      Self::Invalid
                                 }
                             }
                         }
                     ),*
                     // Unknown tag -> Invalid
-                    _ => Self::Invalid,
+                    _ => {
+                        #[cfg(feature = "logs")]
+                        router_env::logger::warn!(
+                            "Failed to parse {} enum from '{}': unknown variant tag '{}'",
+                            stringify!($enum_name),
+                            s,
+                            tag
+                        );
+                        Self::Invalid
+                    },
                 };
                 Ok(result) // Always Ok because failure modes return Self::Invalid
             }
@@ -688,14 +715,19 @@ macro_rules! impl_enum_str {
                 }
             }
         }
+
+        // Implement HasInvalidVariant trait
+        impl $crate::types::HasInvalidVariant for $enum_name {
+            fn is_invalid(&self) -> bool {
+                matches!(self, Self::Invalid)
+            }
+        }
     };
 }
 
 // --- Tests ---
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::panic, clippy::expect_used)]
-
     use serde_json::{json, Value as JsonValue};
 
     use crate::impl_enum_str;

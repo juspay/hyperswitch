@@ -9,7 +9,7 @@ networks:
 services:
   ### Dependencies
   prestart-hook:
-    image: curlimages/curl-base:latest
+    image: docker.io/curlimages/curl-base:latest
     container_name: prestart-hook
     environment:
       - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
@@ -25,13 +25,13 @@ services:
       - router_net
 
   pg:
-    image: postgres:latest
+    image: docker.io/postgres:latest
     ports:
       - "5432:5432"
     networks:
       - router_net
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
@@ -44,7 +44,7 @@ services:
       timeout: 5s
 
   redis-standalone:
-    image: redis:7
+    image: docker.io/redis:7
     networks:
       - router_net
     ports:
@@ -57,7 +57,7 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: debian:trixie-slim
+    image: docker.io/debian:trixie-slim
     pull_policy: always
     command: >
       bash -c "
@@ -78,7 +78,7 @@ services:
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
   mailhog:
-    image: mailhog/mailhog
+    image: docker.io/mailhog/mailhog
     networks:
       - router_net
     profiles:
@@ -216,7 +216,7 @@ services:
       logs: "promtail"
 
   create-default-user:
-    image: curlimages/curl-base:latest
+    image: docker.io/curlimages/curl-base:latest
     container_name: create-default-user
     depends_on:
       hyperswitch-server:
@@ -238,11 +238,9 @@ services:
       - router_net
 
   poststart-hook:
-    image: curlimages/curl-base:latest
+    image: docker.io/curlimages/curl-base:latest
     container_name: poststart-hook
     depends_on:
-      create-default-user:
-        condition: service_completed_successfully
       hyperswitch-server:
         condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
     environment:
@@ -260,7 +258,7 @@ services:
 
   ### Clustered Redis setup
   redis-cluster:
-    image: redis:7
+    image: docker.io/redis:7
     deploy:
       replicas: ${REDIS_CLUSTER_COUNT:-3}
     command: redis-server /usr/local/etc/redis/redis.conf
@@ -275,7 +273,7 @@ services:
       - "16379"
 
   redis-init:
-    image: redis:7
+    image: docker.io/redis:7
     profiles:
       - clustered_redis
     depends_on:
@@ -301,7 +299,7 @@ services:
       '
   ### Monitoring
   grafana:
-    image: grafana/grafana:latest
+    image: docker.io/grafana/grafana:latest
     ports:
       - "3000:3000"
     networks:
@@ -318,7 +316,7 @@ services:
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
 
   loki:
-    image: grafana/loki:latest
+    image: docker.io/grafana/loki:latest
     ports:
       - "3100"
     command: -config.file=/etc/loki/loki.yaml
@@ -330,7 +328,7 @@ services:
       - ./config:/etc/loki
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: docker.io/otel/opentelemetry-collector-contrib:latest
     command: --config=/etc/otel-collector.yaml
     networks:
       - router_net
@@ -344,7 +342,7 @@ services:
       - "8889"
 
   prometheus:
-    image: prom/prometheus:latest
+    image: docker.io/prom/prometheus:latest
     networks:
       - router_net
     profiles:
@@ -356,7 +354,7 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: docker.io/grafana/tempo:latest
     command: -config.file=/etc/tempo.yaml
     volumes:
       - ./config/tempo.yaml:/etc/tempo.yaml
@@ -370,7 +368,7 @@ services:
     restart: unless-stopped
 
   redis-insight:
-    image: redislabs/redisinsight:latest
+    image: docker.io/redislabs/redisinsight:latest
     networks:
       - router_net
     profiles:
@@ -381,7 +379,7 @@ services:
       - redisinsight_store:/db
 
   kafka0:
-    image: confluentinc/cp-kafka:7.0.5
+    image: docker.io/confluentinc/cp-kafka:7.0.5
     hostname: kafka0
     networks:
       - router_net
@@ -415,7 +413,7 @@ services:
 
   # Kafka UI for debugging kafka queues
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: docker.io/provectuslabs/kafka-ui:latest
     ports:
       - 8090:8080
     networks:
@@ -430,7 +428,7 @@ services:
       KAFKA_CLUSTERS_0_JMXPORT: 9997
 
   clickhouse-server:
-    image: clickhouse/clickhouse-server:24.3
+    image: docker.io/clickhouse/clickhouse-server:24.3
     networks:
       - router_net
     ports:
@@ -448,7 +446,7 @@ services:
         hard: 262144
 
   opensearch:
-    image: opensearchproject/opensearch:2
+    image: docker.io/opensearchproject/opensearch:2
     container_name: opensearch
     hostname: opensearch
     environment:
@@ -463,7 +461,7 @@ services:
       - router_net
 
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2
+    image: docker.io/opensearchproject/opensearch-dashboards:2
     ports:
       - 5601:5601
     profiles:
@@ -474,7 +472,7 @@ services:
       - router_net
 
   vector:
-    image: timberio/vector:latest-debian
+    image: docker.io/timberio/vector:latest-debian
     ports:
       - "8686"
       - "9598"

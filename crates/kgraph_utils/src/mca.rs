@@ -36,6 +36,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
+        api_enums::PaymentMethodType::Payjustnow => Ok(dirval!(PayLaterType = Payjustnow)),
         api_enums::PaymentMethodType::AfterpayClearpay => {
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
@@ -50,7 +51,9 @@ fn get_dir_value_payment_method(
 
         api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
         api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
-
+        api_enums::PaymentMethodType::SepaGuarenteedDebit => {
+            Ok(dirval!(BankDebitType = SepaGuarenteedDebit))
+        }
         api_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
         api_enums::PaymentMethodType::AliPayHk => Ok(dirval!(WalletType = AliPayHk)),
         api_enums::PaymentMethodType::BancontactCard => {
@@ -164,6 +167,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
         api_enums::PaymentMethodType::UpiIntent => Ok(dirval!(UpiType = UpiIntent)),
         api_enums::PaymentMethodType::UpiCollect => Ok(dirval!(UpiType = UpiCollect)),
+        api_enums::PaymentMethodType::UpiQr => Ok(dirval!(UpiType = UpiQr)),
         api_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
         api_enums::PaymentMethodType::Fps => Ok(dirval!(RealTimePaymentType = Fps)),
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
@@ -177,6 +181,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
     }
 }
 
@@ -902,7 +907,7 @@ fn compile_merchant_connector_graph(
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::try_from(mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::try_from(mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
@@ -973,7 +978,7 @@ fn compile_merchant_connector_graph(
     mca: admin_api::MerchantConnectorResponse,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
-    let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
+    let connector = euclid::enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(cgraph::NodeId, cgraph::Relation, cgraph::Strength)> = Vec::new();
@@ -1058,8 +1063,6 @@ pub fn make_mca_graph(
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     use std::collections::{HashMap, HashSet};
 
     use api_models::enums as api_enums;

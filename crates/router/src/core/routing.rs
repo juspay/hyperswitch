@@ -56,7 +56,9 @@ use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse},
-        metrics, utils as core_utils,
+        metrics,
+        payments::routing::get_active_mca_ids,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
@@ -75,7 +77,7 @@ pub enum TransactionData<'a> {
     Payout(&'a payouts::PayoutData),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct PaymentsDslInput<'a> {
     pub setup_mandate: Option<&'a mandates::MandateData>,
     pub payment_attempt: &'a storage::PaymentAttempt,
@@ -151,7 +153,7 @@ impl RoutingAlgorithmUpdate {
 
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
     transaction_type: enums::TransactionType,
@@ -161,7 +163,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &transaction_type,
             i64::from(query_params.limit.unwrap_or_default()),
             i64::from(query_params.offset.unwrap_or_default()),
@@ -210,14 +212,9 @@ pub async fn retrieve_merchant_routing_dictionary(
             result.clone(),
             "list_routing".to_string(),
         );
-        result = build_list_routing_result(
-            &state,
-            merchant_context,
-            &result,
-            &de_result,
-            profile_ids.clone(),
-        )
-        .await?;
+        result =
+            build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
+                .await?;
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
@@ -228,13 +225,12 @@ pub async fn retrieve_merchant_routing_dictionary(
 
 async fn build_list_routing_result(
     state: &SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     hs_results: &[routing_types::RoutingDictionaryRecord],
     de_results: &[routing_types::RoutingDictionaryRecord],
     profile_ids: Vec<common_utils::id_type::ProfileId>,
 ) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &state.into();
     let mut list_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
     for profile_id in profile_ids.iter() {
         let by_profile =
@@ -243,10 +239,8 @@ async fn build_list_routing_result(
         let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor(),
             Some(profile_id),
-            merchant_context.get_merchant_account().get_id(),
         )
         .await?
         .get_required_value("Profile")
@@ -270,33 +264,29 @@ async fn build_list_routing_result(
 #[cfg(feature = "v2")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&request.profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
     let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            key_manager_state,
             merchant_id,
             true,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -323,7 +313,7 @@ pub async fn create_routing_algorithm_under_profile(
 
     let algo = RoutingAlgorithmUpdate::create_new_routing_algorithm(
         &request,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         business_profile.get_id().to_owned(),
         transaction_type,
     );
@@ -344,7 +334,7 @@ pub async fn create_routing_algorithm_under_profile(
 #[cfg(feature = "v1")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
@@ -353,7 +343,6 @@ pub async fn create_routing_algorithm_under_profile(
 
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let name = request
         .name
@@ -390,10 +379,8 @@ pub async fn create_routing_algorithm_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -403,8 +390,8 @@ pub async fn create_routing_algorithm_under_profile(
     if algorithm.should_validate_connectors_in_routing_config() {
         helpers::validate_connectors_in_routing_config(
             &state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().get_id(),
             &profile_id,
             &algorithm,
         )
@@ -446,7 +433,7 @@ pub async fn create_routing_algorithm_under_profile(
         if let Some(static_algorithm) = maybe_static_algorithm {
             let routing_rule = RoutingRule {
                 rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
-                name: name.clone(),
+                name: name.to_string(),
                 description: Some(description.clone()),
                 created_by: profile_id.get_string_repr().to_string(),
                 algorithm: static_algorithm,
@@ -497,8 +484,8 @@ pub async fn create_routing_algorithm_under_profile(
     let algo = RoutingAlgorithm {
         algorithm_id: algorithm_id.clone(),
         profile_id,
-        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        name: name.clone(),
+        merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+        name: name.to_string(),
         description: Some(description.clone()),
         kind: algorithm.get_kind().foreign_into(),
         algorithm_data: serde_json::json!(algorithm),
@@ -521,7 +508,7 @@ pub async fn create_routing_algorithm_under_profile(
 #[cfg(feature = "v2")]
 pub async fn link_routing_config_under_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
@@ -531,7 +518,7 @@ pub async fn link_routing_config_under_profile(
     let key_manager_state = &(&state).into();
 
     let routing_algorithm = RoutingAlgorithmUpdate::fetch_routing_algo(
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         &algorithm_id,
         db,
     )
@@ -545,10 +532,8 @@ pub async fn link_routing_config_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -578,7 +563,7 @@ pub async fn link_routing_config_under_profile(
         .update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
             db,
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             algorithm_id,
             transaction_type,
         )
@@ -593,29 +578,26 @@ pub async fn link_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn link_routing_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
             &algorithm_id,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
         )
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -734,8 +716,15 @@ pub async fn link_routing_config(
                             Some(routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(data)),
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to setup decision engine dynamic routing")?;
+                        .map_err(|err| match err.current_context() {
+                            errors::ApiErrorResponse::GenericNotFoundError {..}=> {
+                                err.change_context(errors::ApiErrorResponse::ConfigNotFound)
+                                .attach_printable("Decision engine config not found")
+                            }
+                            _ => err
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to setup decision engine dynamic routing"),
+                        })?;
                         }
                     }
                 }
@@ -820,8 +809,7 @@ pub async fn link_routing_config(
 
             helpers::update_business_profile_active_dynamic_algorithm_ref(
                 db,
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 business_profile.clone(),
                 dynamic_routing_ref,
             )
@@ -863,8 +851,7 @@ pub async fn link_routing_config(
             routing_ref.update_algorithm_id(algorithm_id);
             helpers::update_profile_active_algorithm_ref(
                 db,
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 business_profile.clone(),
                 routing_ref,
                 &transaction_type,
@@ -900,7 +887,7 @@ pub async fn link_routing_config(
     // redact cgraph cache on rule activation
     helpers::redact_cgraph_cache(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         business_profile.get_id(),
     )
     .await?;
@@ -908,7 +895,7 @@ pub async fn link_routing_config(
     // redact routing cache on rule activation
     helpers::redact_routing_cache(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         business_profile.get_id(),
     )
     .await?;
@@ -922,26 +909,23 @@ pub async fn link_routing_config(
 #[cfg(feature = "v2")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let routing_algorithm = RoutingAlgorithmUpdate::fetch_routing_algo(
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         &algorithm_id,
         db,
     )
     .await?;
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.0.profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -960,28 +944,25 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
 #[cfg(feature = "v1")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
             &algorithm_id,
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&routing_algorithm.profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1000,7 +981,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
 #[cfg(feature = "v2")]
 pub async fn unlink_routing_config_under_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -1010,10 +991,8 @@ pub async fn unlink_routing_config_under_profile(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1028,7 +1007,7 @@ pub async fn unlink_routing_config_under_profile(
 
     if let Some(algorithm_id) = routing_algo_id {
         let record = RoutingAlgorithmUpdate::fetch_routing_algo(
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &algorithm_id,
             db,
         )
@@ -1038,7 +1017,7 @@ pub async fn unlink_routing_config_under_profile(
             .update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
                 db,
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 algorithm_id,
                 transaction_type,
             )
@@ -1055,7 +1034,7 @@ pub async fn unlink_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn unlink_routing_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     request: routing_types::RoutingConfigRequest,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: enums::TransactionType,
@@ -1063,7 +1042,6 @@ pub async fn unlink_routing_config(
     metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let profile_id = request
         .profile_id
@@ -1075,10 +1053,8 @@ pub async fn unlink_routing_config(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?;
 
@@ -1124,8 +1100,7 @@ pub async fn unlink_routing_config(
                     let response = record.foreign_into();
                     helpers::update_profile_active_algorithm_ref(
                         db,
-                        key_manager_state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         business_profile.clone(),
                         routing_algorithm,
                         &transaction_type,
@@ -1135,7 +1110,7 @@ pub async fn unlink_routing_config(
                     // redact cgraph cache on rule activation
                     helpers::redact_cgraph_cache(
                         &state,
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         business_profile.get_id(),
                     )
                     .await?;
@@ -1143,7 +1118,7 @@ pub async fn unlink_routing_config(
                     // redact routing cache on rule activation
                     helpers::redact_routing_cache(
                         &state,
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         business_profile.get_id(),
                     )
                     .await?;
@@ -1166,7 +1141,7 @@ pub async fn unlink_routing_config(
 #[cfg(feature = "v2")]
 pub async fn update_default_fallback_routing(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
     updated_list_of_connectors: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
@@ -1175,10 +1150,8 @@ pub async fn update_default_fallback_routing(
     let key_manager_state = &(&state).into();
     let profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1228,7 +1201,7 @@ pub async fn update_default_fallback_routing(
             db,
             &updated_list_of_connectors,
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await?;
 
@@ -1241,7 +1214,7 @@ pub async fn update_default_fallback_routing(
 #[cfg(feature = "v1")]
 pub async fn update_default_routing_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
@@ -1249,8 +1222,9 @@ pub async fn update_default_routing_config(
     let db = state.store.as_ref();
     let default_config = helpers::get_merchant_default_config(
         db,
-        merchant_context
-            .get_merchant_account()
+        platform
+            .get_processor()
+            .get_account()
             .get_id()
             .get_string_repr(),
         transaction_type,
@@ -1284,8 +1258,9 @@ pub async fn update_default_routing_config(
 
     helpers::update_merchant_default_config(
         db,
-        merchant_context
-            .get_merchant_account()
+        platform
+            .get_processor()
+            .get_account()
             .get_id()
             .get_string_repr(),
         updated_config.clone(),
@@ -1300,18 +1275,15 @@ pub async fn update_default_routing_config(
 #[cfg(feature = "v2")]
 pub async fn retrieve_default_fallback_algorithm_for_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1327,7 +1299,7 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
 pub async fn retrieve_default_routing_config(
     state: SessionState,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
@@ -1335,8 +1307,9 @@ pub async fn retrieve_default_routing_config(
     let id = profile_id
         .map(|profile_id| profile_id.get_string_repr().to_owned())
         .unwrap_or_else(|| {
-            merchant_context
-                .get_merchant_account()
+            platform
+                .get_processor()
+                .get_account()
                 .get_id()
                 .get_string_repr()
                 .to_string()
@@ -1353,21 +1326,18 @@ pub async fn retrieve_default_routing_config(
 #[cfg(feature = "v2")]
 pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     query_params: RoutingRetrieveQuery,
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -1396,7 +1366,7 @@ pub async fn retrieve_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn retrieve_linked_routing_config(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: enums::TransactionType,
@@ -1404,18 +1374,15 @@ pub async fn retrieve_linked_routing_config(
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_key_store = platform.get_processor().get_key_store();
+    let merchant_id = platform.get_processor().get_account().get_id();
 
     // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
         core_utils::validate_and_get_business_profile(
             db,
-            key_manager_state,
-            merchant_key_store,
+            platform.get_processor(),
             Some(&profile_id),
-            merchant_id,
         )
         .await?
         .map(|profile| vec![profile])
@@ -1425,7 +1392,7 @@ pub async fn retrieve_linked_routing_config(
         })?
     } else {
         let business_profile = db
-            .list_profile_by_merchant_id(key_manager_state, merchant_key_store, merchant_id)
+            .list_profile_by_merchant_id(merchant_key_store, merchant_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
@@ -1562,18 +1529,16 @@ pub async fn retrieve_decision_engine_active_rules(
 // List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
     metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(1, &[]);
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let all_profiles = db
         .list_profile_by_merchant_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().get_id(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
@@ -1612,7 +1577,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
 
 pub async fn update_default_routing_config_for_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
@@ -1620,14 +1585,11 @@ pub async fn update_default_routing_config_for_profile(
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(1, &[]);
 
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1693,91 +1655,14 @@ pub async fn update_default_routing_config_for_profile(
     ))
 }
 
-// Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
-// and update the same in business profile table.
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn toggle_specific_dynamic_routing(
-    state: SessionState,
-    merchant_context: domain::MerchantContext,
-    feature_to_enable: routing::DynamicRoutingFeatures,
-    profile_id: common_utils::id_type::ProfileId,
-    dynamic_routing_type: routing::DynamicRoutingType,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
-        1,
-        router_env::metric_attributes!(
-            ("profile_id", profile_id.clone()),
-            ("algorithm_type", dynamic_routing_type.to_string())
-        ),
-    );
-    let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-
-    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
-        Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
-    )
-    .await?
-    .get_required_value("Profile")
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id.get_string_repr().to_owned(),
-    })?;
-
-    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
-        .dynamic_routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "unable to deserialize dynamic routing algorithm ref from business profile",
-        )?
-        .unwrap_or_default();
-
-    match feature_to_enable {
-        routing::DynamicRoutingFeatures::Metrics
-        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
-            // occurs when algorithm is already present in the db
-            // 1. If present with same feature then return response as already enabled
-            // 2. Else update the feature and persist the same on db
-            // 3. If not present in db then create a new default entry
-            Box::pin(helpers::enable_dynamic_routing_algorithm(
-                &state,
-                merchant_context.get_merchant_key_store().clone(),
-                business_profile,
-                feature_to_enable,
-                dynamic_routing_algo_ref,
-                dynamic_routing_type,
-                None,
-            ))
-            .await
-        }
-        routing::DynamicRoutingFeatures::None => {
-            // disable specific dynamic routing for the requested profile
-            helpers::disable_dynamic_routing_algorithm(
-                &state,
-                merchant_context.get_merchant_key_store().clone(),
-                business_profile,
-                dynamic_routing_algo_ref,
-                dynamic_routing_type,
-            )
-            .await
-        }
-    }
-}
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn create_specific_dynamic_routing(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
-    payload: routing_types::DynamicRoutingPayload,
+    payload: Option<routing_types::DynamicRoutingPayload>,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
@@ -1787,14 +1672,11 @@ pub async fn create_specific_dynamic_routing(
         ),
     );
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1818,12 +1700,12 @@ pub async fn create_specific_dynamic_routing(
         | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
             Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
-                merchant_context.get_merchant_key_store().clone(),
+                platform.get_processor().get_key_store().clone(),
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
-                Some(payload),
+                payload,
             ))
             .await
         }
@@ -1831,7 +1713,7 @@ pub async fn create_specific_dynamic_routing(
             // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
-                merchant_context.get_merchant_key_store().clone(),
+                platform.get_processor().get_key_store().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
@@ -1844,7 +1726,7 @@ pub async fn create_specific_dynamic_routing(
 #[cfg(feature = "v1")]
 pub async fn configure_dynamic_routing_volume_split(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
     routing_info: routing::RoutingVolumeSplit,
 ) -> RouterResponse<routing::RoutingVolumeSplit> {
@@ -1853,7 +1735,6 @@ pub async fn configure_dynamic_routing_volume_split(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     utils::when(
         routing_info.split > crate::consts::DYNAMIC_ROUTING_MAX_VOLUME,
@@ -1866,10 +1747,8 @@ pub async fn configure_dynamic_routing_volume_split(
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1892,8 +1771,7 @@ pub async fn configure_dynamic_routing_volume_split(
 
     helpers::update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &((&state).into()),
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         business_profile.clone(),
         dynamic_routing_algo_ref.clone(),
     )
@@ -1905,18 +1783,15 @@ pub async fn configure_dynamic_routing_volume_split(
 #[cfg(feature = "v1")]
 pub async fn retrieve_dynamic_routing_volume_split(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingVolumeSplitResponse> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1944,6 +1819,7 @@ pub async fn retrieve_dynamic_routing_volume_split(
     Ok(service_api::ApplicationResponse::Json(resp))
 }
 
+// check if this needs to stay
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,
@@ -2150,20 +2026,17 @@ pub async fn elimination_routing_update_configs(
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn contract_based_dynamic_routing_setup(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     config: Option<routing_types::ContractBasedRoutingConfig>,
 ) -> RouterResult<service_api::ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -2212,7 +2085,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
-            merchant_context.get_merchant_key_store().clone(),
+            platform.get_processor().get_key_store().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
@@ -2297,10 +2170,9 @@ pub async fn contract_based_dynamic_routing_setup(
                 let label = info.label.clone();
                 let mca = db
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        key_manager_state,
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         &mca_id,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2330,8 +2202,7 @@ pub async fn contract_based_dynamic_routing_setup(
 
     helpers::update_business_profile_active_dynamic_algorithm_ref(
         db,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        platform.get_processor().get_key_store(),
         business_profile,
         final_algorithm,
     )
@@ -2350,7 +2221,7 @@ pub async fn contract_based_dynamic_routing_setup(
 pub async fn contract_based_routing_update_configs(
     state: SessionState,
     request: routing_types::ContractBasedRoutingConfig,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -2365,7 +2236,6 @@ pub async fn contract_based_routing_update_configs(
         ),
     );
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
@@ -2384,10 +2254,9 @@ pub async fn contract_based_routing_update_configs(
         for info in info_vec {
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &info.mca_id,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2589,6 +2458,9 @@ impl RoutableConnectors {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct dsl input")?;
 
+        let active_mca_ids = get_active_mca_ids(state, key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         let connectors = payments_routing::perform_cgraph_filtering(
             state,
             key_store,
@@ -2597,6 +2469,7 @@ impl RoutableConnectors {
             None,
             profile_id,
             &common_enums::TransactionType::Payment,
+            &active_mca_ids,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2622,23 +2495,18 @@ impl RoutableConnectors {
 
 pub async fn migrate_rules_for_profile(
     state: SessionState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     query_params: routing_types::RuleMigrationQuery,
 ) -> RouterResult<routing_types::RuleMigrationResult> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
-    let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        key_manager_state,
-        merchant_key_store,
+        platform.get_processor(),
         Some(&profile_id),
-        merchant_id,
     )
     .await?
     .get_required_value("Profile")

@@ -7,7 +7,7 @@ use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
-    enums::{UserRoleVersion, UserStatus},
+    enums::UserRoleVersion,
     role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
@@ -40,9 +40,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
-    if unique_groups.contains(&PermissionGroup::OrganizationManage)
-        || unique_groups.contains(&PermissionGroup::InternalManage)
-    {
+    if unique_groups.contains(&PermissionGroup::InternalManage) {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Invalid groups present in the custom role");
     }
@@ -224,7 +222,7 @@ pub async fn get_single_org_id(
     match entity_type {
         EntityType::Tenant => Ok(state
             .store
-            .list_merchant_and_org_ids(&state.into(), 1, None)
+            .list_merchant_and_org_ids(1, None)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get merchants list for org")?
@@ -251,7 +249,7 @@ pub async fn get_single_merchant_id(
     match entity_type {
         EntityType::Tenant | EntityType::Organization => Ok(state
             .store
-            .list_merchant_accounts_by_organization_id(&state.into(), org_id)
+            .list_merchant_accounts_by_organization_id(org_id)
             .await
             .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
                 "Invalid Org Id".to_string(),
@@ -282,7 +280,6 @@ pub async fn get_single_profile_id(
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
-                    &state.into(),
                     merchant_id,
                     &state.store.get_master_key().to_vec().into(),
                 )
@@ -291,7 +288,7 @@ pub async fn get_single_profile_id(
 
             Ok(state
                 .store
-                .list_profile_by_merchant_id(&state.into(), &key_store, merchant_id)
+                .list_profile_by_merchant_id(&key_store, merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()
@@ -342,7 +339,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: None,
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await
@@ -387,7 +384,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: None,
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await
@@ -433,7 +430,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: Some(&profile_id),
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await

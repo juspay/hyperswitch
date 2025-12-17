@@ -10,6 +10,11 @@ class State {
     this.data["connectorAuthFilePath"] = Cypress.env(
       "CONNECTOR_AUTH_FILE_PATH"
     );
+    this.data["ucsEnabled"] = Cypress.env("UCS_ENABLED");
+    this.data["proxyHttp"] = Cypress.env("PROXY_HTTP");
+    this.data["proxyHttps"] = Cypress.env("PROXY_HTTPS");
+    this.data["methodFlow"] = Cypress.env("METHOD_FLOW");
+    this.data["validationServiceUrl"] = Cypress.env("VALIDATION_SERVICE_URL");
   }
 
   set(key, val) {

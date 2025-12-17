@@ -778,12 +778,21 @@ impl webhooks::IncomingWebhook for Loonio {
             .body
             .parse_struct("LoonioWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.api_transaction_id,
-            ),
-        ))
+        match webhook_body.transaction_type {
+            #[cfg(feature = "payouts")]
+            loonio::LoonioWebhookTransactionType::OutgoingNotVerified => {
+                Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                        webhook_body.api_transaction_id,
+                    ),
+                ))
+            }
+            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.api_transaction_id,
+                ),
+            )),
+        }
     }
 
     fn get_webhook_event_type(
@@ -794,7 +803,10 @@ impl webhooks::IncomingWebhook for Loonio {
             .body
             .parse_struct("LoonioWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok((&webhook_body.event_code).into())
+        Ok(loonio::get_loonio_webhook_event(
+            &webhook_body.transaction_type,
+            &webhook_body.event_code,
+        ))
     }
 
     fn get_webhook_resource_object(
@@ -834,10 +846,12 @@ lazy_static! {
         display_name: "Loonio",
         description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
     static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
         enums::EventClass::Payments,
+        #[cfg(feature = "payouts")]
+        enums::EventClass::Payouts,
     ];
 }
 

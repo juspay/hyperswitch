@@ -58,7 +58,7 @@ use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 #[cfg(feature = "payouts")]
-use transformers::get_adyen_webhook_event;
+use transformers::get_adyen_payout_webhook_event;
 
 use self::transformers as adyenplatform;
 use crate::constants::headers;
@@ -362,6 +362,27 @@ impl IncomingWebhook for Adyenplatform {
         Ok(payload_sign.as_bytes().eq(&signature))
     }
 
+    #[cfg(feature = "payouts")]
+    fn get_payout_webhook_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::PayoutWebhookUpdate, ConnectorError> {
+        let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
+            .body
+            .parse_struct("AdyenplatformIncomingWebhook")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let error_reason = webhook_body.data.reason.or(webhook_body
+            .data
+            .tracking
+            .and_then(|tracking_data| tracking_data.reason));
+
+        Ok(api_models::webhooks::PayoutWebhookUpdate {
+            error_message: error_reason.clone(),
+            error_code: error_reason,
+        })
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
@@ -414,11 +435,10 @@ impl IncomingWebhook for Adyenplatform {
                 .parse_struct("AdyenplatformIncomingWebhook")
                 .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
 
-            Ok(get_adyen_webhook_event(
+            Ok(get_adyen_payout_webhook_event(
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
-                webhook_body.data.category.as_ref(),
             ))
         }
         #[cfg(not(feature = "payouts"))]
@@ -465,5 +485,19 @@ impl ConnectorSpecifications for Adyenplatform {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
         None
+    }
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id.as_ref().map(|cid| {
+            format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                cid.get_string_repr()
+            )
+        })
     }
 }

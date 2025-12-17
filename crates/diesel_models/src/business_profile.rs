@@ -83,6 +83,7 @@ pub struct Profile {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -145,6 +146,7 @@ pub struct ProfileNew {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -181,6 +183,7 @@ pub struct ProfileUpdateInternal {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub is_l2_l3_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
@@ -243,6 +246,7 @@ impl ProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
             is_tax_connector_enabled,
+            is_l2_l3_enabled,
             dynamic_routing_algorithm,
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
@@ -320,6 +324,7 @@ impl ProfileUpdateInternal {
                     .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
+            is_l2_l3_enabled: is_l2_l3_enabled.or(source.is_l2_l3_enabled),
             version: source.version,
             dynamic_routing_algorithm: dynamic_routing_algorithm
                 .or(source.dynamic_routing_algorithm),
@@ -431,6 +436,7 @@ pub struct Profile {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_l2_l3_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -519,6 +525,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
@@ -580,6 +587,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
@@ -639,6 +647,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             split_txns_enabled,
+            is_l2_l3_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -738,6 +747,7 @@ impl ProfileUpdateInternal {
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
@@ -758,6 +768,13 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub vault_sdk: Option<VaultSdk>,
+    pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct VaultTokenField {
+    pub token_type: common_enums::VaultTokenType,
 }
 
 common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
@@ -795,6 +812,14 @@ impl Default for CardTestingGuardConfig {
     }
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: common_utils::id_type::WebhookEndpointId,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
+    pub status: common_enums::OutgoingWebhookEndpointStatus,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct WebhookDetails {
@@ -805,6 +830,7 @@ pub struct WebhookDetails {
     pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
     pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
     pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
@@ -834,6 +860,8 @@ pub struct PaymentLinkConfigRequest {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub payment_button_text_colour: Option<String>,

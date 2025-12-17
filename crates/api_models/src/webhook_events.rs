@@ -27,6 +27,9 @@ pub struct EventListConstraints {
     /// Refund ID, etc.)
     pub object_id: Option<String>,
 
+    /// Filter all events associated with the specified Event_id
+    pub event_id: Option<String>,
+
     /// Filter all events associated with the specified business profile ID.
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
@@ -53,6 +56,9 @@ pub enum EventListConstraintsInternal {
     },
     ObjectIdFilter {
         object_id: String,
+    },
+    EventIdFilter {
+        event_id: String,
     },
 }
 

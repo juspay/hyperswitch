@@ -52,7 +52,6 @@ where
 
     // TODO: this can be removed once rand-0.9 is released
     // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(unknown_lints)]
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
@@ -140,7 +139,10 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    let stream_name = settings.stream.clone();
+    let stream_name = match state.get_application_source() {
+        enums::ApplicationSource::Main => settings.stream.clone(),
+        enums::ApplicationSource::Cug => settings.cug_stream.clone(),
+    };
     let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 

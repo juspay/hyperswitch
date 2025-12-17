@@ -58,6 +58,7 @@ pub enum PayLaterType {
     Flexiti,
     Atome,
     Breadpay,
+    Payjustnow,
 }
 
 #[derive(
@@ -172,6 +173,7 @@ pub enum BankRedirectType {
     OpenBankingUk,
     Przelewy24,
     Trustly,
+    OpenBanking,
 }
 
 #[derive(
@@ -350,6 +352,7 @@ pub enum RealTimePaymentType {
 pub enum UpiType {
     UpiCollect,
     UpiIntent,
+    UpiQr,
 }
 
 #[derive(
@@ -370,6 +373,7 @@ pub enum UpiType {
 pub enum BankDebitType {
     Ach,
     Sepa,
+    SepaGuarenteedDebit,
     Bacs,
     Becs,
 }
@@ -392,6 +396,27 @@ pub enum BankDebitType {
 pub enum RewardType {
     ClassicReward,
     Evoucher,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TransactionInitiator {
+    Customer,
+    Merchant,
 }
 
 #[derive(
@@ -506,3 +531,4 @@ collect_variants!(MobilePaymentType);
 collect_variants!(CustomerDeviceType);
 collect_variants!(CustomerDevicePlatform);
 collect_variants!(CustomerDeviceDisplaySize);
+collect_variants!(TransactionInitiator);

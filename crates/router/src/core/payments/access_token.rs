@@ -2,18 +2,80 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_interfaces::api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications};
 
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     routes::{metrics, SessionState},
     services::{self, logger},
     types::{self, api as api_types, domain},
 };
+
+/// Get cached access token for UCS flows - only reads from cache, never generates
+pub async fn get_cached_access_token_for_ucs(
+    state: &SessionState,
+    connector: &api_types::ConnectorData,
+    platform: &domain::Platform,
+    payment_method: common_enums::PaymentMethod,
+    creds_identifier: Option<&str>,
+) -> RouterResult<Option<types::AccessToken>> {
+    if connector
+        .connector_name
+        .supports_access_token(payment_method)
+    {
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let store = &*state.store;
+
+        let merchant_connector_id_or_connector_name = connector
+            .merchant_connector_id
+            .clone()
+            .map(|mca_id| mca_id.get_string_repr().to_string())
+            .or(creds_identifier.map(|id| id.to_string()))
+            .unwrap_or(connector.connector_name.to_string());
+
+        let key = common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
+
+        let cached_access_token = store
+            .get_access_token(key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("DB error when accessing the access token")?;
+
+        if let Some(access_token) = cached_access_token {
+            router_env::logger::info!(
+                "Cached access token found for UCS flow - merchant_id: {:?}, connector: {} with expiry of: {} seconds",
+                platform.get_processor().get_account().get_id(),
+                connector.connector_name,
+                access_token.expires
+            );
+            metrics::ACCESS_TOKEN_CACHE_HIT.add(
+                1,
+                router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+            );
+            Ok(Some(access_token))
+        } else {
+            router_env::logger::info!(
+                "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, connector: {}",
+                platform.get_processor().get_account().get_id(),
+                connector.connector_name
+            );
+            metrics::ACCESS_TOKEN_CACHE_MISS.add(
+                1,
+                router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+            );
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
 
 /// After we get the access token, check if there was an error and if the flow should proceed further
 /// Returns bool
@@ -56,15 +118,15 @@ pub async fn add_access_token<
 >(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
         .supports_access_token(router_data.payment_method)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = &router_data.merchant_id;
         let store = &*state.store;
 
         // `merchant_connector_id` may not be present in the below cases
@@ -80,8 +142,17 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = connector
+            .connector
+            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to get access token key for connector: {:?}",
+                connector.connector_name
+            ))?;
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -90,7 +161,7 @@ pub async fn add_access_token<
             Some(access_token) => {
                 router_env::logger::debug!(
                     "Access token found in redis for merchant_id: {:?}, payment_id: {:?}, connector: {} which has expiry of: {} seconds",
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_id,
                     router_data.payment_id,
                     connector.connector_name,
                     access_token.expires
@@ -143,8 +214,8 @@ pub async fn add_access_token<
                 refresh_connector_auth(
                     state,
                     connector,
-                    merchant_context,
                     &refresh_token_router_data,
+                    gateway_context,
                 )
                 .await?
                 .async_map(|access_token| async move {
@@ -168,11 +239,7 @@ pub async fn add_access_token<
                     );
 
                     if let Err(access_token_set_error) = store
-                        .set_access_token(
-                            merchant_id,
-                            &merchant_connector_id_or_connector_name,
-                            modified_access_token_with_expiry.clone(),
-                        )
+                        .set_access_token(key.clone(), modified_access_token_with_expiry.clone())
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("DB error when setting the access token")
@@ -203,12 +270,12 @@ pub async fn add_access_token<
 pub async fn refresh_connector_auth(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
     >,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
@@ -216,13 +283,14 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data_result = services::execute_connector_processing_step(
+    let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await;
 

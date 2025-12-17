@@ -1,5 +1,10 @@
 # For explanantion of each config, please refer to the `config/config.example.toml` file
 
+# This is used to identify the running application instance
+# Check common_enums::ApplicationSource for available options
+# For more details - https://github.com/juspay/hyperswitch/issues/10489
+application_source = "main"
+
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
 password = "clickhouse_password"     # Clickhouse password (optional)
@@ -118,7 +123,6 @@ redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redi
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
 
 # Locker settings contain details for accessing a card locker, a
@@ -126,7 +130,6 @@ vault_private_key = ""          # private key in pem format, corresponding publi
 # like card details
 [locker]
 host = ""                                                             # Locker host
-host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
@@ -249,6 +252,7 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
+payout_function = "report_download_config_payout_function"   # Config to download payout report
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
@@ -266,6 +270,7 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+payouts = "hyperswitch-payout-events"
 sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
 sessionizer_payment_intents = "sessionizer-payment-intent-events"
 sessionizer_refunds = "sessionizer-refund-events"
@@ -440,3 +445,20 @@ org_id = "your_org_id"                          # Organization ID in Superpositi
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 # request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[trace_header]
+header_name = "x-request-id"    # HTTP header name for request tracing
+id_reuse = "ignore_incoming"    # Policy for handling incoming request IDs: "use_incoming" or "ignore_incoming"
+
+[oidc.key.k1]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
+
+[oidc.key.k2]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
+
+[oidc.client.c1]
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 

@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{disputes, enums as api_enums, mandates, payments, refunds};
+use crate::{disputes, enums as api_enums, mandates, payments, refunds, subscription};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -20,6 +20,8 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCancelFailure,
     PaymentIntentAuthorizationSuccess,
     PaymentIntentAuthorizationFailure,
+    PaymentIntentExtendAuthorizationSuccess,
+    PaymentIntentExtendAuthorizationFailure,
     PaymentIntentCaptureSuccess,
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
@@ -175,7 +177,7 @@ pub enum WebhookResponseTracker {
     #[cfg(feature = "v2")]
     Refund {
         payment_id: common_utils::id_type::GlobalPaymentId,
-        refund_id: String,
+        refund_id: common_utils::id_type::GlobalRefundId,
         status: common_enums::RefundStatus,
     },
     #[cfg(feature = "v1")]
@@ -221,6 +223,14 @@ impl WebhookResponseTracker {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_refund_id(&self) -> Option<String> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
             Self::PaymentMethod {
@@ -249,6 +259,14 @@ impl WebhookResponseTracker {
             Self::Relay { .. } => None,
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn get_refund_id(&self) -> Option<common_utils::id_type::GlobalRefundId> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
+        }
+    }
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -265,7 +283,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentAuthorizationFailure
             | IncomingWebhookEvent::PaymentIntentCaptureSuccess
             | IncomingWebhookEvent::PaymentIntentCaptureFailure
-            | IncomingWebhookEvent::PaymentIntentExpired => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentExpired
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
@@ -406,6 +426,12 @@ pub struct IncomingWebhookDetails {
     pub resource_object: Vec<u8>,
 }
 
+#[cfg(feature = "payouts")]
+pub struct PayoutWebhookUpdate {
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
@@ -442,6 +468,8 @@ pub enum OutgoingWebhookContent {
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
+    #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
+    SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

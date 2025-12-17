@@ -921,6 +921,26 @@ pub async fn profile_payments_list() {}
 )]
 pub fn payments_incremental_authorization() {}
 
+/// Payments - Extended Authorization
+///
+/// Extended authorization is available for payments currently in the `requires_capture` status
+/// Call this endpoint to increase the authorization validity period
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/extend_authorization",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Extended authorization for the payment"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Extend authorization period for a Payment",
+    security(("api_key" = []))
+)]
+pub fn payments_extend_authorization() {}
+
 /// Payments - External 3DS Authentication
 ///
 /// External 3DS Authentication is performed and returns the AuthenticationResponse
@@ -1287,13 +1307,13 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Gift Card Balance Check
+/// Payments - Check Balance and Apply PM Data
 ///
-/// Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed
+/// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    get,
-    path = "/v2/payments/{id}/check-gift-card-balance",
+    post,
+    path = "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data",
     params(
         ("id" = String, Path, description = "The global payment id"),
         (
@@ -1303,13 +1323,13 @@ pub fn payments_list() {}
         ),
     ),
     request_body(
-      content = PaymentsGiftCardBalanceCheckRequest,
+      content = ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Get the Gift Card Balance", body = GiftCardBalanceCheckResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
-    operation_id = "Retrieve Gift Card Balance",
+    operation_id = "Apply Payment Method Data",
     security(("publishable_key" = []))
 )]
-pub fn payment_check_gift_card_balance() {}
+pub fn payments_apply_pm_data() {}

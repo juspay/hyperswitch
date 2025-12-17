@@ -42,6 +42,7 @@ impl cgraph::NodeViz for dir::DirValue {
         match self {
             Self::PaymentMethod(pm) => pm.to_string(),
             Self::CardBin(bin) => bin.value.clone(),
+            Self::ExtendedCardBin(ebin) => ebin.value.clone(),
             Self::CardType(ct) => ct.to_string(),
             Self::CardNetwork(cn) => cn.to_string(),
             Self::PayLaterType(plt) => plt.to_string(),
@@ -82,6 +83,7 @@ impl cgraph::NodeViz for dir::DirValue {
             }
             Self::AcquirerCountry(acquirer_country) => acquirer_country.to_string(),
             Self::AcquirerFraudRate(acquirer_fraud_rate) => acquirer_fraud_rate.number.to_string(),
+            Self::TransactionInitiator(transaction_initiator) => transaction_initiator.to_string(),
         }
     }
 }
@@ -509,8 +511,6 @@ impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-
     use std::ops::Deref;
 
     use euclid_macros::knowledge;

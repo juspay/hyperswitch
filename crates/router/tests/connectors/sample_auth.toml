@@ -192,7 +192,10 @@ api_key="API Key"
 api_key="API Key"
 
 [volt]
-api_key="API Key"
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
 
 [prophetpay]
 api_key="API Key"
@@ -374,3 +377,9 @@ key1="Tenant ID"
 [tesouro]
 api_key="Client ID"
 key1="Client Secret"
+
+[finix]
+api_key = "Username"
+key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
+api_secret = "Password"

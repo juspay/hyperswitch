@@ -41,11 +41,12 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
-use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
+use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
     mandate_revoke::MandateRevoke,
+    unified_authentication_service::*,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::{
@@ -240,7 +241,6 @@ pub enum ConnectorChoice {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

@@ -1,14 +1,15 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisionRule};
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
-    pii,
+    fp_utils, pii,
 };
 use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{DirKeyKind, EuclidDirFilter},
@@ -17,10 +18,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{RoutableConnectors, TransactionType},
-    open_router,
-};
+use crate::{enums::TransactionType, open_router};
 
 // Define constants for default values
 const DEFAULT_LATENCY_THRESHOLD: f64 = 90.0;
@@ -28,6 +26,7 @@ const DEFAULT_BUCKET_SIZE: i32 = 200;
 const DEFAULT_HEDGING_PERCENT: f64 = 5.0;
 const DEFAULT_ELIMINATION_THRESHOLD: f64 = 0.35;
 const DEFAULT_PAYMENT_METHOD: &str = "CARD";
+const MAX_NAME_LENGTH: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -59,12 +58,50 @@ pub struct RoutingConfigRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
-    pub name: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub name: Option<RoutingConfigName>,
     pub description: Option<String>,
     pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub transaction_type: Option<TransactionType>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(try_from = "String")]
+#[schema(value_type = String)]
+pub struct RoutingConfigName(String);
+
+impl RoutingConfigName {
+    pub fn new(name: impl Into<String>) -> Result<Self, ValidationError> {
+        let name = name.into();
+        if name.len() > MAX_NAME_LENGTH {
+            return Err(ValidationError::InvalidValue {
+                message: format!(
+                    "Length of name field must not exceed {} characters",
+                    MAX_NAME_LENGTH
+                ),
+            });
+        }
+
+        Ok(Self(name))
+    }
+}
+
+impl TryFrom<String> for RoutingConfigName {
+    type Error = ValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl Deref for RoutingConfigName {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -129,6 +166,7 @@ impl EuclidDirFilter for ConnectorSelection {
     const ALLOWED: &'static [DirKeyKind] = &[
         DirKeyKind::PaymentMethod,
         DirKeyKind::CardBin,
+        DirKeyKind::ExtendedCardBin,
         DirKeyKind::CardType,
         DirKeyKind::CardNetwork,
         DirKeyKind::PayLaterType,
@@ -147,6 +185,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::SetupFutureUsage,
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
+        DirKeyKind::IssuerCountry,
         DirKeyKind::BusinessCountry,
         DirKeyKind::BusinessLabel,
         DirKeyKind::MetaData,
@@ -155,6 +194,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::CardRedirectType,
         DirKeyKind::BankTransferType,
         DirKeyKind::RealTimePaymentType,
+        DirKeyKind::TransactionInitiator,
     ];
 }
 
@@ -727,9 +767,15 @@ impl DynamicRoutingAlgorithmRef {
         self.success_based_algorithm
             .as_ref()
             .map(|success_based_routing| {
+                if success_based_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
+                    return false;
+                }
                 success_based_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || success_based_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -738,9 +784,15 @@ impl DynamicRoutingAlgorithmRef {
         self.elimination_routing_algorithm
             .as_ref()
             .map(|elimination_routing| {
+                if elimination_routing
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .is_none()
+                {
+                    return false;
+                }
                 elimination_routing.enabled_feature
                     == DynamicRoutingFeatures::DynamicConnectorSelection
-                    || elimination_routing.enabled_feature == DynamicRoutingFeatures::Metrics
             })
             .unwrap_or_default()
     }
@@ -943,7 +995,7 @@ pub struct ToggleDynamicRoutingPath {
 pub struct CreateDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
-    pub payload: DynamicRoutingPayload,
+    pub payload: Option<DynamicRoutingPayload>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1036,6 +1088,20 @@ impl EliminationRoutingConfig {
                     field_name: "decision_engine_configs".to_string(),
                 },
             ))
+    }
+
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none()
+                && self.elimination_analyser_config.is_none()
+                && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: "All fields in EliminationRoutingConfig cannot be null".to_string(),
+                }
+                .into())
+            },
+        )
     }
 }
 
@@ -1198,6 +1264,21 @@ impl SuccessBasedRoutingConfig {
                     field_name: "decision_engine_configs".to_string(),
                 },
             ))
+    }
+
+    pub fn validate(&self) -> Result<(), error_stack::Report<ValidationError>> {
+        fp_utils::when(
+            self.params.is_none()
+                && self.config.is_none()
+                && self.decision_engine_configs.is_none(),
+            || {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: "All fields in SuccessBasedRoutingConfig cannot be null"
+                        .to_string(),
+                }
+                .into())
+            },
+        )
     }
 }
 

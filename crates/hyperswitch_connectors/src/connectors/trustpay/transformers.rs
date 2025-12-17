@@ -28,7 +28,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
         PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
@@ -291,12 +293,11 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
-            | BankRedirectData::LocalBankRedirect {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("trustpay"),
-                )
-                .into())
-            }
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
+            )
+            .into()),
         }
     }
 }
@@ -377,7 +378,11 @@ fn get_card_request_data(
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),
-            descriptor: item.request.statement_descriptor.clone(),
+            descriptor: item
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
         },
     )))
 }
@@ -943,8 +948,11 @@ fn handle_bank_redirects_error_response(
     };
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        // message vary for the same code, so relying on code alone as it is unique
-        message: response.payment_result_info.result_code.to_string(),
+        message: response
+            .payment_result_info
+            .additional_info
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: Some(status),
@@ -1332,24 +1340,12 @@ pub struct ApplePayTotalInfo {
     pub amount: StringMajorUnit,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            TrustpayCreateIntentResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsPreProcessingData, PaymentsResponseData>
+impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>>
+    for PaymentsPreProcessingRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            TrustpayCreateIntentResponse,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>,
     ) -> Result<Self, Self::Error> {
         let create_intent_response = item.response.init_result_data.to_owned();
         let secrets = item.response.secrets.to_owned();
@@ -1781,8 +1777,11 @@ fn handle_bank_redirects_refund_sync_error_response(
 ) -> (Option<ErrorResponse>, RefundsResponseData) {
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        // message vary for the same code, so relying on code alone as it is unique
-        message: response.payment_result_info.result_code.to_string(),
+        message: response
+            .payment_result_info
+            .additional_info
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,

@@ -44,33 +44,28 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &tracking_data.merchant_id.clone(),
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id.clone(), &key_store)
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account,
+            key_store,
+        );
 
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                &(state).into(),
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 &tracking_data.profile_id,
             )
             .await?;
@@ -82,6 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .dispute_polling_interval
                 .unwrap_or_default()
                 .deref();
+            let application_source = state.conf.application_source;
 
             tokio::spawn(
                 async move {
@@ -89,6 +85,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                         &*m_db,
                         &m_tracking_data,
                         dispute_polling_interval,
+                        application_source,
                     )
                     .await
                     .map_err(|error| {
@@ -103,7 +100,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
 
         let response = Box::pin(disputes::fetch_disputes_from_connector(
             state.clone(),
-            merchant_context,
+            platform,
             tracking_data.merchant_connector_id,
             hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
                 created_from: tracking_data.created_from,
@@ -203,6 +200,7 @@ pub async fn schedule_next_dispute_list_task(
     db: &dyn StorageInterface,
     tracking_data: &api::DisputeListPTData,
     dispute_polling_interval: i32,
+    application_source: common_enums::ApplicationSource,
 ) -> Result<(), errors::ProcessTrackerError> {
     let new_created_till = tracking_data
         .created_till
@@ -221,6 +219,7 @@ pub async fn schedule_next_dispute_list_task(
         tracking_data.merchant_connector_id.clone(),
         tracking_data.profile_id.clone(),
         fetch_request,
+        application_source,
     )
     .await?;
     Ok(())
