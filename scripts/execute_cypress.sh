@@ -83,7 +83,6 @@ execute_test() {
   local tmp_file="$3"
 
   local start_ts end_ts duration
-
   start_ts=$(date +%s)
 
   print_color yellow \
@@ -92,18 +91,30 @@ execute_test() {
   export CYPRESS_CONNECTOR="$connector"
   export REPORT_NAME="${service}_${connector}_report"
 
-  if ! npm run "cypress:${service}" 2>&1 \
-      | sed "s/^/[${service}:${connector}] /"; then
+  # --- run Cypress, capture exit code safely ---
+  local exit_code=0
+  npm run "cypress:${service}" \
+    2>&1 | sed "s/^/[${service}:${connector}] /" || exit_code=$?
+
+  if [[ $exit_code -ne 0 ]]; then
     echo "${service}-${connector}" >> "$tmp_file"
   fi
 
   end_ts=$(date +%s)
   duration=$(( end_ts - start_ts ))
 
-  print_color green \
-    "[${service}:${connector}] END (PID=$$) took ${duration}s"
+  if [[ $exit_code -ne 0 ]]; then
+    print_color red \
+      "[${service}:${connector}] FAILED (PID=$$) took ${duration}s"
+  else
+    print_color green \
+      "[${service}:${connector}] PASSED (PID=$$) took ${duration}s"
+  fi
+
+  return 0   # 🔥 never let child exit non-zero
 }
 export -f execute_test
+
 
 # -----------------------------
 # Run all tests
