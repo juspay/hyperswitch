@@ -248,12 +248,6 @@ jobs:
         with:
           node-version: "24"
 
-      # 1. Install Chromium via the package manager (standard for ARM64)
-      - name: Install Chromium and Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser libgbm-dev
-
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
