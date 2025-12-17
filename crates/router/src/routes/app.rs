@@ -67,9 +67,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, admin, api_keys, api_keys, cache::*, cache::*, chat, chat, connector_onboarding,
-    connector_onboarding, disputes, disputes, files, files, gsm, gsm, health::*, health::*, oidc,
-    oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*, oidc,
+    profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
