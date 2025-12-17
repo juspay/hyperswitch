@@ -113,11 +113,7 @@ use crate::core::debit_routing;
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::vault;
-#[cfg(feature = "v1")]
-use crate::core::payments::helpers::{
-    process_through_direct, process_through_direct_with_shadow_unified_connector_service,
-    process_through_ucs,
-};
+
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::get_workflow_entries;
 #[cfg(feature = "v2")]
@@ -4510,160 +4506,54 @@ where
     )
     .await?;
 
-    let ucs_flow = if matches!(
-        execution_path,
-        ExecutionPath::UnifiedConnectorService | ExecutionPath::ShadowUnifiedConnectorService
-    ) {
-        let cached_access_token = access_token::get_cached_access_token_for_ucs(
-            state,
-            &connector,
-            platform,
-            router_data.payment_method,
-            payment_data.get_creds_identifier(),
-        )
-        .await?;
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
 
-        // Set cached access token in router_data if available
-        if let Some(access_token) = cached_access_token {
-            router_data.access_token = Some(access_token);
-        }
-        true
-    } else {
-        false
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
     };
 
-    let is_ucs_granular_flow =
-        gateway::GRANULAR_GATEWAY_SUPPORTED_FLOWS.contains(&std::any::type_name::<F>());
-
-    if is_ucs_granular_flow && ucs_flow {
-        logger::info!("Current flow is UCS Granular flow");
-        let lineage_ids = grpc_client::LineageIds::new(
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-        );
-
-        let execution_mode = match execution_path {
-            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-            // ExecutionMode is irrelevant for Direct path in this context
-            ExecutionPath::Direct => ExecutionMode::NotApplicable,
-        };
-
-        let gateway_context = gateway_context::RouterGatewayContext {
-            creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            platform: platform.clone(),
-            header_payload: header_payload.clone(),
-            lineage_ids,
-            merchant_connector_account: merchant_connector_account.clone(),
-            execution_path,
-            execution_mode,
-        };
-        // Update feature metadata to track Direct routing usage for stickiness
-        update_gateway_system_in_feature_metadata(
-            payment_data,
-            gateway_context.get_gateway_system(),
-        )?;
-        call_connector_service(
-            &updated_state,
-            req_state,
-            platform,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            validate_result,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            all_keys_required,
-            merchant_connector_account,
-            router_data,
-            tokenization_action,
-            gateway_context,
-        )
-        .await
-    } else {
-        record_time_taken_with(|| async {
-            match execution_path {
-                // Process through UCS when system is UCS and not handling response or if it is a UCS webhook action
-                ExecutionPath::UnifiedConnectorService => {
-                    process_through_ucs(
-                        &updated_state,
-                        req_state,
-                        platform,
-                        operation,
-                        payment_data,
-                        customer,
-                        call_connector_action,
-                        validate_result,
-                        schedule_time,
-                        header_payload,
-                        frm_suggestion,
-                        business_profile,
-                        merchant_connector_account,
-                        &connector,
-                        router_data,
-                    )
-                    .await
-                }
-
-                // Process through Direct with Shadow UCS
-                ExecutionPath::ShadowUnifiedConnectorService => {
-                    process_through_direct_with_shadow_unified_connector_service(
-                        &updated_state,
-                        req_state,
-                        platform,
-                        connector,
-                        operation,
-                        payment_data,
-                        customer,
-                        call_connector_action,
-                        shadow_ucs_call_connector_action,
-                        validate_result,
-                        schedule_time,
-                        header_payload,
-                        frm_suggestion,
-                        business_profile,
-                        is_retry_payment,
-                        all_keys_required,
-                        merchant_connector_account,
-                        router_data,
-                        tokenization_action,
-                    )
-                    .await
-                }
-
-                // Process through Direct gateway
-                ExecutionPath::Direct => {
-                    process_through_direct(
-                        state,
-                        req_state,
-                        platform,
-                        connector,
-                        operation,
-                        payment_data,
-                        customer,
-                        call_connector_action,
-                        validate_result,
-                        schedule_time,
-                        header_payload,
-                        frm_suggestion,
-                        business_profile,
-                        is_retry_payment,
-                        all_keys_required,
-                        merchant_connector_account,
-                        router_data,
-                        tokenization_action,
-                    )
-                    .await
-                }
-            }
-        })
-        .await
-    }
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+    // Update feature metadata to track Direct routing usage for stickiness
+    update_gateway_system_in_feature_metadata(
+        payment_data,
+        gateway_context.get_gateway_system(),
+    )?;
+    call_connector_service(
+        &updated_state,
+        req_state,
+        platform,
+        connector,
+        operation,
+        payment_data,
+        customer,
+        call_connector_action,
+        validate_result,
+        schedule_time,
+        header_payload,
+        frm_suggestion,
+        business_profile,
+        is_retry_payment,
+        all_keys_required,
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
+        gateway_context,
+    )
+    .await
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
