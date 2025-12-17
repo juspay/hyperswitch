@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.03.0-hotfix8
+
+### Features
+
+- **euclid:** Support for issuer_country based routing ([#10688](https://github.com/juspay/hyperswitch/pull/10688)) ([`d4a4a0b`](https://github.com/juspay/hyperswitch/commit/d4a4a0bc6a2db7d5d46f2beb0db58a94447d45fa))
+
+### Bug Fixes
+
+- **payouts:** Add fallback for names for payout via Psp token ([#10697](https://github.com/juspay/hyperswitch/pull/10697)) ([`e4ebffc`](https://github.com/juspay/hyperswitch/commit/e4ebffc6c83407a81cfdefa072d7e8fec3840c28))
+
+**Full Changelog:** [`2025.12.03.0-hotfix7...2025.12.03.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2025.12.03.0-hotfix7...2025.12.03.0-hotfix8)
+
+- - -
+
 ## 2025.12.03.0-hotfix7
 
 ### Features
