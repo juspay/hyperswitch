@@ -1125,7 +1125,13 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 },
             ),
             state,
-            connector_metadata: HashMap::new(),
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
+                .unwrap_or_default(),
             merchant_account_metadata,
         })
     }
@@ -4705,7 +4711,13 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .transpose()?
                 .unwrap_or_default(),
             state,
-            connector_metadata: HashMap::new(),
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
+                .unwrap_or_default(),
             merchant_account_metadata,
         })
     }
