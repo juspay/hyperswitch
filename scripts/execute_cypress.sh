@@ -82,7 +82,7 @@ execute_test() {
   # FIX: Use xvfb-run to assign a unique display number automatically
   # --auto-servernum : Finds a free display number (e.g., 99, 100, 101)
   # --server-args    : Sets screen dimensions to avoid rendering issues
-  if xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" npm run "cypress:$service"; then
+  if xvfb-run --auto-servernum npm run "cypress:$service"; then
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     print_color "green" "[PASS] $service:$connector (Time: ${duration}s)"
