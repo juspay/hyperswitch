@@ -390,14 +390,6 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotSupported {
-                message: "3DS flow".to_string(),
-                connector: "Peachpayments",
-            }
-            .into());
-        }
-
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
@@ -504,6 +496,13 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     fn try_from(
         (item, req_card): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Peachpayments",
+            }
+            .into());
+        }
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
