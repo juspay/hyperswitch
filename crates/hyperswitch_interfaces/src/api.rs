@@ -413,6 +413,8 @@ pub enum CurrentFlowInfo<'a> {
     CompleteAuthorize {
         /// The payment authorize request data
         request_data: &'a router_request_types::CompleteAuthorizeData,
+        /// The payment method that is used
+        payment_method: Option<PaymentMethod>,
     },
 }
 

@@ -341,6 +341,13 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[strum(
+        serialize = "transaction_initiator",
+        detailed_message = "Initiator of transaction either Customer or Merchant",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -399,6 +406,7 @@ impl DirKeyKind {
             Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
+            Self::TransactionInitiator => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -564,6 +572,11 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::AcquirerFraudRate => None,
+            Self::TransactionInitiator => Some(
+                enums::TransactionInitiator::iter()
+                    .map(DirValue::TransactionInitiator)
+                    .collect(),
+            ),
         }
     }
 }
@@ -651,6 +664,8 @@ pub enum DirValue {
     AcquirerCountry(enums::Country),
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate(types::NumValue),
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator(enums::TransactionInitiator),
 }
 
 impl DirValue {
@@ -695,6 +710,7 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
+            Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
         };
 
         DirKey::new(kind, data)
@@ -740,6 +756,7 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => None,
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
+            Self::TransactionInitiator(_) => None,
         }
     }
 
@@ -796,6 +813,7 @@ impl DirValue {
             (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
+            (Self::TransactionInitiator(ti1), Self::TransactionInitiator(ti2)) => ti1 == ti2,
             _ => false,
         }
     }

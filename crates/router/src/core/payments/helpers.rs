@@ -2634,6 +2634,7 @@ pub async fn fetch_card_details_from_internal_locker(
             .flatten(),
         card_type: None,
         card_issuing_country: None,
+        card_issuing_country_code: None,
         bank_code: None,
     };
     Ok(domain::Card::from((api_card, co_badged_card_data)))
@@ -2780,6 +2781,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
             card_holder_name: card_details_from_locker.name_on_card.clone(),
@@ -5152,6 +5154,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5185,6 +5188,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5207,6 +5211,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -5488,6 +5493,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5521,6 +5527,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5543,6 +5550,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -6814,13 +6822,14 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
-    flow: String,
+    flow: &str,
+    sub_flow: &str,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),
-                flow.clone(),
-                "sub_flow".to_string(),
+                flow.to_string(),
+                sub_flow.to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
@@ -6828,9 +6837,10 @@ pub async fn get_gsm_record(
             .map_err(|err| {
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
-                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        "GSM miss for connector - {}, flow - {}, sub_flow - {}, error_code - {:?}, error_message - {:?}",
                         connector_name,
                         flow,
+                        sub_flow,
                         error_code,
                         error_message
                     );

@@ -275,7 +275,6 @@ pub fn get_all_keys() -> JsResult {
         "Connector",
         // 3DS Decision Rule Keys should not be included in the payument routing keys
         "issuer_name",
-        "issuer_country",
         "customer_device_platform",
         "customer_device_type",
         "customer_device_display_size",
@@ -356,6 +355,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
         dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
         dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::TransactionInitiator => dir_enums::TransactionInitiator::VARIANTS,
         dir::DirKeyKind::CustomerDeviceDisplaySize => {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
