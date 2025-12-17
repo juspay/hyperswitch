@@ -649,29 +649,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match provider.get_account().merchant_account_type {
-            common_enums::MerchantAccountType::Standard => {
-                helpers::create_customer_if_not_exist(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                )
-                .await
-            }
-            common_enums::MerchantAccountType::Platform
-            | common_enums::MerchantAccountType::Connected => {
-                helpers::get_customer_if_exists(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                )
-                .await
-            }
-        }
+        helpers::get_or_create_customer_details(
+            state,
+            Box::new(self),
+            payment_data,
+            request,
+            provider,
+        )
+        .await
     }
 
     async fn payments_dynamic_tax_calculation<'a>(

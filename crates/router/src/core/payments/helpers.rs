@@ -1981,6 +1981,27 @@ pub async fn get_customer_if_exists<'a, F: Clone, R, D>(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn get_or_create_customer_details<'a, F: Clone, R, D>(
+    state: &SessionState,
+    operation: BoxedOperation<'a, F, R, D>,
+    payment_data: &mut PaymentData<F>,
+    req: Option<CustomerDetails>,
+    provider: &domain::Provider,
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
+    match provider.get_account().merchant_account_type {
+        common_enums::MerchantAccountType::Standard => {
+            create_customer_if_not_exist(state, operation, payment_data, req, provider).await
+        }
+        common_enums::MerchantAccountType::Platform
+        | common_enums::MerchantAccountType::Connected => {
+            get_customer_if_exists(state, operation, payment_data, req, provider).await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn retrieve_payment_method_with_temporary_token(
     state: &SessionState,
     token: &str,
