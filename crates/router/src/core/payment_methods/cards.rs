@@ -2283,7 +2283,6 @@ pub async fn get_card_from_vault<'a>(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &'a str,
-    locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<LockerCardResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
