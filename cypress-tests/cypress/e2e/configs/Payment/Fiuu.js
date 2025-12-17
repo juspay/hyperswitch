@@ -108,7 +108,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "online_banking_fpx",
-         amount: 6000,
+        amount: 6000,
         currency: "MYR",
         payment_method_data: {
           bank_redirect: {
