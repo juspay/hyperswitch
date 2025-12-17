@@ -27,5 +27,6 @@ pub enum WebhookConfigType {
     /// Standard webhook configuration supporting all events hyperswitch provides
     Standard,
     /// Custom webhook configuration supporting only specific events
+    #[schema(value_type = Option<EventType>)]
     MultiEvent(Vec<common_enums::EventType>),
 }

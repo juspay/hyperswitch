@@ -144,8 +144,6 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let debugg = String::from_utf8(res.response.to_vec()).unwrap();
-
         let response: adyen::AdyenErrorResponse = res
             .response
             .parse_struct("ErrorResponse")

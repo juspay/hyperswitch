@@ -80,6 +80,7 @@ impl_api_event_type!(
         MandateRevokedResponse,
         RetrievePaymentLinkRequest,
         RegisterConnectorWebhookResponse,
+        ConnectorWebhookListResponse,
         PaymentLinkListConstraints,
         MandateId,
         DisputeListGetConstraints,

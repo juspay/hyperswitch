@@ -6906,7 +6906,6 @@ pub struct AdyenWebhookRegisterResponse {
     id: String,
 }
 
-
 impl
     TryFrom<
         ResponseRouterData<
@@ -6935,7 +6934,7 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
-                 error_code: None,
+                error_code: None,
                 error_message: None,
             }),
             ..item.data

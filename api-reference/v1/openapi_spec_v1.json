@@ -2792,6 +2792,128 @@
         ]
       }
     },
+    "/account/{account_id}/webhooks/{merchant_connector_id}": {
+      "post": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Configure Connector Webhook - Register",
+        "description": "Setup webhook configuration for an existing Merchant at the connector.",
+        "operationId": "Register a Connector Webhook",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorWebhookRegisterRequest"
+              },
+              "examples": {
+                "Register  webhook for a specific event": {
+                  "value": {
+                    "event_type": {
+                      "specific_event": "payment_succeeded"
+                    }
+                  }
+                },
+                "Register a standard webhook": {
+                  "value": {
+                    "event_type": "standard"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Connector Webhook Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterConnectorWebhookResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Configure Connector Webhook - Register",
+        "description": "List webhooks configured with hyperswitch at the connector",
+        "operationId": "List Connector Webhooks",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant_connector_id",
+            "in": "path",
+            "description": "The unique identifier for the Merchant Connector",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of webhooks configured with hyperswitch at the connector",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorWebhookListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/gsm": {
       "post": {
         "tags": [
@@ -14969,6 +15091,81 @@
         },
         "additionalProperties": false
       },
+      "ConnectorWebhookEventType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "standard"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "specific_event"
+            ],
+            "properties": {
+              "specific_event": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ConnectorWebhookListResponse": {
+        "type": "object",
+        "required": [
+          "connector",
+          "webhooks"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorWebhookResponse"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectorWebhookRegisterRequest": {
+        "type": "object",
+        "description": "Register a webhook at the connector",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectorWebhookResponse": {
+        "type": "object",
+        "required": [
+          "connector_webhook_id"
+        ],
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ContractBasedRoutingConfig": {
         "type": "object",
         "properties": {
@@ -22060,6 +22257,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ConnectorWalletDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "webhook_setup_capabilities": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSetupCapabilities"
               }
             ],
             "nullable": true
@@ -34067,6 +34272,40 @@
           "schedule_refund"
         ]
       },
+      "RegisterConnectorWebhookResponse": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_registration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RelayData": {
         "oneOf": [
           {
@@ -38364,6 +38603,34 @@
       "WeChatPayRedirection": {
         "type": "object"
       },
+      "WebhookConfigType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Standard webhook configuration supporting all events hyperswitch provides",
+            "enum": [
+              "Standard"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "MultiEvent"
+            ],
+            "properties": {
+              "MultiEvent": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/EventType"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Enum to represent the type of webhook configuration"
+      },
       "WebhookDeliveryAttempt": {
         "type": "string",
         "enum": [
@@ -38462,6 +38729,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
+      },
+      "WebhookSetupCapabilities": {
+        "type": "object",
+        "description": "Connector details for webhook configuration via hyperswitch API",
+        "required": [
+          "is_webhook_auto_configuration_supported"
+        ],
+        "properties": {
+          "is_webhook_auto_configuration_supported": {
+            "type": "boolean",
+            "description": "Indicates if the connector supports webhooks configuration via API"
+          },
+          "requires_webhook_secret": {
+            "type": "boolean",
+            "description": "Indicates whether a webhook secret must be collected from the merchant for verification",
+            "nullable": true
+          },
+          "config_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookConfigType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "XenditChargeResponseData": {
         "oneOf": [

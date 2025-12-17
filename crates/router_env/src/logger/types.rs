@@ -84,6 +84,8 @@ pub enum Flow {
     MerchantConnectorsList,
     /// Merchant Connector Webhook register flow.
     MerchantConnectorWebhookRegister,
+    /// Merchant Connector Webhook list flow.
+    MerchantConnectorWebhookList,
     /// Merchant Transfer Keys
     MerchantTransferKey,
     /// ConfigKey create flow.

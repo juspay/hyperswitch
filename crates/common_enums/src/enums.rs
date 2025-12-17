@@ -10312,6 +10312,7 @@ pub enum ConnectorWebhookEventType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
