@@ -2302,7 +2302,6 @@ default_imp_for_post_authenticate_steps!(
     connectors::Multisafepay,
     connectors::Netcetera,
     connectors::Nexinets,
-    connectors::Nexixpay,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
