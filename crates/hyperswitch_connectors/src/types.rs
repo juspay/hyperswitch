@@ -8,8 +8,8 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        unified_authentication_service::PreAuthenticate,
         configure_connector_webhook::ConnectorWebhookRegister,
+        unified_authentication_service::PreAuthenticate,
         Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
         ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
         Upload, Void,
