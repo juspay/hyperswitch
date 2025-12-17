@@ -34,6 +34,7 @@ use time::PrimitiveDateTime;
 
 use super::errors::StorageErrorExt;
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation, transformers::GenerateResponse},
@@ -1223,7 +1224,8 @@ impl Action {
             error_code,
             error_message,
             connector_name,
-            REVENUE_RECOVERY.to_string(),
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
         )
         .await;
         let is_hard_decline = gsm_record

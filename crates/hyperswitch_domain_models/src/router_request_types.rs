@@ -8,7 +8,7 @@ use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
-    id_type, pii,
+    id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -723,7 +723,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             email: data.email,
             currency: Some(data.currency),
             browser_info: data.browser_info,
-            connector_transaction_id: None,
+            connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
         })
     }
@@ -821,6 +821,7 @@ pub struct CompleteAuthorizeData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub request_incremental_authorization: bool,
     pub authentication_data: Option<UcsAuthenticationData>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     // New amount for amount frame work
@@ -1373,6 +1374,7 @@ pub struct PayoutsData {
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone)]
