@@ -1002,8 +1002,7 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
-        Ok(Box::new(details))
+        Ok(Box::new(body_str))
     }
     async fn verify_webhook_source(
         &self,
