@@ -42,7 +42,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, Eps, EVoucher, Ideal, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -699,6 +699,40 @@ pub fn build_unified_connector_service_payment_method(
 
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal {
+                bank_name,
+            } => {
+                let bank_name_i32 = bank_name
+                    .map(|name| payments_grpc::BankNames::foreign_try_from(name))
+                    .transpose()?
+                    .map(|bn| bn as i32);
+
+                let ideal = Ideal {
+                    bank_name: bank_name_i32,
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Ideal(ideal)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps {
+                bank_name,
+                country,
+            } => {
+                let bank_name_i32 = bank_name
+                    .map(|name| payments_grpc::BankNames::foreign_try_from(name))
+                    .transpose()?
+                    .map(|bn| bn as i32);
+
+                let eps = Eps {
+                    bank_name: bank_name_i32,
+                    country: country.map(|c| c.to_string()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eps(eps)),
                 })
             }
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(

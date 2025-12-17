@@ -1996,20 +1996,39 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
-                            sdk_uri: uri.uri.clone(),
-                        };
-                        (
-                            Some(
-                                sdk_uri_info
-                                    .encode_to_value()
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                                    .attach_printable(
-                                        "Failed to serialize SdkUpiUriInformation to JSON value",
-                                    )?,
-                            ),
-                            None,
-                        )
+                        // Check if this is a UPI flow by looking at the request context or payment method
+                        // For now, we'll check if the connector metadata indicates UPI flow
+                        let is_upi_flow = response
+                            .connector_metadata
+                            .get("nextActionData")
+                            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+                            .is_some();
+                        
+                        if is_upi_flow {
+                            // Handle UPI-specific URI redirection
+                            let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                                sdk_uri: uri.uri.clone(),
+                            };
+                            (
+                                Some(
+                                    sdk_uri_info
+                                        .encode_to_value()
+                                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                        .attach_printable(
+                                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                                        )?,
+                                ),
+                                None,
+                            )
+                        } else {
+                            // Handle bank redirect (EPS, iDEAL, etc.) URI redirection
+                            let redirect_form = RedirectForm::Form {
+                                endpoint: uri.uri.clone(),
+                                method: common_utils::request::Method::Get,
+                                form_fields: std::collections::HashMap::new(),
+                            };
+                            (None, Some(redirect_form))
+                        }
                     }
                     _ => (
                         None,
@@ -2684,6 +2703,23 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
     }
 }
 
+impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::BankNames {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bank_name: common_enums::BankNames) -> Result<Self, Self::Error> {
+        // Try direct string match first (protobuf enum names should match exactly)
+        // The enum variant names in the proto should be identical to common_enums::BankNames
+        let bank_name_str = format!("{:?}", bank_name);
+        Self::from_str_name(&bank_name_str).ok_or_else(|| {
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                "Bank name {} not supported in UCS. Please ensure the bank is defined in the connector-service payment_methods.proto BankNames enum.",
+                bank_name_str
+            ))
+            .into()
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
     for payments_grpc::apple_wallet::payment_data::PaymentData
 {
@@ -3053,12 +3089,11 @@ impl transformers::ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm 
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
             }),
-            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "URI form type is not implemented".to_string(),
-                )
-                .into(),
-            ),
+            Some(payments_grpc::redirect_form::FormType::Uri(uri)) => Ok(Self::Form {
+                endpoint: uri.uri,
+                method: common_utils::request::Method::Get,
+                form_fields: std::collections::HashMap::new(),
+            }),
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
@@ -3139,20 +3174,39 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
-                            sdk_uri: uri.uri.clone(),
-                        };
-                        (
-                            Some(
-                                sdk_uri_info
-                                    .encode_to_value()
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                                    .attach_printable(
-                                        "Failed to serialize SdkUpiUriInformation to JSON value",
-                                    )?,
-                            ),
-                            None,
-                        )
+                        // Check if this is a UPI flow by looking at the request context or payment method
+                        // For now, we'll check if the connector metadata indicates UPI flow
+                        let is_upi_flow = response
+                            .connector_metadata
+                            .get("nextActionData")
+                            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+                            .is_some();
+                        
+                        if is_upi_flow {
+                            // Handle UPI-specific URI redirection
+                            let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                                sdk_uri: uri.uri.clone(),
+                            };
+                            (
+                                Some(
+                                    sdk_uri_info
+                                        .encode_to_value()
+                                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                        .attach_printable(
+                                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                                        )?,
+                                ),
+                                None,
+                            )
+                        } else {
+                            // Handle bank redirect (EPS, iDEAL, etc.) URI redirection
+                            let redirect_form = RedirectForm::Form {
+                                endpoint: uri.uri.clone(),
+                                method: common_utils::request::Method::Get,
+                                form_fields: std::collections::HashMap::new(),
+                            };
+                            (None, Some(redirect_form))
+                        }
                     }
                     _ => (
                         None,
@@ -4010,20 +4064,39 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
-                            sdk_uri: uri.uri.clone(),
-                        };
-                        (
-                            Some(
-                                sdk_uri_info
-                                    .encode_to_value()
-                                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                                    .attach_printable(
-                                        "Failed to serialize SdkUpiUriInformation to JSON value",
-                                    )?,
-                            ),
-                            None,
-                        )
+                        // Check if this is a UPI flow by looking at the request context or payment method
+                        // For now, we'll check if the connector metadata indicates UPI flow
+                        let is_upi_flow = response
+                            .connector_metadata
+                            .get("nextActionData")
+                            .filter(|&next_action_data| next_action_data == "WaitScreenInstructions")
+                            .is_some();
+                        
+                        if is_upi_flow {
+                            // Handle UPI-specific URI redirection
+                            let sdk_uri_info = api_models::payments::SdkUpiUriInformation {
+                                sdk_uri: uri.uri.clone(),
+                            };
+                            (
+                                Some(
+                                    sdk_uri_info
+                                        .encode_to_value()
+                                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                                        .attach_printable(
+                                            "Failed to serialize SdkUpiUriInformation to JSON value",
+                                        )?,
+                                ),
+                                None,
+                            )
+                        } else {
+                            // Handle bank redirect (EPS, iDEAL, etc.) URI redirection
+                            let redirect_form = RedirectForm::Form {
+                                endpoint: uri.uri.clone(),
+                                method: common_utils::request::Method::Get,
+                                form_fields: std::collections::HashMap::new(),
+                            };
+                            (None, Some(redirect_form))
+                        }
                     }
                     _ => (
                         None,
