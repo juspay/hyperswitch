@@ -314,7 +314,7 @@ function bankRedirectRedirection(
       redirectionUrl,
       expectedUrl,
       connectorId,
-      ({ connectorId, paymentMethodType }) => {
+      ({ connectorId, paymentMethodType, constants }) => {
         // Renamed expectedUrl arg for clarity
         // This callback now runs either in cy.origin (if redirected) or directly (if iframe)
         switch (connectorId) {
@@ -1125,6 +1125,21 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                     .click()
                     .type("1234");
                   cy.get('input[value="SUBMIT"]').click();
+                });
+            });
+          break;
+
+        case "fiuu":
+          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .then(() => {
+              cy.get('button.pay-btn[name="pay"]').click();
+              cy.get("div.otp")
+                .invoke("text")
+                .then((otpText) => {
+                  const otp = otpText.match(/\d+/)[0];
+                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
+                  cy.get("button.pay-btn").click();
                 });
             });
           break;
