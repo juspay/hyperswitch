@@ -161,6 +161,7 @@ pub struct PaymentAttempt {
     pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub tokenization: Option<common_enums::Tokenization>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
+    pub error_details: Option<ErrorDetails>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -440,6 +441,7 @@ pub struct PaymentAttemptNew {
     /// Amount captured for this payment attempt
     pub amount_captured: Option<MinorUnit>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
+    pub error_details: Option<ErrorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1120,6 +1122,7 @@ impl PaymentAttemptUpdateInternal {
             authorized_amount: source.authorized_amount,
             amount_captured: amount_captured.or(source.amount_captured),
             encrypted_payment_method_data: source.encrypted_payment_method_data,
+            error_details: source.error_details,
         }
     }
 }

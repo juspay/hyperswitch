@@ -2732,6 +2732,7 @@ impl behaviour::Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 
@@ -3022,6 +3023,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount,
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 }
