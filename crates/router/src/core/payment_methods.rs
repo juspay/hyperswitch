@@ -779,6 +779,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_holder_name: billing_name,
                         nick_name: card.nick_name.clone(),
                         card_issuing_country: card.card_issuing_country.clone(),
+                        card_issuing_country_code: card.card_issuing_country_code.clone(),
                         card_network: card_network.clone(),
                         card_issuer: card.card_issuer.clone(),
                         card_type: card.card_type.clone(),
@@ -1475,6 +1476,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     card_holder_name: card_details.card_holder_name,
                     nick_name: card_details.nick_name,
                     issuer_country: card_details.card_issuing_country,
+                    issuer_country_code: None,
                     card_network: card_details.card_network,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details.card_type,
@@ -1493,6 +1495,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                         .card_issuing_country
                         .map(|country| country.to_string()),
                     card_network: card_details.card_network,
+                    issuer_country_code: None,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details
                         .card_type

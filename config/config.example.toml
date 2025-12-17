@@ -141,7 +141,6 @@ jwt_secret = "secret"                    # JWT secret used for user authenticati
 # like card details
 [locker]
 host = ""                           # Locker host
-host_rs = ""                        # Rust Locker host
 mock_locker = true                  # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"         # Key_id to sign basilisk hs locker
 locker_enabled = true               # Boolean to enable or disable saving cards in locker
@@ -155,7 +154,6 @@ connectors_with_webhook_source_verification_call = "paypal" # List of connectors
 
 [jwekey] # 4 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
 
 # Refund configuration
@@ -486,6 +484,19 @@ totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
+
+[oidc.key.k1]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
+
+[oidc.key.k2]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
+
+[oidc.client.c1]
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

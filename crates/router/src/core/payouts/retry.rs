@@ -9,6 +9,7 @@ use router_env::{
 
 use super::{call_connector_payout, PayoutData};
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
@@ -179,6 +180,7 @@ pub async fn get_gsm(
         error_message,
         connector_name,
         common_utils::consts::PAYOUT_FLOW_STR,
+        consts::DEFAULT_SUBFLOW_STR,
     )
     .await)
 }

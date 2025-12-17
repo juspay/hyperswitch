@@ -123,7 +123,6 @@ redis_ttl_in_seconds = 172800     # Time to expire for forex data stored in Redi
 
 [jwekey] # 3 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
-rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
 
 # Locker settings contain details for accessing a card locker, a
@@ -131,7 +130,6 @@ vault_private_key = ""          # private key in pem format, corresponding publi
 # like card details
 [locker]
 host = ""                                                             # Locker host
-host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
@@ -451,3 +449,16 @@ polling_interval = 15                           # Polling interval in seconds fo
 [trace_header]
 header_name = "x-request-id"    # HTTP header name for request tracing
 id_reuse = "ignore_incoming"    # Policy for handling incoming request IDs: "use_incoming" or "ignore_incoming"
+
+[oidc.key.k1]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private.key 4096)
+
+[oidc.key.k2]
+kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
+private_key = ""  # RSA private key used for signing ID tokens (Generate using: openssl genrsa -out private2.key 4096)
+
+[oidc.client.c1]
+client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
+client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
+redirect_uri = ""  # Redirect URI registered for the OIDC client 

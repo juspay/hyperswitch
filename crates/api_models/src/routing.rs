@@ -185,6 +185,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::SetupFutureUsage,
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
+        DirKeyKind::IssuerCountry,
         DirKeyKind::BusinessCountry,
         DirKeyKind::BusinessLabel,
         DirKeyKind::MetaData,
@@ -193,6 +194,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::CardRedirectType,
         DirKeyKind::BankTransferType,
         DirKeyKind::RealTimePaymentType,
+        DirKeyKind::TransactionInitiator,
     ];
 }
 
