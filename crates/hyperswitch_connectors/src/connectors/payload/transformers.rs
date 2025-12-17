@@ -269,15 +269,15 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Payload",
+            })?
+        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
-                if item.router_data.is_three_ds() {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Cards 3DS".to_string(),
-                        connector: "Payload",
-                    })?
-                }
                 let billing_address = item.router_data.get_billing_address()?;
                 let is_mandate = item.router_data.request.is_mandate_payment();
 
