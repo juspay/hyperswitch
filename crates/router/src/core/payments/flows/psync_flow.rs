@@ -1,20 +1,9 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
-use common_enums::{self, enums};
-use common_utils::{id_type, types::MinorUnit, ucs_types};
-use error_stack::ResultExt;
-use external_services::grpc_client;
+use common_enums;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::{
-    api::gateway,
-    unified_connector_service::{
-        get_payments_response_from_ucs_webhook_content,
-        handle_unified_connector_service_response_for_payment_get,
-    },
-};
-use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface;
+use hyperswitch_interfaces::api::gateway;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -22,14 +11,10 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
-        unified_connector_service::{
-            build_unified_connector_service_auth_metadata, extract_connector_response_from_ucs,
-            get_access_token_from_ucs_response, set_access_token_for_ucs, ucs_logging_wrapper,
-        },
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    types::{self, api, domain},
 };
 
 #[cfg(feature = "v1")]

@@ -1,27 +1,14 @@
-use std::str::FromStr;
-
 use async_trait::async_trait;
-use common_utils::{id_type, types::MinorUnit, ucs_types};
-use error_stack::ResultExt;
-use external_services::grpc_client;
-use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
-};
-use unified_connector_service_client::payments as payments_grpc;
 
 use super::ConstructFlowSpecificData;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, Feature, PaymentData},
-        unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_capture, ucs_logging_wrapper,
-        },
     },
     routes::SessionState,
-    services::{self, logger},
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    services,
+    types::{self, api, domain},
 };
 
 #[cfg(feature = "v1")]

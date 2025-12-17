@@ -51,7 +51,7 @@ where
             types::PaymentsResponseData,
         >,
         router_data: &RouterData<Self, types::PaymentsCancelData, types::PaymentsResponseData>,
-        call_connector_action: CallConnectorAction,
+        _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
@@ -73,7 +73,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_void_request =
-            payments_grpc::PaymentServiceVoidRequest::foreign_try_from(&*router_data)
+            payments_grpc::PaymentServiceVoidRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Void Request")?;
 

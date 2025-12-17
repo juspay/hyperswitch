@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{errors, id_type, types::MinorUnit, ucs_types};
+use common_utils::{errors, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -32,11 +32,7 @@ use crate::{
             helpers, session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            self, build_unified_connector_service_auth_metadata,
-            get_access_token_from_ucs_response,
-            handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-            ucs_logging_wrapper, ucs_logging_wrapper_granular,
+            self, build_unified_connector_service_auth_metadata, ucs_logging_wrapper_granular,
         },
     },
     logger,
@@ -1059,146 +1055,4 @@ pub async fn call_unified_connector_service_pre_authenticate(
     ))
     .await
     .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn call_unified_connector_service_repeat_payment(
-    router_data: &mut types::RouterData<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-    state: &SessionState,
-    header_payload: &domain_payments::HeaderPayload,
-    lineage_ids: grpc_client::LineageIds,
-    #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
-    unified_connector_service_execution_mode: enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
-    creds_identifier: Option<String>,
-) -> RouterResult<()> {
-    let client = state
-        .grpc_client
-        .unified_connector_service_client
-        .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-    let payment_repeat_request =
-        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(&*router_data)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct Payment Repeat Request")?;
-
-    let merchant_connector_id = merchant_connector_account.get_mca_id();
-
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        platform,
-        router_data.connector.clone(),
-    )
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .clone()
-        .or(merchant_order_reference_id)
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-        .ok()
-        .flatten()
-        .map(ucs_types::UcsReferenceId::Payment);
-    let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
-        .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_reference_id)
-        .lineage_ids(lineage_ids);
-    let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
-        router_data.clone(),
-        state,
-        payment_repeat_request,
-        headers_builder,
-        |mut router_data, payment_repeat_request, grpc_headers| async move {
-            let response = client
-                .payment_repeat(
-                    payment_repeat_request,
-                    connector_auth_metadata.clone(),
-                    grpc_headers,
-                )
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to repeat payment")?;
-
-            let payment_repeat_response = response.into_inner();
-
-            let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
-                payment_repeat_response.clone(),
-            )
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize UCS response")?;
-
-            // Extract and store access token if present
-            if let Some(access_token) = get_access_token_from_ucs_response(
-                state,
-                platform,
-                &router_data.connector,
-                merchant_connector_id.as_ref(),
-                creds_identifier.clone(),
-                payment_repeat_response.state.as_ref(),
-            )
-            .await
-            {
-                if let Err(error) = set_access_token_for_ucs(
-                    state,
-                    platform,
-                    &router_data.connector,
-                    access_token,
-                    merchant_connector_id.as_ref(),
-                    creds_identifier,
-                )
-                .await
-                {
-                    logger::error!(
-                        ?error,
-                        "Failed to store UCS access token from repeat response"
-                    );
-                } else {
-                    logger::debug!("Successfully stored access token from UCS repeat response");
-                }
-            }
-
-            let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
-            router_data.response = router_data_response;
-            router_data.amount_captured = payment_repeat_response.captured_amount;
-            router_data.minor_amount_captured = payment_repeat_response
-                .minor_captured_amount
-                .map(MinorUnit::new);
-            router_data.raw_connector_response = payment_repeat_response
-                .raw_connector_response
-                .clone()
-                .map(|raw_connector_response| raw_connector_response.expose().into());
-            router_data.connector_http_status_code = Some(ucs_data.status_code);
-
-            // Populate connector_customer_id if present
-            ucs_data.connector_customer_id.map(|connector_customer_id| {
-                router_data.connector_customer = Some(connector_customer_id);
-            });
-
-            // Populate connector_response if present
-            ucs_data.connector_response.map(|connector_response| {
-                router_data.connector_response = Some(connector_response);
-            });
-
-            Ok((router_data, (), payment_repeat_response))
-        },
-    ))
-    .await?;
-
-    // Copy back the updated data
-    *router_data = updated_router_data;
-    Ok(())
 }

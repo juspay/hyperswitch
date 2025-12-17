@@ -28,6 +28,7 @@ use external_services::grpc_client;
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
+#[cfg(feature = "v2")]
 use std::future;
 
 #[cfg(feature = "olap")]
@@ -4473,7 +4474,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4552,6 +4553,7 @@ where
     .await
 }
 
+#[cfg(feature = "v2")]
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
 where
     F: FnOnce() -> Fut,

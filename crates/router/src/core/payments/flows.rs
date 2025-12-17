@@ -17,8 +17,9 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
-use common_enums::{self, ExecutionMode};
+use common_enums;
 use common_types::payments::CustomerAcceptance;
+#[cfg(feature = "v2")]
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -264,7 +265,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _platform: &domain::Platform,
-        _unified_connector_service_execution_mode: ExecutionMode,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
         _merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()>
     where
