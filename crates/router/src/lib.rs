@@ -235,7 +235,6 @@ pub fn mk_app(
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::RecoveryDataBackfill::server(state.clone()));
         }
-        server_app = server_app.service(routes::Oidc::server(state.clone()));
     }
 
     #[cfg(all(feature = "payouts", feature = "v1"))]
