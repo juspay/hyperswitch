@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.10.0-hotfix3
+
+### Features
+
+- **connector:** [Zift] Remove billing address fields and add mandate setup (account verification) support ([#10700](https://github.com/juspay/hyperswitch/pull/10700)) ([`7898c6c`](https://github.com/juspay/hyperswitch/commit/7898c6c5ae67274948c53d2432c0940923b2a13f))
+- **core:** Add requires_capture to default payment webhook statuses ([#10699](https://github.com/juspay/hyperswitch/pull/10699)) ([`b12e854`](https://github.com/juspay/hyperswitch/commit/b12e854bc2b2f60f308e40b8df96a4dba077c12c))
+- **payment_links:** Verify payment method mapping for custom tnc ([#10696](https://github.com/juspay/hyperswitch/pull/10696)) ([`8dd35ff`](https://github.com/juspay/hyperswitch/commit/8dd35ff1fcdfa29a55b90e7c99c9467931d9bf5d))
+- **router:** Add `is_guest_customer` in payment method list response ([#10704](https://github.com/juspay/hyperswitch/pull/10704)) ([`6d4f116`](https://github.com/juspay/hyperswitch/commit/6d4f116dfcd248713da219324bb3118ea7ea48b6))
+
+### Bug Fixes
+
+- **Config:** [Peach Payments] Production Base URL ([#10694](https://github.com/juspay/hyperswitch/pull/10694)) ([`3e275bf`](https://github.com/juspay/hyperswitch/commit/3e275bfce3f916ed2f993f1f0fa7d2347445057e))
+- **connector:** [gigadat] make strict type and mask gigadat webhook payload ([#10695](https://github.com/juspay/hyperswitch/pull/10695)) ([`fa1c2ef`](https://github.com/juspay/hyperswitch/commit/fa1c2ef667aeea3967d2e9755b27c9977d6c4840))
+
+### Revert
+
+- "feat(payment_links): Add Validation On Not Allowing Custom T&C When Domain is set to Hyperswitch Hosted" ([#10693](https://github.com/juspay/hyperswitch/pull/10693)) ([`1b0d83a`](https://github.com/juspay/hyperswitch/commit/1b0d83a44693966171f04238b0372af8d692aca0))
+
+**Full Changelog:** [`2025.12.10.0-hotfix2...2025.12.10.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.12.10.0-hotfix2...2025.12.10.0-hotfix3)
+
+- - -
+
 ## 2025.12.10.0-hotfix2
 
 ### Bug Fixes
