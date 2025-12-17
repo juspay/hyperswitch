@@ -4262,7 +4262,7 @@ where
     // there should be no error in request construction from hyperswitch end
     let update_tracker = operation.to_update_tracker()?;
     let ((), (_, new_payment_data)) = tokio::try_join!(
-        update_tracker.update_customer(
+        operation.to_domain()?.update_customer(
             state,
             platform.get_provider(),
             customer.clone(),
@@ -4790,7 +4790,7 @@ where
     // there should be no error in request construction from hyperswitch end
     let update_tracker = operation.to_update_tracker()?;
     let ((), (_, new_payment_data)) = tokio::try_join!(
-        update_tracker.update_customer(
+        operation.to_domain()?.update_customer(
             state,
             platform.get_provider(),
             customer.clone(),

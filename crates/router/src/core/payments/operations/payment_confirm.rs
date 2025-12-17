@@ -903,6 +903,33 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         .await
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn update_customer<'a>(
+        &'a self,
+        state: &'a SessionState,
+        provider: &domain::Provider,
+        customer: Option<domain::Customer>,
+        updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
+            state
+                .store
+                .update_customer_by_customer_id_merchant_id(
+                    customer.customer_id.to_owned(),
+                    customer.merchant_id.to_owned(),
+                    customer,
+                    updated_customer,
+                    provider.get_key_store(),
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update CustomerConnector in customer")?;
+        }
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -1695,20 +1722,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
-    async fn update_customer<'b>(
-        &'b self,
-        _state: &'b SessionState,
-        _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
-        _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()>
-    where
-        F: 'b + Send,
-    {
-        todo!()
-    }
-
-    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
@@ -1732,35 +1745,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
-    #[instrument(skip_all)]
-    async fn update_customer<'b>(
-        &'b self,
-        state: &'b SessionState,
-        provider: &domain::Provider,
-        customer: Option<domain::Customer>,
-        updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()>
-    where
-        F: 'b + Send,
-    {
-        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-            state
-                .store
-                .update_customer_by_customer_id_merchant_id(
-                    customer.customer_id.to_owned(),
-                    customer.merchant_id.to_owned(),
-                    customer,
-                    updated_customer,
-                    provider.get_key_store(),
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update CustomerConnector in customer")?;
-        }
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

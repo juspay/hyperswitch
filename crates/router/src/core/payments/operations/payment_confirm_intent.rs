@@ -441,6 +441,33 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         }
     }
 
+    #[instrument(skip_all)]
+    async fn update_customer<'a>(
+        &'a self,
+        state: &'a SessionState,
+        provider: &domain::Provider,
+        customer: Option<domain::Customer>,
+        updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
+            let customer_id = customer.get_id().clone();
+
+            let _updated_customer = state
+                .store
+                .update_customer_by_global_id(
+                    &customer_id,
+                    customer,
+                    updated_customer,
+                    provider.get_key_store(),
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer during `update_customer`")?;
+        }
+        Ok(())
+    }
+
     async fn run_decision_manager<'a>(
         &'a self,
         state: &SessionState,
@@ -718,36 +745,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequest>
     for PaymentIntentConfirm
 {
-    #[instrument(skip_all)]
-    async fn update_customer<'b>(
-        &'b self,
-        state: &'b SessionState,
-        provider: &domain::Provider,
-        customer: Option<domain::Customer>,
-        updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()>
-    where
-        F: 'b + Send,
-    {
-        if let Some((customer, updated_customer)) = customer.zip(updated_customer) {
-            let customer_id = customer.get_id().clone();
-
-            let _updated_customer = state
-                .store
-                .update_customer_by_global_id(
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    provider.get_key_store(),
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during `update_customer`")?;
-        }
-        Ok(())
-    }
-
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

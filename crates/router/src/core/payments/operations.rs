@@ -279,6 +279,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
+    /// Update customer information at provider level
+    /// This handles connector_customer_id updates in the Customer table
+    async fn update_customer<'a>(
+        &'a self,
+        _db: &'a SessionState,
+        _provider: &domain::Provider,
+        _customer: Option<domain::Customer>,
+        _updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
     #[cfg(feature = "v2")]
     /// This will run the decision manager for the payment
     async fn run_decision_manager<'a>(
@@ -483,21 +495,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait UpdateTracker<F, D, Req>: Send {
-    /// Update customer information at provider level
-    /// This handles connector_customer_id updates in the Customer table
-    async fn update_customer<'b>(
-        &'b self,
-        _db: &'b SessionState,
-        _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
-        _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()>
-    where
-        F: 'b + Send,
-    {
-        Ok(())
-    }
-
     /// Update the tracker information with the new data from request or calculated by the operations performed after get trackers
     /// This will persist the SessionData ( PaymentData ) in the database
     ///
