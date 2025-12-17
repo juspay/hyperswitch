@@ -173,6 +173,7 @@ pub enum BankRedirectType {
     OpenBankingUk,
     Przelewy24,
     Trustly,
+    OpenBanking,
 }
 
 #[derive(
@@ -413,6 +414,27 @@ pub enum RewardType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+pub enum TransactionInitiator {
+    Customer,
+    Merchant,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CustomerDevicePlatform {
     Web,
     Android,
@@ -509,3 +531,4 @@ collect_variants!(MobilePaymentType);
 collect_variants!(CustomerDeviceType);
 collect_variants!(CustomerDevicePlatform);
 collect_variants!(CustomerDeviceDisplaySize);
+collect_variants!(TransactionInitiator);

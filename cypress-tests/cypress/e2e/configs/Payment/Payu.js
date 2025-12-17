@@ -584,6 +584,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: polishBillingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

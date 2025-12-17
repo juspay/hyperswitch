@@ -6686,6 +6686,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -8076,6 +8087,11 @@
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
             "nullable": true
           },
           "bank_code": {
@@ -10330,13 +10346,38 @@
           }
         }
       },
-      "CustomTermsByPaymentMethodTypes": {
+      "CustomMessage": {
         "type": "object",
-        "description": "Custom T&C Message to be shown per payment method type",
-        "additionalProperties": {
-          "type": "string"
-        },
-        "nullable": true
+        "description": "Custom T&C message content and display mode",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The text to be shown per payment method type",
+            "example": "I authorize Novalnet AG to debit my account."
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomTerms": {
+        "type": "object",
+        "description": "Custom T&C message for a specific payment method type",
+        "required": [
+          "payment_method_type",
+          "message"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "message": {
+            "$ref": "#/components/schemas/CustomMessage"
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -13319,6 +13360,24 @@
               }
             ],
             "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -13495,6 +13554,24 @@
           },
           "feature_data": {
             "$ref": "#/components/schemas/GsmFeatureData"
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -13621,6 +13698,24 @@
                 "$ref": "#/components/schemas/GsmFeatureData"
               }
             ],
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
             "nullable": true
           }
         }
@@ -14743,15 +14838,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
@@ -15947,6 +16035,11 @@
           "card_issuing_country": {
             "type": "string",
             "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
             "nullable": true
           },
           "bank_code": {
@@ -17883,7 +17976,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -18063,7 +18156,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -18144,11 +18237,6 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
-            "nullable": true
-          },
-          "payment_test_mode": {
-            "type": "boolean",
-            "description": "Indicates whether the merchant is testing or live",
             "nullable": true
           }
         }
@@ -18405,6 +18493,35 @@
             }
           }
         ]
+      },
+      "PaymentMethodConfig": {
+        "type": "object",
+        "description": "Custom T&C messages for a specific payment method",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomTerms"
+            },
+            "description": "Payment Method Types",
+            "example": [
+              {
+                "message": {
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
+              }
+            ]
+          }
+        }
       },
       "PaymentMethodCreate": {
         "type": "object",
@@ -19647,7 +19764,8 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19686,6 +19804,13 @@
             }
           }
         ]
+      },
+      "PaymentMethodsConfig": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PaymentMethodConfig"
+        },
+        "description": "List of custom T&C messages grouped by payment method"
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -25543,6 +25668,15 @@
           "transaction_risk_analysis"
         ]
       },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
+        ]
+      },
       "SdkInformation": {
         "type": "object",
         "description": "SDK Information if request is from SDK",
@@ -26177,6 +26311,56 @@
         "enum": [
           "enable",
           "skip"
+        ]
+      },
+      "StandardisedCode": {
+        "type": "string",
+        "enum": [
+          "account_closed_or_invalid",
+          "authentication_failed",
+          "authentication_required",
+          "authorization_missing_or_revoked",
+          "card_lost_or_stolen",
+          "card_not_supported_restricted",
+          "cfg_pm_not_enabled_or_misconfigured",
+          "compliance_or_sanctions_restriction",
+          "configuration_issue",
+          "credit_limit_exceeded",
+          "currency_or_corridor_not_enabled",
+          "do_not_honor",
+          "downstream_technical_issue",
+          "duplicate_request",
+          "generic_unknown_error",
+          "incorrect_authentication_code",
+          "insufficient_funds",
+          "integ_cryptographic_issue",
+          "integration_issue",
+          "invalid_card_number",
+          "invalid_credentials",
+          "invalid_cvv",
+          "invalid_expiry_date",
+          "invalid_state",
+          "issuer_unavailable",
+          "merchant_inactive",
+          "missing_or_invalid_param",
+          "operation_not_allowed",
+          "payment_cancelled_by_user",
+          "payment_method_issue",
+          "payment_session_timeout",
+          "pm_address_mismatch",
+          "psp_acquirer_error",
+          "psp_fraud_engine_decline",
+          "rate_limit",
+          "stored_credential_or_mit_not_enabled",
+          "subscription_plan_inactive",
+          "suspected_fraud",
+          "three_ds_authentication_service_issue",
+          "three_ds_configuration_issue",
+          "three_ds_data_or_protocol_invalid",
+          "transaction_not_permitted",
+          "transaction_timed_out",
+          "velocity_limit_exceeded",
+          "wallet_or_token_config_issue"
         ]
       },
       "StaticRoutingAlgorithm": {
@@ -27007,6 +27191,11 @@
             "nullable": true
           },
           "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
             "type": "string",
             "description": "Card Issuing Country",
             "nullable": true

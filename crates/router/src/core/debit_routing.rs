@@ -468,7 +468,7 @@ fn extract_card_info_from_saved_card(
     match (&card.co_badged_card_data, &card.card_isin) {
         (Some(co_badged), _) => {
             logger::debug!("Co-badged card data found in saved payment method");
-            ExtractedCardInfo::new(Some(co_badged.clone()), card.card_type.clone(), None)
+            ExtractedCardInfo::new(Some(co_badged.clone().into()), card.card_type.clone(), None)
         }
         (None, Some(card_isin)) => {
             logger::debug!("No co-badged data; using saved card ISIN");

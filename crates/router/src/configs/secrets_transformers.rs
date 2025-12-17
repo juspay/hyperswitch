@@ -32,20 +32,13 @@ impl SecretsHandler for settings::Jwekey {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let jwekey = value.get_inner();
-        let (
-            vault_encryption_key,
-            rust_locker_encryption_key,
-            vault_private_key,
-            tunnel_private_key,
-        ) = tokio::try_join!(
+        let (vault_encryption_key, vault_private_key, tunnel_private_key) = tokio::try_join!(
             secret_management_client.get_secret(jwekey.vault_encryption_key.clone()),
-            secret_management_client.get_secret(jwekey.rust_locker_encryption_key.clone()),
             secret_management_client.get_secret(jwekey.vault_private_key.clone()),
             secret_management_client.get_secret(jwekey.tunnel_private_key.clone())
         )?;
         Ok(value.transition_state(|_| Self {
             vault_encryption_key,
-            rust_locker_encryption_key,
             vault_private_key,
             tunnel_private_key,
         }))
@@ -538,6 +531,7 @@ pub(crate) async fn fetch_raw_secrets(
 
     Settings {
         server: conf.server,
+        application_source: conf.application_source,
         chat,
         master_database,
         redis: conf.redis,
@@ -628,6 +622,7 @@ pub(crate) async fn fetch_raw_secrets(
         theme: conf.theme,
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
+        preprocessing_flow_config: conf.preprocessing_flow_config.clone(),
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]

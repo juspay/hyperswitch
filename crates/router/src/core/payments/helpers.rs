@@ -12,8 +12,8 @@ use api_models::{
 };
 use base64::Engine;
 #[cfg(feature = "v1")]
-use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
-use common_enums::ConnectorType;
+use common_enums::enums::{CallConnectorAction, GatewaySystem};
+use common_enums::{enums::ExecutionMode, ConnectorType};
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
@@ -62,7 +62,7 @@ use openssl::{
 use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, tracing::Instrument};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -1437,10 +1437,15 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while adding task to process tracker")
+                    super::add_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        state.conf.application_source,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while adding task to process tracker")
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(
@@ -2114,6 +2119,7 @@ pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub execution_mode: ExecutionMode,
 }
 
 impl Default for RolloutConfig {
@@ -2122,6 +2128,7 @@ impl Default for RolloutConfig {
             rollout_percent: 0.0,
             http_url: None,
             https_url: None,
+            execution_mode: ExecutionMode::NotApplicable,
         }
     }
 }
@@ -2133,6 +2140,17 @@ pub use hyperswitch_interfaces::types::ProxyOverride;
 pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
+    pub execution_mode: ExecutionMode,
+}
+
+impl Default for RolloutExecutionResult {
+    fn default() -> Self {
+        Self {
+            should_execute: false,
+            proxy_override: None,
+            execution_mode: ExecutionMode::NotApplicable,
+        }
+    }
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
@@ -2175,6 +2193,80 @@ fn create_proxy_override(
     }
 }
 
+// Helper function to execute rollout logic or return default
+impl From<RolloutConfig> for RolloutExecutionResult {
+    fn from(config: RolloutConfig) -> Self {
+        // Validate both rollout_percent bounds and execution_mode
+        let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        let is_valid_execution_mode =
+            !matches!(config.execution_mode, ExecutionMode::NotApplicable);
+
+        match (is_valid_percent, is_valid_execution_mode) {
+            (true, true) => {
+                // Calculate probability to determine if request should execute
+                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let should_execute = sampled_value < config.rollout_percent;
+
+                logger::debug!(
+                    rollout_percent = config.rollout_percent,
+                    sampled_value = sampled_value,
+                    should_execute = should_execute,
+                    execution_mode = ?config.execution_mode,
+                    "Rollout execution decision made"
+                );
+
+                match should_execute {
+                    true => {
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+                        logger::info!(
+                            should_execute = should_execute,
+                            execution_mode = ?config.execution_mode,
+                            "Rollout will be executed with proxy override"
+                        );
+                        Self {
+                            should_execute: true,
+                            proxy_override,
+                            execution_mode: config.execution_mode,
+                        }
+                    }
+                    false => {
+                        logger::info!(
+                            should_execute = should_execute,
+                            execution_mode = ?config.execution_mode,
+                            "Rollout will not be executed"
+                        );
+                        Self::default()
+                    }
+                }
+            }
+            (true, false) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid execution mode in rollout config. Defaulting to NotApplicable and should execute false."
+            );
+                Self::default()
+            }
+            (false, true) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                "Invalid rollout percent in rollout config. Defaulting to should execute false."
+            );
+                Self::default()
+            }
+            (false, false) => {
+                logger::warn!(
+                is_valid_percent = is_valid_percent,
+                is_valid_execution_mode = is_valid_execution_mode,
+                "Invalid rollout percent and execution mode in rollout config. Defaulting to should execute false and NotApplicable."
+            );
+                Self::default()
+            }
+        }
+    }
+}
+
 pub async fn should_execute_based_on_rollout(
     state: &SessionState,
     config_key: &str,
@@ -2183,71 +2275,22 @@ pub async fn should_execute_based_on_rollout(
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
-            // Try to parse as JSON first (new format), fallback to float (legacy format)
-            let config_result = match serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-            {
-                Ok(config) => Ok(config),
-                Err(err) => {
-                    logger::debug!(
+            // Parse as JSON - log error if it fails but don't propagate
+            Ok(serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
                         error = ?err,
                         config = %rollout_config.config,
-                        "Config not in JSON format, trying legacy float format"
+                        "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
-                    // Fallback to legacy format (simple float)
-                    rollout_config.config.parse::<f64>()
-                        .map(|percent| RolloutConfig {
-                            rollout_percent: percent,
-                            http_url: None,
-                            https_url: None,
-                        })
-                        .map_err(|err| {
-                            logger::error!(error = ?err, "Failed to parse rollout config as either JSON or float");
-                            err
-                        })
-                }
-            };
-
-            match config_result {
-                Ok(config) => {
-                    if !(0.0..=1.0).contains(&config.rollout_percent) {
-                        logger::warn!(
-                            rollout_percent = config.rollout_percent,
-                            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
-                        );
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
-
-                        return Ok(RolloutExecutionResult {
-                            should_execute: false,
-                            proxy_override,
-                        });
-                    }
-
-                    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
-                    let should_execute = sampled_value < config.rollout_percent;
-
-                    let proxy_override = create_proxy_override(config.http_url, config.https_url);
-
-                    Ok(RolloutExecutionResult {
-                        should_execute,
-                        proxy_override,
-                    })
-                }
-                Err(err) => {
-                    logger::error!(error = ?err, "Failed to parse rollout config");
-                    Ok(RolloutExecutionResult {
-                        should_execute: false,
-                        proxy_override: None,
-                    })
-                }
-            }
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
-            Ok(RolloutExecutionResult {
-                should_execute: false,
-                proxy_override: None,
-            })
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            Ok(RolloutExecutionResult::default())
         }
     }
 }
@@ -2591,6 +2634,7 @@ pub async fn fetch_card_details_from_internal_locker(
             .flatten(),
         card_type: None,
         card_issuing_country: None,
+        card_issuing_country_code: None,
         bank_code: None,
     };
     Ok(domain::Card::from((api_card, co_badged_card_data)))
@@ -2737,6 +2781,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
             card_holder_name: card_details_from_locker.name_on_card.clone(),
@@ -2793,6 +2838,13 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         | storage::PaymentTokenData::TemporaryGeneric(_)
         | storage::PaymentTokenData::Permanent(_)
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
+        storage::PaymentTokenData::BankDebit(data) => state
+            .store
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieving payment method from DB")
+            .map(Some),
     }
 }
 
@@ -4008,10 +4060,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
 ) -> RouterResult<()> {
-    let primary_business_details = platform
-        .get_processor()
+    let primary_business_details = processor
         .get_account()
         .primary_business_details
         .clone()
@@ -4319,9 +4370,10 @@ mod tests {
 #[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
+    let merchant_id = processor.get_account().get_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -5102,6 +5154,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5135,6 +5188,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5157,6 +5211,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -5438,6 +5493,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5471,6 +5527,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5493,6 +5550,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -6764,13 +6822,14 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: String,
-    flow: String,
+    flow: &str,
+    sub_flow: &str,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),
-                flow.clone(),
-                "sub_flow".to_string(),
+                flow.to_string(),
+                sub_flow.to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
@@ -6778,9 +6837,10 @@ pub async fn get_gsm_record(
             .map_err(|err| {
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
-                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        "GSM miss for connector - {}, flow - {}, sub_flow - {}, error_code - {:?}, error_message - {:?}",
                         connector_name,
                         flow,
+                        sub_flow,
                         error_code,
                         error_message
                     );
@@ -7246,6 +7306,9 @@ pub async fn get_payment_method_details_from_payment_token(
         }
 
         storage::PaymentTokenData::WalletToken(_) => Ok(None),
+
+        // TODO: External authentication not implemented for BankDebit
+        storage::PaymentTokenData::BankDebit(_) => Ok(None),
     }
 }
 
@@ -7867,16 +7930,16 @@ pub async fn is_merchant_eligible_authentication_service(
 pub async fn validate_allowed_payment_method_types_request(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7932,7 +7995,7 @@ pub async fn validate_allowed_payment_method_types_request(
                 1,
                 router_env::metric_attributes!((
                     "merchant_id",
-                    platform.get_processor().get_account().get_id().clone()
+                    processor.get_account().get_id().clone()
                 )),
             );
         }
@@ -8659,40 +8722,48 @@ where
         tokenization_action,
         gateway_context,
     )
-    .await?;
+    .await;
 
-    // Spawn shadow UCS call in background
-    let direct_router_data = result.0.clone();
-    tokio::spawn(async move {
-        execute_shadow_unified_connector_service_call(
-            unified_connector_service_state,
-            unified_connector_service_router_data,
-            direct_router_data,
-            unified_connector_service_header_payload,
-            lineage_ids,
-            unified_connector_service_merchant_connector_account,
-            &connector,
-            unified_connector_service_platform,
-            unified_connector_service_merchant_order_reference_id,
-            call_connector_action,
-            shadow_ucs_call_connector_action,
-            unified_connector_service_creds_identifier,
-            unified_connector_service_customer,
-            unified_connector_service_payment_attempt_data,
-            unified_connector_service_connector_label,
-            unified_connector_service_connector_payment_id,
-        )
-        .await
-        .map_err(|e| {
-            router_env::logger::debug!(
-                "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
-                e
+    // Spawn shadow UCS call in background regardless of HS result
+    // Use the initial router_data as fallback when HS fails
+    let direct_router_data = match &result {
+        Ok(success_data) => Some(success_data.0.clone()),
+        Err(_) => None,
+    };
+
+    tokio::spawn(
+        async move {
+            execute_shadow_unified_connector_service_call(
+                unified_connector_service_state,
+                unified_connector_service_router_data,
+                direct_router_data,
+                unified_connector_service_header_payload,
+                lineage_ids,
+                unified_connector_service_merchant_connector_account,
+                &connector,
+                unified_connector_service_platform,
+                unified_connector_service_merchant_order_reference_id,
+                call_connector_action,
+                shadow_ucs_call_connector_action,
+                unified_connector_service_creds_identifier,
+                unified_connector_service_customer,
+                unified_connector_service_payment_attempt_data,
+                unified_connector_service_connector_label,
+                unified_connector_service_connector_payment_id,
             )
-        })
-        .ok()
-    });
+            .await
+            .map_err(|e| {
+                router_env::logger::debug!(
+                    "Shadow UCS call in Direct with shadow UCS processing failed: {:?}",
+                    e
+                )
+            })
+            .ok()
+        }
+        .instrument(tracing::Span::current()),
+    );
 
-    Ok(result)
+    result
 }
 
 #[cfg(feature = "v1")]
@@ -8702,7 +8773,7 @@ where
 pub async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     state: SessionState,
     mut unified_connector_service_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
-    direct_router_data: RouterData<F, RouterDReq, PaymentsResponseData>,
+    direct_router_data: Option<RouterData<F, RouterDReq, PaymentsResponseData>>,
     header_payload: domain_payments::HeaderPayload,
     lineage_ids: grpc_client::LineageIds,
     merchant_connector_account: MerchantConnectorAccountType,
@@ -8739,7 +8810,7 @@ where
         unified_connector_service_router_data.connector_customer = Some(id);
     });
     // Call UCS in shadow mode
-    let _unified_connector_service_result = unified_connector_service_router_data
+    let unified_connector_service_result = unified_connector_service_router_data
         .call_unified_connector_service(
             &state,
             &header_payload,
@@ -8752,23 +8823,42 @@ where
             shadow_ucs_call_connector_action.unwrap_or(call_connector_action),
             creds_identifier,
         )
-        .await
-        .map_err(|e| router_env::logger::debug!("Shadow UCS call failed: {:?}", e));
+        .await;
 
-    // Compare results
-    match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
-        &state,
-        direct_router_data,
-        unified_connector_service_router_data,
-    )
-    .await
-    {
-        Ok(_) => {
-            router_env::logger::debug!("Shadow UCS comparison completed successfully");
+    match (direct_router_data, unified_connector_service_result) {
+        (Some(direct_data), Ok(_)) => {
+            // Compare results
+            match unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+                &state,
+                direct_data,
+                unified_connector_service_router_data,
+            )
+            .await
+            {
+                Ok(_) => {
+                    router_env::logger::debug!("Shadow UCS comparison completed successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
+                    Ok(())
+                }
+            }
+        }
+        (None, _) => {
+            router_env::logger::debug!(
+                "Direct call failed, skipping UCS router data comparison for payment_id={}",
+                unified_connector_service_payment_id
+            );
             Ok(())
         }
-        Err(e) => {
-            router_env::logger::debug!("Shadow UCS comparison failed: {:?}", e);
+        (_, Err(e)) => {
+            router_env::logger::debug!(
+                "
+                Skiping UCS router data comparison Shadow UCS call failed for payment_id={}: {:?}",
+                unified_connector_service_payment_id,
+                e
+            );
             Ok(())
         }
     }

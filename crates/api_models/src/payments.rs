@@ -84,7 +84,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v1")]
-use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+use crate::{disputes, refunds, ValidateFieldAndGet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -2379,6 +2379,7 @@ impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
             card_issuer: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             last4: None,
             card_extended_bin: None,
@@ -2614,6 +2615,10 @@ pub struct Card {
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
 
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
+
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]
     pub bank_code: Option<String>,
@@ -2654,6 +2659,7 @@ impl TryFrom<payment_methods::CardDetail> for Card {
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name,
         })
@@ -2782,6 +2788,10 @@ impl Card {
                 .card_issuing_country
                 .clone()
                 .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
         })
@@ -3616,6 +3626,7 @@ impl GetPaymentMethodType for BankRedirectData {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
             Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -3856,6 +3867,7 @@ pub struct AdditionalCardInfo {
     pub card_type: Option<String>,
 
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub bank_code: Option<String>,
 
     /// Last 4 digits of the card number
@@ -4175,6 +4187,7 @@ pub enum BankRedirectData {
         #[smithy(value_type = "String")]
         provider: String,
     },
+    OpenBanking {},
 }
 
 impl GetAddressFromPaymentMethodData for BankRedirectData {
@@ -4291,7 +4304,8 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             | Self::OnlineBankingSlovakia { .. }
             | Self::OnlineBankingCzechRepublic { .. }
             | Self::Blik { .. }
-            | Self::Eft { .. } => None,
+            | Self::Eft { .. }
+            | Self::OpenBanking { .. } => None,
         }
     }
 }
@@ -7121,10 +7135,6 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
-
-    /// ephemeral_key for the customer_id mentioned
-    #[smithy(value_type = "Option<EphemeralKeyCreateResponse>")]
-    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
     /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
     #[smithy(value_type = "Option<bool>")]
@@ -11268,7 +11278,7 @@ pub struct PaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
@@ -11295,7 +11305,7 @@ pub struct SecurePaymentLinkDetails {
     pub skip_status_screen: Option<bool>,
     pub custom_message_for_card_terms: Option<String>,
     pub custom_message_for_payment_method_types:
-        Option<common_enums::CustomTermsByPaymentMethodTypes>,
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,

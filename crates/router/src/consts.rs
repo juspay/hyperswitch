@@ -113,6 +113,9 @@ pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
 pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+pub const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+pub const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+pub const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
@@ -223,6 +226,12 @@ pub const CLICK_TO_PAY: &str = "click_to_pay";
 /// Merchant eligible for authentication service config
 pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
     "merchants_eligible_for_authentication_service";
+
+/// Payment flow identifier used for performing GSM operations
+pub const PAYMENT_FLOW_STR: &str = "Payment";
+
+/// Default subflow identifier used for performing GSM operations
+pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
