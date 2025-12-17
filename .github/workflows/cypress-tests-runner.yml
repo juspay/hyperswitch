@@ -248,10 +248,16 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install Cypress and dependencies
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          npm ci --prefix ./cypress-tests
+      # - name: Install Cypress and dependencies
+      #   if: ${{ env.RUN_TESTS == 'true' }}
+      #   run: |
+      #     npm ci --prefix ./cypress-tests
+      - name: Cypress install
+        uses: cypress-io/github-action@v6
+        with:
+          # Disable running of tests within install job
+          runTests: false
+          build: npm run build
 
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -298,6 +304,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           DISPLAY: ""
+          BROWSER: "chrome"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 3

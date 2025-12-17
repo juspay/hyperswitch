@@ -116,7 +116,7 @@ run_tests() {
     declare -n connectors="$service"
 
     if (( ${#connectors[@]} > 0 )); then
-      parallel --jobs "$jobs" --ungroup \
+      parallel --jobs "$jobs" --group \
         execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file" || true
     else
       if ! npm run "cypress:${service}"; then
