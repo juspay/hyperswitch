@@ -18,8 +18,9 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::errors::ConnectorError;
@@ -28,8 +29,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_currency_base_unit_asf64,
@@ -112,32 +113,56 @@ pub enum CustomerAction {
     UpdateCustomer,
 }
 
+fn try_build_nmi_vault_request_from_router_data(
+    connector_auth_type: &ConnectorAuthType,
+    payment_method_data: Option<PaymentMethodData>,
+    billing_address: Result<&hyperswitch_domain_models::address::AddressDetails, Error>,
+) -> Result<NmiVaultRequest, Error> {
+    let auth_type: NmiAuthType = connector_auth_type.try_into()?;
+    let (ccnumber, ccexp, cvv) = get_card_details(payment_method_data)?;
+    let billing_details = billing_address?;
+    let first_name = billing_details.get_first_name()?;
+
+    Ok(NmiVaultRequest {
+        security_key: auth_type.api_key,
+        ccnumber,
+        ccexp,
+        cvv,
+        first_name: first_name.clone(),
+        last_name: billing_details
+            .get_last_name()
+            .unwrap_or(first_name)
+            .clone(),
+        address1: billing_details.line1.clone(),
+        address2: billing_details.line2.clone(),
+        city: billing_details.city.clone(),
+        state: billing_details.state.clone(),
+        country: billing_details.country,
+        zip: billing_details.zip.clone(),
+        customer_vault: CustomerAction::AddCustomer,
+    })
+}
+
+// Marker trait: only implemented for the allowed RouterData types
 impl TryFrom<&PaymentsPreProcessingRouterData> for NmiVaultRequest {
     type Error = Error;
     fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
-        let (ccnumber, ccexp, cvv) = get_card_details(item.request.payment_method_data.clone())?;
-        let billing_details = item.get_billing_address()?;
-        let first_name = billing_details.get_first_name()?;
+        try_build_nmi_vault_request_from_router_data(
+            &item.connector_auth_type,
+            item.request.payment_method_data.clone(),
+            item.get_billing_address(),
+        )
+    }
+}
 
-        Ok(Self {
-            security_key: auth_type.api_key,
-            ccnumber,
-            ccexp,
-            cvv,
-            first_name: first_name.clone(),
-            last_name: billing_details
-                .get_last_name()
-                .unwrap_or(first_name)
-                .clone(),
-            address1: billing_details.line1.clone(),
-            address2: billing_details.line2.clone(),
-            city: billing_details.city.clone(),
-            state: billing_details.state.clone(),
-            country: billing_details.country,
-            zip: billing_details.zip.clone(),
-            customer_vault: CustomerAction::AddCustomer,
-        })
+impl TryFrom<&PaymentsPreAuthenticateRouterData> for NmiVaultRequest {
+    type Error = Error;
+    fn try_from(item: &PaymentsPreAuthenticateRouterData) -> Result<Self, Self::Error> {
+        try_build_nmi_vault_request_from_router_data(
+            &item.connector_auth_type,
+            Some(item.request.payment_method_data.clone()),
+            item.get_billing_address(),
+        )
     }
 }
 
@@ -166,6 +191,91 @@ pub struct NmiVaultResponse {
     pub transactionid: String,
 }
 
+fn process_nmi_vault_response(
+    connector_auth_type: &ConnectorAuthType,
+    amount: Option<i64>,
+    currency: Option<Currency>,
+    vault_response: &NmiVaultResponse,
+    http_code: u16,
+    connector_request_reference_id: String,
+) -> Result<(Result<PaymentsResponseData, ErrorResponse>, AttemptStatus), Error> {
+    let auth_type: NmiAuthType = connector_auth_type.try_into()?;
+    let amount_data = amount.ok_or(ConnectorError::MissingRequiredField {
+        field_name: "amount",
+    })?;
+    let currency_data = currency.ok_or(ConnectorError::MissingRequiredField {
+        field_name: "currency",
+    })?;
+
+    build_nmi_vault_response(
+        auth_type,
+        amount_data,
+        currency_data,
+        vault_response,
+        http_code,
+        connector_request_reference_id,
+    )
+}
+
+fn build_nmi_vault_response(
+    auth_type: NmiAuthType,
+    amount_data: i64,
+    currency_data: Currency,
+    vault_response: &NmiVaultResponse,
+    http_code: u16,
+    connector_request_reference_id: String,
+) -> Result<(Result<PaymentsResponseData, ErrorResponse>, AttemptStatus), Error> {
+    let (response, status) = match vault_response.response {
+        Response::Approved => (
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(Some(RedirectForm::Nmi {
+                    amount: to_currency_base_unit_asf64(amount_data, currency_data.to_owned())?
+                        .to_string(),
+                    currency: currency_data,
+                    customer_vault_id: vault_response
+                        .customer_vault_id
+                        .clone()
+                        .ok_or(ConnectorError::MissingRequiredField {
+                            field_name: "customer_vault_id",
+                        })?
+                        .peek()
+                        .to_string(),
+                    public_key: auth_type.public_key.ok_or(
+                        ConnectorError::InvalidConnectorConfig {
+                            config: "public_key",
+                        },
+                    )?,
+                    order_id: connector_request_reference_id.clone(),
+                })),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(vault_response.transactionid.clone()),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            AttemptStatus::AuthenticationPending,
+        ),
+        Response::Declined | Response::Error => (
+            Err(ErrorResponse {
+                code: vault_response.response_code.clone(),
+                message: vault_response.responsetext.to_owned(),
+                reason: Some(vault_response.responsetext.clone()),
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(vault_response.transactionid.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            }),
+            AttemptStatus::Failure,
+        ),
+    };
+    Ok((response, status))
+}
+
 impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
     for PaymentsPreProcessingRouterData
 {
@@ -173,69 +283,39 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
     fn try_from(
         item: PaymentsPreprocessingResponseRouterData<NmiVaultResponse>,
     ) -> Result<Self, Self::Error> {
-        let auth_type: NmiAuthType = (&item.data.connector_auth_type).try_into()?;
-        let amount_data = item
-            .data
-            .request
-            .amount
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
-        let currency_data =
-            item.data
-                .request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-        let (response, status) = match item.response.response {
-            Response::Approved => (
-                Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::NoResponseId,
-                    redirection_data: Box::new(Some(RedirectForm::Nmi {
-                        amount: to_currency_base_unit_asf64(amount_data, currency_data.to_owned())?
-                            .to_string(),
-                        currency: currency_data,
-                        customer_vault_id: item
-                            .response
-                            .customer_vault_id
-                            .ok_or(ConnectorError::MissingRequiredField {
-                                field_name: "customer_vault_id",
-                            })?
-                            .peek()
-                            .to_string(),
-                        public_key: auth_type.public_key.ok_or(
-                            ConnectorError::InvalidConnectorConfig {
-                                config: "public_key",
-                            },
-                        )?,
-                        order_id: item.data.connector_request_reference_id.clone(),
-                    })),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(item.response.transactionid),
-                    incremental_authorization_allowed: None,
-                    charges: None,
-                }),
-                AttemptStatus::AuthenticationPending,
-            ),
-            Response::Declined | Response::Error => (
-                Err(ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.responsetext.to_owned(),
-                    reason: Some(item.response.responsetext),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.transactionid),
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                }),
-                AttemptStatus::Failure,
-            ),
-        };
+        let (response, status) = process_nmi_vault_response(
+            &item.data.connector_auth_type,
+            item.data.request.amount,
+            item.data.request.currency,
+            &item.response,
+            item.http_code,
+            item.data.connector_request_reference_id.clone(),
+        )?;
+
+        Ok(Self {
+            status,
+            response,
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
+    for PaymentsPreAuthenticateRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>,
+    ) -> Result<Self, Self::Error> {
+        let (response, status) = process_nmi_vault_response(
+            &item.data.connector_auth_type,
+            Some(item.data.request.amount),
+            item.data.request.currency,
+            &item.response,
+            item.http_code,
+            item.data.connector_request_reference_id.clone(),
+        )?;
+
         Ok(Self {
             status,
             response,
@@ -469,7 +549,13 @@ impl NmiMerchantDefinedField {
             .enumerate()
             .map(|(index, (hs_key, hs_value))| {
                 let nmi_key = format!("merchant_defined_field_{}", index + 1);
-                let nmi_value = format!("{hs_key}={hs_value}");
+                let val = match hs_value {
+                    serde_json::Value::Bool(boolean) => boolean.to_string(),
+                    serde_json::Value::Number(number) => number.to_string(),
+                    serde_json::Value::String(string) => string.to_string(),
+                    _ => hs_value.to_string(),
+                };
+                let nmi_value = format!("{hs_key}={val}");
                 (nmi_key, Secret::new(nmi_value))
             })
             .collect();
