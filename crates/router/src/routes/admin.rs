@@ -529,9 +529,9 @@ pub async fn connector_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(Permission::ProfileConnectorWrite),
             },
             req.headers(),
         ),
@@ -755,9 +755,9 @@ pub async fn connector_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::ProfileConnectorRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id),
+                permission: Some(Permission::ProfileConnectorRead),
             },
             req.headers(),
         ),
@@ -799,9 +799,9 @@ pub async fn connector_update(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(Permission::ProfileConnectorWrite),
             },
             req.headers(),
         ),

@@ -128,9 +128,9 @@ pub async fn profile_retrieve(
         |state, auth_data, profile_id, _| retrieve_profile(state, profile_id, auth_data.key_store),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone())),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: permissions::Permission::ProfileAccountRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: Some(merchant_id.clone()),
+                permission: Some(permissions::Permission::ProfileAccountRead),
             },
             req.headers(),
         ),
