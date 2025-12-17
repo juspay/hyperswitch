@@ -222,6 +222,10 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
             }
             serde_json::Value::String(s) => {
                 // For strings, we show a masked version that gives a hint about the content
+                // String::chars().count() is an approximation and could be greater than
+                // the actual "character" count, since it does not consider graphemes (what we
+                // usually consider as a "character"). To be more accurate at the cost of some
+                // performance we can use "graphemes()" from the unicode-segmentation crate
                 let char_count = s.chars().count();
                 let masked = if char_count <= 2 {
                     "**".to_string()
