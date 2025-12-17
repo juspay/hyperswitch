@@ -574,19 +574,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "MY",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
+        billing: standardBillingAddress,
       },
     }),
     Giropay: getCustomExchange({
