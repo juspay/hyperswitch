@@ -115,33 +115,29 @@ run_tests() {
   for service in "${connector_map[@]}"; do
     declare -n connectors="$service"
 
-    if (( ${#connectors[@]} == 0 )); then
-      [[ "$service" == "payment_method_list" ]] && service="payment-method-list"
-
+    if (( ${#connectors[@]} > 0 )); then
+      parallel --jobs "$jobs" --ungroup \
+        execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file" || true
+    else
       if ! npm run "cypress:${service}"; then
         echo "$service" >> "$tmp_file"
       fi
-    else
-      print_color yellow \
-        "[${service}] Running connectors (${connectors[*]}) with ${jobs} parallel jobs"
-
-      # 🔥 IMPORTANT: prevent set -e from exiting early
-      parallel --jobs "$jobs" --group \
-        execute_test ::: "${connectors[@]}" ::: "$service" ::: "$tmp_file" || true
     fi
   done
 
-  # ✅ FAILURE SUMMARY (ALWAYS RUNS)
+  # ✅ FINAL DECISION POINT
   if [[ -s "$tmp_file" ]]; then
-    print_color red "❌ Cypress failures detected:"
+    echo "❌ The following connectors failed:"
     sort -u "$tmp_file" | sed 's/^/  - /'
     rm -f "$tmp_file"
     exit 1
   else
-    print_color green "✅ All Cypress tests passed"
+    echo "✅ All connectors passed"
     rm -f "$tmp_file"
+    exit 0
   fi
 }
+
 
 
 # -----------------------------
