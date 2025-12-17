@@ -6874,7 +6874,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
         match item {
-            enums::ConnectorWebhookEventType::Standard => Ok(WebhooRegisterType::Standard),
+            enums::ConnectorWebhookEventType::Standard => Ok(Self::Standard),
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
@@ -6889,7 +6889,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
 impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
-        let webhook_type = item.request.event_type.clone();
+        let webhook_type = item.request.event_type;
         let webhook_type: WebhooRegisterType = WebhooRegisterType::try_from(&webhook_type)?;
         Ok(Self {
             webhook_type,

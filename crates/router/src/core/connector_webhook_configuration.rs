@@ -31,7 +31,7 @@ pub async fn register_connector_webhook(
 ) -> RouterResponse<api_models::admin::RegisterConnectorWebhookResponse> {
     let db = state.store.as_ref();
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -89,7 +89,7 @@ pub async fn register_connector_webhook(
 
     let (should_update_db, connector_webhook_registration_details) =
         configure_connector_webhook_flow::construct_connector_webhook_registration_details(
-            &register_webhook_response,
+            register_webhook_response,
             &mca,
             &router_data.request,
         )?;

@@ -685,6 +685,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
+            connector_webhook_registration_details: None,
         })
     }
 
