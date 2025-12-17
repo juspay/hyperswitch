@@ -1034,16 +1034,16 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 &request.payment_token,
                 &request.ctp_service_details,
             )?;
-
-            helpers::validate_customer_id_mandatory_cases(
-                request.setup_future_usage.is_some(),
-                request.customer_id.as_ref().or(request
-                    .customer
-                    .as_ref()
-                    .map(|customer| customer.id.clone())
-                    .as_ref()),
-            )?;
         }
+
+        helpers::validate_customer_id_mandatory_cases(
+            request.setup_future_usage.is_some(),
+            request.customer_id.as_ref().or(request
+                .customer
+                .as_ref()
+                .map(|customer| customer.id.clone())
+                .as_ref()),
+        )?;
 
         if request.split_payments.is_some() {
             let amount = request.amount.get_required_value("amount")?;
