@@ -18576,6 +18576,14 @@
               }
             ],
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19283,6 +19291,14 @@
               }
             ],
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19418,6 +19434,14 @@
           "return_url": {
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
+            "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19577,6 +19601,14 @@
             "type": "string",
             "description": "The token-id created if there is tokenization_data present",
             "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26465,6 +26497,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StorageType": {
+        "type": "string",
+        "enum": [
+          "volatile",
+          "persistent"
+        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
