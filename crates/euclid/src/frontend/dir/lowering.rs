@@ -191,6 +191,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
+            enums::BankRedirectType::OpenBanking => Self::OpenBanking,
         }
     }
 }
@@ -289,6 +290,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         }
         dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
         dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
+        dir::DirValue::TransactionInitiator(ti) => EuclidValue::TransactionInitiator(ti),
     })
 }
 

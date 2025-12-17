@@ -12,8 +12,8 @@ use crate::{
     connectors::adyen::transformers as adyen,
     types::PayoutsResponseRouterData,
     utils::{
-        self, AddressDetailsData, CardData, PayoutFulfillRequestData, PayoutsData as _,
-        RouterData as _,
+        self, AdditionalPayoutMethodData as _, AddressDetailsData, CardData,
+        PayoutFulfillRequestData, PayoutsData as _, RouterData as _,
     },
 };
 
@@ -429,61 +429,62 @@ impl Name {
 impl<F> TryFrom<&PayoutsRouterData<F>> for Name {
     type Error = Error;
     fn try_from(router_data: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        // get first_name from the customer
-        // if not present in customer, get from billing_details
-        // truncate whitespaces for the name
-        let first_name = router_data
+        let card_holder_name = router_data
             .request
-            .customer_details
-            .as_ref()
-            .and_then(|details| details.name.clone())
-            .and_then(|full_name| {
+            .get_optional_additional_payout_method_data()
+            .and_then(|additional_data| additional_data.get_optional_card_holder_name());
+
+        let billing_first_name = router_data
+            .get_optional_billing_first_name()
+            .map(|first_name| Secret::new(first_name.peek().trim().to_string()));
+        let billing_last_name = router_data
+            .get_optional_billing_last_name()
+            .map(|last_name| Secret::new(last_name.peek().trim().to_string()));
+
+        let mut should_fallback = billing_first_name.is_none() || billing_last_name.is_none();
+        //check for empty first name
+        billing_first_name.clone().inspect(|first_name| {
+            should_fallback = first_name.peek().is_empty() || should_fallback;
+        });
+        // check for empty last name
+        billing_last_name.clone().inspect(|last_name| {
+            should_fallback = last_name.peek().is_empty() || should_fallback;
+        });
+
+        // get first_name from the billing
+        // if not present in billing, get from card_holder_name
+        let first_name = if should_fallback {
+            card_holder_name.clone().and_then(|full_name| {
                 let mut name_collection = full_name.peek().split_whitespace();
                 name_collection
                     .next()
                     .map(|first_name| Secret::new(first_name.to_string()))
             })
-            .or(router_data
-                .get_optional_billing_first_name()
-                .map(|first_name| Secret::new(first_name.peek().trim().to_string())))
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "first_name",
-            })?;
+        } else {
+            billing_first_name
+        };
 
-        // get last_name from the customer
-        // skip the first_name in the full name and concatenate the rest to get the last name for customer
-        // if not present in customer, get from billing_details
-        // truncate whitespaces for the name
-        let last_name = router_data
-            .request
-            .customer_details
-            .as_ref()
-            .and_then(|details| details.name.clone())
-            .map(|full_name| {
+        // get last_name from the billing
+        // if not present in billing, get from card_holder_name
+        let last_name = if should_fallback {
+            card_holder_name.map(|full_name| {
                 let mut name_collection = full_name.peek().split_whitespace();
                 let _first_name = name_collection.next();
 
                 Secret::new(name_collection.collect::<Vec<_>>().join(" "))
             })
-            .or(router_data
-                .get_optional_billing_last_name()
-                .map(|last_name| Secret::new(last_name.peek().trim().to_string())))
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "last_name",
-            })?;
-
-        // check if the names are empty string
-        if first_name.peek().is_empty() || last_name.peek().is_empty() {
-            Err(ConnectorError::MissingRequiredField {
-                field_name: "either first_name or last_name",
-            }
-            .into())
         } else {
-            Ok(Self {
-                first_name,
-                last_name,
-            })
-        }
+            billing_last_name
+        };
+
+        Ok(Self {
+            first_name: first_name.ok_or(ConnectorError::MissingRequiredField {
+                field_name: "first_name",
+            })?,
+            last_name: last_name.ok_or(ConnectorError::MissingRequiredField {
+                field_name: "first_name",
+            })?,
+        })
     }
 }
 

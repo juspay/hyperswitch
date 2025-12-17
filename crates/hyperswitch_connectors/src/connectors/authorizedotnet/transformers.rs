@@ -167,7 +167,6 @@ struct TransactionRequest {
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
-    authorization_indicator_type: Option<AuthorizationIndicator>,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,12 +259,6 @@ pub enum Reason {
     Reauthorization,
     #[serde(rename = "noShow")]
     NoShow,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AuthorizationIndicator {
-    authorization_indicator: AuthorizationType,
 }
 
 #[derive(Debug, Serialize)]
@@ -400,9 +393,15 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
             .attach_printable("")?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
+            let string_value = match value {
+                Value::Bool(boolean) => boolean.to_string(),
+                Value::Number(number) => number.to_string(),
+                Value::String(string) => string.to_string(),
+                _ => value.to_string(),
+            };
             vector.push(UserField {
                 name: key,
-                value: value.to_string(),
+                value: string_value,
             });
         }
         Ok(vector)
@@ -964,12 +963,6 @@ impl
                 original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             }),
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1053,12 +1046,6 @@ impl
                 is_subsequent_auth: true,
             }),
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1157,12 +1144,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1260,12 +1241,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }

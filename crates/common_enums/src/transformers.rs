@@ -1909,6 +1909,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
             PaymentMethodType::RevolutPay => Self::Wallet,
             PaymentMethodType::IndonesianBankTransfer => Self::BankTransfer,
+            PaymentMethodType::OpenBanking => Self::BankRedirect,
         }
     }
 }
