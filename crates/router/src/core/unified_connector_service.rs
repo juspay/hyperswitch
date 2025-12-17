@@ -523,7 +523,6 @@ where
 }
 
 /// Updates the payment intent's feature metadata to track the gateway system being used
-#[cfg(feature = "v1")]
 pub fn update_gateway_system_in_feature_metadata<F: Clone, D>(
     payment_data: &mut D,
     gateway_system: GatewaySystem,
