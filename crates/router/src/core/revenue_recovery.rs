@@ -1136,7 +1136,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         .attach_printable("Unexpected response from payments core")?;
 
     match response.status {
-        IntentStatus::Failed => {
+        IntentStatus::Failed | IntentStatus::PartiallyCaptured => {
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: process_tracker.name.clone(),
                 tracking_data: Some(process_tracker.tracking_data.clone()),
@@ -1173,7 +1173,6 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::RequiresPaymentMethod
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
-        | IntentStatus::PartiallyCaptured
         | IntentStatus::PartiallyCapturedAndCapturable
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | IntentStatus::PartiallyCapturedAndProcessing
