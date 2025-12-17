@@ -16289,13 +16289,38 @@
           }
         }
       },
-      "CustomTermsByPaymentMethodTypes": {
+      "CustomMessage": {
         "type": "object",
-        "description": "Custom T&C Message to be shown per payment method type",
-        "additionalProperties": {
-          "type": "string"
-        },
-        "nullable": true
+        "description": "Custom T&C message content and display mode",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The text to be shown per payment method type",
+            "example": "I authorize Novalnet AG to debit my account."
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomTerms": {
+        "type": "object",
+        "description": "Custom T&C message for a specific payment method type",
+        "required": [
+          "payment_method_type",
+          "message"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "message": {
+            "$ref": "#/components/schemas/CustomMessage"
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -24583,7 +24608,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -24763,7 +24788,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -25162,6 +25187,35 @@
             }
           }
         ]
+      },
+      "PaymentMethodConfig": {
+        "type": "object",
+        "description": "Custom T&C messages for a specific payment method",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomTerms"
+            },
+            "description": "Payment Method Types",
+            "example": [
+              {
+                "message": {
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
+              }
+            ]
+          }
+        }
       },
       "PaymentMethodCreate": {
         "type": "object",
@@ -26173,6 +26227,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodsConfig": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PaymentMethodConfig"
+        },
+        "description": "List of custom T&C messages grouped by payment method"
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -35319,6 +35380,15 @@
         "enum": [
           "low_value",
           "transaction_risk_analysis"
+        ]
+      },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
         ]
       },
       "SdkInformation": {
