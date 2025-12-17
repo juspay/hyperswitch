@@ -247,6 +247,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+      
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-dev libnotify-dev libgconf-2-4 libnss3 libxss1
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -297,8 +303,6 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
-          DISPLAY: ""
-          CI: true
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 3
