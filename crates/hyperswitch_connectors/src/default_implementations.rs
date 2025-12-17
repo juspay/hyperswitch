@@ -857,7 +857,6 @@ default_imp_for_create_order!(
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
-    connectors::Nordea,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
