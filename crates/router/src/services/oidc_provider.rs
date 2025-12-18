@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use api_models::{
     oidc::{
         Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
@@ -11,7 +13,6 @@ use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     consts::oidc::{AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER},
