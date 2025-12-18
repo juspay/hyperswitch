@@ -248,10 +248,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name : Install libraries needed for cypress-tests 
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          apt-get install libgtk-3-0t64 libgbm-dev libnotify-dev libnss3 libxss1 libasound2t64 libxtst6 xauth xvfb
       
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
