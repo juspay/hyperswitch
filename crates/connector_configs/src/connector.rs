@@ -142,13 +142,6 @@ pub struct AccountIDSupportedMethods {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MerchantSoftwareInfo {
-    company_name: InputData,
-    product_name: InputData,
-}
-
-#[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
@@ -197,7 +190,8 @@ pub struct ConfigMetadata {
     pub organizational_unit_id: Option<InputData>,
     pub issuer_id: Option<InputData>,
     pub jwt_mac_key: Option<InputData>,
-    pub merchant_software: Option<MerchantSoftwareInfo>,
+    pub company_name: Option<InputData>,
+    pub product_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]

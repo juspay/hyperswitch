@@ -51,16 +51,11 @@ pub struct JpmorganAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
-pub struct JpmorganMetadataMerchantSoftware {
-    pub company_name: Secret<String>,
-    pub product_name: Secret<String>,
-}
-
 /// JPMorgan connector metadata containing merchant software information
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct JpmorganConnectorMetadataObject {
-    pub merchant_software: Option<JpmorganMetadataMerchantSoftware>,
+    pub company_name: Secret<String>,
+    pub product_name: Secret<String>,
 }
 
 impl TryFrom<&Option<SecretSerdeValue>> for JpmorganConnectorMetadataObject {
@@ -71,15 +66,6 @@ impl TryFrom<&Option<SecretSerdeValue>> for JpmorganConnectorMetadataObject {
                 config: "merchant_connector_account.metadata",
             })?;
         Ok(metadata)
-    }
-}
-
-impl From<JpmorganMetadataMerchantSoftware> for JpmorganMerchantSoftware {
-    fn from(metadata: JpmorganMetadataMerchantSoftware) -> Self {
-        Self {
-            company_name: metadata.company_name,
-            product_name: metadata.product_name,
-        }
     }
 }
 
@@ -185,22 +171,16 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
 
-                let connector_metadata: JpmorganConnectorMetadataObject =
-                    utils::to_connector_meta_from_secret(
-                        item.router_data.connector_meta_data.clone(),
-                    )
-                    .change_context(
-                        errors::ConnectorError::InvalidConnectorConfig {
-                            config: "merchant_connector_account.metadata",
-                        },
-                    )?;
+                let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+                    &item.router_data.connector_meta_data.clone(),
+                )?;
 
-                let merchant_software = connector_metadata
-                    .merchant_software
-                    .ok_or_else(missing_field_err("merchant_software"))?
-                    .into();
-
-                let merchant = JpmorganMerchant { merchant_software };
+                let merchant = JpmorganMerchant {
+                    merchant_software: JpmorganMerchantSoftware {
+                        company_name: connector_metadata.company_name,
+                        product_name: connector_metadata.product_name,
+                    },
+                };
 
                 let expiry: Expiry = Expiry {
                     month: Secret::new(
@@ -568,18 +548,17 @@ pub struct MerchantRefundReq {
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        let connector_metadata: JpmorganConnectorMetadataObject =
-            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "merchant_connector_account.metadata",
-                })?;
+        let connector_metadata = JpmorganConnectorMetadataObject::try_from(
+            &item.router_data.connector_meta_data.clone(),
+        )?;
 
-        let merchant_software = connector_metadata
-            .merchant_software
-            .ok_or_else(missing_field_err("merchant_software"))?
-            .into();
+        let merchant = MerchantRefundReq {
+            merchant_software: JpmorganMerchantSoftware {
+                company_name: connector_metadata.company_name,
+                product_name: connector_metadata.product_name,
+            },
+        };
 
-        let merchant = MerchantRefundReq { merchant_software };
         let amount = item.amount;
         let currency = item.router_data.request.currency;
 
