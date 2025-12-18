@@ -25,22 +25,6 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       mochawesome(on);
 
-      // -----------------------------------------------------------
-      // FIX 2: Prevent "Blank Page" Renderer Crashes
-      // -----------------------------------------------------------
-      on("before:browser:launch", (browser = {}, launchOptions) => {
-        // Apply this to all Chromium-based browsers (Chrome, Electron, Edge)
-        if (browser.family === "chromium" || browser.name === "electron") {
-          // Forces the browser to use the disk for shared memory instead
-          // of the limited /dev/shm RAM partition.
-          launchOptions.args.push("--disable-dev-shm-usage");
-
-          // Disabling GPU helps prevent crashes in headless environments
-          launchOptions.args.push("--disable-gpu");
-        }
-        return launchOptions;
-      });
-
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
