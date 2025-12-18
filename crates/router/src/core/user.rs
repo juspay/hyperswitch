@@ -3037,7 +3037,7 @@ pub async fn terminate_auth_select(
             .ok_or(UserErrors::InvalidUserAuthMethodOperation)?,
         (Some(id), true) => state
             .store
-            .get_user_authentication_method_by_id(id)
+            .get_user_authentication_method_by_id(&id)
             .await
             .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?,
         (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
