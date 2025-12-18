@@ -67,8 +67,9 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSyncData,
+        RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -2906,6 +2907,76 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+}
+
+impl PaymentsPreProcessingRequestData for PaymentsPreAuthenticateData {
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        Ok(self.minor_amount)
+    }
+
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        Ok(self.payment_method_data.clone())
+    }
+
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+
+    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
+        self.payment_method_type
+            .ok_or_else(missing_field_err("payment_method_type"))
+    }
+
+    fn get_amount(&self) -> Result<i64, Error> {
+        Ok(self.amount)
+    }
+
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        // Default to true for pre-authenticate flow
+        Ok(true)
+    }
+
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        Err(errors::ConnectorError::NotImplemented("order_details not available in PaymentsPreAuthenticateData".to_string()).into())
+    }
+
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        Err(errors::ConnectorError::NotImplemented("webhook_url not available in PaymentsPreAuthenticateData".to_string()).into())
+    }
+
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        Err(errors::ConnectorError::NotImplemented("redirect_response not available in PaymentsPreAuthenticateData".to_string()).into())
+    }
+
+    fn connector_mandate_id(&self) -> Option<String> {
+        None
+    }
+
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        false
     }
 }
 
