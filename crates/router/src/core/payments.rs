@@ -4260,7 +4260,6 @@ where
     // Update customer information at provider level and payment trackers in parallel
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    let update_tracker = operation.to_update_tracker()?;
     let ((), (_, new_payment_data)) = tokio::try_join!(
         operation.to_domain()?.update_customer(
             state,
@@ -4268,7 +4267,7 @@ where
             customer.clone(),
             updated_customer.clone(),
         ),
-        update_tracker.update_trackers(
+        operation.to_update_tracker()?.update_trackers(
             state,
             req_state,
             platform.get_processor(),
@@ -4788,7 +4787,6 @@ where
     // Update customer information at provider level and payment trackers in parallel
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    let update_tracker = operation.to_update_tracker()?;
     let ((), (_, new_payment_data)) = tokio::try_join!(
         operation.to_domain()?.update_customer(
             state,
@@ -4796,7 +4794,7 @@ where
             customer.clone(),
             updated_customer.clone(),
         ),
-        update_tracker.update_trackers(
+        operation.to_update_tracker()?.update_trackers(
             state,
             req_state,
             platform.get_processor(),

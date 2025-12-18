@@ -724,7 +724,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _state: &'b SessionState,
         _req_state: ReqState,
         _processor: &domain::Processor,
-        _payment_data: PaymentData<F>,
+        mut _payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
