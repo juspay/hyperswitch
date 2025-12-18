@@ -358,6 +358,36 @@ pub enum GsmDecision {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
+pub enum Retry {
+    DoNotRetry,
+    RetryAfter10Days,
+    RetryAfter1Hour,
+    RetryAfter24Hours,
+    RetryAfter2Days,
+    RetryAfter4Days,
+    RetryAfter6Days,
+    RetryAfter8Days,
+    RetryAfterInstrumentUpdate,
+    RetryLater,
+    RetryWithDifferentPaymentMethodData,
+    StopRecurring,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
 }
