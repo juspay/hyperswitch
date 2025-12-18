@@ -2942,11 +2942,17 @@ impl PaymentsPreProcessingRequestData for PaymentsPreAuthenticateData {
     }
 
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
-        Err(errors::ConnectorError::NotImplemented("order_details not available in PaymentsPreAuthenticateData".to_string()).into())
+        Err(errors::ConnectorError::NotImplemented(
+            "order_details not available in PaymentsPreAuthenticateData".to_string(),
+        )
+        .into())
     }
 
     fn get_webhook_url(&self) -> Result<String, Error> {
-        Err(errors::ConnectorError::NotImplemented("webhook_url not available in PaymentsPreAuthenticateData".to_string()).into())
+        Err(errors::ConnectorError::NotImplemented(
+            "webhook_url not available in PaymentsPreAuthenticateData".to_string(),
+        )
+        .into())
     }
 
     fn get_router_return_url(&self) -> Result<String, Error> {
@@ -2968,7 +2974,10 @@ impl PaymentsPreProcessingRequestData for PaymentsPreAuthenticateData {
     }
 
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
-        Err(errors::ConnectorError::NotImplemented("redirect_response not available in PaymentsPreAuthenticateData".to_string()).into())
+        Err(errors::ConnectorError::NotImplemented(
+            "redirect_response not available in PaymentsPreAuthenticateData".to_string(),
+        )
+        .into())
     }
 
     fn connector_mandate_id(&self) -> Option<String> {
