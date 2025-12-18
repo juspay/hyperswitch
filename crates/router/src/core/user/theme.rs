@@ -12,6 +12,7 @@ use rdkafka::message::ToBytes;
 use uuid::Uuid;
 
 use crate::{
+    consts::user::REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS as redis_theme_config_ttl,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::SessionState,
     services::authentication::UserFromToken,
@@ -608,7 +609,7 @@ pub async fn get_user_theme_config_version(
         &state,
         &theme_id,
         theme.theme_config_version.clone(),
-        crate::consts::user::REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS,
+        redis_theme_config_ttl,
     )
     .await?;
 
