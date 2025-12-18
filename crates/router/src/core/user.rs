@@ -3031,10 +3031,15 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?;
 
     let user_authentication_method = match (req.id, auth_methods.is_empty()) {
-        (Some(id), _) => auth_methods
+        (Some(id), false) => auth_methods
             .into_iter()
             .find(|auth_method| auth_method.id == id)
             .ok_or(UserErrors::InvalidUserAuthMethodOperation)?,
+        (Some(id), true) => state
+            .store
+            .get_user_authentication_method_by_id(id)
+            .await
+            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?,
         (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
         (None, false) => return Err(UserErrors::InvalidUserAuthMethodOperation.into()),
     };
