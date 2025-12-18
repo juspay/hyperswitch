@@ -16,8 +16,8 @@ use crate::{
 };
 
 #[cfg(feature = "v2")]
-pub async fn construct_webhook_register_router_data<'a>(
-    _state: &'a SessionState,
+pub async fn construct_webhook_register_router_data(
+    _state: &SessionState,
     _merchant_connector_account: domain::MerchantConnectorAccount,
     _webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<types::ConnectorWebhookRegisterRouterData> {
