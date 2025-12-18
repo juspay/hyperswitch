@@ -195,6 +195,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::BankTransferType,
         DirKeyKind::RealTimePaymentType,
         DirKeyKind::TransactionInitiator,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
