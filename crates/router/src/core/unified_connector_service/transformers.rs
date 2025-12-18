@@ -262,7 +262,7 @@ impl
             .request
             .metadata
             .as_ref()
-            .map(|value| convert_value_map_to_hashmap(value))
+            .map(convert_value_map_to_hashmap)
             .transpose()?
             .unwrap_or_default();
         let setup_future_usage = router_data
