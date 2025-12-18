@@ -248,10 +248,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-
-      - name : Chrome
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: browser-actions/setup-chrome@v2
       
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
