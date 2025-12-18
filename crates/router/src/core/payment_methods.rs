@@ -4181,6 +4181,8 @@ async fn create_single_use_tokenization_flow(
         customer_acceptance: None,
         setup_mandate_details: None,
         payment_method_type: None,
+        capture_method: None,
+        router_return_url: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(

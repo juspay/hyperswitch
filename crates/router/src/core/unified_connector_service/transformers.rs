@@ -205,7 +205,7 @@ impl
             address: None,
             metadata: HashMap::new(),
             connector_metadata: HashMap::new(),
-            return_url: None,
+            return_url: router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -1085,12 +1085,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
-            .and_then(|val| val.peek().as_object())
-            .map(|map| {
-                map.iter()
-                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                    .collect::<HashMap<String, String>>()
-            })
+            .map(|val| convert_value_map_to_hashmap(val.peek()))
+            .transpose()?
             .unwrap_or_default();
 
         Ok(Self {
