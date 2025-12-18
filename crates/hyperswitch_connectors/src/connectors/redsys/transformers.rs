@@ -391,6 +391,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_utils::get_unimplemented_payment_method_error_message("redsys"),
             )
