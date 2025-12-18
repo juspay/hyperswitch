@@ -8,6 +8,22 @@ pub struct AuthCodeData {
     pub client_id: String,
     pub redirect_uri: String,
     pub scope: Vec<Scope>,
-    pub nonce: Option<String>,
+    pub nonce: String,
     pub email: pii::Email,
+    pub is_verified: bool,
+}
+
+/// ID Token Claims structure for OIDC
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdTokenClaims {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub iat: u64,
+    pub exp: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_verified: Option<bool>,
+    pub nonce: String,
 }

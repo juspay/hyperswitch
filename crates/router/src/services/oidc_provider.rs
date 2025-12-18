@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use api_models::{
     oidc::{
         Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
@@ -8,31 +6,26 @@ use api_models::{
     },
     payments::RedirectionResponse,
 };
-use common_utils::{ext_traits::StringExt, pii};
+use common_utils::pii;
 use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use router_env::tracing;
-use serde::{Deserialize, Serialize};
-use url::Url;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    consts::oidc::{
-        AUTH_CODE_LENGTH, AUTH_CODE_TTL_IN_SECS, ID_TOKEN_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX,
-        TOKEN_TYPE_BEARER,
-    },
+    consts::oidc::{AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER},
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::{api::ApplicationResponse, authentication::UserFromToken},
-    types::domain::user::oidc::AuthCodeData,
-    utils::user::{get_base_url, get_redis_connection_for_global_tenant},
+    types::domain::user::oidc::{AuthCodeData, IdTokenClaims},
+    utils::{oidc as oidc_utils, user as user_utils},
 };
 
 /// Build OIDC discovery document
 pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
-    let control_center_url = get_base_url(&state);
+    let control_center_url = user_utils::get_base_url(&state);
 
     Ok(ApplicationResponse::Json(OidcDiscoveryResponse::new(
         backend_base_url,
@@ -72,20 +65,6 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<&'static JwksRespon
         .map(ApplicationResponse::Json)
 }
 
-fn validate_client_id_match(registered_client_id: &str, provided_client_id: &str) -> bool {
-    registered_client_id.trim() == provided_client_id.trim()
-}
-
-fn validate_redirect_uri_match(registered_uri: &str, provided_uri: &str) -> bool {
-    match (
-        Url::parse(registered_uri.trim()),
-        Url::parse(provided_uri.trim()),
-    ) {
-        (Ok(registered_url), Ok(provided_url)) => registered_url == provided_url,
-        _ => registered_uri.trim() == provided_uri.trim(),
-    }
-}
-
 pub fn validate_authorize_params(
     payload: &OidcAuthorizeQuery,
     state: &SessionState,
@@ -108,7 +87,7 @@ pub fn validate_authorize_params(
             })
         })?;
 
-    if !validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
+    if !oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
             error: OidcAuthorizationError::InvalidRequest,
             description: "redirect_uri mismatch".into(),
@@ -144,43 +123,12 @@ async fn generate_and_store_authorization_code(
         scope: payload.scope.clone(),
         nonce: payload.nonce.clone(),
         email: user_email,
+        is_verified: user_from_db.is_verified,
     };
 
-    let redis_conn = get_redis_connection_for_global_tenant(state)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get Redis connection")?;
-
-    let redis_key = format!("{}{}", REDIS_AUTH_CODE_PREFIX, auth_code);
-    redis_conn
-        .serialize_and_set_key_with_expiry(
-            &redis_key.as_str().into(),
-            &auth_code_data,
-            AUTH_CODE_TTL_IN_SECS,
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to store authorization code in Redis")?;
+    oidc_utils::set_auth_code_in_redis(state, &auth_code, &auth_code_data).await?;
 
     Ok(auth_code)
-}
-
-pub fn build_oidc_redirect_url(
-    redirect_uri: &str,
-    auth_code: &str,
-    state: &str,
-) -> error_stack::Result<String, ApiErrorResponse> {
-    let base_url = Url::parse(redirect_uri).map_err(|_| {
-        report!(ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid redirect_uri in OIDC authorize request")
-    })?;
-
-    let url = Url::parse_with_params(base_url.as_str(), &[("code", auth_code), ("state", state)])
-        .map_err(|_| {
-        report!(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to build redirect URL with query parameters")
-    })?;
-
-    Ok(url.to_string())
 }
 
 pub async fn process_authorize_request(
@@ -203,7 +151,8 @@ pub async fn process_authorize_request(
 
     let auth_code = generate_and_store_authorization_code(&state, &user.user_id, &payload).await?;
 
-    let redirect_url = build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)?;
+    let redirect_url =
+        oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)?;
 
     #[cfg(feature = "v1")]
     {
@@ -241,7 +190,7 @@ fn validate_token_request(
         }));
     }
 
-    if !validate_client_id_match(authenticated_client_id, request_client_id) {
+    if !oidc_utils::validate_client_id_match(authenticated_client_id, request_client_id) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidRequest,
             description: "client_id mismatch".into(),
@@ -260,7 +209,7 @@ fn validate_token_request(
             })
         })?;
 
-    if !validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
+    if !oidc_utils::validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidRequest,
             description: "redirect_uri mismatch".into(),
@@ -276,63 +225,25 @@ async fn validate_and_consume_authorization_code(
     client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<AuthCodeData, ApiErrorResponse> {
-    let redis_conn = get_redis_connection_for_global_tenant(state)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get Redis connection")?;
+    let auth_code_data = oidc_utils::get_auth_code_from_redis(state, code).await?;
 
-    let redis_key = format!("{}{}", REDIS_AUTH_CODE_PREFIX, code);
-    let auth_code_data_string = redis_conn
-        .get_key::<Option<String>>(&redis_key.as_str().into())
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch authorization code from Redis")?
-        .ok_or_else(|| {
-            report!(ApiErrorResponse::OidcTokenError {
-                error: OidcTokenError::InvalidGrant,
-                description: "Invalid or expired authorization code".into(),
-            })
-        })?;
-
-    let auth_code_data: AuthCodeData = auth_code_data_string
-        .parse_struct("AuthCodeData")
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize authorization code data")?;
-
-    if !validate_client_id_match(&auth_code_data.client_id, client_id) {
+    if !oidc_utils::validate_client_id_match(&auth_code_data.client_id, client_id) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidGrant,
             description: "client_id mismatch".into(),
         }));
     }
 
-    if !validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
+    if !oidc_utils::validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
         return Err(report!(ApiErrorResponse::OidcTokenError {
             error: OidcTokenError::InvalidGrant,
             description: "redirect_uri mismatch".into(),
         }));
     }
 
-    if let Err(err) = redis_conn.delete_key(&redis_key.as_str().into()).await {
-        tracing::error!("Failed to delete authorization code from Redis: {:?}", err);
-    }
+    oidc_utils::delete_auth_code_from_redis(state, code).await?;
 
     Ok(auth_code_data)
-}
-
-/// ID Token Claims structure
-#[derive(Debug, Serialize, Deserialize)]
-struct IdTokenClaims {
-    iss: String,
-    sub: String,
-    aud: String,
-    iat: u64,
-    exp: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email_verified: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    nonce: Option<String>,
 }
 
 async fn generate_id_token(
@@ -369,7 +280,7 @@ async fn generate_id_token(
         iat: now,
         exp,
         email: include_email_claims.then_some(auth_code_data.email.clone()),
-        email_verified: include_email_claims.then_some(true),
+        email_verified: include_email_claims.then_some(auth_code_data.is_verified),
         nonce: auth_code_data.nonce.clone(),
     };
 

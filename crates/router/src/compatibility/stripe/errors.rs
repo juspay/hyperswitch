@@ -714,12 +714,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::OidcAuthorizationError { error, description } => {
                 Self::InvalidRequestData {
-                    message: format!("{}: {}", error, description),
+                    message: format!("{error}: {description}"),
                 }
             }
             errors::ApiErrorResponse::OidcTokenError { error, description } => {
                 Self::InvalidRequestData {
-                    message: format!("{}: {}", error, description),
+                    message: format!("{error}: {description}"),
                 }
             }
         }

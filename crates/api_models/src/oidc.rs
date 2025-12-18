@@ -286,7 +286,7 @@ pub struct OidcAuthorizeQuery {
 
     /// String value used to associate a Client session with an ID Token
     #[schema(example = "nonce_abc123")]
-    pub nonce: Option<String>,
+    pub nonce: String,
 }
 
 /// OIDC Token Request
