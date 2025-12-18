@@ -1497,6 +1497,7 @@ impl Profile {
             .attach_printable("unable to deserialize routing algorithm ref from merchant account")
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_three_ds_decision_rule_algorithm_id(
         &self,
     ) -> Option<common_utils::id_type::RoutingId> {
