@@ -92,6 +92,10 @@ impl Context {
             enum_values.insert(EuclidValue::BusinessCountry(country));
         }
 
+        if let Some(transaction_initiator) = payment.transaction_initiator {
+            enum_values.insert(EuclidValue::TransactionInitiator(transaction_initiator));
+        }
+
         if let Some(country) = payment.billing_country {
             enum_values.insert(EuclidValue::BillingCountry(country));
         }

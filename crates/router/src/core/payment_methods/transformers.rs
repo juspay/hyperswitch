@@ -463,6 +463,7 @@ pub fn mk_add_card_response_hs(
             .map(|card_network| card_network.to_string()),
         last4_digits: Some(last4_digits),
         issuer_country: card.card_issuing_country,
+        issuer_country_code: card.card_issuing_country_code,
         card_number: Some(card.card_number.clone()),
         expiry_month: Some(card.card_exp_month.clone()),
         expiry_year: Some(card.card_exp_year.clone()),
@@ -536,6 +537,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -597,6 +599,7 @@ pub fn generate_payment_method_response(
         payment_method_data: pmd,
         connector_tokens,
         network_token,
+        storage_type,
     };
 
     Ok(resp)
@@ -700,6 +703,7 @@ pub fn get_card_detail(
         nick_name: response.nick_name.map(Secret::new),
         card_isin: None,
         card_issuer: None,
+        issuer_country_code: None,
         card_network: None,
         card_type: None,
         saved_to_locker: true,
@@ -832,7 +836,12 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
 
         Ok(Self {
             id: item.id,
-            customer_id: item.customer_id,
+            customer_id: item
+                .customer_id
+                .get_required_value("GlobalCustomerId")
+                .change_context(errors::ValidationError::MissingRequiredField {
+                    field_name: "customer_id".to_string(),
+                })?,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
@@ -918,7 +927,12 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 
         Ok(Self {
             id: item.id,
-            customer_id: item.customer_id,
+            customer_id: item
+                .customer_id
+                .get_required_value("GlobalCustomerId")
+                .change_context(errors::ValidationError::MissingRequiredField {
+                    field_name: "customer_id".to_string(),
+                })?,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
@@ -941,6 +955,7 @@ pub fn generate_payment_method_session_response(
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -975,6 +990,7 @@ pub fn generate_payment_method_session_response(
         associated_payment_methods: payment_method_session.associated_payment_methods,
         authentication_details,
         associated_token_id: token_id,
+        storage_type,
     }
 }
 

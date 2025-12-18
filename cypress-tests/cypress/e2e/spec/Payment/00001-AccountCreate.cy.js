@@ -22,8 +22,7 @@ describe("Account Create flow test", () => {
   });
 
   it("create-shadow-config-if-shadow-mode-enabled", () => {
-    // Automatically create rollout configs and shadow config after successful merchant creation
+    // Shadow and rollout configs are now merged - create unified config with execution_mode: "shadow"
     cy.createRolloutConfig(globalState);
-    cy.createShadowRolloutConfig(globalState);
   });
 });

@@ -361,6 +361,68 @@ pub enum GsmDecision {
 pub enum GsmFeature {
     Retry,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum StandardisedCode {
+    AccountClosedOrInvalid,
+    AuthenticationFailed,
+    AuthenticationRequired,
+    AuthorizationMissingOrRevoked,
+    CardLostOrStolen,
+    CardNotSupportedRestricted,
+    CfgPmNotEnabledOrMisconfigured,
+    ComplianceOrSanctionsRestriction,
+    ConfigurationIssue,
+    CreditLimitExceeded,
+    CurrencyOrCorridorNotEnabled,
+    DoNotHonor,
+    DownstreamTechnicalIssue,
+    DuplicateRequest,
+    GenericUnknownError,
+    IncorrectAuthenticationCode,
+    InsufficientFunds,
+    IntegCryptographicIssue,
+    IntegrationIssue,
+    InvalidCardNumber,
+    InvalidCredentials,
+    InvalidCvv,
+    InvalidExpiryDate,
+    InvalidState,
+    IssuerUnavailable,
+    MerchantInactive,
+    MissingOrInvalidParam,
+    OperationNotAllowed,
+    PaymentCancelledByUser,
+    PaymentMethodIssue,
+    PaymentSessionTimeout,
+    PmAddressMismatch,
+    PspAcquirerError,
+    PspFraudEngineDecline,
+    RateLimit,
+    StoredCredentialOrMitNotEnabled,
+    SubscriptionPlanInactive,
+    SuspectedFraud,
+    ThreeDsAuthenticationServiceIssue,
+    ThreeDsConfigurationIssue,
+    ThreeDsDataOrProtocolInvalid,
+    TransactionNotPermitted,
+    TransactionTimedOut,
+    VelocityLimitExceeded,
+    WalletOrTokenConfigIssue,
+}
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
 ///
@@ -2266,6 +2328,7 @@ pub enum PaymentMethodType {
     RevolutPay,
     IndonesianBankTransfer,
     OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2392,6 +2455,7 @@ impl PaymentMethodType {
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2440,6 +2504,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2459,7 +2524,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2479,7 +2545,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
@@ -10279,4 +10346,27 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
 }
