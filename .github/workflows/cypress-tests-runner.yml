@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "cybersource stripe fiuu noon trustpay braintree"
+  PAYMENTS_CONNECTORS: "cybersource stripe fiuu"
   V2_PAYMENT_CONNECTORS: "cybersource stripe"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
