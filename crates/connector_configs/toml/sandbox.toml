@@ -2699,17 +2699,17 @@ payment_method_type = "Visa"
 api_key = "Access Token"
 key1 = "Client Secret"
 [jpmorgan.metadata.company_name]
-name="company_name"
-label="Company Name"
-placeholder="Enter the company name. Example: JPMC, Hyperswitch"
-required=true
-type="Text"
+name = "company_name"
+label = "Company Name"
+placeholder = "Enter the company name. Example: JPMC, Hyperswitch"
+required = true
+type = "Text"
 [jpmorgan.metadata.product_name]
-name="product_name"
-label="Product Name"
-placeholder="Enter the product name (used for marketing purposes from a customer perspective)"
-required=true
-type="Text"
+name = "product_name"
+label = "Product Name"
+placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
 
 [klarna]
 [[klarna.pay_later]]
