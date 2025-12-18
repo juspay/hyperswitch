@@ -55,6 +55,13 @@ pub async fn register_connector_webhook(
         api::GetToken::Connector,
         Some(mca.merchant_connector_id.clone()),
     )?;
+
+    configure_connector_webhook_flow::validate_webhook_registration_request(
+        &connector_data,
+        req.clone(),
+    )
+    .await?;
+
     let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
         api::ConnectorWebhookRegister,
         ConnectorWebhookRegisterData,

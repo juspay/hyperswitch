@@ -723,6 +723,12 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
+    fn get_api_webhook_config(&self) -> common_types::connector_webhook_configuration::WebhookSetupCapabilities  {
+        match self {
+            Self::Old(connector) => connector.get_api_webhook_config(),
+            Self::New(connector) => connector.get_api_webhook_config(),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {

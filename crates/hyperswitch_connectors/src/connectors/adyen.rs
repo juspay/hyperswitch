@@ -3466,4 +3466,14 @@ impl ConnectorSpecifications for Adyen {
             )
         })
     }
+
+    fn get_api_webhook_config(
+        &self,
+    ) -> common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+            is_webhook_auto_configuration_supported: true,
+            requires_webhook_secret: Some(false),
+            config_type: Some(common_types::connector_webhook_configuration::WebhookConfigType::Standard)
+        }
+    }
 }
