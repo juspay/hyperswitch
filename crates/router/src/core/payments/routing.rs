@@ -406,6 +406,33 @@ pub fn make_dsl_input(
             }),
     };
 
+    let issuer_data_input = dsl_inputs::IssuerDataInput {
+        name: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
+                _ => None,
+            }),
+        country: payments_dsl_input.payment_method_data.as_ref().and_then(
+            |pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => {
+                    card.card_issuing_country_code.clone().and_then(|code| {
+                        CountryAlpha2::from_str(&code)
+                            .ok()
+                            .map(common_enums::Country::from_alpha2)
+                    })
+                }
+                _ => None,
+            },
+        ),
+    };
+
+    let issuer_data = match (&issuer_data_input.name, &issuer_data_input.country) {
+        (None, None) => None,
+        _ => Some(issuer_data_input),
+    };
+
     let payment_input = dsl_inputs::PaymentInput {
         amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
@@ -459,7 +486,7 @@ pub fn make_dsl_input(
         mandate: mandate_data,
         acquirer_data: None,
         customer_device_data: None,
-        issuer_data: None,
+        issuer_data,
     })
 }
 
