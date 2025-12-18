@@ -4184,9 +4184,16 @@ where
         .preprocessing_flow_config
         .as_ref()
         .is_some_and(|config| {
+            // If authentication flow is bloated up for the current connector
+            // and external 3ds was not attempted,
+            // continue with authentication flows.
             config
                 .authentication_bloated_connectors
                 .contains(&connector.connector_name)
+                && payment_data
+                    .get_payment_attempt()
+                    .external_three_ds_authentication_attempted
+                    != Some(true)
         }) {
         logger::info!(
             "Using granular authentication steps for connector: {}",
