@@ -67,7 +67,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*, oidc,
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
@@ -442,14 +442,14 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Self::get_store_interface(
+            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
                 &storage_impl,
                 &event_handler,
                 &conf,
                 &conf.multitenancy.global_tenant,
                 Arc::clone(&cache_store),
                 testable,
-            )
+            ))
             .await
             .get_global_storage_interface();
             #[cfg(feature = "olap")]
@@ -1788,6 +1788,20 @@ impl Hypersense {
     }
 }
 
+pub struct Oidc;
+
+impl Oidc {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/.well-known/openid-configuration")
+                    .route(web::get().to(oidc::oidc_discovery)),
+            )
+            .service(web::resource("/oauth2/jwks").route(web::get().to(oidc::jwks_endpoint)))
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Blocklist;
 
@@ -2415,10 +2429,6 @@ impl Profile {
                     .service(
                         web::scope("/success_based")
                             .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_success_based_routing)),
-                            )
-                            .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
                             )
@@ -2440,10 +2450,6 @@ impl Profile {
                     )
                     .service(
                         web::scope("/elimination")
-                            .service(
-                                web::resource("/toggle")
-                                    .route(web::post().to(routing::toggle_elimination_routing)),
-                            )
                             .service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),

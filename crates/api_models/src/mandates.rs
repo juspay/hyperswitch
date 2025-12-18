@@ -170,7 +170,7 @@ pub enum RecurringDetails {
     /// Network transaction ID and Card Details for MIT payments when payment_method_data
     /// is not stored in the application
     #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
-    NetworkTransactionIdAndCardDetails(NetworkTransactionIdAndCardDetails),
+    NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -228,6 +228,10 @@ pub struct NetworkTransactionIdAndCardDetails {
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
 
     #[schema(example = "JP_AMEX")]
     #[smithy(value_type = "Option<String>")]

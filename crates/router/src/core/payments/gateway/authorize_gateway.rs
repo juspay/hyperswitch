@@ -122,7 +122,7 @@ where
                     .change_context(ConnectorError::RequestEncodingFailed)
                     .attach_printable("Failed to construct Payment Repeat Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 payment_repeat_request,
@@ -169,10 +169,11 @@ where
                         router_data.connector_response = Some(connector_response);
                     });
 
-                    Ok((router_data, payment_repeat_response))
+                    Ok((router_data, (), payment_repeat_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
@@ -184,7 +185,7 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Get Request")?;
 
-            Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
                 granular_authorize_request,
@@ -226,10 +227,11 @@ where
                         router_data.connector_response = Some(customer_response);
                     });
 
-                    Ok((router_data, payment_authorize_response))
+                    Ok((router_data, (), payment_authorize_response))
                 },
             ))
             .await
+            .map(|(router_data, _)| router_data)
             .change_context(ConnectorError::ResponseHandlingFailed)?
         };
 
