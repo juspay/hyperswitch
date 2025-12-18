@@ -643,6 +643,7 @@ pub struct PaymentsPreAuthenticateData {
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -662,6 +663,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            webhook_url: data.webhook_url,
         })
     }
 }
