@@ -195,6 +195,7 @@ impl EuclidDirFilter for ConditionalConfigs {
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
         DirKeyKind::BusinessCountry,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
