@@ -217,6 +217,9 @@ where
                     router_data.minor_amount_captured = payment_authorize_response
                         .minor_captured_amount
                         .map(MinorUnit::new);
+                    router_data.minor_amount_capturable = payment_authorize_response
+                        .minor_capturable_amount
+                        .map(MinorUnit::new);
                     router_data.raw_connector_response = payment_authorize_response
                         .raw_connector_response
                         .clone()

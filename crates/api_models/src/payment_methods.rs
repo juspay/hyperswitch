@@ -122,7 +122,7 @@ pub struct PaymentMethodCreate {
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
@@ -138,6 +138,10 @@ pub struct PaymentMethodCreate {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -1077,7 +1081,7 @@ pub struct PaymentMethodResponse {
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -1107,7 +1111,12 @@ pub struct PaymentMethodResponse {
     /// The connector token details if available
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
 
+    /// Network token details if available
     pub network_token: Option<NetworkTokenResponse>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -3360,6 +3369,10 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -3417,6 +3430,10 @@ pub struct PaymentMethodSessionResponse {
     /// The token-id created if there is tokenization_data present
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
     pub associated_token_id: Option<id_type::GlobalTokenId>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]

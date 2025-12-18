@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.18.0
+
+### Features
+
+- **connector:** [NMI] Implement Apple Pay - hyperswitch decryption flow ([#10686](https://github.com/juspay/hyperswitch/pull/10686)) ([`6140e88`](https://github.com/juspay/hyperswitch/commit/6140e88ee399c4aa3849a54254d6f35d9312d7b7))
+- **payment-methods:** Add support for guest checkout flow in payment method service ([#10487](https://github.com/juspay/hyperswitch/pull/10487)) ([`5139ebb`](https://github.com/juspay/hyperswitch/commit/5139ebbde30c7f115b6afe3ab1bc0864ff9e82cc))
+
+### Bug Fixes
+
+- **connector:** [bluesnap] pass `connector_request_ref_id` instead of `payment_id` ([#10653](https://github.com/juspay/hyperswitch/pull/10653)) ([`ce8dae6`](https://github.com/juspay/hyperswitch/commit/ce8dae6dd8e3fae68737c01648f94f88e4f5447a))
+- Implement is_pre_authentication_flow_required function for nmi ([#10692](https://github.com/juspay/hyperswitch/pull/10692)) ([`a738f7e`](https://github.com/juspay/hyperswitch/commit/a738f7e5c788f7d3d405d5c3cec144be573a6049))
+
+**Full Changelog:** [`2025.12.17.0...2025.12.18.0`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0...2025.12.18.0)
+
+- - -
+
 ## 2025.12.17.0
 
 ### Features
