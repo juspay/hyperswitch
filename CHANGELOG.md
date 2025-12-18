@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix1
+
+### Features
+
+- **core:** [Network Token] Passing Network Token in payments request ([#10728](https://github.com/juspay/hyperswitch/pull/10728)) ([`cf99158`](https://github.com/juspay/hyperswitch/commit/cf991583a287ef2f66e6c5ff1c8338c8261502c1))
+
+**Full Changelog:** [`2025.12.17.0...2025.12.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0...2025.12.17.0-hotfix1)
+
+- - -
+
 ## 2025.12.17.0
 
 ### Features
