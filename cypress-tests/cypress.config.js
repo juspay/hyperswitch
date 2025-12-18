@@ -18,9 +18,9 @@ export default defineConfig({
     // -----------------------------------------------------------
     // FIX 1: Reduce Memory Usage
     // -----------------------------------------------------------
-    // Disables DOM snapshots for passed tests. 
+    // Disables DOM snapshots for passed tests.
     // Saves huge amounts of RAM in parallel runs.
-    numTestsKeptInMemory: 0, 
+    numTestsKeptInMemory: 0,
 
     setupNodeEvents(on, config) {
       mochawesome(on);
@@ -28,15 +28,15 @@ export default defineConfig({
       // -----------------------------------------------------------
       // FIX 2: Prevent "Blank Page" Renderer Crashes
       // -----------------------------------------------------------
-      on('before:browser:launch', (browser = {}, launchOptions) => {
+      on("before:browser:launch", (browser = {}, launchOptions) => {
         // Apply this to all Chromium-based browsers (Chrome, Electron, Edge)
-        if (browser.family === 'chromium' || browser.name === 'electron') {
-          // Forces the browser to use the disk for shared memory instead 
+        if (browser.family === "chromium" || browser.name === "electron") {
+          // Forces the browser to use the disk for shared memory instead
           // of the limited /dev/shm RAM partition.
-          launchOptions.args.push('--disable-dev-shm-usage');
-          
+          launchOptions.args.push("--disable-dev-shm-usage");
+
           // Disabling GPU helps prevent crashes in headless environments
-          launchOptions.args.push('--disable-gpu');
+          launchOptions.args.push("--disable-gpu");
         }
         return launchOptions;
       });
