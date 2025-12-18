@@ -2548,38 +2548,6 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-#[cfg(feature = "v1")]
-impl
-    From<(
-        payment_methods::CardDetailFromLocker,
-        Option<&payment_methods::CoBadgedCardData>,
-    )> for CardDetailsPaymentMethod
-{
-    fn from(
-        (item, co_badged_card_data): (
-            payment_methods::CardDetailFromLocker,
-            Option<&payment_methods::CoBadgedCardData>,
-        ),
-    ) -> Self {
-        Self {
-            issuer_country: item.issuer_country,
-            last4_digits: item.last4_digits,
-            expiry_month: item.expiry_month,
-            issuer_country_code: item.issuer_country_code,
-            expiry_year: item.expiry_year,
-            nick_name: item.nick_name,
-            card_holder_name: item.card_holder_name,
-            card_isin: item.card_isin,
-            card_issuer: item.card_issuer,
-            card_network: item.card_network,
-            card_type: item.card_type,
-            saved_to_locker: item.saved_to_locker,
-            co_badged_card_data: co_badged_card_data
-                .map(payment_methods::CoBadgedCardDataToBeSaved::from),
-        }
-    }
-}
-
 #[cfg(feature = "v2")]
 impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
     fn from(item: payment_methods::CardDetail) -> Self {
