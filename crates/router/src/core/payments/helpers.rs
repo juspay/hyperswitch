@@ -1960,21 +1960,19 @@ pub async fn get_customer_if_exists<'a, F: Clone, R, D>(
     let customer = match customer_id {
         Some(customer_id) => {
             let customer = db
-                .find_customer_optional_by_customer_id_merchant_id(
+                .find_customer_by_customer_id_merchant_id(
                     &customer_id,
                     merchant_id,
                     key_store,
                     storage_scheme,
                 )
                 .await?;
-            if let Some(ref customer) = customer {
-                payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data
-                    .email
-                    .clone()
-                    .or_else(|| customer.email.clone().map(Into::into));
-            }
-            customer
+            payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+            payment_data.email = payment_data
+                .email
+                .clone()
+                .or_else(|| customer.email.clone().map(Into::into));
+            Some(customer)
         }
         None => None,
     };
