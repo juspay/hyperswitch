@@ -352,7 +352,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
-                | PaymentMethodType::OpenBanking => {
+                | PaymentMethodType::OpenBanking
+                | PaymentMethodType::NetworkToken => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

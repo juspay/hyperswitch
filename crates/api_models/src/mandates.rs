@@ -171,6 +171,11 @@ pub enum RecurringDetails {
     /// is not stored in the application
     #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
     NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
+
+    /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
+    NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -243,7 +248,74 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub nick_name: Option<Secret<String>>,
 
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
-    /// where `setup_future_usage` is set to `off_session`.
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndNetworkTokenDetails {
+    /// The Network Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub network_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
@@ -252,5 +324,9 @@ pub struct NetworkTransactionIdAndCardDetails {
 impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
+    }
+
+    pub fn is_network_transaction_id_and_network_token_details_flow(self) -> bool {
+        matches!(self, Self::NetworkTransactionIdAndNetworkTokenDetails(_))
     }
 }
