@@ -903,6 +903,7 @@ impl<F>
             integrity_object: None,
             split_payments: item.request.split_payments,
             webhook_url: item.request.webhook_url,
+            merchant_order_reference_id: item.request.merchant_order_reference_id,
         })
     }
 }
