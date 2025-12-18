@@ -3747,9 +3747,15 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
+        let key_manager_state = &(state).into();
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id)
+            .find_authentication_by_merchant_id_authentication_id(
+                &merchant_id,
+                &authentication_id,
+                platform.get_processor().get_key_store(),
+                key_manager_state,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
                 id: authentication_id.get_string_repr().to_string(),
@@ -10772,6 +10778,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     };
 
     let db = &*state.store;
+    let key_manager_state = &(&(state)).into();
 
     let merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -10875,6 +10882,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         None,
     )
     .await?;
+
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -10883,6 +10891,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?,
+            platform.get_processor().get_key_store(),
+            key_manager_state,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -10960,7 +10970,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 req.device_channel,
                 authentication.clone(),
                 return_url,
-                req.sdk_information,
+                req.sdk_information.clone(),
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
@@ -10971,7 +10981,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication.psd2_sca_exemption_type,
             )
             .await?;
-        let authentication = external_authentication_update_trackers(
+        let authentication = Box::pin(external_authentication_update_trackers(
             &state,
             auth_response,
             authentication.clone(),
@@ -10981,7 +10991,11 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             None,
             None,
             None,
-        )
+            req.sdk_information
+                .and_then(|sdk_information| sdk_information.device_details),
+            None,
+            None,
+        ))
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
     } else {
@@ -11036,6 +11050,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             acs_signed_content: authentication_response.acs_signed_content,
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
             three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
+            error_message: authentication_response.error_message,
         },
     ))
 }
