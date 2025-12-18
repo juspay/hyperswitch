@@ -2754,6 +2754,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::LocalBankRedirect { } => {
                         Self::LocalBankRedirect
                     }
+                    domain::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 }
             }
             domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {

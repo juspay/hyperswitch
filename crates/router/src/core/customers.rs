@@ -635,12 +635,12 @@ pub async fn list_customers_with_count(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    platform: domain::Platform,
+    provider: domain::Provider,
     id: id_type::GlobalCustomerId,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.redact_customer_details_and_generate_response(db, &platform, key_manager_state, &state)
+    id.redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
         .await
 }
 
@@ -650,15 +650,15 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        platform: &'a domain::Platform,
+        provider: &'a domain::Provider,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let customer_orig = db
             .find_customer_by_global_id(
                 self,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
             )
             .await
             .switch()?;
@@ -674,11 +674,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         }
 
         match db
-            .find_payment_method_list_by_global_customer_id(
-                platform.get_processor().get_key_store(),
-                self,
-                None,
-            )
+            .find_payment_method_list_by_global_customer_id(provider.get_key_store(), self, None)
             .await
         {
             // check this in review
@@ -688,7 +684,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                         cards::delete_card_by_locker_id(
                             state,
                             self,
-                            platform.get_processor().get_account().get_id(),
+                            provider.get_account().get_id(),
                         )
                         .await
                         .switch()?;
@@ -717,15 +713,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             }
         };
 
-        let key = platform
-            .get_processor()
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
+        let key = provider.get_key_store().key.get_inner().peek();
 
-        let identifier =
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone());
+        let identifier = Identifier::Merchant(provider.get_key_store().merchant_id.clone());
         let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
             type_name!(storage::Address),
@@ -766,8 +756,8 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             self,
             customer_orig,
             updated_customer,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -789,7 +779,7 @@ trait CustomerDeleteBridge {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        platform: &'a domain::Platform,
+        provider: &'a domain::Provider,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
@@ -799,13 +789,13 @@ trait CustomerDeleteBridge {
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    platform: domain::Platform,
+    provider: domain::Provider,
     customer_id: id_type::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .redact_customer_details_and_generate_response(db, &platform, key_manager_state, &state)
+        .redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
         .await
 }
 
@@ -815,25 +805,22 @@ impl CustomerDeleteBridge for id_type::CustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        platform: &'a domain::Platform,
+        provider: &'a domain::Provider,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let customer_orig = db
             .find_customer_by_customer_id_merchant_id(
                 self,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
             )
             .await
             .switch()?;
 
         let customer_mandates = db
-            .find_mandate_by_merchant_id_customer_id(
-                platform.get_processor().get_account().get_id(),
-                self,
-            )
+            .find_mandate_by_merchant_id_customer_id(provider.get_account().get_id(), self)
             .await
             .switch()?;
 
@@ -845,9 +832,9 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
-                platform.get_processor().get_key_store(),
+                provider.get_key_store(),
                 self,
-                platform.get_processor().get_account().get_id(),
+                provider.get_account().get_id(),
                 None,
             )
             .await
@@ -856,10 +843,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::PmCards { state, platform }
+                        cards::PmCards { state, provider }
                             .delete_card_from_locker(
                                 self,
-                                platform.get_processor().get_account().get_id(),
+                                provider.get_account().get_id(),
                                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                             )
                             .await
@@ -870,11 +857,11 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                             network_tokenization::delete_network_token_from_locker_and_token_service(
                             state,
                             self,
-                            platform.get_processor().get_account().get_id(),
+                            provider.get_account().get_id(),
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
                             network_token_ref_id,
-                            platform,
+                            provider,
                         )
                         .await
                         .switch()?;
@@ -882,8 +869,8 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                     }
 
                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                        platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().get_id(),
+                        provider.get_key_store(),
+                        provider.get_account().get_id(),
                         &pm.payment_method_id,
                     )
                     .await
@@ -906,14 +893,8 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             }
         };
 
-        let key = platform
-            .get_processor()
-            .get_key_store()
-            .key
-            .get_inner()
-            .peek();
-        let identifier =
-            Identifier::Merchant(platform.get_processor().get_key_store().merchant_id.clone());
+        let key = provider.get_key_store().key.get_inner().peek();
+        let identifier = Identifier::Merchant(provider.get_key_store().merchant_id.clone());
         let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
             type_name!(storage::Address),
@@ -945,11 +926,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             last_name: Some(redacted_encrypted_value.clone()),
             phone_number: Some(redacted_encrypted_value.clone()),
             country_code: Some(REDACTED.to_string()),
-            updated_by: platform
-                .get_processor()
-                .get_account()
-                .storage_scheme
-                .to_string(),
+            updated_by: provider.get_account().storage_scheme.to_string(),
             email: Some(redacted_encrypted_email),
             origin_zip: Some(redacted_encrypted_value.clone()),
         };
@@ -957,9 +934,9 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         match db
             .update_address_by_merchant_id_customer_id(
                 self,
-                platform.get_processor().get_account().get_id(),
+                provider.get_account().get_id(),
                 update_address,
-                platform.get_processor().get_key_store(),
+                provider.get_key_store(),
             )
             .await
         {
@@ -1001,11 +978,11 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
         db.update_customer_by_customer_id_merchant_id(
             self.clone(),
-            platform.get_processor().get_account().get_id().to_owned(),
+            provider.get_account().get_id().to_owned(),
             customer_orig,
             updated_customer,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
         )
         .await
         .switch()?;
