@@ -48,14 +48,16 @@ function createIndividualRolloutConfig(
   const httpUrl = globalState.get("proxyHttp");
   const httpsUrl = globalState.get("proxyHttps");
 
-  const keySuffix = configType === "shadow" ? "_shadow" : "";
-  const rolloutPercent = configType === "shadow" ? 0.9 : 0.1;
-  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
+  // Shadow and rollout configs are now merged - no key suffix needed
+  // Set rollout_percent to 1.0 to ensure flows go through
+  const rolloutPercent = 1.0;
+  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
 
   const configValue = {
     rollout_percent: rolloutPercent,
     http_url: httpUrl,
     https_url: httpsUrl,
+    execution_mode: "shadow",
   };
   const value = JSON.stringify(configValue);
 
