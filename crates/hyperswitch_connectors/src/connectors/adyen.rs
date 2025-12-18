@@ -3473,7 +3473,9 @@ impl ConnectorSpecifications for Adyen {
         common_types::connector_webhook_configuration::WebhookSetupCapabilities {
             is_webhook_auto_configuration_supported: true,
             requires_webhook_secret: Some(false),
-            config_type: Some(common_types::connector_webhook_configuration::WebhookConfigType::Standard)
+            config_type: Some(
+                common_types::connector_webhook_configuration::WebhookConfigType::Standard,
+            ),
         }
     }
 }

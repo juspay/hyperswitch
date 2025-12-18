@@ -2,17 +2,16 @@ use std::marker::PhantomData;
 
 use api_models::admin::{ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::tracing::{self, instrument};
- use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use crate::{
     consts,
     core::errors::RouterResult,
-    errors,
-    types,
+    errors, types,
     types::{
-        domain, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse,
-        ConnectorWebhookRegisterRouterData, ErrorResponse, api::ConnectorData,
+        api::ConnectorData, domain, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponse,
+        ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
 };
@@ -196,10 +195,11 @@ pub async fn validate_webhook_registration_request(
     let config = connector_data.connector.get_api_webhook_config();
 
     if !config.is_webhook_auto_configuration_supported {
-        return Err(
-            errors::ApiErrorResponse::FlowNotSupported { flow: "Webhook Registration".to_string(), connector: connector_data.connector_name.to_string() }
-            .into(),
-        );
+        return Err(errors::ApiErrorResponse::FlowNotSupported {
+            flow: "Webhook Registration".to_string(),
+            connector: connector_data.connector_name.to_string(),
+        }
+        .into());
     }
 
     let is_supported = match webhook_register_request.event_type {
@@ -210,7 +210,7 @@ pub async fn validate_webhook_registration_request(
             )
         }
 
-        common_enums::ConnectorWebhookEventType::SpecificEvent(event)=> {
+        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
             matches!(
                 config.config_type,
                 Some(common_types::connector_webhook_configuration::WebhookConfigType::MultiEvent(
@@ -221,15 +221,12 @@ pub async fn validate_webhook_registration_request(
     };
 
     if !is_supported {
-        return Err(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Webhook registration is not supported for the specified event type"
-                    .to_string(),
-            }
-            .into(),
-        );
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Webhook registration is not supported for the specified event type"
+                .to_string(),
+        }
+        .into());
     }
 
     Ok(())
 }
-
