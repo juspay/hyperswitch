@@ -11063,6 +11063,32 @@
           "BRW"
         ]
       },
+      "DeviceDetails": {
+        "type": "object",
+        "description": "Device details for collecting Device information",
+        "properties": {
+          "device_type": {
+            "type": "string",
+            "description": "Device type",
+            "nullable": true
+          },
+          "device_brand": {
+            "type": "string",
+            "description": "Device brand",
+            "nullable": true
+          },
+          "device_os": {
+            "type": "string",
+            "description": "Device OS",
+            "nullable": true
+          },
+          "device_display": {
+            "type": "string",
+            "description": "Device display",
+            "nullable": true
+          }
+        }
+      },
       "DisplayAmountOnSdk": {
         "type": "object",
         "required": [
@@ -20729,6 +20755,11 @@
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
             "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
+            "nullable": true
           }
         }
       },
@@ -25955,6 +25986,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
