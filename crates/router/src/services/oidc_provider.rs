@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use api_models::{
     oidc::{
         Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
@@ -13,6 +11,7 @@ use error_stack::{report, ResultExt};
 use josekit::jws;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     consts::oidc::{AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER},
@@ -98,7 +97,7 @@ pub fn validate_authorize_params(
     Ok(())
 }
 
-async fn generate_and_store_authorization_code(
+pub async fn generate_and_store_authorization_code(
     state: &SessionState,
     user_id: &str,
     payload: &OidcAuthorizeQuery,
@@ -178,7 +177,7 @@ pub async fn process_authorize_request(
     }
 }
 
-fn validate_token_request(
+pub fn validate_token_request(
     state: &SessionState,
     authenticated_client_id: &str,
     request_client_id: &str,
@@ -220,7 +219,7 @@ fn validate_token_request(
     Ok(())
 }
 
-async fn validate_and_consume_authorization_code(
+pub async fn validate_and_consume_authorization_code(
     state: &SessionState,
     code: &str,
     client_id: &str,
@@ -247,7 +246,7 @@ async fn validate_and_consume_authorization_code(
     Ok(auth_code_data)
 }
 
-async fn generate_id_token(
+pub async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> error_stack::Result<String, ApiErrorResponse> {
