@@ -733,7 +733,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Billwer
         let response_integrity_object = get_refund_integrity_object(
             self.amount_converter,
             response.amount,
-            response.currency.to_string().clone(),
+            response.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
