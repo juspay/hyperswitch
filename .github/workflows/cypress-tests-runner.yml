@@ -14,7 +14,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe fiuu"
-  V2_PAYMENT_CONNECTORS: "cybersource stripe"
+  V2_PAYMENT_CONNECTORS: "cybersource stripe fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -248,6 +248,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+
+      - name : Chrome
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: browser-actions/setup-chrome@v2
       
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -298,9 +302,10 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
+          
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 

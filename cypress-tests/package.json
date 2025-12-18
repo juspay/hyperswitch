@@ -10,7 +10,7 @@
     "cypress:ci": "npx cypress run --headless",
     "cypress:misc": "cypress run --headless --spec 'cypress/e2e/spec/Misc/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
-    "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
+    "cypress:payments": "cypress run --headless --browser chrome --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
     "report:generate": "node scripts/report-generator.js",
