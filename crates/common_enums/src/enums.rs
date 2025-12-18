@@ -361,68 +361,6 @@ pub enum GsmDecision {
 pub enum GsmFeature {
     Retry,
 }
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    strum::Display,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "text")]
-pub enum StandardisedCode {
-    AccountClosedOrInvalid,
-    AuthenticationFailed,
-    AuthenticationRequired,
-    AuthorizationMissingOrRevoked,
-    CardLostOrStolen,
-    CardNotSupportedRestricted,
-    CfgPmNotEnabledOrMisconfigured,
-    ComplianceOrSanctionsRestriction,
-    ConfigurationIssue,
-    CreditLimitExceeded,
-    CurrencyOrCorridorNotEnabled,
-    DoNotHonor,
-    DownstreamTechnicalIssue,
-    DuplicateRequest,
-    GenericUnknownError,
-    IncorrectAuthenticationCode,
-    InsufficientFunds,
-    IntegCryptographicIssue,
-    IntegrationIssue,
-    InvalidCardNumber,
-    InvalidCredentials,
-    InvalidCvv,
-    InvalidExpiryDate,
-    InvalidState,
-    IssuerUnavailable,
-    MerchantInactive,
-    MissingOrInvalidParam,
-    OperationNotAllowed,
-    PaymentCancelledByUser,
-    PaymentMethodIssue,
-    PaymentSessionTimeout,
-    PmAddressMismatch,
-    PspAcquirerError,
-    PspFraudEngineDecline,
-    RateLimit,
-    StoredCredentialOrMitNotEnabled,
-    SubscriptionPlanInactive,
-    SuspectedFraud,
-    ThreeDsAuthenticationServiceIssue,
-    ThreeDsConfigurationIssue,
-    ThreeDsDataOrProtocolInvalid,
-    TransactionNotPermitted,
-    TransactionTimedOut,
-    VelocityLimitExceeded,
-    WalletOrTokenConfigIssue,
-}
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
 ///
