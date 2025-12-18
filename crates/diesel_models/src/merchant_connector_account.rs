@@ -205,7 +205,6 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
-    #[serde(default)]
     pub connector_webhook_registration_details: Option<serde_json::Value>,
 }
 
