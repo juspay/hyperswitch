@@ -143,6 +143,8 @@ pub enum MessageCategory {
 pub struct ThreeDSData {
     pub preferred_protocol_version: common_utils::types::SemanticVersion,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -415,7 +417,7 @@ pub struct AuthenticationDetails {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
@@ -922,6 +924,16 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .message_version
                 .clone(),
             threeds_method_comp_ind: item.router_data.request.threeds_method_comp_ind.clone(),
+            force_3ds_challenge: item
+                .router_data
+                .request
+                .transaction_details
+                .force_3ds_challenge,
+            psd2_sca_exemption_type: item
+                .router_data
+                .request
+                .transaction_details
+                .psd2_sca_exemption_type,
         };
 
         let device_details = DeviceDetails {

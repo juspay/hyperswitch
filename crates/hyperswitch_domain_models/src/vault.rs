@@ -36,6 +36,8 @@ impl PaymentMethodVaultingData {
                 payment_method_data::CardDetailsPaymentMethod {
                     last4_digits: None,
                     issuer_country: None,
+                    #[cfg(feature = "v1")]
+                    issuer_country_code: None,
                     expiry_month: None,
                     expiry_year: None,
                     nick_name: None,
@@ -51,6 +53,34 @@ impl PaymentMethodVaultingData {
             ),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum PaymentMethodCustomVaultingData {
+    CardData(CardCustomData),
+    NetworkTokenData(NetworkTokenCustomData),
+}
+
+impl Default for PaymentMethodCustomVaultingData {
+    fn default() -> Self {
+        Self::CardData(CardCustomData::default())
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct CardCustomData {
+    pub card_number: Option<cards::CardNumber>,
+    pub card_exp_month: Option<masking::Secret<String>>,
+    pub card_exp_year: Option<masking::Secret<String>>,
+    pub card_cvc: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct NetworkTokenCustomData {
+    pub network_token: Option<cards::NetworkToken>,
+    pub network_token_exp_month: Option<masking::Secret<String>>,
+    pub network_token_exp_year: Option<masking::Secret<String>>,
+    pub cryptogram: Option<masking::Secret<String>>,
 }
 
 pub trait VaultingDataInterface {
@@ -79,6 +109,35 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
+        }
+    }
+}
+
+impl From<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
+    fn from(item: PaymentMethodVaultingData) -> Self {
+        match item {
+            PaymentMethodVaultingData::Card(card_data) => Self::CardData(CardCustomData {
+                card_number: Some(card_data.card_number),
+                card_exp_month: Some(card_data.card_exp_month),
+                card_exp_year: Some(card_data.card_exp_year),
+                card_cvc: card_data.card_cvc,
+            }),
+            PaymentMethodVaultingData::NetworkToken(network_token_data) => {
+                Self::NetworkTokenData(NetworkTokenCustomData {
+                    network_token: Some(network_token_data.network_token),
+                    network_token_exp_month: Some(network_token_data.network_token_exp_month),
+                    network_token_exp_year: Some(network_token_data.network_token_exp_year),
+                    cryptogram: network_token_data.cryptogram,
+                })
+            }
+            PaymentMethodVaultingData::CardNumber(card_number_data) => {
+                Self::CardData(CardCustomData {
+                    card_number: Some(card_number_data),
+                    card_exp_month: None,
+                    card_exp_year: None,
+                    card_cvc: None,
+                })
+            }
         }
     }
 }

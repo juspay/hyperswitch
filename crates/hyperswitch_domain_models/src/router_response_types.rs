@@ -359,6 +359,9 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlRedirectForm {
+        jwt: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -474,6 +477,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -574,6 +578,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            }
         }
     }
 }
@@ -742,15 +749,15 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: masking::Secret<String>,
-        tokenized_card_expiry_year: masking::Secret<String>,
-        tokenized_card_expiry_month: masking::Secret<String>,
+        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
         tokenized_card_cvc: Option<masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: masking::Secret<String>,
-        tokenized_network_token_exp_year: masking::Secret<String>,
-        tokenized_network_token_exp_month: masking::Secret<String>,
+        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
         tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }
@@ -781,7 +788,7 @@ impl VaultIdType {
                     tokenized_card_expiry_month,
                     tokenized_card_cvc,
                 } => Ok(
-                    api_models::authentication::AuthenticationVaultTokenData::CardToken {
+                    api_models::authentication::AuthenticationVaultTokenData::CardData {
                         tokenized_card_number,
                         tokenized_card_expiry_month,
                         tokenized_card_expiry_year,
@@ -794,8 +801,8 @@ impl VaultIdType {
                     tokenized_network_token_exp_year,
                     tokenized_cryptogram,
                 } => Ok(
-                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                        tokenized_payment_token: tokenized_network_token,
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
+                        tokenized_network_token,
                         tokenized_expiry_month: tokenized_network_token_exp_month,
                         tokenized_expiry_year: tokenized_network_token_exp_year,
                         tokenized_cryptogram,

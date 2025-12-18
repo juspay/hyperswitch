@@ -794,9 +794,12 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(..)
             | PaymentMethodData::OpenBanking(..)
             | PaymentMethodData::NetworkToken(..)
-            | PaymentMethodData::MobilePayment(..) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Archipel"),
-            ))?,
+            | PaymentMethodData::MobilePayment(..)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Archipel"),
+                ))?
+            }
         };
 
         let three_ds: Option<Archipel3DS> = if item.router_data.is_three_ds() {
@@ -846,6 +849,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Card(..)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::PayLater(..)
             | PaymentMethodData::BankRedirect(..)

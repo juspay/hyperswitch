@@ -27,7 +27,7 @@ use crate::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
         },
-        payments,
+        payment_methods, payments,
     },
     db::domain,
     services::{self, execute_connector_processing_step},
@@ -212,7 +212,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize(
                             state,
                             auth_val.expose(),
                             None,
@@ -269,7 +269,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .and_then(|details| details.dynamic_data_value)
                     .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        payment_methods::vault::create_tokenize(
                             state,
                             auth_val,
                             None,
@@ -371,7 +371,7 @@ pub fn authenticate_authentication_client_secret_and_check_expiry(
 #[cfg(feature = "v1")]
 pub async fn get_auth_multi_token_from_external_vault<F, Req>(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     business_profile: &domain::Profile,
     router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
 ) -> RouterResult<Option<api_models::authentication::AuthenticationVaultTokenData>> {
@@ -379,8 +379,6 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
         authentication_details,
     }) = router_data.response.clone()
     {
-        let key_manager_state = state.into();
-
         match business_profile.external_vault_details.clone() {
             business_profile::ExternalVaultDetails::ExternalVaultEnabled(
                 external_vault_details,
@@ -390,10 +388,9 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 let merchant_connector_account_details = state
                     .store
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        &key_manager_state,
-                        merchant_context.get_merchant_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
                         &external_vault_mca_id,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                     )
                     .await
                     .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -402,22 +399,27 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
 
                 let vault_data = get_vault_details(authentication_details)?;
 
-                let external_vault_response = Box::pin(
-                    crate::core::payment_methods::vault_payment_method_external_v1(
+                // decide which fields to tokenize in vault
+                let vault_custom_data = payment_methods::get_payment_method_custom_data(
+                    vault_data,
+                    external_vault_details.vault_token_selector,
+                )?;
+
+                let external_vault_response =
+                    Box::pin(payment_methods::vault_payment_method_external_v1(
                         state,
-                        &vault_data,
-                        merchant_context.get_merchant_account(),
+                        &vault_custom_data,
+                        platform.get_processor().get_account(),
                         merchant_connector_account_details,
                         Some(true),
-                    ),
-                )
-                .await?;
+                    ))
+                    .await?;
 
-                Ok(Some(
-                    external_vault_response
-                        .vault_id
-                        .get_auth_vault_token_data()?,
-                ))
+                let vault_token_data = external_vault_response
+                    .vault_id
+                    .get_auth_vault_token_data()?;
+
+                Ok(Some(vault_token_data))
             }
             business_profile::ExternalVaultDetails::Skip => {
                 Err(ApiErrorResponse::InternalServerError)
@@ -448,6 +450,7 @@ fn get_vault_details(
                     card_network: None,
                     card_type: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_holder_name: None,
                     nick_name: None,
                 },
@@ -461,7 +464,7 @@ fn get_vault_details(
             Ok(
                 hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                     hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
-                        network_token: token_data.payment_token.clone().to_network_token(),
+                        network_token: token_data.payment_token.clone(),
                         network_token_exp_month: token_data.token_expiration_month.clone(),
                         network_token_exp_year: token_data.token_expiration_year.clone(),
                         cryptogram,
@@ -483,9 +486,9 @@ fn get_vault_details(
 }
 
 #[cfg(feature = "v1")]
-pub fn get_raw_authentication_token_data<F, Req>(
+pub fn get_authentication_payment_method_data<F, Req>(
     router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
-) -> Option<api_models::authentication::AuthenticationVaultTokenData> {
+) -> Option<api_models::authentication::AuthenticationPaymentMethodDataResponse> {
     if let Ok(UasAuthenticationResponseData::PostAuthentication {
         authentication_details,
     }) = router_data.response.clone()

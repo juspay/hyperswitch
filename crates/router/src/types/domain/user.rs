@@ -47,6 +47,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod oidc;
 pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
@@ -449,7 +450,6 @@ impl NewUserMerchant {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &(&state).into(),
                 &self.get_merchant_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -542,11 +542,9 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -557,7 +555,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
             )
@@ -593,11 +590,9 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -608,7 +603,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &merchant_key_store,
             )
@@ -616,15 +610,17 @@ impl NewUserMerchant {
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant account by merchant_id")?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
-            merchant_key_store,
-        )));
+            merchant_key_store.clone(),
+            merchant_account.clone(),
+            merchant_key_store.clone(),
+        );
 
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            merchant_context,
+            platform,
         ))
         .await
         .change_context(UserErrors::InternalServerError)
@@ -1201,11 +1197,7 @@ impl UserFromStorage {
         let key_manager_state = &state.into();
         let key_store_result = state
             .global_store
-            .get_user_key_store_by_user_id(
-                key_manager_state,
-                self.get_user_id(),
-                &master_key.to_vec().into(),
-            )
+            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
         if let Ok(key_store) = key_store_result {
@@ -1250,7 +1242,7 @@ impl UserFromStorage {
 
             state
                 .global_store
-                .insert_user_key_store(key_manager_state, key_store, &master_key.to_vec().into())
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
         } else {
@@ -1280,7 +1272,6 @@ impl UserFromStorage {
         let user_key_store = state
             .global_store
             .get_user_key_store_by_user_id(
-                key_manager_state,
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
             )

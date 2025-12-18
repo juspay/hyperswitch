@@ -181,9 +181,8 @@ impl ConnectorCommon for Trustpay {
                         .clone()
                         .map(|error_code_message| error_code_message.error_code)
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    // message vary for the same code, so relying on code alone as it is unique
                     message: option_error_code_message
-                        .map(|error_code_message| error_code_message.error_code)
+                        .map(|error_code_message| error_code_message.error_message)
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     reason: reason
                         .or(response_data.description)

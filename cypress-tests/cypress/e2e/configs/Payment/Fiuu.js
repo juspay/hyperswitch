@@ -1,15 +1,15 @@
-import { customerAcceptance } from "./Commons";
+import { cardRequiredField, customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
   card_exp_month: "12",
   card_exp_year: "2030",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "444",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "5105105105105100",
+  card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2031",
   card_holder_name: "joseph Doe",
@@ -59,7 +59,50 @@ const billingAddress = {
   email: "johndoe@gmail.com",
 };
 
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["fiuu"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
+};
+
 export const connectorDetails = {
+  real_time_payment_pm: {
+    DuitNow: {
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          net_amount: 6000,
+          amount_received: null,
+          amount: 6000,
+        },
+      },
+    },
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -634,6 +677,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -667,6 +713,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -689,6 +738,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: billingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -823,6 +874,17 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };

@@ -623,7 +623,23 @@ pub struct GigadatWebhookQueryParameters {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GigadatWebhookKeyValue {
-    pub key: String,
-    pub value: String,
+#[serde(rename_all = "camelCase")]
+pub struct GigadatWebhookKeyValueBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub final_type: Option<String>,
+    pub cpi_type: Option<String>,
+    // donot remove the below fields
+    pub name: Option<Secret<String>>,
+    pub mobile: Option<Secret<String>>,
+    pub user_id: Option<Secret<String>>,
+    pub email: Option<Secret<String>>,
+    pub financial_institution: Option<Secret<String>>,
+}
+
+impl GigadatWebhookKeyValueBody {
+    pub fn decode_from_url(body_str: &str) -> Result<Self, errors::ConnectorError> {
+        serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
 }
