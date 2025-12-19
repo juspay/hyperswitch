@@ -25,5 +25,21 @@ pub struct IdTokenClaims {
     pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verified: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preferred_username: Option<String>,
     pub nonce: String,
+}
+
+/// Access Token Claims structure for OIDC
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccessTokenClaims {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub iat: u64,
+    pub exp: u64,
+    pub email: pii::Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preferred_username: Option<String>,
+    pub scope: Vec<Scope>,
 }

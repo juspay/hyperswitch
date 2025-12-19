@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use api_models::{
     oidc::{
         Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
@@ -10,16 +8,17 @@ use api_models::{
 };
 use common_utils::pii;
 use error_stack::{report, ResultExt};
-use josekit::jws;
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    consts::oidc::{AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER},
+    consts::oidc::{
+        ACCESS_TOKEN_TTL_IN_SECS, AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER,
+    },
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
     services::{api::ApplicationResponse, authentication::UserFromToken},
-    types::domain::user::oidc::{AuthCodeData, IdTokenClaims},
+    types::domain::user::oidc::{AccessTokenClaims, AuthCodeData, IdTokenClaims},
     utils::{oidc as oidc_utils, user as user_utils},
 };
 
@@ -180,8 +179,7 @@ pub async fn process_authorize_request(
 
 pub fn validate_token_request(
     state: &SessionState,
-    authenticated_client_id: &str,
-    request_client_id: &str,
+    client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<(), ApiErrorResponse> {
     if redirect_uri.trim().is_empty() {
@@ -191,18 +189,11 @@ pub fn validate_token_request(
         }));
     }
 
-    if !oidc_utils::validate_client_id_match(authenticated_client_id, request_client_id) {
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            error: OidcTokenError::InvalidRequest,
-            description: "client_id mismatch".into(),
-        }));
-    }
-
     let registered_client = state
         .conf
         .oidc
         .get_inner()
-        .get_client(request_client_id)
+        .get_client(client_id)
         .ok_or_else(|| {
             report!(ApiErrorResponse::OidcTokenError {
                 error: OidcTokenError::InvalidClient,
@@ -251,58 +242,48 @@ pub async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let signing_key = state
-        .conf
-        .oidc
-        .get_inner()
-        .get_signing_key()
-        .ok_or_else(|| {
-            report!(ApiErrorResponse::InternalServerError)
-                .attach_printable("No signing key configured for OIDC")
-        })?;
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get current time")?
-        .as_secs();
-
-    let exp = now.checked_add(ID_TOKEN_TTL_IN_SECS).ok_or_else(|| {
-        report!(ApiErrorResponse::InternalServerError)
-            .attach_printable("Token expiration time overflow")
-    })?;
+    let (now, exp) = oidc_utils::generate_oidc_now_and_exp(ID_TOKEN_TTL_IN_SECS)?;
 
     let include_email_claims = auth_code_data.scope.contains(&Scope::Email);
+    let include_profile_claims = auth_code_data.scope.contains(&Scope::Profile);
 
     let claims = IdTokenClaims {
-        iss: state.conf.user.base_url.clone(),
+        iss: state.tenant.base_url.clone(),
         sub: auth_code_data.sub.clone(),
         aud: auth_code_data.client_id.clone(),
         iat: now,
         exp,
         email: include_email_claims.then_some(auth_code_data.email.clone()),
         email_verified: include_email_claims.then_some(auth_code_data.is_verified),
+        preferred_username: include_profile_claims
+            .then_some(auth_code_data.email.peek().to_string()),
         nonce: auth_code_data.nonce.clone(),
     };
 
-    let payload_bytes = serde_json::to_vec(&claims)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize ID token claims")?;
+    oidc_utils::sign_oidc_token(state, claims, "ID token").await
+}
 
-    let signing_algorithm = jws::RS256;
-    let mut header = jws::JwsHeader::new();
-    header.set_key_id(&signing_key.kid);
+pub async fn generate_access_token(
+    state: &SessionState,
+    auth_code_data: &AuthCodeData,
+) -> error_stack::Result<String, ApiErrorResponse> {
+    let (now, exp) = oidc_utils::generate_oidc_now_and_exp(ACCESS_TOKEN_TTL_IN_SECS)?;
 
-    let signer = signing_algorithm
-        .signer_from_pem(signing_key.private_key.peek().as_bytes())
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create JWT signer from private key")?;
+    let include_profile_claims = auth_code_data.scope.contains(&Scope::Profile);
 
-    let id_token = jws::serialize_compact(&payload_bytes, &header, &signer)
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to sign ID token")?;
+    let claims = AccessTokenClaims {
+        iss: state.tenant.base_url.clone(),
+        sub: auth_code_data.sub.clone(),
+        aud: auth_code_data.client_id.clone(),
+        iat: now,
+        exp,
+        email: auth_code_data.email.clone(),
+        preferred_username: include_profile_claims
+            .then_some(auth_code_data.email.peek().to_string()),
+        scope: auth_code_data.scope.clone(),
+    };
 
-    Ok(id_token)
+    oidc_utils::sign_oidc_token(state, claims, "access token").await
 }
 
 pub async fn process_token_request(
@@ -310,26 +291,23 @@ pub async fn process_token_request(
     payload: OidcTokenRequest,
     client_id: String,
 ) -> RouterResponse<OidcTokenResponse> {
-    validate_token_request(
-        &state,
-        &client_id,
-        &payload.client_id,
-        &payload.redirect_uri,
-    )?;
+    validate_token_request(&state, &client_id, &payload.redirect_uri)?;
 
     let auth_code_data = validate_and_consume_authorization_code(
         &state,
         &payload.code,
-        &payload.client_id,
+        &client_id,
         &payload.redirect_uri,
     )
     .await?;
 
+    let access_token = generate_access_token(&state, &auth_code_data).await?;
     let id_token = generate_id_token(&state, &auth_code_data).await?;
 
     Ok(ApplicationResponse::Json(OidcTokenResponse {
+        access_token: access_token.into(),
         id_token: id_token.into(),
         token_type: TOKEN_TYPE_BEARER.to_string(),
-        expires_in: ID_TOKEN_TTL_IN_SECS,
+        expires_in: ACCESS_TOKEN_TTL_IN_SECS,
     }))
 }

@@ -10,7 +10,7 @@ const RESPONSE_MODES_SUPPORTED: &[ResponseMode] = &[ResponseMode::Query];
 const SUBJECT_TYPES_SUPPORTED: &[SubjectType] = &[SubjectType::Public];
 const ID_TOKEN_SIGNING_ALGS_SUPPORTED: &[SigningAlgorithm] = &[SigningAlgorithm::Rs256];
 const GRANT_TYPES_SUPPORTED: &[GrantType] = &[GrantType::AuthorizationCode];
-const SCOPES_SUPPORTED: &[Scope] = &[Scope::Openid, Scope::Email];
+const SCOPES_SUPPORTED: &[Scope] = &[Scope::Openid, Scope::Email, Scope::Profile];
 const TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED: &[TokenAuthMethod] =
     &[TokenAuthMethod::ClientSecretBasic];
 const CLAIMS_SUPPORTED: &[Claim] = &[
@@ -21,6 +21,7 @@ const CLAIMS_SUPPORTED: &[Claim] = &[
     Claim::Iat,
     Claim::Iss,
     Claim::Sub,
+    Claim::PreferredUsername,
 ];
 
 /// OIDC Response Type
@@ -81,6 +82,7 @@ pub enum GrantType {
 pub enum Scope {
     Openid,
     Email,
+    Profile,
 }
 
 /// OIDC Token Endpoint Authentication Method
@@ -101,6 +103,7 @@ pub enum Claim {
     Iat,
     Iss,
     Sub,
+    PreferredUsername,
 }
 
 /// OIDC Authorization Error as per RFC 6749
@@ -302,15 +305,15 @@ pub struct OidcTokenRequest {
     /// Redirection URI that was used in the authorization request
     #[schema(example = "https://example.com/callback")]
     pub redirect_uri: String,
-
-    /// OAuth 2.0 Client Identifier
-    #[schema(example = "client_abc123")]
-    pub client_id: String,
 }
 
 /// OIDC Token Response
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenResponse {
+    /// Access Token value for API access
+    #[schema(value_type = String)]
+    pub access_token: Secret<String>,
+
     /// ID Token value associated with the authenticated session
     #[schema(value_type = String)]
     pub id_token: Secret<String>,
@@ -319,7 +322,7 @@ pub struct OidcTokenResponse {
     #[schema(example = "Bearer")]
     pub token_type: String,
 
-    /// Expiration time of the ID Token in seconds since the response was generated
+    /// Expiration time of the Access Token in seconds since the response was generated
     #[schema(example = 3600)]
     pub expires_in: u64,
 }

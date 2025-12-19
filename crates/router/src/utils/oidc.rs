@@ -1,12 +1,16 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use api_models::oidc::OidcTokenError;
 use common_utils::ext_traits::StringExt;
 use error_stack::{report, ResultExt};
+use masking::PeekInterface;
 use url::Url;
 
 use crate::{
     consts::oidc::{AUTH_CODE_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX},
     core::errors::ApiErrorResponse,
     routes::app::SessionState,
+    services::encryption,
     types::domain::user::oidc::AuthCodeData,
     utils::user as user_utils,
 };
@@ -102,4 +106,55 @@ pub async fn delete_auth_code_from_redis(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete authorization code from redis")
         .map(|_| ())
+}
+
+/// Generate `now` (iat) and `exp` timestamps for OIDC tokens
+pub fn generate_oidc_now_and_exp(
+    ttl_secs: u64,
+) -> error_stack::Result<(u64, u64), ApiErrorResponse> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get current time")?
+        .as_secs();
+
+    let exp = now.checked_add(ttl_secs).ok_or_else(|| {
+        report!(ApiErrorResponse::InternalServerError)
+            .attach_printable("Token expiration time overflow")
+    })?;
+
+    Ok((now, exp))
+}
+
+/// Sign OIDC JWT tokens with RS256
+pub async fn sign_oidc_token<T>(
+    state: &SessionState,
+    claims: T,
+    error_prefix: &str,
+) -> error_stack::Result<String, ApiErrorResponse>
+where
+    T: serde::Serialize,
+{
+    let signing_key = state
+        .conf
+        .oidc
+        .get_inner()
+        .get_signing_key()
+        .ok_or_else(|| {
+            report!(ApiErrorResponse::InternalServerError)
+                .attach_printable("No signing key configured for OIDC")
+        })?;
+
+    let payload_bytes = serde_json::to_vec(&claims)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(format!("Failed to serialize {} claims", error_prefix))?;
+
+    encryption::jws_sign_payload(
+        &payload_bytes,
+        &signing_key.kid,
+        signing_key.private_key.peek().as_bytes(),
+    )
+    .await
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable(format!("Failed to sign {}", error_prefix))
 }
