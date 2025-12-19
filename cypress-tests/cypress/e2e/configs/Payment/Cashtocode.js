@@ -19,7 +19,7 @@ const BillingAddress = {
     last_name: "Doe",
   },
   phone: {
-    number: "8056594427",
+    number: "9123456789",
     country_code: "+91",
   },
 };
@@ -69,6 +69,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
           payment_method: "reward",
           payment_method_type: "evoucher",
+          amount: 6000,
         },
       },
     },
@@ -85,6 +86,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
           payment_method: "reward",
           payment_method_type: "classic",
+          amount: 6000,
         },
       },
     },
