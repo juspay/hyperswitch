@@ -2493,7 +2493,7 @@ pub async fn create_pm_additional_data_update(
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
         // A new payment method is created with inactive state
         // It will be marked active after payment succeeds
-        status: status,
+        status,
         locker_id: vault_id,
         payment_method_type_v2: payment_method_type,
         payment_method_subtype,
