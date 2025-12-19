@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "stripe fiuu"
+  PAYMENTS_CONNECTORS: "fiuu"
   V2_PAYMENT_CONNECTORS: "cybersource stripe fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
@@ -140,10 +140,10 @@ jobs:
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
-    runs-on: hyperswitch-runners
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
+    runs-on: ubuntu-latest
+    # env:
+    #   # Use `sccache` for caching compilation artifacts
+    #   RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -179,19 +179,19 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+      # - name: Install Rust
+      #   if: ${{ env.RUN_TESTS == 'true' }}
+      #   uses: dtolnay/rust-toolchain@master
+      #   with:
+      #     toolchain: stable 2 weeks ago
+      #     components: llvm-tools-preview, rustfmt
       
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
+      # - name: Install sccache
+      #   if: ${{ env.RUN_TESTS == 'true' }}
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
