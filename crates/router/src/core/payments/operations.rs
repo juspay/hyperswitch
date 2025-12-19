@@ -533,10 +533,9 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
@@ -548,10 +547,9 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync,

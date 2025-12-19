@@ -583,10 +583,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send + Sync,
@@ -612,8 +611,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                key_store,
-                storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -621,10 +620,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_store,
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

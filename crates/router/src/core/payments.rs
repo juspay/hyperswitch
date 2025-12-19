@@ -307,10 +307,9 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
+                    platform.get_processor(),
                     payment_data,
                     router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await?;
 
@@ -382,10 +381,9 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
+                    platform.get_processor(),
                     payment_data,
                     router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await?;
 
@@ -524,10 +522,9 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
+            platform.get_processor(),
             payment_data,
             router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
@@ -904,10 +901,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1072,10 +1068,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1413,10 +1408,9 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
+            platform.get_processor(),
             payment_data,
             router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
             &locale,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             routable_connectors,
@@ -1530,10 +1524,9 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
+                    platform.get_processor(),
                     payment_data,
                     router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await?
         }
@@ -1669,10 +1662,9 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
+                    platform.get_processor(),
                     payment_data,
                     router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await?
         }
