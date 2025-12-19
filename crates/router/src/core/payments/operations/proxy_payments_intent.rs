@@ -488,9 +488,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         let response_router_data = response;
 
         let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
         let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
