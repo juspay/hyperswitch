@@ -143,7 +143,7 @@ pub fn validate_for_valid_refunds(
                     .into())
                 },
             )
-        },
+        }
         diesel_models::enums::PaymentMethod::BankDebit => {
             let payment_method_type = payment_attempt
                 .payment_method_type
@@ -164,7 +164,7 @@ pub fn validate_for_valid_refunds(
                     .into())
                 },
             )
-        },
+        }
         _ => Ok(()),
     }
 }
