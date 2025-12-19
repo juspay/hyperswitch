@@ -296,10 +296,13 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         let merchant_connector_id = merchant_connector_account.get_mca_id();
 
-        let connector_auth_metadata =
-            build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            platform,
+            self.connector.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
@@ -322,15 +325,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             payment_register_request,
             header_payload,
             |mut router_data, payment_register_request, grpc_headers| async move {
-                let response = client
-                    .payment_setup_mandate(
-                        payment_register_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to Setup Mandate payment")?;
+                let response = Box::pin(client.payment_setup_mandate(
+                    payment_register_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to Setup Mandate payment")?;
 
                 let payment_register_response = response.into_inner();
 

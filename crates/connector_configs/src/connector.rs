@@ -189,6 +189,9 @@ pub struct ConfigMetadata {
     pub merchant_payment_method_route_id: Option<InputData>,
     pub site: Option<InputData>,
     pub purpose_of_payment: Option<InputData>,
+    pub organizational_unit_id: Option<InputData>,
+    pub issuer_id: Option<InputData>,
+    pub jwt_mac_key: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]

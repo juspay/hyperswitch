@@ -195,6 +195,7 @@ impl EuclidDirFilter for ConditionalConfigs {
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
         DirKeyKind::BusinessCountry,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
@@ -952,3 +953,104 @@ pub struct PartnerMerchantIdentifierDetails {
 }
 
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
+
+/// List of custom T&C messages grouped by payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodsConfig(
+    #[schema(example = json!([
+        {
+            "payment_method": "card",
+            "payment_method_types": [
+                {
+                    "payment_method_type": "credit",
+                    "message": {
+                        "value": "I authorize this payment",
+                        "display_mode": "default_sdk_message"
+                    }
+                }
+            ]
+        }
+    ]))]
+    pub Vec<PaymentMethodConfig>,
+);
+
+/// Custom T&C messages for a specific payment method
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct PaymentMethodConfig {
+    /// Payment Method
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: common_enums::PaymentMethod,
+
+    /// Payment Method Types
+    #[schema(example = json!([
+        {
+            "payment_method_type": "credit",
+            "message": {
+                "value": "Sample message",
+                "display_mode": "custom"
+            }
+        }
+    ]))]
+    #[schema(value_type = Vec<CustomTerms>)]
+    pub payment_method_types: Vec<CustomTerms>,
+}
+
+/// Custom T&C message for a specific payment method type
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomTerms {
+    /// Payment Method Type
+    #[schema(value_type = PaymentMethodType, example = "sepa")]
+    pub payment_method_type: common_enums::PaymentMethodType,
+
+    /// The message to be shown
+    #[schema(value_type = CustomMessage)]
+    pub message: CustomMessage,
+}
+
+/// Custom T&C message content and display mode
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CustomMessage {
+    /// The text to be shown per payment method type
+    #[schema(value_type = String, example = "I authorize Novalnet AG to debit my account.")]
+    pub value: String,
+
+    /// The display mode for terms and conditions
+    #[schema(value_type = SdkDisplayMode , example = "custom")]
+    #[serde(default)]
+    pub display_mode: SdkDisplayMode,
+}
+
+/// Display mode options for controlling how messages are shown.
+#[derive(Default, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SdkDisplayMode {
+    /// Display the default terms and conditions in sdk
+    #[default]
+    DefaultSdkMessage,
+    /// Display the custom configured by the merchant
+    CustomMessage,
+    /// No terms and conditions to be shown
+    Hidden,
+}
+
+impl PaymentMethodsConfig {
+    /// Validation function for custom terms and conditions
+    pub fn validate(&self) -> Result<(), errors::ValidationError> {
+        for pm_config in &self.0 {
+            let parent_pm = pm_config.payment_method;
+
+            for pm_type_config in &pm_config.payment_method_types {
+                let pm_type = pm_type_config.payment_method_type;
+
+                // Check if the payment_method_type belongs to the parent payment_method
+                if common_enums::PaymentMethod::from(pm_type) != parent_pm {
+                    return Err(errors::ValidationError::InvalidValue {
+                        message: "Payment Method Type '{pm_type}' does not belong to Payment Method '{parent_pm}'".to_string(),
+                    }
+                    .into());
+                }
+            }
+        }
+        Ok(())
+    }
+}

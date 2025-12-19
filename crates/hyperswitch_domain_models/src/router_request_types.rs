@@ -8,7 +8,7 @@ use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
-    id_type, pii,
+    id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -433,6 +433,8 @@ pub struct PaymentMethodTokenizationData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub router_return_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -444,12 +446,14 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: data.amount,
-            split_payments: None,
+            split_payments: data.split_payments,
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -470,6 +474,8 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             mandate_id: data.request.mandate_id.clone(),
             payment_method_type: data.payment_method_type,
+            router_return_url: None,
+            capture_method: None,
         }
     }
 }
@@ -489,6 +495,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -513,6 +521,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -730,7 +740,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             email: data.email,
             currency: Some(data.currency),
             browser_info: data.browser_info,
-            connector_transaction_id: None,
+            connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
         })
     }
@@ -828,6 +838,7 @@ pub struct CompleteAuthorizeData {
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub request_incremental_authorization: bool,
     pub authentication_data: Option<UcsAuthenticationData>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     // New amount for amount frame work
@@ -1384,6 +1395,7 @@ pub struct PayoutsData {
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone)]

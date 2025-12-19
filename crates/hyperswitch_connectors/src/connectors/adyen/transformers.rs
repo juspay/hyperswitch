@@ -6,7 +6,7 @@ use api_models::{
     enums,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
-use cards::CardNumber;
+use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
 use common_utils::ext_traits::OptionExt;
@@ -19,7 +19,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, Card, CardRedirectData, GiftCardData,
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -1376,7 +1375,7 @@ pub struct AdyenCard {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPazeData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
@@ -1494,7 +1493,7 @@ pub struct AdyenApplePay {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNetworkTokenData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Option<Secret<String>>,
@@ -1906,7 +1905,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -2011,23 +2011,32 @@ fn get_shopper_statement(item: &PaymentsAuthorizeRouterData) -> Option<String> {
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    let shopper_reference = item.get_connector_customer_id()?;
+    let shopper_reference = item.get_connector_customer_id().ok();
 
     match (item.request.setup_future_usage, item.request.off_session) {
+        // Setup for future off-session usage
         (Some(storage_enums::FutureUsage::OffSession), _) => {
             let store_payment_method = item.request.is_mandate_payment();
+            let shopper_reference =
+                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
                 Some(store_payment_method),
                 Some(shopper_reference),
             ))
         }
-        (_, Some(true)) => Ok((
-            Some(AdyenRecurringModel::UnscheduledCardOnFile),
-            None,
-            Some(shopper_reference),
-        )),
-        _ => Ok((None, None, None)),
+        // Off-session payment
+        (_, Some(true)) => {
+            let shopper_reference =
+                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                None,
+                Some(shopper_reference),
+            ))
+        }
+        // On-session payment
+        _ => Ok((None, None, shopper_reference)),
     }
 }
 
@@ -2783,7 +2792,8 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankRedirectData::Interac { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::Przelewy24 { .. }
-            | BankRedirectData::Sofort { .. } => Err(errors::ConnectorError::NotImplemented(
+            | BankRedirectData::Sofort { .. }
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -3064,10 +3074,13 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
-                        message: "Network tokenization for payment method".to_string(),
-                        connector: "Adyen",
-                    })?,
+                    | PaymentMethodData::Card(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Network tokenization for payment method".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 }
             }
             payments::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
@@ -3108,7 +3121,8 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -3186,8 +3200,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = item.router_data.get_connector_customer_id().ok();
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =
@@ -3956,8 +3969,7 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = item.router_data.get_connector_customer_id().ok();
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
@@ -6581,8 +6593,7 @@ impl
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = item.router_data.get_connector_customer_id().ok();
-        let (recurring_processing_model, store_payment_method, _) =
+        let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =

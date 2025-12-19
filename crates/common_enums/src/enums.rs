@@ -3,19 +3,28 @@ mod payments;
 mod ui;
 use std::{
     collections::HashSet,
+    fmt,
     num::{ParseFloatError, TryFromIntError},
+    str::FromStr,
 };
 
 pub use accounts::{
     MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
 };
+use diesel::{
+    backend::Backend,
+    deserialize::FromSql,
+    expression::AsExpression,
+    serialize::{Output, ToSql},
+    sql_types::Text,
+};
 pub use payments::ProductType;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
+pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -198,6 +207,39 @@ impl AttemptStatus {
         }
     }
 
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
@@ -318,6 +360,68 @@ pub enum GsmDecision {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum StandardisedCode {
+    AccountClosedOrInvalid,
+    AuthenticationFailed,
+    AuthenticationRequired,
+    AuthorizationMissingOrRevoked,
+    CardLostOrStolen,
+    CardNotSupportedRestricted,
+    CfgPmNotEnabledOrMisconfigured,
+    ComplianceOrSanctionsRestriction,
+    ConfigurationIssue,
+    CreditLimitExceeded,
+    CurrencyOrCorridorNotEnabled,
+    DoNotHonor,
+    DownstreamTechnicalIssue,
+    DuplicateRequest,
+    GenericUnknownError,
+    IncorrectAuthenticationCode,
+    InsufficientFunds,
+    IntegCryptographicIssue,
+    IntegrationIssue,
+    InvalidCardNumber,
+    InvalidCredentials,
+    InvalidCvv,
+    InvalidExpiryDate,
+    InvalidState,
+    IssuerUnavailable,
+    MerchantInactive,
+    MissingOrInvalidParam,
+    OperationNotAllowed,
+    PaymentCancelledByUser,
+    PaymentMethodIssue,
+    PaymentSessionTimeout,
+    PmAddressMismatch,
+    PspAcquirerError,
+    PspFraudEngineDecline,
+    RateLimit,
+    StoredCredentialOrMitNotEnabled,
+    SubscriptionPlanInactive,
+    SuspectedFraud,
+    ThreeDsAuthenticationServiceIssue,
+    ThreeDsConfigurationIssue,
+    ThreeDsDataOrProtocolInvalid,
+    TransactionNotPermitted,
+    TransactionTimedOut,
+    VelocityLimitExceeded,
+    WalletOrTokenConfigIssue,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
@@ -1877,6 +1981,9 @@ pub enum RecoveryStatus {
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
+    /// The payment has been partially recovered through retry mechanisms,
+    /// and the remaining amount is still being processed by the payment gateway.
+    PartiallyCapturedAndProcessing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
@@ -2080,13 +2187,6 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-/// Custom T&C Message to be shown per payment method type
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<String, Option<String>>)]
-    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
-);
-
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
@@ -2227,6 +2327,8 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2352,6 +2454,8 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
+            Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2400,6 +2504,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2419,7 +2524,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2439,7 +2545,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
@@ -2501,29 +2608,14 @@ pub enum ExecutionPath {
     ShadowUnifiedConnectorService,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum ShadowRolloutAvailability {
-    IsAvailable,
-    NotAvailable,
+impl ExecutionPath {
+    /// Checks if the execution path is through Direct Gateway (Hyperswitch Direct)
+    pub fn is_direct_gateway(&self) -> bool {
+        match self {
+            Self::Direct | Self::ShadowUnifiedConnectorService => true,
+            Self::UnifiedConnectorService => false,
+        }
+    }
 }
 
 #[derive(
@@ -2599,8 +2691,10 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
+    /// Represents only UCS Connector integration
     UcsConnector,
-    DirectConnector,
+    /// Represents Connector integration which may be on both Direct and UCS
+    DirectandUCSConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -3071,96 +3165,147 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
+#[schema(
+    value_type = String,
+    title = "4 digit Merchant category code (MCC)",
+    example = "5411"
 )]
-pub enum MerchantCategory {
-    #[serde(rename = "Grocery Stores, Supermarkets (5411)")]
-    GroceryStoresSupermarkets,
-    #[serde(rename = "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)")]
-    LodgingHotelsMotelsResorts,
-    #[serde(rename = "Agricultural Cooperatives (0763)")]
-    AgriculturalCooperatives,
-    #[serde(rename = "Attorneys, Legal Services (8111)")]
-    AttorneysLegalServices,
-    #[serde(rename = "Office and Commercial Furniture (5021)")]
-    OfficeAndCommercialFurniture,
-    #[serde(rename = "Computer Network/Information Services (4816)")]
-    ComputerNetworkInformationServices,
-    #[serde(rename = "Shoe Stores (5661)")]
-    ShoeStores,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-pub enum MerchantCategoryCode {
-    #[serde(rename = "5411")]
-    #[strum(serialize = "5411")]
-    Mcc5411,
-    #[serde(rename = "7011")]
-    #[strum(serialize = "7011")]
-    Mcc7011,
-    #[serde(rename = "0763")]
-    #[strum(serialize = "0763")]
-    Mcc0763,
-    #[serde(rename = "8111")]
-    #[strum(serialize = "8111")]
-    Mcc8111,
-    #[serde(rename = "5021")]
-    #[strum(serialize = "5021")]
-    Mcc5021,
-    #[serde(rename = "4816")]
-    #[strum(serialize = "4816")]
-    Mcc4816,
-    #[serde(rename = "5661")]
-    #[strum(serialize = "5661")]
-    Mcc5661,
-}
+#[diesel(sql_type = Text)]
+pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
-    pub fn to_merchant_category_name(&self) -> MerchantCategory {
-        match self {
-            Self::Mcc5411 => MerchantCategory::GroceryStoresSupermarkets,
-            Self::Mcc7011 => MerchantCategory::LodgingHotelsMotelsResorts,
-            Self::Mcc0763 => MerchantCategory::AgriculturalCooperatives,
-            Self::Mcc8111 => MerchantCategory::AttorneysLegalServices,
-            Self::Mcc5021 => MerchantCategory::OfficeAndCommercialFurniture,
-            Self::Mcc4816 => MerchantCategory::ComputerNetworkInformationServices,
-            Self::Mcc5661 => MerchantCategory::ShoeStores,
+    pub fn get_code(&self) -> Result<u16, InvalidMccError> {
+        // since self.0 is private field we can safely ensure self.0 is string "0001"-"9999"
+        self.0.parse::<u16>().map_err(|_| InvalidMccError {
+            message: "Invalid MCC code found".to_string(),
+        })
+    }
+
+    pub fn new(code: u16) -> Result<Self, InvalidMccError> {
+        if code >= 10000 {
+            return Err(InvalidMccError {
+                message: "MCC should be in range 0001 to 9999".to_string(),
+            });
         }
+        let formatted = format!("{code:04}");
+
+        Ok(Self(formatted))
+    }
+
+    pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
+        let code = self.get_code()?;
+        match code {
+            // specific mapping needs to be depricated
+            5411 => Ok("Grocery Stores, Supermarkets (5411)"),
+            7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
+            763 => Ok("Agricultural Cooperatives (0763)"),
+            8111 => Ok("Attorneys, Legal Services (8111)"),
+            5021 => Ok("Office and Commercial Furniture (5021)"),
+            4816 => Ok("Computer Network/Information Services (4816)"),
+            5661 => Ok("Shoe Stores (5661)"),
+
+            _ => Err(InvalidMccError {
+                message: format!("Category name not found for {}", code),
+            }),
+        }
+    }
+
+    /// Returns a reference to the 4-digit zero-padded code string.
+    pub fn get_string_code(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<DB> ToSql<Text, DB> for MerchantCategoryCode
+where
+    DB: Backend,
+    String: ToSql<Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+impl<DB: Backend> FromSql<Text, DB> for MerchantCategoryCode
+where
+    String: FromSql<Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let code = <String as FromSql<Text, DB>>::from_sql(bytes)?;
+
+        Self::from_str(&code).map_err(Into::into)
+    }
+}
+
+impl Serialize for MerchantCategoryCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InvalidMccError {
+    pub message: String,
+}
+
+impl fmt::Display for InvalidMccError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid MCC: {}", self.message)
+    }
+}
+
+impl std::error::Error for InvalidMccError {}
+
+impl From<std::num::ParseIntError> for InvalidMccError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        Self {
+            message: format!("MCC must be a number: {}", err),
+        }
+    }
+}
+
+impl FromStr for MerchantCategoryCode {
+    type Err = InvalidMccError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let _code: u16 = s.parse()?;
+
+        if s.len() != 4 {
+            return Err(InvalidMccError {
+                message: format!(
+                    "MCC must be exactly 4 characters long (e.g., '0001'), but got '{}'",
+                    s
+                ),
+            });
+        }
+        Ok(Self(s.to_string()))
+    }
+}
+
+impl<'de> Deserialize<'de> for MerchantCategoryCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let code = String::deserialize(deserializer)?;
+
+        Self::from_str(&code).map_err(de::Error::custom)
+    }
+}
+
+impl fmt::Display for MerchantCategoryCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Format as a zero-padded 4-digit string, which matches the expected enum serialization.
+        write!(f, "{:04}", self.0)
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
 pub struct MerchantCategoryCodeWithName {
     pub code: MerchantCategoryCode,
-    pub name: MerchantCategory,
+    pub name: String,
 }
 
 #[derive(
@@ -9858,6 +10003,28 @@ pub enum ProcessTrackerRunner {
     InvoiceSyncflow,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplicationSource {
+    #[default]
+    Main,
+    Cug,
+}
+
 #[derive(Debug)]
 pub enum CryptoPadding {
     PKCS7,
@@ -10030,9 +10197,9 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::RequiresCapture
             | IntentStatus::PartiallyCaptured
             | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
-            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
@@ -10179,4 +10346,27 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
 }

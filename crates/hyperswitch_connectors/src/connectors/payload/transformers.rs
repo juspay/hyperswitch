@@ -13,10 +13,12 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -31,13 +33,14 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         get_unimplemented_payment_method_error_message, is_manual_capture, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        CardData, CustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
         RouterData as OtherRouterData,
     },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+#[allow(clippy::too_many_arguments)]
 fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
     connector_auth_type: &ConnectorAuthType,
@@ -46,9 +49,17 @@ fn build_payload_payment_request_data(
     billing_address: &AddressDetails,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
+    customer_id: Option<String>,
+    is_three_ds: bool,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
+            if is_three_ds {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Payload",
+                })?
+            }
             let card = requests::PayloadCard {
                 number: req_card.clone().card_number,
                 expiry: req_card
@@ -99,11 +110,11 @@ fn build_payload_payment_request_data(
         .into()),
     };
 
-    let city = billing_address.get_city()?.to_owned();
-    let country = billing_address.get_country()?.to_owned();
+    let city = billing_address.get_optional_city().to_owned();
+    let country = billing_address.get_optional_country().to_owned();
     let postal_code = billing_address.get_zip()?.to_owned();
-    let state_province = billing_address.get_state()?.to_owned();
-    let street_address = billing_address.get_line1()?.to_owned();
+    let state_province = billing_address.get_optional_state().to_owned();
+    let street_address = billing_address.get_optional_line1().to_owned();
     // For manual capture, set status to "authorized"
     let status = if is_manual_capture(capture_method) {
         Some(responses::PayloadPaymentStatus::Authorized)
@@ -128,6 +139,7 @@ fn build_payload_payment_request_data(
         billing_address,
         processing_id: payload_auth.processing_account_id,
         keep_active: is_mandate,
+        customer_id,
     })
 }
 
@@ -142,6 +154,31 @@ impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+impl TryFrom<&ConnectorCustomerRouterData> for requests::CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            keep_active: item.request.is_mandate_payment(),
+            email: item.request.get_email()?,
+            name: item.request.get_name()?,
+        })
+    }
+}
+impl<F, T> TryFrom<ResponseRouterData<F, responses::CustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, responses::CustomerResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
+            )),
+            ..item.data
+        })
     }
 }
 
@@ -225,6 +262,8 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                     billing_address,
                     item.request.capture_method,
                     is_mandate,
+                    item.get_connector_customer_id()?.into(),
+                    item.is_three_ds(),
                 )
             }
         }
@@ -241,13 +280,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
-                if item.router_data.is_three_ds() {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Cards 3DS".to_string(),
-                        connector: "Payload",
-                    })?
-                }
-                let billing_address = item.router_data.get_billing_address()?;
+                let billing_address: &AddressDetails = item.router_data.get_billing_address()?;
                 let is_mandate = item.router_data.request.is_mandate_payment();
 
                 let payment_request = build_payload_payment_request_data(
@@ -258,6 +291,8 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     billing_address,
                     item.router_data.request.capture_method,
                     is_mandate,
+                    item.router_data.connector_customer.clone(),
+                    item.router_data.is_three_ds(),
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
