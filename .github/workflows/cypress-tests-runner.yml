@@ -185,6 +185,13 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: llvm-tools-preview, rustfmt
+      
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
