@@ -2805,12 +2805,24 @@ impl AddressData for Address {
 
 pub trait PaymentsPreAuthenticateRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
     fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 }
 pub trait PaymentsPreProcessingRequestData {

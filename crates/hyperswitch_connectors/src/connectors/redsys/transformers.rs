@@ -503,7 +503,7 @@ struct Transaction3dsParams<'a> {
     flow_name: &'a str,
 }
 
-fn build_3ds_transaction(params: Transaction3dsParams) -> Result<RedsysTransaction, Error> {
+fn build_3ds_transaction(params: Transaction3dsParams<'_>) -> Result<RedsysTransaction, Error> {
     if !params.is_three_ds {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} flow for no-3ds cards", params.flow_name),
@@ -564,8 +564,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreAuthenticateRouterData>> for RedsysTr
         let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
         let card_data =
             RedsysCardData::try_from(&Some(item.router_data.request.payment_method_data.clone()))?;
-        // For PreAuthenticate flow, default to preauthorization (manual capture)
-        let is_auto_capture = false;
+        let is_auto_capture = item.router_data.request.is_auto_capture()?;
 
         let transaction = build_3ds_transaction(Transaction3dsParams {
             auth: &auth,
