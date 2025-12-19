@@ -3381,6 +3381,27 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
+    async fn find_user_role_by_user_id_and_lineage_with_entity_type(
+        &self,
+        user_id: &str,
+        tenant_id: &id_type::TenantId,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_and_lineage_with_entity_type(
+                user_id,
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
+            .await
+    }
+
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
@@ -3753,11 +3774,14 @@ impl AuthorizationInterface for KafkaStore {
 impl AuthenticationInterface for KafkaStore {
     async fn insert_authentication(
         &self,
-        authentication: storage::AuthenticationNew,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        authentication: hyperswitch_domain_models::authentication::Authentication,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         let auth = self
             .diesel_store
-            .insert_authentication(authentication)
+            .insert_authentication(state, key_store, authentication)
             .await?;
 
         if let Err(er) = self
@@ -3775,9 +3799,17 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         authentication_id: &id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         self.diesel_store
-            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id,
+                authentication_id,
+                key_store,
+                state,
+            )
             .await
     }
 
@@ -3785,25 +3817,35 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         merchant_id: id_type::MerchantId,
         connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
                 connector_authentication_id,
+                key_store,
+                state,
             )
             .await
     }
 
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: storage::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
+        authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         let auth = self
             .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
                 previous_state.clone(),
                 authentication_update,
+                key_store,
+                state,
             )
             .await?;
 

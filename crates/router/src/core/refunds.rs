@@ -312,7 +312,8 @@ pub async fn trigger_refund_to_gateway(
                 Some(err.code.clone()),
                 Some(err.message.clone()),
                 connector.connector_name.to_string(),
-                consts::REFUND_FLOW_STR.to_string(),
+                consts::REFUND_FLOW_STR,
+                consts::DEFAULT_SUBFLOW_STR,
             )
             .await;
             // Note: Some connectors do not have a separate list of refund errors
@@ -324,7 +325,8 @@ pub async fn trigger_refund_to_gateway(
                     Some(err.code.clone()),
                     Some(err.message.clone()),
                     connector.connector_name.to_string(),
-                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                    consts::PAYMENT_FLOW_STR,
+                    consts::AUTHORIZE_FLOW_STR,
                 )
                 .await
             } else {
