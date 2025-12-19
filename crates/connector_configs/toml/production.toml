@@ -6570,5 +6570,8 @@ api_key = "API Key"
 
 
 [payjustnowinstore]
-[payjustnowinstore.connector_auth.HeaderKey]
-api_key = "Merchant Terminal Id"
+[payjustnowinstore.connector_auth.BodyKey]
+  api_key = "Merchant API Key"
+  key1 = "Merchant Terminal Id"
+[[payjustnowinstore.pay_later]]
+  payment_method_type = "payjustnow"

@@ -153,7 +153,7 @@ pub enum Connector {
     Payu,
     Peachpayments,
     Payjustnow,
-    // Payjustnowinstore,
+    Payjustnowinstore,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -406,7 +406,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
-            // | Self::Payjustnowinstore
+            | Self::Payjustnowinstore
             | Self::Phonepe => false,
             Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
