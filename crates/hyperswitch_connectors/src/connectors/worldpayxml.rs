@@ -1198,9 +1198,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         let body: worldpayxml::WorldpayXmlWebhookBody =
             utils::deserialize_xml_to_struct(request.body)?;
         let order_code = body.notify.order_status_event.order_code.clone();
-        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event)
-            && !order_code.starts_with("payout_")
-        {
+        if worldpayxml::is_refund_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(order_code),
             ));
@@ -1211,7 +1209,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             ));
         }
         #[cfg(feature = "payouts")]
-        if order_code.starts_with("payout_") {
+        if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(order_code),
             ));
@@ -1227,8 +1225,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
             utils::deserialize_xml_to_struct(request.body)?;
         #[cfg(feature = "payouts")]
         {
-            let order_code = body.notify.order_status_event.order_code.clone();
-            if order_code.starts_with("payout_") {
+            if worldpayxml::is_payout_event(body.notify.order_status_event.payment.last_event) {
                 return Ok(worldpayxml::get_payout_webhook_event(
                     body.notify.order_status_event.payment.last_event,
                 ));
@@ -1311,6 +1308,17 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
         worldpayxml_supported_payment_methods.add(
             common_enums::PaymentMethod::Wallet,
             common_enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        worldpayxml_supported_payment_methods.add(
+            common_enums::PaymentMethod::Wallet,
+            common_enums::PaymentMethodType::ApplePay,
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,

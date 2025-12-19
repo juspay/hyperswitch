@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 use scheduler::{
     consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
 };
@@ -248,7 +248,7 @@ pub async fn trigger_refund_to_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -312,7 +312,8 @@ pub async fn trigger_refund_to_gateway(
                 Some(err.code.clone()),
                 Some(err.message.clone()),
                 connector.connector_name.to_string(),
-                consts::REFUND_FLOW_STR.to_string(),
+                consts::REFUND_FLOW_STR,
+                consts::DEFAULT_SUBFLOW_STR,
             )
             .await;
             // Note: Some connectors do not have a separate list of refund errors
@@ -324,7 +325,8 @@ pub async fn trigger_refund_to_gateway(
                     Some(err.code.clone()),
                     Some(err.message.clone()),
                     connector.connector_name.to_string(),
-                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                    consts::PAYMENT_FLOW_STR,
+                    consts::AUTHORIZE_FLOW_STR,
                 )
                 .await
             } else {
@@ -575,20 +577,21 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     // Clone direct result for comparison (if successful)
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
-    tokio::spawn(async move {
-        let ucs_result =
-            unified_connector_service::call_unified_connector_service_for_refund_execute(
-                &ucs_state,
-                &ucs_platform,
-                ucs_router_data,
-                ExecutionMode::Shadow,
-                merchant_connector_account,
-            )
-            .await;
+    tokio::spawn(
+        async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_execute(
+                    &ucs_state,
+                    &ucs_platform,
+                    ucs_router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-        match (ucs_result, direct_router_data_for_comparison) {
-            (Ok(ucs_router_data), Some(direct_router_data)) => {
-                unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+            match (ucs_result, direct_router_data_for_comparison) {
+                (Ok(ucs_router_data), Some(direct_router_data)) => {
+                    unified_connector_service::serialize_router_data_and_send_to_comparison_service(
                     &ucs_state,
                     direct_router_data,
                     ucs_router_data,
@@ -601,20 +604,22 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     );
                 })
                 .ok();
-            }
-            (Err(e), _) => {
-                router_env::logger::debug!(
-                    "Skipping refund execute comparison - UCS shadow execute failed: {:?}",
-                    e
-                );
-            }
-            (_, None) => {
-                router_env::logger::debug!(
-                    "Skipping refund execute comparison - direct execute failed"
-                );
+                }
+                (Err(e), _) => {
+                    router_env::logger::debug!(
+                        "Skipping refund execute comparison - UCS shadow execute failed: {:?}",
+                        e
+                    );
+                }
+                (_, None) => {
+                    router_env::logger::debug!(
+                        "Skipping refund execute comparison - direct execute failed"
+                    );
+                }
             }
         }
-    });
+        .instrument(tracing::Span::current()),
+    );
 
     // Return PRIMARY result (Direct connector response)
     direct_result
@@ -872,7 +877,7 @@ pub async fn sync_refund_with_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -1091,19 +1096,21 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let merchant_connector_account = merchant_connector_account.clone();
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
-    tokio::spawn(async move {
-        let ucs_result = unified_connector_service::call_unified_connector_service_for_refund_sync(
-            &state,
-            &platform,
-            router_data,
-            ExecutionMode::Shadow,
-            merchant_connector_account,
-        )
-        .await;
+    tokio::spawn(
+        async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_sync(
+                    &state,
+                    &platform,
+                    router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-        match (ucs_result, direct_router_data_for_comparison) {
-            (Ok(ucs_router_data), Some(direct_router_data)) => {
-                unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+            match (ucs_result, direct_router_data_for_comparison) {
+                (Ok(ucs_router_data), Some(direct_router_data)) => {
+                    unified_connector_service::serialize_router_data_and_send_to_comparison_service(
                     &state,
                     direct_router_data,
                     ucs_router_data,
@@ -1113,17 +1120,21 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     router_env::logger::debug!("Shadow UCS sync comparison failed: {:?}", e);
                 })
                 .ok();
-            }
-            (Err(_), _) => {
-                router_env::logger::debug!(
-                    "Skipping refund sync comparison - UCS shadow sync failed"
-                );
-            }
-            (_, None) => {
-                router_env::logger::debug!("Skipping refund sync comparison - direct sync failed");
+                }
+                (Err(_), _) => {
+                    router_env::logger::debug!(
+                        "Skipping refund sync comparison - UCS shadow sync failed"
+                    );
+                }
+                (_, None) => {
+                    router_env::logger::debug!(
+                        "Skipping refund sync comparison - direct sync failed"
+                    );
+                }
             }
         }
-    });
+        .instrument(tracing::Span::current()),
+    );
 
     direct_result
 }

@@ -20,6 +20,18 @@ pub async fn profile_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
     if let Err(api_error) = payload
+        .payment_link_config
+        .as_ref()
+        .map(|config| {
+            config
+                .validate()
+                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
+    if let Err(api_error) = payload
         .webhook_details
         .as_ref()
         .map(|details| {
@@ -205,6 +217,19 @@ pub async fn profile_update(
     let flow = Flow::ProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
     let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .payment_link_config
+        .as_ref()
+        .map(|config| {
+            config
+                .validate()
+                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
+
     if let Err(api_error) = payload
         .webhook_details
         .as_ref()

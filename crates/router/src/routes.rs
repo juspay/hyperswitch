@@ -30,6 +30,7 @@ pub mod lock_utils;
 pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
+pub mod oidc;
 #[cfg(feature = "v1")]
 pub mod payment_link;
 pub mod payment_methods;
@@ -94,7 +95,7 @@ pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,
-    Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
+    Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, Oidc, PaymentLink,
     PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
     ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
     User, UserDeprecated, Webhooks,

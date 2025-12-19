@@ -47,6 +47,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod oidc;
 pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
