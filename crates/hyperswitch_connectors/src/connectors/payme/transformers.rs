@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use api_models::enums::{AuthenticationType, PaymentMethod};
 use common_enums::enums;
 use common_utils::{
+    ext_traits::OptionExt,
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
@@ -17,9 +18,10 @@ use hyperswitch_domain_models::{
         RefundsResponseData,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -356,6 +358,67 @@ pub enum SalePaymentMethod {
     ApplePay,
 }
 
+impl TryFrom<&PaymeRouterData<&CreateOrderRouterData>> for GenerateSaleRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymeRouterData<&CreateOrderRouterData>) -> Result<Self, Self::Error> {
+        let sale_type = SaleType::try_from(item.router_data)?;
+        let seller_payme_id =
+            PaymeAuthType::try_from(&item.router_data.connector_auth_type)?.seller_payme_id;
+        let order_details = item
+            .router_data
+            .request
+            .order_details
+            .clone()
+            .get_required_value("order_details")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "order_details",
+            })?;
+        let services = get_services(item.router_data.auth_type);
+        let product_name = order_details
+            .first()
+            .ok_or_else(utils::missing_field_err("order_details"))?
+            .product_name
+            .clone();
+        let pmd = item
+            .router_data
+            .request
+            .payment_method_data
+            .to_owned()
+            .ok_or_else(utils::missing_field_err("payment_method_data"))?;
+        let sale_return_url = item
+            .router_data
+            .request
+            .router_return_url
+            .clone()
+            .get_required_value("router_return_url")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "router_return_url",
+            })?;
+        let sale_callback_url = item
+            .router_data
+            .request
+            .webhook_url
+            .clone()
+            .get_required_value("webhook_url")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "webhook_url",
+            })?;
+        Ok(Self {
+            seller_payme_id,
+            sale_price: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
+            product_name,
+            sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
+            sale_type,
+            transaction_id: item.router_data.payment_id.clone(),
+            sale_return_url,
+            sale_callback_url,
+            language: LANGUAGE.to_string(),
+            services,
+        })
+    }
+}
+
 impl TryFrom<&PaymeRouterData<&PaymentsPreProcessingRouterData>> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -365,7 +428,7 @@ impl TryFrom<&PaymeRouterData<&PaymentsPreProcessingRouterData>> for GenerateSal
         let seller_payme_id =
             PaymeAuthType::try_from(&item.router_data.connector_auth_type)?.seller_payme_id;
         let order_details = item.router_data.request.get_order_details()?;
-        let services = get_services(item.router_data);
+        let services = get_services(item.router_data.auth_type);
         let product_name = order_details
             .first()
             .ok_or_else(utils::missing_field_err("order_details"))?
@@ -853,6 +916,23 @@ impl TryFrom<&ConnectorAuthType> for PaymeAuthType {
     }
 }
 
+impl TryFrom<&CreateOrderRouterData> for SaleType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &CreateOrderRouterData) -> Result<Self, Self::Error> {
+        let sale_type = if value.request.setup_mandate_details.is_some() {
+            // First mandate
+            Self::Token
+        } else {
+            // Normal payments
+            match value.request.is_auto_capture() {
+                true => Self::Sale,
+                false => Self::Authorize,
+            }
+        };
+        Ok(sale_type)
+    }
+}
+
 impl TryFrom<&PaymentsPreProcessingRouterData> for SaleType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
@@ -1197,8 +1277,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymeQueryTransactionResponse, T, Refun
     }
 }
 
-fn get_services(item: &PaymentsPreProcessingRouterData) -> Option<ThreeDs> {
-    match item.auth_type {
+fn get_services(auth_type: AuthenticationType) -> Option<ThreeDs> {
+    match auth_type {
         AuthenticationType::ThreeDs => {
             let settings = ThreeDsSettings { active: true };
             Some(ThreeDs {

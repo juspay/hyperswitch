@@ -867,7 +867,6 @@ default_imp_for_create_order!(
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payload,
-    connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
     connectors::Paysafe,
