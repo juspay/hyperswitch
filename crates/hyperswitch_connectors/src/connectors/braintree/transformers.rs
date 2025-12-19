@@ -535,11 +535,41 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     match item.router_data.payment_method_token {
                         Some(ref payment_method_token) => match payment_method_token {
                             PaymentMethodToken::Token(token) => {
+                                let is_mandate = item.router_data.request.is_mandate_payment();
+                                let is_auto_capture = item.router_data.request.is_auto_capture()?;
+
+                                let (
+                                    query,
+                                    customer_details,
+                                    vault_payment_method_after_transacting,
+                                ) = if is_mandate {
+                                    (
+                                        if is_auto_capture {
+                                            CHARGE_AND_VAULT_TRANSACTION_MUTATION.to_string()
+                                        } else {
+                                            AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION.to_string()
+                                        },
+                                        item.router_data
+                                            .get_billing_email()
+                                            .ok()
+                                            .map(|email| CustomerBody { email }),
+                                        Some(TransactionTiming {
+                                            when: VaultTiming::Always,
+                                        }),
+                                    )
+                                } else {
+                                    (
+                                        if is_auto_capture {
+                                            CHARGE_CREDIT_CARD_MUTATION.to_string()
+                                        } else {
+                                            AUTHORIZE_CREDIT_CARD_MUTATION.to_string()
+                                        },
+                                        None,
+                                        None,
+                                    )
+                                };
                                 Ok(Self::Wallet(BraintreeWalletRequest {
-                                    query: match item.router_data.request.is_auto_capture()? {
-                                        true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
-                                        false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
-                                    },
+                                    query,
                                     variables: GenericVariableInput {
                                         input: WalletPaymentInput {
                                             payment_method_id: token.clone(),
@@ -552,17 +582,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                                                     .router_data
                                                     .connector_request_reference_id
                                                     .clone(),
-                                                customer_details: None,
-                                                vault_payment_method_after_transacting: match item
-                                                    .router_data
-                                                    .request
-                                                    .is_mandate_payment()
-                                                {
-                                                    true => Some(TransactionTiming {
-                                                        when: VaultTiming::Always,
-                                                    }),
-                                                    false => None,
-                                                },
+                                                customer_details,
+                                                vault_payment_method_after_transacting,
                                             },
                                         },
                                     },
