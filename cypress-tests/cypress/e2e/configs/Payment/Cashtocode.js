@@ -6,7 +6,7 @@ const successfulNo3DSCardDetails = {
   card_cvc: "737",
 };
 
-const BillingAddress = {
+const billingAddress = {
   address: {
     line1: "1467",
     line2: "Harrison Street",
@@ -32,7 +32,7 @@ export const connectorDetails = {
         amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: BillingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -47,7 +47,7 @@ export const connectorDetails = {
         amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: BillingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -61,7 +61,7 @@ export const connectorDetails = {
         payment_method: "reward",
         payment_method_type: "evoucher",
         payment_method_data: "reward",
-        billing: BillingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -78,7 +78,7 @@ export const connectorDetails = {
         payment_method: "reward",
         payment_method_type: "classic",
         payment_method_data: "reward",
-        billing: BillingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
