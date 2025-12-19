@@ -14,7 +14,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource fiuu stripe"
-  V2_PAYMENT_CONNECTORS: "cybersource stripe fiuu"
+  V2_PAYMENT_CONNECTORS: "cybersource stripe fiuu noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -304,10 +304,10 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
-          ROUTER__SERVER__WORKERS: 4
+          ROUTER__SERVER__WORKERS: 8
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 4
 
           kill "${{ env.PID }}"
 
