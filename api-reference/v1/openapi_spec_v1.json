@@ -35841,15 +35841,6 @@
           "transaction_risk_analysis"
         ]
       },
-      "SdkDisplayMode": {
-        "type": "string",
-        "description": "Display mode options for controlling how messages are shown.",
-        "enum": [
-          "default_sdk_message",
-          "custom_message",
-          "hidden"
-        ]
-      },
       "ScheduledExpirationTime": {
         "type": "object",
         "required": [
@@ -35867,6 +35858,15 @@
             "nullable": true
           }
         }
+      },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
+        ]
       },
       "SdkInformation": {
         "type": "object",
