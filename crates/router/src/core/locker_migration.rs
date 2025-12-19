@@ -69,6 +69,7 @@ pub async fn rust_locker_migration(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     for customer in domain_customers {
         let result = db

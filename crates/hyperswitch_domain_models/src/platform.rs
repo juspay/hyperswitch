@@ -56,23 +56,27 @@ impl Processor {
 pub struct Platform {
     provider: Box<Provider>,
     processor: Box<Processor>,
+    initiator: Option<common_utils::types::CreatedBy>,
 }
 
 impl Platform {
     /// Creates a Platform pairing from two merchant identities:
     /// one acting as provider and one as processor
     /// Standard merchants can pass the same account/key_store for both provider and processor
+    /// The initiator parameter represents who triggered the operation (API key or JWT user)
     pub fn new(
         provider_account: MerchantAccount,
         provider_key_store: MerchantKeyStore,
         processor_account: MerchantAccount,
         processor_key_store: MerchantKeyStore,
+        initiator: Option<common_utils::types::CreatedBy>,
     ) -> Self {
         let provider = Provider::new(provider_account, provider_key_store);
         let processor = Processor::new(processor_account, processor_key_store);
         Self {
             provider: Box::new(provider),
             processor: Box::new(processor),
+            initiator,
         }
     }
 
@@ -84,5 +88,11 @@ impl Platform {
     /// Returns a reference to the processor.
     pub fn get_processor(&self) -> &Processor {
         &self.processor
+    }
+
+    /// Returns a reference to the initiator.
+    /// Returns None if the initiator is not known or not applicable.
+    pub fn get_initiator(&self) -> Option<&common_utils::types::CreatedBy> {
+        self.initiator.as_ref()
     }
 }

@@ -3864,6 +3864,7 @@ pub async fn clone_connector(
         destination_key_store.clone(),
         destination_merchant_account.clone(),
         destination_key_store.clone(),
+        None,
     );
 
     admin::create_connector(

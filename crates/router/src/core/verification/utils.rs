@@ -146,12 +146,19 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
-            auth_data.merchant_account.get_id(),
-            &auth_data.key_store,
-            auth_data.merchant_account.storage_scheme,
+            auth_data.platform.get_processor().get_account().get_id(),
+            auth_data.platform.get_processor().get_key_store(),
+            auth_data
+                .platform
+                .get_processor()
+                .get_account()
+                .storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
+    let profile_id = auth_data
+        .clone()
+        .profile
+        .map(|profile| profile.get_id().clone());
+    utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)
 }

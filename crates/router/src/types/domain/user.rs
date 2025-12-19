@@ -614,6 +614,7 @@ impl NewUserMerchant {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
 
         Box::pin(admin::create_profile(

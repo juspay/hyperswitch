@@ -1808,6 +1808,7 @@ pub async fn sync_refund_with_gateway_workflow(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
         state.clone(),
@@ -1924,6 +1925,7 @@ pub async fn trigger_refund_execute_workflow(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     let refund = db
         .find_refund_by_internal_reference_id_merchant_id(

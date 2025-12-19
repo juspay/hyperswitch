@@ -243,7 +243,7 @@ pub async fn create_merchant_account(
             &state,
             key_store.clone(),
             &merchant_id,
-            org_data_from_auth,
+            org_data_from_auth.clone(),
         )
         .await?;
 
@@ -261,6 +261,7 @@ pub async fn create_merchant_account(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     add_publishable_key_to_decision_service(&state, &platform);
 
@@ -985,6 +986,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 key_store.clone(),
                 merchant_account,
                 key_store.clone(),
+                None,
             );
 
             // Validate whether profile_id passed in request is valid and is linked to the merchant
@@ -2793,6 +2795,7 @@ pub async fn update_connector(
         key_store.clone(),
         merchant_account,
         key_store.clone(),
+        None,
     );
     let payment_connector = req
         .clone()
