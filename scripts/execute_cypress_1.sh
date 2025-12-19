@@ -122,8 +122,10 @@ execute_test() {
 
   local exit_code=0
   if ! taskset -c "${start_core}-${end_core}" \
-       CYPRESS_CONNECTOR="$connector" \
-       npm run "cypress:$service"
+        bash -c '
+          export CYPRESS_CONNECTOR="'"$connector"'"
+          npm run "cypress:'"$service"'"
+        '
   then
     exit_code=1
   fi
