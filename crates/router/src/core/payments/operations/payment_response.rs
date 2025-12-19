@@ -2554,11 +2554,11 @@ impl<F: Clone>
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2786,10 +2786,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let payment_attempt = payment_data.payment_attempt;
 
@@ -2932,10 +2932,10 @@ impl
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2995,10 +2995,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -3306,8 +3306,8 @@ impl<F: Clone + Send + Sync>
 
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
-        let payment_intent_update =
-            router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -3320,8 +3320,8 @@ impl<F: Clone + Send + Sync>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating the payment_intent")?;
 
-        let payment_attempt_update =
-            router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_attempt = db
             .update_payment_attempt(
