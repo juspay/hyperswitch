@@ -505,9 +505,11 @@ execute_test() {
   export REPORT_NAME="${service}_${connector}_report"
 
   if ! taskset -c "${START_CORE}-${END_CORE}" \
-       xvfb-run -a \
-       CYPRESS_CONNECTOR="$connector" \
-       npm run "cypress:${service}"
+        xvfb-run -a \
+        bash -c '
+          export CYPRESS_CONNECTORS="'"$connector"'"
+          npm run "cypress:'"$service"'"
+        '
   then
     print_color red "[FAIL] $service:$connector"
     echo "${service}:${connector}" >> "$failure_log"
