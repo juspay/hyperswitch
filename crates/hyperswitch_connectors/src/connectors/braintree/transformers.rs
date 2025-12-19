@@ -542,7 +542,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                                     },
                                     variables: GenericVariableInput {
                                         input: WalletPaymentInput {
-                                            payment_method_id: token.clone().into(),
+                                            payment_method_id: token.clone(),
                                             transaction: WalletTransactionBody {
                                                 amount: item.amount.clone(),
                                                 merchant_account_id: metadata
