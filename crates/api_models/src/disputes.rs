@@ -66,6 +66,9 @@ pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute
     #[smithy(value_type = "String")]
     pub dispute_id: String,
+    /// The dispute amount
+    #[smithy(value_type = "String")]
+    pub amount: StringMinorUnit,
     /// Stage of the dispute
     #[smithy(value_type = "DisputeStage")]
     pub dispute_stage: DisputeStage,
