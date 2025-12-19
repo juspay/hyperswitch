@@ -14,10 +14,10 @@ detailed_errors = []
 payouts = ["common_enums/payouts"]
 frm = []
 olap = []
-openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
+openapi = ["common_enums/openapi","olap","recon","dummy_connector"]
 recon = []
 v1 = ["common_utils/v1"]
-v2 = ["common_types/v2", "common_utils/v2", "tokenization_v2", "dep:reqwest", "revenue_recovery"]
+v2 = ["common_types/v2","common_utils/v2","tokenization_v2","dep:reqwest","revenue_recovery",]
 dynamic_routing = []
 control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 revenue_recovery = ["dep:actix-multipart"]
@@ -36,9 +36,11 @@ strum = { version = "0.26", features = ["derive"] }
 tempfile = "3.8"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.4", features = ["serde"] }
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+utoipa = { version = "4.2.3", features = ["preserve_order","preserve_path_order",] }
 nutype = { version = "0.4.3", features = ["serde"] }
 deserialize_form_style_query_parameter = "0.2.2"
+smithy = { path = "../smithy"}
+smithy-core = { path = "../smithy-core"}
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
@@ -46,7 +48,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
-masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
+masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc","serde",] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }

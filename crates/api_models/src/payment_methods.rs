@@ -15,6 +15,7 @@ use common_utils::{
 use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
+use smithy::SmithyModel;
 
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
@@ -2324,22 +2325,27 @@ pub struct TotalPaymentMethodCountResponse {
 impl common_utils::events::ApiEventMetric for TotalPaymentMethodCountResponse {}
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.api.payment_methods")]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    #[smithy(value_type = "String", required)]
     pub payment_method_id: String,
 
     /// Whether payment method was deleted or not
     #[schema(example = true)]
+    #[smithy(value_type = "bool", required)]
     pub deleted: bool,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.api.payment_methods")]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[smithy(value_type = "String", required)]
     pub id: id_type::GlobalPaymentMethodId,
 }
 
