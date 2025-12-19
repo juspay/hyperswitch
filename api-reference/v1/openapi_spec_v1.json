@@ -17425,6 +17425,7 @@
         "type": "object",
         "required": [
           "dispute_id",
+          "amount",
           "dispute_stage",
           "dispute_status",
           "connector_status",
@@ -17435,6 +17436,9 @@
           "dispute_id": {
             "type": "string",
             "description": "The identifier for dispute"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
