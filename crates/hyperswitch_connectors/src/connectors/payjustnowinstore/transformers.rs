@@ -14,10 +14,7 @@ use hyperswitch_interfaces::{
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct PayjustnowinstoreRouterData<T> {
     pub amount: MinorUnit,
@@ -120,7 +117,9 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
                 .merchant_order_reference_id
                 .clone()
                 .unwrap_or(item.router_data.payment_id.clone()),
-            callback_url: item.router_data.request.get_webhook_url()?,
+            // Webhooks are not implemented yet for PJN In-Store, and `callback_url` is a mandatory field.
+            // Since PJN Instore does not accept null or empty values, a placeholder is used here.
+            callback_url: "callback_url".to_string(),
             items,
         })
     }
