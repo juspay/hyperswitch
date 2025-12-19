@@ -143,7 +143,28 @@ pub fn validate_for_valid_refunds(
                     .into())
                 },
             )
-        }
+        },
+        diesel_models::enums::PaymentMethod::BankDebit => {
+            let payment_method_type = payment_attempt
+                .payment_method_type
+                .get_required_value("payment_method_type")?;
+
+            utils::when(
+                matches!(
+                    (connector, payment_method_type),
+                    (
+                        api_models::enums::Connector::Nordea,
+                        diesel_models::enums::PaymentMethodType::Sepa,
+                    )
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("Refunds are not supported for {connector}"),
+                    }
+                    .into())
+                },
+            )
+        },
         _ => Ok(()),
     }
 }
