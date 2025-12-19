@@ -1971,7 +1971,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         unified_code: error_status.clone(),
                                         unified_message: error_status,
                                         connector_response_reference_id,
-                                        updated_by: processor.get_account().storage_scheme.to_string(),
+                                        updated_by: processor
+                                            .get_account()
+                                            .storage_scheme
+                                            .to_string(),
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
@@ -2081,7 +2084,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             for (capture, capture_update) in capture_updates {
                 let updated_capture = state
                     .store
-                    .update_capture_with_capture_id(capture, capture_update, processor.get_account().storage_scheme)
+                    .update_capture_with_capture_id(
+                        capture,
+                        capture_update,
+                        processor.get_account().storage_scheme,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 multiple_capture_data.update_capture(updated_capture);
@@ -2609,10 +2616,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let response_router_data = response;
 
-        let payment_intent_update =
-            response_router_data.get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update =
-            response_router_data.get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2946,7 +2953,6 @@ impl
                 processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                
                 processor.get_account().storage_scheme,
             )
             .await

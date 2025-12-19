@@ -305,12 +305,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    platform.get_processor(),
-                    payment_data,
-                    router_data,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -379,12 +374,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    platform.get_processor(),
-                    payment_data,
-                    router_data,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -520,12 +510,7 @@ where
 
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
-        .update_tracker(
-            state,
-            platform.get_processor(),
-            payment_data,
-            router_data,
-        )
+        .update_tracker(state, platform.get_processor(), payment_data, router_data)
         .await?;
 
     Ok((
@@ -1522,12 +1507,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    platform.get_processor(),
-                    payment_data,
-                    router_data,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(vec) => todo!(),
@@ -1660,12 +1640,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    platform.get_processor(),
-                    payment_data,
-                    router_data,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(_) => todo!(),
