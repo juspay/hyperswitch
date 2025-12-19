@@ -491,6 +491,7 @@ fn build_redsys_3ds_request(
 }
 
 // Common function to handle 3DS transaction building logic
+#[allow(clippy::too_many_arguments)]
 fn build_3ds_transaction(
     auth: &RedsysAuthType,
     is_three_ds: bool,
@@ -503,31 +504,29 @@ fn build_3ds_transaction(
     flow_name: &str,
 ) -> Result<RedsysTransaction, Error> {
     if !is_three_ds {
-        return Err(errors::ConnectorError::NotSupported {
+        Err(errors::ConnectorError::NotSupported {
             message: format!("{} flow for no-3ds cards", flow_name),
             connector: "redsys",
         }
-        .into());
-    }
-
-    if auth_type != enums::AuthenticationType::ThreeDs {
-        return Err(errors::ConnectorError::FlowNotSupported {
+        .into())
+    } else if auth_type != enums::AuthenticationType::ThreeDs {
+        Err(errors::ConnectorError::FlowNotSupported {
             flow: flow_name.to_string(),
             connector: "redsys".to_string(),
         }
-        .into());
+        .into())
+    } else {
+        let request = build_redsys_3ds_request(
+            auth,
+            card_data,
+            amount,
+            currency,
+            connector_request_reference_id,
+            is_auto_capture,
+        )?;
+
+        RedsysTransaction::try_from((&request, auth))
     }
-
-    let request = build_redsys_3ds_request(
-        auth,
-        card_data,
-        amount,
-        currency,
-        connector_request_reference_id,
-        is_auto_capture,
-    )?;
-
-    RedsysTransaction::try_from((&request, auth))
 }
 
 impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTransaction {
