@@ -3845,7 +3845,7 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
-          // globalState.set("paymentID", paymentIntentID);
+          globalState.set("paymentID", paymentIntentID);
 
           validateErrorMessage(response, resData);
 
