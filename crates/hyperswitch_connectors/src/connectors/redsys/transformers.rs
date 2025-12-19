@@ -491,41 +491,42 @@ fn build_redsys_3ds_request(
 }
 
 // Common function to handle 3DS transaction building logic
-#[allow(clippy::too_many_arguments)]
-fn build_3ds_transaction(
-    auth: &RedsysAuthType,
+struct Transaction3dsParams<'a> {
+    auth: &'a RedsysAuthType,
     is_three_ds: bool,
     auth_type: enums::AuthenticationType,
     card_data: RedsysCardData,
     amount: StringMinorUnit,
     currency: api_models::enums::Currency,
-    connector_request_reference_id: &str,
+    connector_request_reference_id: &'a str,
     is_auto_capture: bool,
-    flow_name: &str,
-) -> Result<RedsysTransaction, Error> {
-    if !is_three_ds {
+    flow_name: &'a str,
+}
+
+fn build_3ds_transaction(params: Transaction3dsParams) -> Result<RedsysTransaction, Error> {
+    if !params.is_three_ds {
         Err(errors::ConnectorError::NotSupported {
-            message: format!("{} flow for no-3ds cards", flow_name),
+            message: format!("{} flow for no-3ds cards", params.flow_name),
             connector: "redsys",
         }
         .into())
-    } else if auth_type != enums::AuthenticationType::ThreeDs {
+    } else if params.auth_type != enums::AuthenticationType::ThreeDs {
         Err(errors::ConnectorError::FlowNotSupported {
-            flow: flow_name.to_string(),
+            flow: params.flow_name.to_string(),
             connector: "redsys".to_string(),
         }
         .into())
     } else {
         let request = build_redsys_3ds_request(
-            auth,
-            card_data,
-            amount,
-            currency,
-            connector_request_reference_id,
-            is_auto_capture,
+            params.auth,
+            params.card_data,
+            params.amount,
+            params.currency,
+            params.connector_request_reference_id,
+            params.is_auto_capture,
         )?;
 
-        RedsysTransaction::try_from((&request, auth))
+        RedsysTransaction::try_from((&request, params.auth))
     }
 }
 
@@ -538,17 +539,17 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
         let card_data = RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
         let is_auto_capture = item.router_data.request.is_auto_capture()?;
 
-        let transaction = build_3ds_transaction(
-            &auth,
-            item.router_data.is_three_ds(),
-            item.router_data.auth_type,
+        let transaction = build_3ds_transaction(Transaction3dsParams {
+            auth: &auth,
+            is_three_ds: item.router_data.is_three_ds(),
+            auth_type: item.router_data.auth_type,
             card_data,
-            item.amount.clone(),
-            item.currency,
-            &item.router_data.connector_request_reference_id,
+            amount: item.amount.clone(),
+            currency: item.currency,
+            connector_request_reference_id: &item.router_data.connector_request_reference_id,
             is_auto_capture,
-            "PreProcessing",
-        )?;
+            flow_name: "PreProcessing",
+        })?;
 
         router_env::logger::info!(connector_preprocessing_request=?transaction);
         Ok(transaction)
@@ -566,17 +567,17 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreAuthenticateRouterData>> for RedsysTr
         // For PreAuthenticate flow, default to preauthorization (manual capture)
         let is_auto_capture = false;
 
-        let transaction = build_3ds_transaction(
-            &auth,
-            item.router_data.is_three_ds(),
-            item.router_data.auth_type,
+        let transaction = build_3ds_transaction(Transaction3dsParams {
+            auth: &auth,
+            is_three_ds: item.router_data.is_three_ds(),
+            auth_type: item.router_data.auth_type,
             card_data,
-            item.amount.clone(),
-            item.currency,
-            &item.router_data.connector_request_reference_id,
+            amount: item.amount.clone(),
+            currency: item.currency,
+            connector_request_reference_id: &item.router_data.connector_request_reference_id,
             is_auto_capture,
-            "PreAuthenticate",
-        )?;
+            flow_name: "PreAuthenticate",
+        })?;
 
         router_env::logger::info!(connector_preauthenticate_request=?transaction);
         Ok(transaction)
