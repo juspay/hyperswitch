@@ -546,41 +546,6 @@ jobs:
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v4
-      
-      - name: Print machine specs
-        run: |
-          echo "================ MACHINE SPECS ================"
-
-          echo "ARCHITECTURE:"
-          uname -m
-          echo
-
-          echo "CPU:"
-          lscpu | grep -E "Architecture|Model name|CPU\(s\)|Thread|Core|Socket|MHz"
-          echo
-
-          echo "MEMORY:"
-          free -h
-          echo
-
-          echo "DISK:"
-          df -h /
-          echo
-
-          echo "OS:"
-          cat /etc/os-release | grep PRETTY_NAME
-          echo
-
-          echo "KERNEL:"
-          uname -r
-          echo
-
-          echo "VIRTUALIZATION:"
-          systemd-detect-virt || echo "unknown"
-          echo
-
-          echo "================================================"
-
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -666,6 +631,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          
+      - name: Install system dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          set -e
+
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            libgtk-3-0 \
+            libgbm-dev \
+            libnotify-dev \
+            libnss3 \
+            libxss1 \
+            libasound2 \
+            libxtst6 \
+            xauth \
+            xvfb \
+            ca-certificates \
+            fonts-liberation
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
