@@ -426,6 +426,8 @@ pub struct PaymentMethodTokenizationData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub router_return_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -443,6 +445,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -463,6 +467,8 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             mandate_id: data.request.mandate_id.clone(),
             payment_method_type: data.payment_method_type,
+            router_return_url: None,
+            capture_method: None,
         }
     }
 }
@@ -482,6 +488,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -506,6 +514,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -723,7 +733,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             email: data.email,
             currency: Some(data.currency),
             browser_info: data.browser_info,
-            connector_transaction_id: None,
+            connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
         })
     }

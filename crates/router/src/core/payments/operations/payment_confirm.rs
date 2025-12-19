@@ -1061,6 +1061,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 card,
                 token,
             }) => {
+                let billing_address = payment_data.address.get_payment_method_billing().cloned();
+                let shipping = payment_data.address.get_shipping().cloned();
                 let authentication_store = Box::pin(authentication::perform_pre_authentication(
                     state,
                     key_store,
@@ -1072,6 +1074,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_attempt.organization_id.clone(),
                     payment_data.payment_intent.force_3ds_challenge,
                     payment_data.payment_intent.psd2_sca_exemption_type,
+                    billing_address,
+                    shipping,
                 ))
                 .await?;
                 if authentication_store
@@ -1273,6 +1277,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 mandate_type,
             )
             .await?;
+        let key_manager_state = &(state).into();
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -1402,7 +1407,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            None
+                            None,
+                            key_store
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1449,11 +1455,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_bin,
                     acquirer_merchant_id,
                     acquirer_country_code,
+                    Some(payment_data.payment_intent.amount),
+                    payment_data.payment_intent.currency,
                     None,
                     None,
                     None,
-                    None,
-                    None
+                    key_store
                 )
                 .await?;
             let acquirer_configs = authentication
@@ -1486,18 +1493,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse webhook url")?;
 
+            let merchant_category_code = business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code.clone()));
+
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                merchant_category_code: merchant_category_code.clone(),
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
                 three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-                merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+                merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
                 notification_url,
             });
             let domain_address  = payment_data.address.get_payment_method_billing();
+            let shipping = payment_data.address.get_shipping();
+            let browser_info = payment_data.payment_attempt.browser_info
+                .clone()
+                .parse_value("BrowserInfo")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse browser_info")?;
+            let email = payment_data.email.clone();
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
@@ -1520,17 +1536,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication.acquirer_merchant_id.clone(),
                     )
                     .await?;
-                let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
+                let updated_authentication = Box::pin(uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
                     key_store,
+                    domain_address.cloned(),
+                    shipping.cloned(),
+                    email,
+                    browser_info,
                     None,
-                    None,
-                    None,
-                    None,
-                ).await?;
+                    merchant_category_code,
+                    merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+                )).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
                     authentication: updated_authentication.clone(),
@@ -1585,6 +1604,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .find_authentication_by_merchant_id_authentication_id(
                         &business_profile.merchant_id,
                         &authentication_id,
+                        key_store,
+                        key_manager_state,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1609,6 +1630,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication,
                         None,
                         key_store,
+                        None,
+                        None,
+                        None,
                         None,
                         None,
                         None,
@@ -1798,7 +1822,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let status_handler_for_authentication_results =
-            |authentication: &storage::Authentication| {
+            |authentication: &hyperswitch_domain_models::authentication::Authentication| {
                 if authentication.authentication_status.is_failed() {
                     (
                         storage_enums::IntentStatus::Failed,
