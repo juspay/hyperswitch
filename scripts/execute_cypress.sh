@@ -228,192 +228,356 @@
 
 # main "$@"
 
-#! /usr/bin/env bash
+# #! /usr/bin/env bash
 
+# set -euo pipefail
+
+# # Initialize tmp_file globally
+# tmp_file=""
+
+# # Define arrays for services, etc.
+# # Read service arrays from environment variables
+# read -r -a payments <<< "${PAYMENTS_CONNECTORS[@]:-}"
+# read -r -a payouts <<< "${PAYOUTS_CONNECTORS[@]:-}"
+# read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
+# read -r -a routing <<< "${ROUTING[@]:-}"
+
+# # Define arrays
+# connector_map=()
+# failed_connectors=()
+
+# # Define an associative array to map environment variables to service names
+# declare -A services=(
+#   ["PAYMENTS_CONNECTORS"]="payments"
+#   ["PAYOUTS_CONNECTORS"]="payouts"
+#   ["PAYMENT_METHOD_LIST"]="payment_method_list"
+#   ["ROUTING"]="routing"
+# )
+
+# # Function to print messages in color
+# function print_color() {
+#   # Input params
+#   local color="$1"
+#   local message="$2"
+
+#   # Define colors
+#   local reset='\033[0m'
+#   local red='\033[0;31m'
+#   local green='\033[0;32m'
+#   local yellow='\033[0;33m'
+
+#   # Use indirect reference to get the color value
+#   echo -e "${!color}${message}${reset}"
+# }
+# export -f print_color
+
+# # Function to check if a command exists
+# function command_exists() {
+#   command -v "$1" > /dev/null 2>&1
+# }
+
+# # Function to read service arrays from environment variables
+# function read_service_arrays() {
+#   # Loop through the associative array and check if each service is exported
+#   for var in "${!services[@]}"; do
+#     if [[ -n "${!var+x}" ]]; then
+#       connector_map+=("${services[$var]}")
+#     else
+#       print_color "yellow" "Environment variable ${var} is not set. Skipping..."
+#     fi
+#   done
+# }
+
+# # Function to execute Cypress tests
+# function execute_test() {
+#   if [[ $# -lt 3 ]]; then
+#     print_color "red" "ERROR: Insufficient arguments provided to execute_test."
+#     exit 1
+#   fi
+
+#   local connector="$1"
+#   local service="$2"
+#   local tmp_file="$3"
+
+#   print_color "yellow" "Executing tests for ${service} with connector ${connector}..."
+
+#   export REPORT_NAME="${service}_${connector}_report"
+
+#   if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
+#     echo "${service}-${connector}" >> "${tmp_file}"
+#   fi
+# }
+# export -f execute_test
+
+# # Function to run tests
+# function run_tests() {
+#   local jobs="${1:-1}"
+#   tmp_file=$(mktemp)
+
+#   # Ensure temporary file is removed on script exit
+#   trap 'cleanup' EXIT
+
+#   for service in "${connector_map[@]}"; do
+#     declare -n connectors="$service"
+
+#     if [[ ${#connectors[@]} -eq 0 ]]; then
+#       # Service-level test (e.g., payment-method-list or routing)
+#       [[ $service == "payment_method_list" ]] && service="payment-method-list"
+
+#       echo "Running ${service} tests without connectors..."
+#       export REPORT_NAME="${service}_report"
+
+#       if ! npm run "cypress:${service}"; then
+#         echo "${service}" >> "${tmp_file}"
+#       fi
+#     else
+#       # Connector-specific tests (e.g., payments or payouts)
+#       print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
+
+#       # Execute tests in parallel
+#       printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
+#     fi
+#   done
+
+#   # Collect failed connectors
+#   if [[ -s "${tmp_file}" ]]; then
+#     failed_connectors=($(< "${tmp_file}"))
+#     print_color "red" "One or more connectors failed to run:"
+#     printf '%s\n' "${failed_connectors[@]}"
+#     exit 1
+#   else
+#     print_color "green" "Cypress tests execution successful!"
+#   fi
+# }
+
+# # Function to check and install dependencies
+# function check_dependencies() {
+#   # parallel and npm are mandatory dependencies. exit the script if not found.
+#   local dependencies=("parallel" "npm")
+
+#   for cmd in "${dependencies[@]}"; do
+#     if ! command_exists "$cmd"; then
+#       print_color "red" "ERROR: ${cmd^} is not installed!"
+#       exit 1
+#     else
+#       print_color "green" "${cmd^} is installed already!"
+
+#       if [[ ${cmd} == "npm" ]]; then
+#         npm ci || {
+#           print_color "red" "Command \`npm ci\` failed!"
+#           exit 1
+#         }
+#       fi
+#     fi
+#   done
+# }
+
+# # Cleanup function to handle exit
+# function cleanup() {
+#   print_color "yellow" "Cleaning up..."
+#   if [[ -d "cypress-tests" ]]; then
+#     cd -
+#   fi
+
+#   if [[ -n "${tmp_file}" && -f "${tmp_file}" ]]; then
+#     rm -f "${tmp_file}"
+#   fi
+# }
+
+# # Main function
+# function main() {
+#   local command="${1:-}"
+#   local jobs="${2:-5}"
+#   local test_dir="${3:-cypress-tests}"
+
+#   # Ensure script runs from the specified test directory (default: cypress-tests)
+#   if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" ]]; then
+#     print_color "yellow" "Changing directory to '${test_dir}'..."
+#     cd "${test_dir}" || {
+#       print_color "red" "ERROR: Directory '${test_dir}' not found!"
+#       exit 1
+#     }
+#   fi
+
+#   check_dependencies
+#   read_service_arrays
+
+#   case "$command" in
+#     --parallel | -p)
+#       print_color "yellow" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
+#       # At present, parallel execution is restricted to not run out of memory
+#       # But can be scaled up by passing the value as an argument
+#       run_tests "$jobs"
+#       ;;
+#     *)
+#       run_tests 1
+#       ;;
+#   esac
+# }
+
+# # Execute the main function with passed arguments
+# main "$@"
+
+#!/usr/bin/env bash
 set -euo pipefail
 
-# Initialize tmp_file globally
-tmp_file=""
+# -----------------------------
+# Global setup
+# -----------------------------
+TMP_FAILURES=$(mktemp)
+JOB_LOG=$(mktemp)
 
-# Define arrays for services, etc.
-# Read service arrays from environment variables
-read -r -a payments <<< "${PAYMENTS_CONNECTORS[@]:-}"
-read -r -a payouts <<< "${PAYOUTS_CONNECTORS[@]:-}"
-read -r -a payment_method_list <<< "${PAYMENT_METHOD_LIST[@]:-}"
-read -r -a routing <<< "${ROUTING[@]:-}"
+cleanup() {
+  local exit_code=$?
+  rm -f "$TMP_FAILURES" "$JOB_LOG"
+  pkill -P $$ Xvfb 2>/dev/null || true
+  exit "$exit_code"
+}
+trap cleanup EXIT
 
-# Define arrays
-connector_map=()
-failed_connectors=()
-
-# Define an associative array to map environment variables to service names
-declare -A services=(
-  ["PAYMENTS_CONNECTORS"]="payments"
-  ["PAYOUTS_CONNECTORS"]="payouts"
-  ["PAYMENT_METHOD_LIST"]="payment_method_list"
-  ["ROUTING"]="routing"
-)
-
-# Function to print messages in color
-function print_color() {
-  # Input params
-  local color="$1"
-  local message="$2"
-
-  # Define colors
+# -----------------------------
+# Helpers
+# -----------------------------
+print_color() {
+  local color="$1"; shift
   local reset='\033[0m'
   local red='\033[0;31m'
   local green='\033[0;32m'
   local yellow='\033[0;33m'
+  local blue='\033[0;34m'
 
-  # Use indirect reference to get the color value
-  echo -e "${!color}${message}${reset}"
+  case "$color" in
+    red) echo -e "${red}$*${reset}" ;;
+    green) echo -e "${green}$*${reset}" ;;
+    yellow) echo -e "${yellow}$*${reset}" ;;
+    blue) echo -e "${blue}$*${reset}" ;;
+    *) echo "$*" ;;
+  esac
 }
 export -f print_color
 
-# Function to check if a command exists
-function command_exists() {
-  command -v "$1" > /dev/null 2>&1
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
 }
 
-# Function to read service arrays from environment variables
-function read_service_arrays() {
-  # Loop through the associative array and check if each service is exported
-  for var in "${!services[@]}"; do
-    if [[ -n "${!var+x}" ]]; then
-      connector_map+=("${services[$var]}")
-    else
-      print_color "yellow" "Environment variable ${var} is not set. Skipping..."
+# -----------------------------
+# Dependency checks
+# -----------------------------
+check_dependencies() {
+  local deps=(parallel npm xvfb-run taskset)
+
+  for d in "${deps[@]}"; do
+    if ! command_exists "$d"; then
+      print_color red "ERROR: Missing dependency: $d"
+      exit 1
     fi
   done
-}
 
-# Function to execute Cypress tests
-function execute_test() {
-  if [[ $# -lt 3 ]]; then
-    print_color "red" "ERROR: Insufficient arguments provided to execute_test."
-    exit 1
+  if [[ ! -d node_modules ]]; then
+    print_color yellow "Installing npm dependencies..."
+    npm ci
   fi
 
+  print_color blue "Verifying Cypress binary..."
+  xvfb-run -a npm exec cypress verify
+  print_color green "Cypress verified"
+}
+
+# -----------------------------
+# Test execution (ONE connector)
+# -----------------------------
+execute_test() {
   local connector="$1"
   local service="$2"
-  local tmp_file="$3"
+  local failure_log="$3"
+  local slot="${4:-1}"
 
-  print_color "yellow" "Executing tests for ${service} with connector ${connector}..."
+  local start_ts=$(date +%s)
+  local start_fmt=$(date '+%H:%M:%S')
+
+  print_color blue "[START] $service:$connector | Slot $slot | $start_fmt"
+
+  # ---- CPU PINNING ----
+  local CORES_PER_CONNECTOR=2
+  local START_CORE=$(((slot - 1) * CORES_PER_CONNECTOR))
+  local END_CORE=$((START_CORE + CORES_PER_CONNECTOR - 1))
 
   export REPORT_NAME="${service}_${connector}_report"
 
-  if ! CYPRESS_CONNECTOR="$connector" npm run "cypress:$service"; then
-    echo "${service}-${connector}" >> "${tmp_file}"
+  if ! taskset -c "${START_CORE}-${END_CORE}" \
+       xvfb-run -a \
+       CYPRESS_CONNECTOR="$connector" \
+       npm run "cypress:${service}"
+  then
+    print_color red "[FAIL] $service:$connector"
+    echo "${service}:${connector}" >> "$failure_log"
+    return 1
   fi
+
+  local end_ts=$(date +%s)
+  local duration=$((end_ts - start_ts))
+  print_color green "[PASS] $service:$connector | ${duration}s"
 }
 export -f execute_test
 
-# Function to run tests
-function run_tests() {
-  local jobs="${1:-1}"
-  tmp_file=$(mktemp)
+# -----------------------------
+# Runner
+# -----------------------------
+run_tests() {
+  local TOTAL_CORES
+  TOTAL_CORES=$(nproc)
 
-  # Ensure temporary file is removed on script exit
-  trap 'cleanup' EXIT
+  local CORES_PER_CONNECTOR=2
+  local MAX_JOBS=$((TOTAL_CORES / CORES_PER_CONNECTOR))
 
-  for service in "${connector_map[@]}"; do
-    declare -n connectors="$service"
+  print_color yellow "Detected cores: $TOTAL_CORES"
+  print_color yellow "Running with $MAX_JOBS parallel connectors"
 
-    if [[ ${#connectors[@]} -eq 0 ]]; then
-      # Service-level test (e.g., payment-method-list or routing)
-      [[ $service == "payment_method_list" ]] && service="payment-method-list"
+  # Reduce disk pressure
+  export CYPRESS_VIDEO=false
+  export CYPRESS_SCREENSHOTS_FOLDER=/tmp/cypress-screenshots
+  export CYPRESS_VIDEOS_FOLDER=/tmp/cypress-videos
 
-      echo "Running ${service} tests without connectors..."
-      export REPORT_NAME="${service}_report"
+  # Services map
+  declare -A SERVICES=(
+    ["PAYMENTS_CONNECTORS"]="payments"
+    ["PAYOUTS_CONNECTORS"]="payouts"
+    ["PAYMENT_METHOD_LIST"]="payment-method-list"
+    ["ROUTING"]="routing"
+  )
 
-      if ! npm run "cypress:${service}"; then
-        echo "${service}" >> "${tmp_file}"
-      fi
-    else
-      # Connector-specific tests (e.g., payments or payouts)
-      print_color "yellow" "Running tests for service: '${service}' with connectors: [${connectors[*]}] in batches of ${jobs}..."
+  for env_var in "${!SERVICES[@]}"; do
+    [[ -z "${!env_var:-}" ]] && continue
 
-      # Execute tests in parallel
-      printf '%s\n' "${connectors[@]}" | parallel --jobs "${jobs}" execute_test {} "${service}" "${tmp_file}"
-    fi
+    read -r -a connectors <<< "${!env_var}"
+    local service="${SERVICES[$env_var]}"
+
+    print_color yellow "🚀 Running $service (${#connectors[@]} connectors)"
+
+    parallel \
+      --jobs "$MAX_JOBS" \
+      --halt soon,fail=1 \
+      --line-buffer \
+      --joblog "$JOB_LOG" \
+      execute_test {} "$service" "$TMP_FAILURES" {%} \
+      ::: "${connectors[@]}" || true
   done
 
-  # Collect failed connectors
-  if [[ -s "${tmp_file}" ]]; then
-    failed_connectors=($(< "${tmp_file}"))
-    print_color "red" "One or more connectors failed to run:"
-    printf '%s\n' "${failed_connectors[@]}"
+  if [[ -s "$TMP_FAILURES" ]]; then
+    print_color red "\n❌ FAILURE SUMMARY"
+    sort -u "$TMP_FAILURES" | sed 's/^/  • /'
     exit 1
-  else
-    print_color "green" "Cypress tests execution successful!"
   fi
+
+  print_color green "\n✅ ALL TESTS PASSED"
 }
 
-# Function to check and install dependencies
-function check_dependencies() {
-  # parallel and npm are mandatory dependencies. exit the script if not found.
-  local dependencies=("parallel" "npm")
-
-  for cmd in "${dependencies[@]}"; do
-    if ! command_exists "$cmd"; then
-      print_color "red" "ERROR: ${cmd^} is not installed!"
-      exit 1
-    else
-      print_color "green" "${cmd^} is installed already!"
-
-      if [[ ${cmd} == "npm" ]]; then
-        npm ci || {
-          print_color "red" "Command \`npm ci\` failed!"
-          exit 1
-        }
-      fi
-    fi
-  done
-}
-
-# Cleanup function to handle exit
-function cleanup() {
-  print_color "yellow" "Cleaning up..."
-  if [[ -d "cypress-tests" ]]; then
-    cd -
-  fi
-
-  if [[ -n "${tmp_file}" && -f "${tmp_file}" ]]; then
-    rm -f "${tmp_file}"
-  fi
-}
-
-# Main function
-function main() {
-  local command="${1:-}"
-  local jobs="${2:-5}"
-  local test_dir="${3:-cypress-tests}"
-
-  # Ensure script runs from the specified test directory (default: cypress-tests)
-  if [[ "$(basename "$PWD")" != "$(basename "$test_dir")" ]]; then
-    print_color "yellow" "Changing directory to '${test_dir}'..."
-    cd "${test_dir}" || {
-      print_color "red" "ERROR: Directory '${test_dir}' not found!"
-      exit 1
-    }
-  fi
-
+# -----------------------------
+# Main
+# -----------------------------
+main() {
   check_dependencies
-  read_service_arrays
-
-  case "$command" in
-    --parallel | -p)
-      print_color "yellow" "WARNING: Running Cypress tests in parallel is more resource-intensive!"
-      # At present, parallel execution is restricted to not run out of memory
-      # But can be scaled up by passing the value as an argument
-      run_tests "$jobs"
-      ;;
-    *)
-      run_tests 1
-      ;;
-  esac
+  run_tests
 }
 
-# Execute the main function with passed arguments
 main "$@"
