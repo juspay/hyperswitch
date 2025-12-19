@@ -257,6 +257,30 @@ pub trait Feature<F, T> {
     }
 
     #[cfg(feature = "v2")]
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _platform: &domain::Platform,
+        _connector_data: &api::ConnectorData,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _merchant_order_reference_id: Option<String>,
+        _call_connector_action: common_enums::CallConnectorAction,
+        _creds_identifier: Option<String>,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
     async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
         _state: &SessionState,

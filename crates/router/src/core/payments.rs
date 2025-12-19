@@ -28,7 +28,7 @@ use external_services::grpc_client;
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
-
+#[cfg(feature = "v2")]
 use std::future;
 
 #[cfg(feature = "olap")]
@@ -5189,8 +5189,6 @@ where
             execution_path,
             execution_mode,
         };
-        // Update feature metadata to track Direct routing usage for stickiness
-        update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
         call_connector_service(
             &updated_state,
             req_state,
