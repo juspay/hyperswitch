@@ -766,6 +766,39 @@ pub fn build_unified_connector_service_payment_method(
                         }),
                     })),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(
+                    google_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GooglePayThirdPartySdk(
+                            payments_grpc::GooglePayThirdPartySdkWallet {
+                                token: google_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePayThirdPartySdk(
+                    apple_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::ApplePayThirdPartySdk(
+                            payments_grpc::ApplePayThirdPartySdkWallet {
+                                token: apple_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(
+                    paypal_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::PaypalSdk(
+                            payments_grpc::PaypalSdkWallet {
+                                token: Some(paypal_sdk_data.token.into()),
+                            }
+                        )),
+                    })
+                },
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
