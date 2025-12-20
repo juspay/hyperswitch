@@ -14,7 +14,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
-    router_data::{ConnectorAuthType, RouterData, InteracCustomerInfo, AdditionalPaymentMethodConnectorResponse, ConnectorResponseData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        InteracCustomerInfo, RouterData,
+    },
     router_flow_types::refunds::Execute,
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -282,7 +285,7 @@ impl TryFrom<String> for GigadatTransactionStatus {
 pub struct GigadatTransactionStatusResponse {
     pub status: GigadatTransactionStatus,
     pub interac_bank_name: Option<Secret<String>>,
-    pub data : Option<GigadatSyncData>,
+    pub data: Option<GigadatSyncData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -338,27 +341,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
     fn try_from(
         item: ResponseRouterData<F, GigadatTransactionStatusResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let connector_response =
-                    item.response
-                        .data
-                        .as_ref()
-                        .map(|sync_data| {
-                            ConnectorResponseData::with_additional_payment_method_data(
-                                AdditionalPaymentMethodConnectorResponse::BankRedirect {
-                                    interac: Some(InteracCustomerInfo {
-                                        customer_info: Some(
-                                            api_models::payments::InteracCustomerInfoDetails {
-                                                customer_name: sync_data.name.clone(),
-                                                customer_email: sync_data.email.clone(),
-                                                customer_phone_number: sync_data.mobile.clone(),
-                                                customer_bank_id: None,
-                                                customer_bank_name: item.response.interac_bank_name.clone(),
-                                            }
-                                        ),
-                                    }),
-                                },
-                            )
-                        });
+        let connector_response = item.response.data.as_ref().map(|sync_data| {
+            ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                    interac: Some(InteracCustomerInfo {
+                        customer_info: Some(api_models::payments::InteracCustomerInfoDetails {
+                            customer_name: sync_data.name.clone(),
+                            customer_email: sync_data.email.clone(),
+                            customer_phone_number: sync_data.mobile.clone(),
+                            customer_bank_id: None,
+                            customer_bank_name: item.response.interac_bank_name.clone(),
+                        }),
+                    }),
+                },
+            )
+        });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {

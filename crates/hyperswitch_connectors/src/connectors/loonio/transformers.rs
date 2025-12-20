@@ -4,12 +4,7 @@ use std::collections::HashMap;
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{
-    id_type,
-    pii::Email,
-    request::Method,
-    types::FloatMajorUnit,
-};
+use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{
@@ -253,11 +248,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                                         customer_info: Some(
                                             api_models::payments::InteracCustomerInfoDetails {
                                                 customer_name: customer_info.customer_name.clone(),
-                                                customer_email: customer_info.customer_email.clone(),
-                                                customer_phone_number: customer_info.customer_phone_number.clone(),
-                                                customer_bank_id: customer_info.customer_bank_id.clone(),
-                                                customer_bank_name: customer_info.customer_bank_name.clone(),
-                                            }
+                                                customer_email: customer_info
+                                                    .customer_email
+                                                    .clone(),
+                                                customer_phone_number: customer_info
+                                                    .customer_phone_number
+                                                    .clone(),
+                                                customer_bank_id: customer_info
+                                                    .customer_bank_id
+                                                    .clone(),
+                                                customer_bank_name: customer_info
+                                                    .customer_bank_name
+                                                    .clone(),
+                                            },
                                         ),
                                     }),
                                 },
@@ -291,10 +294,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                                     api_models::payments::InteracCustomerInfoDetails {
                                         customer_name: customer_info.customer_name.clone(),
                                         customer_email: customer_info.customer_email.clone(),
-                                        customer_phone_number: customer_info.customer_phone_number.clone(),
+                                        customer_phone_number: customer_info
+                                            .customer_phone_number
+                                            .clone(),
                                         customer_bank_id: customer_info.customer_bank_id.clone(),
-                                        customer_bank_name: customer_info.customer_bank_name.clone(),
-                                    }
+                                        customer_bank_name: customer_info
+                                            .customer_bank_name
+                                            .clone(),
+                                    },
                                 ),
                             }),
                         },
@@ -433,7 +440,6 @@ pub struct LoonioWebhookBody {
     pub transaction_type: LoonioWebhookTransactionType,
     pub customer_info: Option<LoonioCustomerInfo>,
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LoonioCustomerInfo {
