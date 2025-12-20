@@ -3986,7 +3986,21 @@ pub struct KlarnaSdkPaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct InteracPaymentMethod {
     #[schema(value_type = Option<Object>)]
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<InteracCustomerInfoDetails>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracCustomerInfoDetails {
+    #[schema(value_type = Option<String>)]
+    pub customer_name: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub customer_email: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub customer_phone_number: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_id: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_name: Option<Secret<String>>,
 }
 
 #[derive(
