@@ -8,6 +8,7 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -15,7 +16,10 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, customers, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, gateway::context as gateway_context, helpers,
+            transformers, PaymentData,
+        },
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -106,7 +110,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
-        _gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -119,6 +123,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             call_connector_action,
             business_profile,
             header_payload,
+            gateway_context,
         )
         .await
     }
@@ -129,12 +134,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -143,12 +150,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }
@@ -1250,6 +1259,7 @@ pub trait RouterDataSession
 where
     Self: Sized,
 {
+    #[allow(clippy::too_many_arguments)]
     async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::SessionState,
@@ -1258,6 +1268,7 @@ where
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -1452,6 +1463,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {
@@ -1484,13 +1496,14 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     self,
                     call_connector_action,
                     None,
                     None,
+                    gateway_context,
                 )
                 .await
                 .to_payment_failed_response()?;

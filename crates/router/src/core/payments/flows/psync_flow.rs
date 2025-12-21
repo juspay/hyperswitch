@@ -185,12 +185,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -340,6 +342,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 let connector_auth_metadata = build_unified_connector_service_auth_metadata(
                     merchant_connector_account,
                     platform,
+                    self.connector.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct request metadata")?;

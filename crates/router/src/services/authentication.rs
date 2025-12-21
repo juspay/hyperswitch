@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v2")]
@@ -9,6 +9,7 @@ use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use async_trait::async_trait;
+use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
 use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
@@ -39,6 +40,7 @@ use crate::core::errors::UserResult;
 use crate::core::metrics;
 use crate::{
     configs::settings,
+    consts::BASE64_ENGINE,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -157,6 +159,13 @@ pub enum AuthenticationType {
         org_id: id_type::OrganizationId,
         user_id: String,
     },
+    BasicAuth {
+        username: String,
+    },
+    MerchantJwt {
+        merchant_id: id_type::MerchantId,
+        user_id: Option<String>,
+    },
     MerchantJwtWithProfileId {
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
@@ -216,6 +225,7 @@ impl AuthenticationType {
             | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
+            | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
@@ -388,6 +398,56 @@ pub struct ApiKeyAuth {
 
 pub struct NoAuth;
 
+pub trait BasicAuthProvider {
+    type Identity;
+
+    fn get_credentials<A>(
+        state: &A,
+        identifier: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo;
+}
+
+#[derive(Debug, Default)]
+pub struct BasicAuth<P> {
+    _marker: PhantomData<P>,
+}
+
+impl<P> BasicAuth<P> {
+    pub const fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+pub struct OidcAuthProvider;
+
+impl BasicAuthProvider for OidcAuthProvider {
+    type Identity = String;
+
+    fn get_credentials<A>(
+        state: &A,
+        identifier: &str,
+    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    where
+        A: SessionStateInfo,
+    {
+        let session = state.session_state();
+        let client = session
+            .conf
+            .oidc
+            .get_inner()
+            .get_client(identifier)
+            .ok_or(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+        Ok((client.client_id.clone(), client.client_secret.clone()))
+    }
+}
+
+pub const OIDC_CLIENT_AUTH: BasicAuth<OidcAuthProvider> = BasicAuth::<OidcAuthProvider>::new();
+
 #[cfg(feature = "partial-auth")]
 impl GetAuthType for ApiKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
@@ -452,6 +512,36 @@ where
         _state: &A,
     ) -> RouterResult<(Option<T>, AuthenticationType)> {
         Ok((None, AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
+impl<A, P> AuthenticateAndFetch<P::Identity, A> for BasicAuth<P>
+where
+    A: SessionStateInfo + Sync,
+    P: BasicAuthProvider + Send + Sync,
+    P::Identity: Clone,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(P::Identity, AuthenticationType)> {
+        let (provided_identifier, provided_secret) = parse_basic_auth_credentials(request_headers)?;
+
+        let (authenticated_entity, expected_secret) =
+            P::get_credentials(state, &provided_identifier)?;
+
+        if provided_secret.peek() != expected_secret.peek() {
+            return Err(errors::ApiErrorResponse::InvalidBasicAuth.into());
+        }
+
+        Ok((
+            authenticated_entity.clone(),
+            AuthenticationType::BasicAuth {
+                username: provided_identifier,
+            },
+        ))
     }
 }
 
@@ -2723,8 +2813,11 @@ where
         api_auth
     }
 }
-#[derive(Debug)]
-pub struct PublishableKeyAuth;
+#[derive(Debug, Default)]
+pub struct PublishableKeyAuth {
+    pub is_connected_allowed: bool,
+    pub is_platform_allowed: bool,
+}
 
 #[cfg(feature = "partial-auth")]
 impl GetAuthType for PublishableKeyAuth {
@@ -2736,10 +2829,10 @@ impl GetAuthType for PublishableKeyAuth {
 #[cfg(feature = "partial-auth")]
 impl GetMerchantAccessFlags for PublishableKeyAuth {
     fn get_is_connected_allowed(&self) -> bool {
-        false // Publishable key doesn't support connected merchant operations currently
+        self.is_connected_allowed
     }
     fn get_is_platform_allowed(&self) -> bool {
-        false // Publishable key doesn't support platform merchant operations currently
+        self.is_platform_allowed
     }
 }
 
@@ -2754,29 +2847,45 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        if state.conf().platform.enabled {
-            throw_error_if_platform_merchant_authentication_required(request_headers)?;
-        }
-
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        state
+
+        // Find initiator merchant and key store
+        let (initiator_merchant, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
-            .map(|(merchant_account, key_store)| {
-                let merchant_id = merchant_account.get_id().clone();
-                (
-                    AuthenticationData {
-                        merchant_account,
-                        platform_account_with_key_store: None,
-                        key_store,
-                        profile_id: None,
-                    },
-                    AuthenticationType::PublishableKey { merchant_id },
-                )
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check access permissions using existing function
+        check_merchant_access(
+            state,
+            initiator_merchant.merchant_account_type,
+            self.is_connected_allowed,
+            self.is_platform_allowed,
+        )?;
+
+        // Resolve merchant relationships using existing function
+        let (merchant, key_store, platform_account_with_key_store) =
+            resolve_merchant_accounts_and_key_stores(
+                state,
+                request_headers,
+                initiator_merchant.clone(),
+                key_store,
+            )
+            .await?;
+
+        Ok((
+            AuthenticationData {
+                merchant_account: merchant,
+                platform_account_with_key_store,
+                key_store,
+                profile_id: None,
+            },
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2797,25 +2906,51 @@ where
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-        let (merchant_account, key_store) = state
+        // Find initiator merchant and key store
+        let (initiator_merchant, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant_id = merchant_account.get_id().clone();
+
+        // Check access permissions using existing function
+        check_merchant_access(
+            state,
+            initiator_merchant.merchant_account_type,
+            self.is_connected_allowed,
+            self.is_platform_allowed,
+        )?;
+
+        // Resolve merchant relationships using existing function
+        let (merchant, key_store, platform_account_with_key_store) =
+            resolve_merchant_accounts_and_key_stores(
+                state,
+                request_headers,
+                initiator_merchant.clone(),
+                key_store,
+            )
+            .await?;
+
+        // Find and validate profile after merchant resolution
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+            .find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                merchant.get_id(),
+                &profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         Ok((
             AuthenticationData {
-                merchant_account,
+                merchant_account: merchant,
+                platform_account_with_key_store,
                 key_store,
                 profile,
-                platform_account_with_key_store: None,
             },
-            AuthenticationType::PublishableKey { merchant_id },
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
         ))
     }
 }
@@ -4031,6 +4166,27 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<UserFromToken>, A> for DashboardNoPermissionAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<UserFromToken>, AuthenticationType)> {
+        <Self as AuthenticateAndFetch<UserFromToken, A>>::authenticate_and_fetch(
+            self,
+            request_headers,
+            state,
+        )
+        .await
+        .map(|(user, auth_type)| (Some(user), auth_type))
+    }
+}
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
@@ -4180,7 +4336,7 @@ impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest 
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for api_models::subscription::GetPlansQuery {
+impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref().map(|s| s.as_string())
     }
@@ -4239,7 +4395,10 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
 
     if api_key.starts_with("pk_") {
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
+            Box::new(HeaderAuth(PublishableKeyAuth {
+                is_connected_allowed: api_auth.is_connected_allowed,
+                is_platform_allowed: api_auth.is_platform_allowed,
+            })),
             api::AuthFlow::Client,
         ));
     }
@@ -4268,7 +4427,10 @@ where
                 field_name: "client_secret",
             })?;
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
+            Box::new(HeaderAuth(PublishableKeyAuth {
+                is_connected_allowed: api_auth.is_connected_allowed,
+                is_platform_allowed: api_auth.is_platform_allowed,
+            })),
             api::AuthFlow::Client,
         ));
     }
@@ -4469,6 +4631,45 @@ pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn strip_basic_auth_token(token: &str) -> RouterResult<&str> {
+    token
+        .strip_prefix("Basic ")
+        .ok_or_else(|| errors::ApiErrorResponse::InvalidBasicAuth.into())
+}
+
+fn parse_basic_auth_credentials(
+    headers: &HeaderMap,
+) -> RouterResult<(String, masking::Secret<String>)> {
+    let authorization_header = get_header_value_by_key(headers::AUTHORIZATION.to_string(), headers)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?
+        .get_required_value(headers::AUTHORIZATION)?;
+
+    let encoded_credentials = strip_basic_auth_token(authorization_header)?;
+
+    let decoded_bytes = BASE64_ENGINE
+        .decode(encoded_credentials)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let credential_string = String::from_utf8(decoded_bytes)
+        .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let (identifier, secret) = credential_string
+        .split_once(':')
+        .ok_or(errors::ApiErrorResponse::InvalidBasicAuth)?;
+
+    let identifier = identifier.trim();
+    let secret = secret.trim();
+
+    if identifier.is_empty() || secret.is_empty() {
+        return Err(errors::ApiErrorResponse::InvalidBasicAuth.into());
+    }
+
+    Ok((
+        identifier.to_string(),
+        masking::Secret::new(secret.to_string()),
+    ))
 }
 
 pub fn auth_type<'a, T, A>(
