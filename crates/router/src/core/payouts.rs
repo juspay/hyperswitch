@@ -582,11 +582,10 @@ pub async fn payouts_cancel_core(
 
     // Make local cancellation
     } else if helpers::is_eligible_for_local_payout_cancellation(status)
-        && (connector_name.is_none()
-            || connector_name
-                .as_ref()
-                .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
-                .unwrap_or(false))
+        && connector_name
+            .as_ref()
+            .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
+            .unwrap_or(true)
     {
         let status = storage_enums::PayoutStatus::Cancelled;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {

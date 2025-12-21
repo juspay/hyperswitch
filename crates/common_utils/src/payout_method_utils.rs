@@ -220,7 +220,8 @@ pub enum WalletAdditionalData {
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(tag = "field_type", rename_all = "snake_case")]
-pub enum PaypalAdditionalData { // Exactly one of the three identifiers will always be present
+pub enum PaypalAdditionalData {
+    // Exactly one of the three identifiers will always be present
     /// Email linked with paypal account
     Email {
         /// Email linked with paypal account
