@@ -49,12 +49,6 @@ pub struct BamboraapacMeta {
 pub fn get_payment_body(
     req: &BamboraapacRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<Vec<u8>, Error> {
-    if req.router_data.is_three_ds() {
-        Err(errors::ConnectorError::NotSupported {
-            message: "Cards 3DS".to_string(),
-            connector: "Bamboraapac",
-        })?
-    }
     let transaction_data = get_transaction_body(req)?;
     let body = format!(
         r#"
@@ -111,6 +105,12 @@ fn get_transaction_body(
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
     let card_data = match &req.request.payment_method_data {
         PaymentMethodData::Card(card) => {
+            if req.is_three_ds() {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Bamboraapac",
+                })?
+            }
             let card_holder_name = req.get_billing_full_name()?;
 
             if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {

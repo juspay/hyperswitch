@@ -564,6 +564,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 Some(payment_method_info),
                             )
                         }
+                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ),
                     }
                 }
                 None => {
@@ -974,25 +983,41 @@ pub fn validate_amount_to_capture_and_capture_method(
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    if let Some(api::PaymentMethodData::Card(card)) = payment_method_data {
-        let cvc = card.card_cvc.peek().to_string();
-        if cvc.len() < 3 || cvc.len() > 4 {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid card_cvc length".to_string()
-            }))?
-        }
-        let card_cvc =
-            cvc.parse::<u16>()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card_cvc",
-                })?;
-        ::cards::CardSecurityCode::try_from(card_cvc).change_context(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid Card CVC".to_string(),
-            },
-        )?;
+    match payment_method_data {
+        Some(api::PaymentMethodData::Card(card)) => {
+            let cvc = card.card_cvc.peek().to_string();
+            if cvc.len() < 3 || cvc.len() > 4 {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid card_cvc length".to_string()
+                }))?
+            }
+            let card_cvc =
+                cvc.parse::<u16>()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "card_cvc",
+                    })?;
+            ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid Card CVC".to_string(),
+                },
+            )?;
 
-        validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+            validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+        }
+        Some(api::PaymentMethodData::NetworkToken(network_token)) => {
+            let cryptogram = network_token.token_cryptogram.peek().to_string();
+            if cryptogram.trim().is_empty() {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid token_cryptogram".to_string()
+                }))?
+            }
+
+            validate_card_expiry(
+                &network_token.token_exp_month,
+                &network_token.token_exp_year,
+            )?;
+        }
+        _ => (),
     }
     Ok(())
 }
@@ -1290,7 +1315,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
     match recurring_details {
         RecurringDetails::ProcessorPaymentToken(_)
-        | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
@@ -2619,6 +2645,7 @@ pub async fn fetch_card_details_from_internal_locker(
             .flatten(),
         card_type: None,
         card_issuing_country: None,
+        card_issuing_country_code: None,
         bank_code: None,
     };
     Ok(domain::Card::from((api_card, co_badged_card_data)))
@@ -2718,7 +2745,7 @@ pub async fn fetch_network_token_details_from_locker(
         .flatten();
 
     let network_token_data = domain::NetworkTokenData {
-        token_number: token_data.card_number,
+        token_number: token_data.card_number.into(),
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
@@ -2765,6 +2792,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_network,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
             card_holder_name: card_details_from_locker.name_on_card.clone(),
@@ -5137,6 +5165,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5170,6 +5199,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5192,6 +5222,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -5473,6 +5504,7 @@ pub async fn get_additional_payment_data(
                         card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
@@ -5506,6 +5538,7 @@ pub async fn get_additional_payment_data(
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
+                                card_issuing_country_code: card_info.country_code,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
                                 card_extended_bin: card_extended_bin.clone(),
@@ -5528,6 +5561,7 @@ pub async fn get_additional_payment_data(
                             bank_code: None,
                             card_type: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             last4,
                             card_isin,
                             card_extended_bin,
@@ -5549,7 +5583,18 @@ pub async fn get_additional_payment_data(
                 details: Some(mobile_payment.to_owned().into()),
             },
         )),
-        domain::PaymentMethodData::NetworkToken(_) => Ok(None),
+        domain::PaymentMethodData::NetworkToken(network_token_data) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                network_token_data.to_owned().into(),
+            )),
+        )),
+        domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+            network_token_with_ntid,
+        ) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                network_token_with_ntid.to_owned().into(),
+            )),
+        )),
     }
 }
 
@@ -6772,7 +6817,8 @@ pub fn get_key_params_for_surcharge_details(
         )),
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
-        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => None,
+        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
 

@@ -290,6 +290,7 @@ pub async fn save_payout_data_to_locker(
                     card_cvc: None,
                     nick_name: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_network: None,
                     card_issuer: None,
                     card_type: None,
@@ -526,6 +527,7 @@ pub async fn save_payout_data_to_locker(
                         api::payment_methods::CardDetailsPaymentMethod {
                             last4_digits: card_details.as_ref().map(|c| c.card_number.get_last4()),
                             issuer_country: card_info.card_issuing_country,
+                            issuer_country_code: card_info.country_code,
                             expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
                             expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
                             nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
@@ -547,6 +549,7 @@ pub async fn save_payout_data_to_locker(
                         api::payment_methods::CardDetailsPaymentMethod {
                             last4_digits: card_details.as_ref().map(|c| c.card_number.get_last4()),
                             issuer_country: None,
+                            issuer_country_code: None,
                             expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
                             expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
                             nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
