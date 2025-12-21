@@ -907,3 +907,35 @@ pub(super) async fn delete_payment_token_data(
         }
     }
 }
+
+/// Merges two optional JSON values into a single JSON object.
+/// If both values are objects, their key-value pairs are merged.
+/// If only one value exists, it is returned.
+/// If neither exists, None is returned.
+pub fn merge_json_values(
+    first: Option<common_utils::pii::SecretSerdeValue>,
+    second: Option<common_utils::pii::SecretSerdeValue>,
+) -> Option<common_utils::pii::SecretSerdeValue> {
+    match (first, second) {
+        (Some(first_secret), Some(second_secret)) => {
+            let first_value = first_secret.expose();
+            let second_value = second_secret.expose();
+
+            match (first_value, second_value) {
+                (
+                    serde_json::Value::Object(mut first_map),
+                    serde_json::Value::Object(second_map),
+                ) => {
+                    first_map.extend(second_map);
+                    Some(common_utils::pii::SecretSerdeValue::new(
+                        serde_json::Value::Object(first_map),
+                    ))
+                }
+                (first_val, _) => Some(common_utils::pii::SecretSerdeValue::new(first_val)),
+            }
+        }
+        (Some(first_val), None) => Some(first_val),
+        (None, Some(second_val)) => Some(second_val),
+        (None, None) => None,
+    }
+}

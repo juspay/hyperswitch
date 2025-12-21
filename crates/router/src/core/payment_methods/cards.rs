@@ -67,7 +67,9 @@ use super::tokenize::NetworkTokenizationProcess;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
-    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
+    utils::{
+        get_merchant_pm_filter_graph, make_pm_graph, merge_json_values, refresh_pm_filters_cache,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
@@ -946,8 +948,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card,
-                // append payload metadata with pm metadata
-                metadata: payload_metadata.or(pm.metadata),
+                // merge payload metadata with pm metadata
+                metadata: merge_json_values(payload_metadata, pm.metadata),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),
@@ -1685,15 +1687,16 @@ pub async fn update_customer_payment_method(
 
         let response = if is_card_updation_required {
             // Fetch the existing card data from locker for getting card number
-            let card_data_from_locker = get_card_from_locker(
+            let locker_card_response = get_card_from_locker(
                 &state,
                 &pm.customer_id,
                 &pm.merchant_id,
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
             .await
-            .attach_printable("Error getting card from locker")?
-            .get_card();
+            .attach_printable("Error getting card from locker")?;
+
+            let card_data_from_locker = locker_card_response.get_card();
 
             if card_update.card_exp_month.is_some() || card_update.card_exp_year.is_some() {
                 helpers::validate_card_expiry(
@@ -1827,7 +1830,10 @@ pub async fn update_customer_payment_method(
                 bank_transfer: add_card_resp.bank_transfer,
                 card: add_card_resp.card,
                 wallet: None,
-                metadata: add_card_resp.metadata,
+                metadata: merge_json_values(
+                    add_card_resp.metadata,
+                    locker_card_response.get_metadata(),
+                ),
                 created: add_card_resp.created,
                 recurring_enabled: add_card_resp.recurring_enabled,
                 installment_payment_enabled: add_card_resp.installment_payment_enabled,
