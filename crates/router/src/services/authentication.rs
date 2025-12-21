@@ -232,8 +232,9 @@ impl AuthenticationType {
             Self::MerchantJwt { user_id: None, .. }
             | Self::InternalMerchantIdProfileId { .. }
             | Self::AdminApiKey
-            | Self::MerchantId { .. }
             | Self::AdminApiAuthWithMerchantId { .. }
+            | Self::BasicAuth { .. }
+            | Self::MerchantId { .. }
             | Self::NoAuth => None,
         }
     }
