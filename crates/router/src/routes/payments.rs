@@ -48,6 +48,19 @@ pub async fn payments_create(
         return api::log_and_return_error_response(err.into());
     };
 
+    if let Err(err) = payload
+        .payment_link_config
+        .as_ref()
+        .map(|cfg| {
+            cfg.theme_config
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(err.into());
+    };
+
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
@@ -857,7 +870,10 @@ pub async fn payments_post_session_tokens(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1113,7 +1129,10 @@ pub async fn payments_dynamic_tax_calculation(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
         locking_action,
     ))
     .await
@@ -1237,7 +1256,10 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await
@@ -2193,14 +2215,10 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    let is_recurring_details_type_nti_and_card_details = req
-        .recurring_details
-        .clone()
-        .map(|recurring_details| {
-            recurring_details.is_network_transaction_id_and_card_details_flow()
-        })
-        .unwrap_or(false);
-    if is_recurring_details_type_nti_and_card_details {
+    let should_call_proxy_for_payments_core =
+        helpers::should_call_proxy_for_payments_core(req.clone());
+
+    if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
         payments::proxy_for_payments_core::<
@@ -2409,7 +2427,10 @@ pub async fn payments_external_authentication(
                 hyperswitch_domain_models::router_flow_types::Authenticate,
             >(state, platform, req)
         },
-        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         locking_action,
     ))
     .await

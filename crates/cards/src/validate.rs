@@ -278,6 +278,18 @@ impl Deref for NetworkToken {
     }
 }
 
+impl From<NetworkToken> for CardNumber {
+    fn from(network_token: NetworkToken) -> Self {
+        Self(network_token.0)
+    }
+}
+
+impl From<CardNumber> for NetworkToken {
+    fn from(card_number: CardNumber) -> Self {
+        Self(card_number.0)
+    }
+}
+
 impl<'de> Deserialize<'de> for CardNumber {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;

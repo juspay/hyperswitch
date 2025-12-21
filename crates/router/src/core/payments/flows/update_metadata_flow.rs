@@ -106,12 +106,14 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }

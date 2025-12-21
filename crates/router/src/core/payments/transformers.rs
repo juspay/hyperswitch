@@ -172,7 +172,7 @@ where
         recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -460,7 +460,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         mit_category: None,
         tokenization: None,
         payment_channel: None,
-        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(
+            payment_data.payment_intent.enable_partial_authorization,
+        ),
         enable_overcapture: None,
         is_stored_credential: None,
         billing_descriptor: None,
@@ -1899,7 +1901,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -2097,7 +2099,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -2238,7 +2240,7 @@ where
         frm_metadata: payment_intent.frm_metadata.clone(),
         request_external_three_ds_authentication: payment_intent
             .request_external_three_ds_authentication,
-        enable_partial_authorization: payment_intent.enable_partial_authorization,
+        enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
         card_attached,
     }
 }
@@ -2639,7 +2641,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
-                enable_partial_authorization: payment_intent.enable_partial_authorization,
+                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
             },
             vec![],
         )))
@@ -3884,6 +3886,7 @@ where
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
+            modified_at: Some(payment_intent.modified_at),
             currency: currency.to_string(),
             customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),
             customer: customer_details_response,
@@ -3943,9 +3946,6 @@ where
             business_label: payment_intent.business_label,
             business_sub_label: payment_attempt.business_sub_label,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
-            ephemeral_key: payment_data
-                .get_ephemeral_key()
-                .map(ForeignFrom::foreign_from),
             manual_retry_allowed,
             connector_transaction_id,
             frm_message,
@@ -4176,6 +4176,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             amount_capturable: pa.amount_capturable,
             client_secret: pi.client_secret.map(|s| s.into()),
             created: Some(pi.created_at),
+            modified_at: Some(pi.modified_at),
             currency: pi.currency.map(|c| c.to_string()).unwrap_or_default(),
             description: pi.description,
             metadata: pi.metadata,
@@ -4265,7 +4266,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_experience: None,
             connector_label: None,
             allowed_payment_method_types: None,
-            ephemeral_key: None,
             manual_retry_allowed: None,
             frm_message: None,
             connector_metadata: None,
@@ -4284,7 +4284,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
-            updated: None,
+            updated: Some(pi.modified_at),
             split_payments: None,
             frm_metadata: None,
             capture_before: pa.capture_before,
@@ -6082,6 +6082,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                Some(RequestIncrementalAuthorization::True)
+            ),
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
@@ -6394,6 +6400,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::AttemptA
             amount_capturable: amount.get_amount_capturable(),
             shipping_cost: amount.get_shipping_cost(),
             order_tax_amount: amount.get_order_tax_amount(),
+            amount_captured: amount.get_amount_captured(),
         }
     }
 }
@@ -6541,6 +6548,7 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             surcharge_calculation: amount_details.skip_surcharge_calculation,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
+            amount_captured: amount_details.amount_captured,
         }
     }
 }
@@ -6665,7 +6673,6 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
-            payment_test_mode: None,
         }
     }
 }

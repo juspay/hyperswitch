@@ -1,8 +1,8 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
-  singleUseMandateData,
+  customerAcceptance,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -633,6 +633,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
       Response: {

@@ -99,6 +99,7 @@ where
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account.clone(),
                 &platform,
+                router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -119,7 +120,7 @@ where
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
 
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             create_access_token_request,
@@ -142,26 +143,15 @@ where
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                // Update router_data with access token
-                match &access_token_result {
-                    Ok(access_token) => {
-                        router_data.access_token = Some(access_token.clone());
-                    }
-                    Err(_) => {
-                        // Error case - access_token remains None
-                    }
-                }
-
                 router_data.response = access_token_result;
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, create_access_token_response))
+                Ok((router_data,(), create_access_token_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .map(|(router_data, _)| router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 
