@@ -168,7 +168,11 @@ pub async fn create_or_update_address_for_payment_by_request(
                                 phone_number: address
                                     .phone
                                     .as_ref()
-                                    .and_then(|phone| phone.number.clone()),
+                                    .and_then(|p| p.number.as_ref())
+                                    .and_then(|secret| {
+                                        let trimmed = secret.clone().expose().trim().to_string();
+                                        (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+                                    }),
                                 email: address
                                     .email
                                     .as_ref()
@@ -376,7 +380,11 @@ pub async fn get_domain_address(
                         phone_number: address
                             .phone
                             .as_ref()
-                            .and_then(|phone| phone.number.clone()),
+                            .and_then(|p| p.number.as_ref())
+                            .and_then(|secret| {
+                                let trimmed = secret.clone().expose().trim().to_string();
+                                (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+                            }),
                         email: address
                             .email
                             .as_ref()
@@ -1634,17 +1642,30 @@ pub fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.email.clone())
         .or(request.email.clone());
 
+    // let customer_phone = request
+    //     .customer
+    //     .as_ref()
+    //     .and_then(|customer_details| customer_details.phone.clone())
+    //     .or(request.phone.clone());
+
     let customer_phone = request
         .customer
         .as_ref()
-        .and_then(|customer_details| customer_details.phone.clone())
-        .or(request.phone.clone());
-
+        .and_then(|c| c.phone.as_ref())
+        .or(request.phone.as_ref())
+        .and_then(|phone| {
+            let trimmed = phone.clone().expose().trim().to_string();
+            (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+        });
     let customer_phone_code = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.phone_country_code.clone())
-        .or(request.phone_country_code.clone());
+        .or(request.phone_country_code.clone())
+        .and_then(|code| {
+            let trimmed = code.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        });
 
     let tax_registration_id = request
         .customer
