@@ -14,7 +14,7 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
-use utoipa::{schema, ToSchema};
+use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
