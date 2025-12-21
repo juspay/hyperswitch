@@ -23,13 +23,12 @@ use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
-        RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -49,9 +48,9 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
+use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
-use tera::{Context, Error as TeraError, Tera};
 
 use super::{
     authentication::AuthenticateAndFetch,
@@ -101,9 +100,9 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemsData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionItemPricesData, Req, Res>;
 pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedSubscriptionPauseInterface<T, Req, Res> =
@@ -228,10 +227,10 @@ where
             }
             .switch()
         })?;
-    session_state.add_request_id(request_id);
+    session_state.add_request_id(request_id.clone());
     let mut request_state = session_state.get_req_state();
 
-    request_state.event_context.record_info(request_id);
+    request_state.event_context.record_info(request_id.clone());
     request_state
         .event_context
         .record_info(("flow".to_string(), flow.to_string()));
@@ -283,6 +282,8 @@ where
 
     let status_code = match output.as_ref() {
         Ok(res) => {
+            let mut extracted_status_code: Option<http::StatusCode> = None;
+
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
                     masking::masked_serialize(&data)
@@ -301,10 +302,19 @@ where
                         overhead_latency.replace(external_latency);
                     }
                 }
+
+                // Extract connector HTTP status code for ApiEvent logging
+                extracted_status_code = state
+                    .conf
+                    .proxy_status_mapping
+                    .extract_connector_http_status_code(headers);
             }
             event_type = res.get_api_event_type().or(event_type);
 
-            metrics::request::track_response_status_code(res)
+            // Use extracted status code if available, otherwise fall back to default
+            extracted_status_code
+                .map(|code| code.as_u16().into())
+                .unwrap_or_else(|| metrics::request::track_response_status_code(res))
         }
         Err(err) => {
             error.replace(
@@ -520,38 +530,10 @@ where
                     None
                 }
             });
-            let proxy_connector_http_status_code = if state
+            let proxy_connector_http_status_code = state
                 .conf
                 .proxy_status_mapping
-                .proxy_connector_http_status_code
-            {
-                headers
-                    .iter()
-                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
-                    .and_then(|(_, value)| {
-                        match value.clone().into_inner().parse::<u16>() {
-                            Ok(code) => match http::StatusCode::from_u16(code) {
-                                Ok(status_code) => Some(status_code),
-                                Err(err) => {
-                                    logger::error!(
-                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
-                                        err
-                                    );
-                                    None
-                                }
-                            },
-                            Err(err) => {
-                                logger::error!(
-                                    "Failed to parse connector_http_status_code from header: {:?}",
-                                    err
-                                );
-                                None
-                            }
-                        }
-                    })
-            } else {
-                None
-            };
+                .extract_connector_http_status_code(&headers);
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(
                     res,
@@ -744,6 +726,10 @@ pub trait Authenticate {
     fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -768,6 +754,10 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         // In v1, this maps to `all_keys_required` to retain backward compatibility.
         // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
+    }
+
+    fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
+        self.three_ds_data.is_some()
     }
 }
 
@@ -812,7 +802,19 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
-impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsCaptureRequest {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
+        self.all_keys_required
+    }
+}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsExtendAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
@@ -890,7 +892,7 @@ pub fn build_redirection_form(
                     var frm = document.getElementById("payment_form");
                     var formFields = frm.querySelectorAll("input");
 
-                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                    if (((frm.getAttribute("method") || "GET").toUpperCase()) === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
                         }}, 300);
@@ -1655,115 +1657,66 @@ pub fn build_redirection_form(
                 }
             }
         },
-    }
-}
+        RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-fn build_payment_link_template(
-    payment_link_data: PaymentLinkFormData,
-) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
-    let mut tera = Tera::default();
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
-    // Add modification to css template with dynamic data
-    let css_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.css").to_string();
-    let _ = tera.add_raw_template("payment_link_css", &css_template);
-    let mut context = Context::new();
-    context.insert("css_color_scheme", &payment_link_data.css_script);
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
-    let rendered_css = match tera.render("payment_link_css", &context) {
-        Ok(rendered_css) => rendered_css,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
+                        (PreEscaped(r#"
+                    <script>
+                    var anime = bodymovin.loadAnimation({
+                        container: document.getElementById('loader1'),
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        name: 'hyperswitch loader',
+                        animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                    })
+                    </script>
+                "#))
 
-    // Add modification to js template with dynamic data
-    let js_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
 
-    let _ = tera.add_raw_template("payment_link_js", &js_template);
+                        // (PreEscaped(r#"
+                        //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
+                        // "#))
 
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
-    let sdk_origin = payment_link_data
-        .sdk_url
-        .host_str()
-        .ok_or_else(|| {
-            logger::error!("Host missing for payment link SDK URL");
-            report!(errors::ApiErrorResponse::InternalServerError)
-        })
-        .and_then(|host| {
-            if host == "localhost" {
-                let port = payment_link_data.sdk_url.port().ok_or_else(|| {
-                    logger::error!("Port missing for localhost in SDK URL");
-                    report!(errors::ApiErrorResponse::InternalServerError)
-                })?;
-                Ok(format!(
-                    "{}://{}:{}",
-                    payment_link_data.sdk_url.scheme(),
-                    host,
-                    port
-                ))
-            } else {
-                Ok(format!("{}://{}", payment_link_data.sdk_url.scheme(), host))
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action={base_url}>
+                    <input type="hidden" name="JWT" value="{jwt}">
+                </form>"#)))
+
+                        (PreEscaped(format!("<script>
+                    {logging_template}
+                    window.onload = function() {{
+                        var challengeFormSetup = document.querySelector('#challengeForm');
+                        if (challengeFormSetup) {{
+                            challengeFormSetup.submit();
+                        }}
+                    }}
+                </script>")))
+                    }
+                }
             }
-        })?;
-    context.insert("sdk_origin", &sdk_origin);
-
-    let rendered_js = match tera.render("payment_link_js", &context) {
-        Ok(rendered_js) => rendered_js,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
         }
-    };
-
-    // Logging template
-    let logging_template =
-        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
-    //Locale template
-    let locale_template = include_str!("../core/payment_link/locale.js").to_string();
-
-    // Modify Html template with rendered js and rendered css files
-    let html_template =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
-
-    let _ = tera.add_raw_template("payment_link", &html_template);
-
-    context.insert("rendered_meta_tag_html", &payment_link_data.html_meta_tags);
-
-    context.insert(
-        "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url),
-    );
-
-    context.insert(
-        "hyperloader_sdk_link",
-        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
-    );
-    context.insert("locale_template", &locale_template);
-    context.insert("rendered_css", &rendered_css);
-    context.insert("rendered_js", &rendered_js);
-
-    context.insert("logging_template", &logging_template);
-
-    Ok((tera, context))
+    }
 }
 
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_payment_link_template(payment_link_data)
-        .attach_printable("Failed to build payment link's HTML template")?;
-    let payment_link_initiator =
-        include_str!("../core/payment_link/payment_link_initiate/payment_link_initiator.js")
-            .to_string();
-    context.insert("payment_link_initiator", &payment_link_initiator);
-
-    tera.render("payment_link", &context)
-        .map_err(|tera_error: TeraError| {
-            crate::logger::warn!("{tera_error}");
-            report!(errors::ApiErrorResponse::InternalServerError)
+    payment_link::build_payment_link_html(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to build payment link HTML: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Error while rendering open payment link's HTML template")
 }
@@ -1771,91 +1724,23 @@ pub fn build_payment_link_html(
 pub fn build_secure_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_payment_link_template(payment_link_data)
-        .attach_printable("Failed to build payment link's HTML template")?;
-    let payment_link_initiator =
-        include_str!("../core/payment_link/payment_link_initiate/secure_payment_link_initiator.js")
-            .to_string();
-    context.insert("payment_link_initiator", &payment_link_initiator);
-
-    tera.render("payment_link", &context)
-        .map_err(|tera_error: TeraError| {
-            crate::logger::warn!("{tera_error}");
-            report!(errors::ApiErrorResponse::InternalServerError)
+    payment_link::build_secure_payment_link_html(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to build secure payment link HTML: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Error while rendering secure payment link's HTML template")
-}
-
-fn get_hyper_loader_sdk(sdk_url: &url::Url) -> String {
-    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
-}
-
-fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
-    format!(
-        r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
-            <link rel="preload" href="{sdk_url}" as="script">"#,
-    )
 }
 
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let mut tera = Tera::default();
-
-    // Add modification to css template with dynamic data
-    let css_template =
-        include_str!("../core/payment_link/payment_link_status/status.css").to_string();
-    let _ = tera.add_raw_template("payment_link_css", &css_template);
-    let mut context = Context::new();
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-
-    let rendered_css = match tera.render("payment_link_css", &context) {
-        Ok(rendered_css) => rendered_css,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    //Locale template
-    let locale_template = include_str!("../core/payment_link/locale.js");
-
-    // Logging template
-    let logging_template =
-        include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
-
-    // Add modification to js template with dynamic data
-    let js_template =
-        include_str!("../core/payment_link/payment_link_status/status.js").to_string();
-    let _ = tera.add_raw_template("payment_link_js", &js_template);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
-
-    let rendered_js = match tera.render("payment_link_js", &context) {
-        Ok(rendered_js) => rendered_js,
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    };
-
-    // Modify Html template with rendered js and rendered css files
-    let html_template =
-        include_str!("../core/payment_link/payment_link_status/status.html").to_string();
-    let _ = tera.add_raw_template("payment_link_status", &html_template);
-
-    context.insert("rendered_css", &rendered_css);
-    context.insert("locale_template", &locale_template);
-
-    context.insert("rendered_js", &rendered_js);
-    context.insert("logging_template", &logging_template);
-
-    match tera.render("payment_link_status", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
-            crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+    payment_link::get_payment_link_status(payment_link_data)
+        .map_err(|e| {
+            logger::error!("Failed to get payment link status: {:?}", e);
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Error while rendering payment link status page")
 }
 
 pub fn extract_mapped_fields(

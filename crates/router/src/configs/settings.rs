@@ -7,11 +7,8 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{
-    ext_traits::ConfigExt,
-    id_type,
-    types::{user::EmailThemeConfig, Url},
-};
+use common_enums;
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -34,9 +31,9 @@ pub use hyperswitch_interfaces::{
     secrets_interface::secret_state::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
-    types::Proxy,
+    types::{ComparisonServiceConfig, Proxy},
 };
-use masking::Secret;
+use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
     Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
@@ -59,6 +56,7 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    headers, logger,
     routes::app,
     AppState,
 };
@@ -77,6 +75,7 @@ pub struct CmdLineConf {
 #[serde(default)]
 pub struct Settings<S: SecretState> {
     pub server: Server,
+    pub application_source: common_enums::ApplicationSource,
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
@@ -111,6 +110,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub oidc: SecretStateContainer<OidcSettings, S>,
     pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
@@ -171,6 +171,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub preprocessing_flow_config: Option<PreProcessingFlowConfig>,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
@@ -178,8 +179,15 @@ pub struct Settings<S: SecretState> {
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PreProcessingFlowConfig {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub authentication_bloated_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -206,13 +214,6 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ComparisonServiceConfig {
-    pub url: Url,
-    pub enabled: bool,
-    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -278,14 +279,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_storage_interface();
             (tenant_name.clone(), store)
@@ -311,14 +312,14 @@ impl TenantConfig {
             .await
             .expect("Failed to create event handler");
         futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = AppState::get_store_interface(
+            let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
                 conf,
                 tenant,
                 cache_store.clone(),
                 testable,
-            )
+            ))
             .await
             .get_accounts_storage_interface();
             (tenant_name.clone(), store)
@@ -702,17 +703,57 @@ pub struct UserSettings {
     pub force_cookies: bool,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct OidcSettings {
+    pub key: HashMap<String, OidcKey>,
+    pub client: HashMap<String, OidcClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcKey {
+    pub kid: String,
+    pub private_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcClient {
+    pub client_id: String,
+    pub client_secret: Secret<String>,
+    pub redirect_uri: String,
+}
+
+impl OidcSettings {
+    pub fn get_client(&self, client_id: &str) -> Option<&OidcClient> {
+        self.client.values().find(|c| c.client_id == client_id)
+    }
+
+    pub fn get_signing_key(&self) -> Option<&OidcKey> {
+        self.key.values().next()
+    }
+
+    pub fn get_all_keys(&self) -> Vec<&OidcKey> {
+        self.key.values().collect()
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Locker {
     pub host: String,
-    pub host_rs: String,
     pub mock_locker: bool,
-    pub basilisk_host: String,
     pub locker_signing_key_id: String,
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+}
+
+impl Locker {
+    pub fn get_host(&self, endpoint_path: &str) -> String {
+        let mut url = self.host.clone();
+        url.push_str(endpoint_path);
+        url
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -741,7 +782,6 @@ pub struct EphemeralConfig {
 #[serde(default)]
 pub struct Jwekey {
     pub vault_encryption_key: Secret<String>,
-    pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
 }
@@ -817,6 +857,60 @@ pub struct MerchantIdAuthSettings {
 #[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
+}
+
+impl ProxyStatusMapping {
+    pub fn extract_connector_http_status_code(
+        &self,
+        response_headers: &[(String, Maskable<String>)],
+    ) -> Option<actix_web::http::StatusCode> {
+        self.proxy_connector_http_status_code
+            .then_some(response_headers)
+            .and_then(|headers| {
+                headers
+                    .iter()
+                    .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+            })
+            .and_then(|(_, value)| {
+                value
+                    .clone()
+                    .into_inner()
+                    .parse::<u16>()
+                    .map_err(|err| {
+                        logger::error!(
+                            "Failed to parse connector_http_status_code from header: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+            .and_then(|code| {
+                actix_web::http::StatusCode::from_u16(code)
+                    .map_err(|err| {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct TraceHeaderConfig {
+    pub header_name: String,
+    pub id_reuse_strategy: router_env::IdReuse,
+}
+
+impl Default for TraceHeaderConfig {
+    fn default() -> Self {
+        Self {
+            header_name: common_utils::consts::X_REQUEST_ID.to_string(),
+            id_reuse_strategy: router_env::IdReuse::IgnoreIncoming,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1406,7 +1500,6 @@ impl<'de> Deserialize<'de> for TenantConfig {
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::{HashMap, HashSet};
 
     use serde::de::{
@@ -1499,7 +1592,6 @@ mod hashmap_deserialization_test {
 
 #[cfg(test)]
 mod hashset_deserialization_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::HashSet;
 
     use serde::de::{

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
+use common_enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -269,6 +270,10 @@ pub struct CardPayout {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -445,6 +450,10 @@ pub struct ApplePayDecrypt {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
@@ -883,6 +892,22 @@ pub struct PayoutListFilters {
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutListFiltersV2 {
+    /// The list of available connector filters
+    #[schema(value_type = Vec<PayoutConnectors>)]
+    pub connector: HashMap<String, Vec<admin::MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<common_enums::Currency>,
+    /// The list of available payout status filters
+    #[schema(value_type = Vec<PayoutStatus>)]
+    pub status: Vec<common_enums::PayoutStatus>,
+    /// The list of available payout method filters
+    #[schema(value_type = Vec<PayoutType>)]
+    pub payout_method: Vec<common_enums::PayoutType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]
@@ -1092,4 +1117,10 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
 }

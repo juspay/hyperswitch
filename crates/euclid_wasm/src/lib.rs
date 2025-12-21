@@ -11,7 +11,6 @@ use api_models::{
     enums as api_model_enums, routing::ConnectorSelection,
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
-use common_enums::RoutableConnectors;
 use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
@@ -23,6 +22,7 @@ use currency_conversion::{
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{self, analyzer, graph::CgraphExt, state_machine},
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},
@@ -49,6 +49,15 @@ struct SeedData {
 
 static SEED_DATA: OnceLock<SeedData> = OnceLock::new();
 static SEED_FOREX: OnceLock<currency_conversion_types::ExchangeRates> = OnceLock::new();
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn console_log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(s: &str);
+}
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
 /// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
@@ -100,10 +109,29 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
-        .map(|mcc_value| MerchantCategoryCodeWithName {
-            code: mcc_value,
-            name: mcc_value.to_merchant_category_name(),
+    let merchant_category_codes_with_name = vec![5411, 7011, 763, 8111, 5021, 4816, 5661]
+        .into_iter()
+        .filter_map(|mcc_value| match MerchantCategoryCode::new(mcc_value) {
+            Ok(mcc) => match mcc.get_category_name() {
+                Ok(mcc_name) => Some(MerchantCategoryCodeWithName {
+                    code: mcc.clone(),
+                    name: mcc_name.to_string(),
+                }),
+                Err(err) => {
+                    console_error(&format!(
+                        "Failed to get category name for MCC {}: {:?}",
+                        mcc_value, err
+                    ));
+                    None
+                }
+            },
+            Err(err) => {
+                console_error(&format!(
+                    "Failed to create MCC for value {}: {:?}",
+                    mcc_value, err
+                ));
+                None
+            }
         })
         .collect::<Vec<_>>();
 
@@ -247,7 +275,6 @@ pub fn get_all_keys() -> JsResult {
         "Connector",
         // 3DS Decision Rule Keys should not be included in the payument routing keys
         "issuer_name",
-        "issuer_country",
         "customer_device_platform",
         "customer_device_type",
         "customer_device_display_size",
@@ -328,13 +355,16 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
         dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
         dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::TransactionInitiator => dir_enums::TransactionInitiator::VARIANTS,
         dir::DirKeyKind::CustomerDeviceDisplaySize => {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
+        dir::DirKeyKind::NetworkTokenType => dir_enums::NetworkTokenType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
+        | dir::DirKeyKind::ExtendedCardBin
         | dir::DirKeyKind::BusinessLabel
         | dir::DirKeyKind::MetaData
         | dir::DirKeyKind::IssuerName

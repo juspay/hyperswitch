@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
         authentication::{AuthNFlowType, ChallengeParams},
         unified_authentication_service::{
             AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
-            TokenDetails, UasAuthenticationResponseData,
+            RawCardDetails, TokenDetails, UasAuthenticationResponseData,
         },
     },
     types::{
@@ -143,6 +143,8 @@ pub enum MessageCategory {
 pub struct ThreeDSData {
     pub preferred_protocol_version: common_utils::types::SemanticVersion,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -384,7 +386,11 @@ impl<F, T>
                     message_version: maximum_supported_3ds_version,
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
-                        .and_then(|response| response.directory_server_id),
+                        .as_ref()
+                        .and_then(|response| response.directory_server_id.clone()),
+                    scheme_id: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.scheme_id.clone()),
                 },
             }),
             ..item.data
@@ -410,14 +416,24 @@ pub struct AuthenticationDetails {
     pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
     pub trans_status: Option<common_enums::TransactionStatus>,
+    pub raw_card_details: Option<UasRawCardDetails>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasRawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -473,6 +489,15 @@ impl<F, T>
                             payment_account_reference: token_details.payment_account_reference,
                             token_expiration_month: token_details.token_expiration_month,
                             token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
+                    raw_card_details: item.response.authentication_details.raw_card_details.map(
+                        |raw_card_details| RawCardDetails {
+                            pan: raw_card_details.pan,
+                            expiration_month: raw_card_details.expiration_month,
+                            expiration_year: raw_card_details.expiration_year,
+                            card_security_code: raw_card_details.card_security_code,
+                            payment_account_reference: raw_card_details.payment_account_reference,
                         },
                     ),
                     dynamic_data_details: item
@@ -903,6 +928,16 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .message_version
                 .clone(),
             threeds_method_comp_ind: item.router_data.request.threeds_method_comp_ind.clone(),
+            force_3ds_challenge: item
+                .router_data
+                .request
+                .transaction_details
+                .force_3ds_challenge,
+            psd2_sca_exemption_type: item
+                .router_data
+                .request
+                .transaction_details
+                .psd2_sca_exemption_type,
         };
 
         let device_details = DeviceDetails {

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::LazyLock,
 };
 
 use api_models::{
@@ -12,7 +13,7 @@ use api_models::{
     },
 };
 use async_trait::async_trait;
-use common_enums::{RoutableConnectors, TransactionType};
+use common_enums::TransactionType;
 use common_utils::{
     ext_traits::{BytesExt, StringExt},
     id_type,
@@ -21,6 +22,7 @@ use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
     backend::BackendInput,
+    enums::RoutableConnectors,
     frontend::{
         ast::{self},
         dir::{self, transformers::IntoDirValue},
@@ -30,7 +32,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
@@ -399,7 +401,7 @@ pub async fn decision_engine_routing(
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
         payment_id,
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
@@ -713,13 +715,25 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     result: Vec<T>,
     flow: String,
 ) {
-    let is_equal = de_result
-        .iter()
-        .zip(result.iter())
-        .all(|(a, b)| T::is_equal(a, b));
+    let is_equal = if de_result.is_empty() && result.is_empty() {
+        true
+    } else {
+        de_result
+            .iter()
+            .zip(result.iter())
+            .all(|(a, b)| T::is_equal(a, b))
+    };
 
     let is_equal_in_length = de_result.len() == result.len();
-    router_env::logger::debug!(routing_flow=?flow, is_equal=?is_equal, is_equal_length=?is_equal_in_length, de_response=?to_json_string(&de_result), hs_response=?to_json_string(&result), "decision_engine_euclid");
+
+    router_env::logger::debug!(
+        routing_flow=?flow,
+        is_equal=?is_equal,
+        is_equal_length=?is_equal_in_length,
+        de_response=?to_json_string(&de_result),
+        hs_response=?to_json_string(&result),
+        "decision_engine_euclid"
+    );
 }
 
 pub trait RoutingEq<T> {
@@ -800,6 +814,12 @@ pub fn convert_backend_input_to_routing_eval(
         params.insert(
             "authentication_type".to_string(),
             Some(ValueType::EnumVariant(auth_type.to_string())),
+        );
+    }
+    if let Some(extended_bin) = input.payment.extended_card_bin {
+        params.insert(
+            "extended_card_bin".to_string(),
+            Some(ValueType::StrValue(extended_bin)),
         );
     }
     if let Some(bin) = input.payment.card_bin {
@@ -997,6 +1017,12 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
         dir::DirValue::CryptoType(v) => {
             params.insert(
                 "crypto".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
+        dir::DirValue::NetworkTokenType(v) => {
+            params.insert(
+                "network_token".to_string(),
                 Some(ValueType::EnumVariant(v.to_string())),
             );
         }
@@ -1477,7 +1503,10 @@ pub async fn select_routing_result<T>(
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
     de_result: T,
-) -> T {
+) -> T
+where
+    T: Clone + IntoIterator,
+{
     let routing_result_source: Option<api_routing::RoutingResultSource> = state
         .store
         .find_config_by_key(&format!(
@@ -1486,15 +1515,33 @@ pub async fn select_routing_result<T>(
         ))
         .await
         .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
+        .unwrap_or(None);
+
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
-        de_result
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Decision Engine routing result"
+        );
+
+        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+        if is_de_result_empty {
+            logger::debug!(
+                business_profile_id=?business_profile.get_id(),
+                "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+            );
+            hyperswitch_result
+        } else {
+            de_result
+        }
     } else {
-        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: Using Hyperswitch routing result"
+        );
         hyperswitch_result
     }
 }
+
 pub trait DecisionEngineErrorsInterface {
     fn get_error_message(&self) -> String;
     fn get_error_code(&self) -> String;
@@ -1615,7 +1662,7 @@ where
             wrapper.payment_id.clone(),
             wrapper.profile_id.clone(),
             wrapper.merchant_id.clone(),
-            wrapper.request_id,
+            wrapper.request_id.clone(),
             routing_engine,
         );
 
@@ -2156,4 +2203,96 @@ impl TryFrom<&ir_client::contract_routing_client::UpdateContractResponse>
 pub enum ContractUpdationStatusEventResponse {
     ContractUpdationSucceeded,
     ContractUpdationFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreRoutingSkipRule {
+    /// The payment method for which specific payment method types should skip pre-routing.
+    /// IMPORTANT:
+    /// - Do NOT add multiple entries with the same `payment_method`.
+    /// - Each `payment_method` should appear **only once** in the config.
+    ///
+    /// Example:
+    ///     {
+    ///         bank_redirect: ["interac", "ach", "blik"]
+    ///     }
+    ///
+    pub payment_method: common_enums::PaymentMethod,
+
+    /// The list of payment method types under this payment method
+    /// for which pre-routing must be skipped.
+    ///
+    /// This is a Vec because a single PM can have many PMTs
+    /// that need to skip pre-routing:
+    ///
+    /// Example:
+    ///     payment_method_types = ["interac", "ach", "blik"]
+    ///
+    pub payment_method_types: Vec<common_enums::PaymentMethodType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MerchantPreRoutingConfig {
+    pub skip_rules: Vec<PreRoutingSkipRule>,
+}
+
+/// Loads the merchant's pre-routing skip configuration and converts it into:
+///     HashMap<PaymentMethod, HashSet<PaymentMethodType>>
+///
+/// Example output:
+///     {
+///         bank_redirect: { interac, ach, blik },
+///         bank_debit: { sepa_debit }
+///     }
+pub async fn load_skip_pre_routing_config(
+    state: &SessionState,
+    pre_routing_disabled_pm_pmt_key: String,
+) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
+    let merchant_cfg = state
+        .store
+        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
+        .await
+        .ok()
+        .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
+        .unwrap_or_default();
+
+    let mut skip_map: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> =
+        HashMap::new();
+
+    for rule in merchant_cfg.skip_rules.iter() {
+        skip_map
+            .entry(rule.payment_method)
+            .or_default()
+            .extend(rule.payment_method_types.iter().copied());
+    }
+
+    skip_map
+}
+
+/// Returns `true` if pre-routing should be skipped for
+/// the given (payment_method, payment_method_type) pair.
+pub fn should_skip_prerouting(
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    pm: &enums::PaymentMethod,
+    pmt: &enums::PaymentMethodType,
+) -> bool {
+    skip_map
+        .get(pm)
+        .map(|set| set.contains(pmt))
+        .unwrap_or(false)
+}
+
+pub fn perform_pre_routing(
+    allowed_pm_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethod>>,
+    allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
+    payment_method: &enums::PaymentMethod,
+    payment_method_type: &enums::PaymentMethodType,
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+) -> bool {
+    let should_skip_prerouting =
+        should_skip_prerouting(skip_map, payment_method, payment_method_type);
+
+    let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
+    let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
+    (pm_allowed || pmt_allowed) && !should_skip_prerouting
 }

@@ -1,4 +1,3 @@
-use serde;
 use utoipa::ToSchema;
 #[derive(
     Copy,

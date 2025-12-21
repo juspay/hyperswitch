@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
-            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, GiftCardBalanceCheckFlowData,
+            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
             SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
@@ -80,7 +80,6 @@ fn get_default_router_data<F, Req, Resp>(
         refund_id: None,
         connector_response: None,
         payment_method_status: None,
-        is_migrated_card: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -894,8 +893,8 @@ macro_rules! default_router_data_conversion {
         }
     };
 }
-default_router_data_conversion!(GetSubscriptionPlansData);
-default_router_data_conversion!(GetSubscriptionPlanPricesData);
+default_router_data_conversion!(GetSubscriptionItemsData);
+default_router_data_conversion!(GetSubscriptionItemPricesData);
 default_router_data_conversion!(SubscriptionCreateData);
 default_router_data_conversion!(SubscriptionCustomerData);
 default_router_data_conversion!(GetSubscriptionEstimateData);

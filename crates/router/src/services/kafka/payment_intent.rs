@@ -4,8 +4,6 @@ use ::common_types::{
     primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
 };
 #[cfg(feature = "v2")]
-use common_enums;
-#[cfg(feature = "v2")]
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
@@ -134,7 +132,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
-    pub active_attempts_group_id: Option<&'a String>,
+    pub active_attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -319,7 +317,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
-            enable_partial_authorization: *enable_partial_authorization,
+            enable_partial_authorization: Some(*enable_partial_authorization),
         }
     }
 }

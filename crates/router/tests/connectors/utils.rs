@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
                 webhook_url: None,
                 browser_info: None,
                 payout_connector_metadata: None,
+                additional_payout_method_data: None,
             },
             payment_info,
         )
@@ -565,7 +566,6 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            is_migrated_card: None,
         }
     }
 
@@ -955,6 +955,7 @@ impl Default for CCardType {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
@@ -972,8 +973,6 @@ impl Default for PaymentAuthorizeType {
             order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             capture_method: None,
             setup_future_usage: None,
             mandate_id: None,
@@ -1014,6 +1013,9 @@ impl Default for PaymentAuthorizeType {
             enable_overcapture: None,
             is_stored_credential: None,
             mit_category: None,
+            billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         };
         Self(data)
     }
@@ -1147,6 +1149,9 @@ impl Default for TokenType {
             setup_future_usage: None,
             customer_acceptance: None,
             setup_mandate_details: None,
+            payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }

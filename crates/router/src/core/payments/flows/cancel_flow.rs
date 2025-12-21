@@ -31,7 +31,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -46,7 +46,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -66,7 +66,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -76,7 +76,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            platform,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -99,6 +99,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
@@ -129,14 +130,16 @@ impl Feature<api::Void, types::PaymentsCancelData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -173,7 +176,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _connector_data: &api::ConnectorData,
         unified_connector_service_execution_mode: common_enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
@@ -194,7 +197,8 @@ impl Feature<api::Void, types::PaymentsCancelData>
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            merchant_context,
+            platform,
+            self.connector.clone(),
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
@@ -222,11 +226,14 @@ impl Feature<api::Void, types::PaymentsCancelData>
             payment_void_request,
             header_payload,
             |mut router_data, payment_void_request, grpc_headers| async move {
-                let response = client
-                    .payment_cancel(payment_void_request, connector_auth_metadata, grpc_headers)
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to Cancel payment")?;
+                let response = Box::pin(client.payment_cancel(
+                    payment_void_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to Cancel payment")?;
 
                 let payment_void_response = response.into_inner();
 

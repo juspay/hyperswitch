@@ -121,7 +121,7 @@ pub enum BankOfAmericaActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaAuthorizationOptions {
     initiator: Option<BankOfAmericaPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -344,7 +344,8 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?
@@ -413,7 +414,8 @@ impl<F, T>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -653,7 +655,7 @@ impl
                     None,
                     Some(BankOfAmericaAuthorizationOptions {
                         initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount: Some(utils::get_amount_as_string(
                                 &api::CurrencyUnit::Base,
@@ -1144,7 +1146,8 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
@@ -1705,7 +1708,8 @@ impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -1876,7 +1880,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 let risk_info: Option<ClientRiskInformation> = None;
@@ -2682,7 +2687,7 @@ fn get_boa_mandate_action_details() -> (
                 credential_stored_on_file: Some(true),
                 stored_credential_used: None,
             }),
-            merchant_intitiated_transaction: None,
+            merchant_initiated_transaction: None,
         }),
     )
 }

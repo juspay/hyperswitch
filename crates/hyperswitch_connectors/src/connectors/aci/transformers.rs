@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
@@ -352,9 +352,10 @@ impl
             | BankRedirectData::OnlineBankingSlovakia { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBankingUk { .. } => Err(
-                errors::ConnectorError::NotImplemented("Payment method".to_string()),
-            )?,
+            | BankRedirectData::OpenBankingUk { .. }
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
         };
         Ok(payment_data)
     }
@@ -457,7 +458,7 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.type")]
     pub token_type: AciTokenAccountType,
     #[serde(rename = "tokenAccount.number")]
-    pub token_number: NetworkTokenNumber,
+    pub token_number: NetworkToken,
     #[serde(rename = "tokenAccount.expiryMonth")]
     pub token_expiry_month: Secret<String>,
     #[serde(rename = "tokenAccount.expiryYear")]
@@ -648,7 +649,8 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?

@@ -96,7 +96,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                     credential_stored_on_file: Some(true),
                     stored_credential_used: None,
                 }),
-                merchant_intitiated_transaction: None,
+                merchant_initiated_transaction: None,
             }),
         );
 
@@ -258,7 +258,8 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                 ))?
@@ -351,7 +352,7 @@ pub enum WellsfargoActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoAuthorizationOptions {
     initiator: Option<WellsfargoPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -634,7 +635,7 @@ impl
                         credential_stored_on_file: Some(true),
                         stored_credential_used: None,
                     }),
-                    merchant_intitiated_transaction: None,
+                    merchant_initiated_transaction: None,
                 }),
             )
         } else if item.router_data.request.mandate_id.is_some() {
@@ -659,7 +660,7 @@ impl
                         None,
                         Some(WellsfargoAuthorizationOptions {
                             initiator: None,
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: None,
                                 original_authorized_amount: Some(utils::get_amount_as_string(
                                     &api::CurrencyUnit::Base,
@@ -729,7 +730,7 @@ impl
                                 credential_stored_on_file: None,
                                 stored_credential_used: Some(true),
                             }),
-                            merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
@@ -924,6 +925,12 @@ impl
             hyperswitch_domain_models::payment_method_data::Card,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Wellsfargo",
+            })?
+        }
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
@@ -1197,12 +1204,6 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
     fn try_from(
         item: &WellsfargoRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Wellsfargo",
-            })?
-        }
         match item.router_data.request.connector_mandate_id() {
             Some(connector_mandate_id) => Self::try_from((item, connector_mandate_id)),
             None => {
@@ -1367,7 +1368,8 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                         )
@@ -1492,7 +1494,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsIncrementalAuthorizationRouterData>>
                         credential_stored_on_file: None,
                         stored_credential_used: Some(true),
                     }),
-                    merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                    merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                         reason: Some("5".to_owned()),
                         previous_transaction_id: None,
                         original_authorized_amount: None,

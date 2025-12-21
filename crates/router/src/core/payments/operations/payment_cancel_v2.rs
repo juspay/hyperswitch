@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_enums;
 use common_utils::{ext_traits::AsyncExt, id_type::GlobalPaymentId};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
@@ -109,11 +108,11 @@ impl<F: Send + Clone + Sync>
     fn validate_request(
         &self,
         _request: &api::PaymentsCancelRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+            storage_scheme: platform.get_processor().get_account().storage_scheme,
             requeue: false,
         })
     }
@@ -134,22 +133,20 @@ impl<F: Send + Clone + Sync>
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &api::PaymentsCancelRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<hyperswitch_domain_models::payments::PaymentCancelData<F>>,
     > {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -167,8 +164,7 @@ impl<F: Send + Clone + Sync>
 
         let payment_attempt = db
             .find_payment_attempt_by_id(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 active_attempt_id,
                 storage_scheme,
             )
@@ -219,7 +215,6 @@ impl<F: Clone + Send + Sync>
         F: 'b + Send,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
             status: enums::AttemptStatus::VoidInitiated,
@@ -229,7 +224,6 @@ impl<F: Clone + Send + Sync>
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 merchant_key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
@@ -280,7 +274,7 @@ impl<F: Send + Clone + Sync>
 
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut hyperswitch_domain_models::payments::PaymentCancelData<F>,
@@ -327,6 +321,7 @@ impl ValidateStatusForOperation for PaymentsCancel {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod

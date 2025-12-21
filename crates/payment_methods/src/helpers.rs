@@ -22,8 +22,10 @@ pub async fn populate_bin_details_for_payment_method_create(
             card_network: card_details.card_network.clone(),
             card_type: card_details.card_type.to_owned(),
             card_issuing_country: card_details.card_issuing_country.to_owned(),
+            card_issuing_country_code: card_details.card_issuing_country_code.to_owned(),
             card_exp_month: card_details.card_exp_month.clone(),
             card_exp_year: card_details.card_exp_year.clone(),
+            card_cvc: card_details.card_cvc.clone(),
             card_holder_name: card_details.card_holder_name.clone(),
             card_number: card_details.card_number.clone(),
             nick_name: card_details.nick_name.clone(),
@@ -44,8 +46,10 @@ pub async fn populate_bin_details_for_payment_method_create(
                 card_network: card_info.card_network.clone(),
                 card_type: card_info.card_type,
                 card_issuing_country: card_info.card_issuing_country,
+                card_issuing_country_code: card_details.card_issuing_country_code,
                 card_exp_month: card_details.card_exp_month.clone(),
                 card_exp_year: card_details.card_exp_year.clone(),
+                card_cvc: card_details.card_cvc.clone(),
                 card_holder_name: card_details.card_holder_name.clone(),
                 card_number: card_details.card_number.clone(),
                 nick_name: card_details.nick_name.clone(),
@@ -55,6 +59,8 @@ pub async fn populate_bin_details_for_payment_method_create(
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
+            card_cvc: card_details.card_cvc.clone(),
             card_exp_month: card_details.card_exp_month.clone(),
             card_exp_year: card_details.card_exp_year.clone(),
             card_holder_name: card_details.card_holder_name.clone(),
@@ -153,6 +159,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Interac
                 | api_enums::PaymentMethodType::OpenBankingUk
                 | api_enums::PaymentMethodType::OpenBankingPIS
+                | api_enums::PaymentMethodType::OpenBanking
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -241,6 +248,10 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::MobilePayment => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::DirectCarrierBilling
+        ),
+        api_enums::PaymentMethod::NetworkToken => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::NetworkToken
         ),
     }
 }

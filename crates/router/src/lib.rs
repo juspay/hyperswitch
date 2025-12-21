@@ -123,7 +123,11 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
+    let mut server_app = get_application_builder(
+        request_body_limit,
+        state.conf.cors.clone(),
+        state.conf.trace_header.clone(),
+    );
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -259,7 +263,11 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
-
+    // Registered at the end because this entry has an empty scope
+    #[cfg(feature = "olap")]
+    {
+        server_app = server_app.service(routes::Oidc::server(state.clone()));
+    }
     server_app
 }
 
@@ -374,6 +382,7 @@ impl Stop for mpsc::Sender<()> {
 pub fn get_application_builder(
     request_body_limit: usize,
     cors: settings::CorsSettings,
+    trace_header: settings::TraceHeaderConfig,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -399,12 +408,17 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(middleware::RequestId)
         .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
+        .wrap(router_env::tracing_actix_web::TracingLogger::<
+            router_env::CustomRootSpanBuilder,
+        >::new())
+        .wrap(
+            router_env::RequestIdentifier::new(&trace_header.header_name)
+                .use_incoming_id(trace_header.id_reuse_strategy),
+        )
 }

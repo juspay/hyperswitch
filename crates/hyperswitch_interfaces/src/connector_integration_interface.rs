@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
-        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
+        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
@@ -400,6 +400,19 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_additional_payment_method_data(request),
+            Self::New(connector) => connector.get_additional_payment_method_data(request),
+        }
+    }
+
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(
         &self,
@@ -519,23 +532,22 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match self {
-            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
-            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
+            Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
     fn get_preprocessing_flow_if_needed(
@@ -623,6 +635,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if the connector needs authorize session token call
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
+            Self::New(connector) => connector.is_authorize_session_token_call_required(),
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
@@ -659,6 +679,31 @@ impl ConnectorSpecifications for ConnectorEnum {
                 connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
             }
         }
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_connector_customer_id(customer_id, merchant_id)
+            }
+            Self::New(connector) => {
+                connector.generate_connector_customer_id(customer_id, merchant_id)
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        todo!()
     }
 
     /// Check if connector requires create customer call
@@ -727,6 +772,23 @@ impl ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
+        }
+    }
+}
+
+impl ConnectorAccessTokenSuffix for ConnectorEnum {
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+            }
         }
     }
 }

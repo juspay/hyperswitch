@@ -1411,6 +1411,86 @@ payment_method_type = "UnionPay"
 merchant_secret = "Source verification key"
 
 
+[braintree.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[braintree.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[braintree.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
+
+[[braintree.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+
+[[braintree.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+
+[[braintree.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+
 [braintree.connector_auth.SignatureKey]
 api_key = "Public Key"
 key1 = "Merchant Id"
@@ -3745,7 +3825,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector","Hyperswitch"]
+options = ["Hyperswitch"]
 
 
 
@@ -4955,6 +5035,8 @@ merchant_secret = "Source verification key"
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking"
 [volt.connector_auth.MultiAuthKey]
 api_key = "Username"
 api_secret = "Password"
@@ -6482,7 +6564,7 @@ type = "Text"
 name = "merchant_category_code"
 label = "Merchant Category Code"
 placeholder = "Enter Merchant Category Code"
-required = true
+required=false
 type = "Text"
 
 [ctp_visa.metadata.merchant_country_code]
@@ -6712,11 +6794,174 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[worldpayxml.debit]]
 payment_method_type = "UnionPay"
+[[worldpayxml.wallet]]
+  payment_method_type = "google_pay"
+[[worldpayxml.wallet]]
+  payment_method_type = "apple_pay"
+
+[[worldpayxml.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[worldpayxml.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[worldpayxml.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[worldpayxml.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
 api_key = "API Username"
 key1 = "API Password"
+[worldpayxml.metadata.organizational_unit_id]
+name="organizational_unit_id"
+label="Organizational Unit ID"
+placeholder="Enter your organizational unit ID for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.issuer_id]
+name="issuer_id"
+label="Issuer Identifier"
+placeholder="Enter your issuer identifier for three ds payments"
+required=false
+type="Text"
+[worldpayxml.metadata.jwt_mac_key]
+name="jwt_mac_key"
+label="JWT MAC KEY"
+placeholder="Enter your JWT MAC Key"
+required=false
+type="Text"
+
+[worldpayxml_payout]
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "apple_pay"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Visa"
+[worldpayxml_payout.metadata.purpose_of_payment]
+name="purpose_of_payment"
+label="Purpose of Payment"
+placeholder="Select the purpose of payment"
+required=false
+type="Select"
+options=["Account management", "Transaction is the payment of allowance", "Settlement of annuity", "Unemployment disability benefit", "Business expenses", "Bonus payment", "Bus transport related business", "Cash management transfer", "Payment of cable TV bill", "Government institute issued related to cash compensation, helplessness, and disability", "Credit card payment", "Payment of credit card bill", "Payment for charity reasons", "Collection payment", "Commercial payment", "Commission", "Compensation relating to interest loss/value date adjustment and can include fees", "Payment of copyright", "Related to a debit card payment", "Payment of a deposit", "Payment of dividend", "Payment of study/tuition fees", "Energies", "General fees", "Payment for ferry related business", "Foreign exchange", "Payment of gas bill", "Compensation to unemployed persons during insolvency procedures", "Government payment", "Health insurance", "Reimbursement of credit card payment", "Reimbursement of debit card payment", "Payment of car insurance premium", "Transaction is related to the payment of an insurance claim", "Installment", "Insurance premium", "Payment of mutual funds, investment products and shares", "Intra company payment", "Interest", "Income tax", "Investment", "Labor insurance", "License fee", "Life insurance", "Loan", "Medical services" ,"Mobile P2B payment", "Mobile P2P payment", "Mobile top up", "Not otherwise specified", "Other", "Transaction is related to a payment of other telecom related bill", "Payroll", "Contribution to pension fund", "Pension payment", "Payment of telephone bill", "Property insurance", "Transaction is for general rental/lease", "The payment of rent", "Payment for railway transport related business", "Royalties", "Salary payment", "Payment to savings/retirement account", "Securities", "Social security benefit", "Study", "Subscription", "Supplier payment", "Refund of a tax payment or obligation", "Tax payment", "Transaction is related to a payment of telecommunications related bill", "Trade services operation", "Treasury payment", "Payment for travel", "Utility bill payment", "Value added tax payment", "With holding", "Payment of water bill"]
+
+[worldpayxml_payout.connector_auth.SignatureKey]
+api_secret="Merchant Code"
+api_key="API Username"
+key1="API Password"
 
 [worldpayvantiv]
 [[worldpayvantiv.credit]]
@@ -6852,6 +7097,8 @@ payment_method_type = "Discover"
 payment_method_type = "Mastercard"
 [[payload.debit]]
 payment_method_type = "Visa"
+[[payload.bank_debit]]
+payment_method_type = "ach"
 
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.USD]
 processing_account_id = "processing_account_id"
@@ -7172,115 +7419,11 @@ label="Client Merchant Reference Id"
 placeholder="Enter Client Merchant Reference Id"
 required=true
 type="Text"
-[peachpayments.metadata.name]
-name="name"
-label="Merchant Name"
-placeholder="Enter Merchant Name"
+[peachpayments.metadata.merchant_payment_method_route_id]
+name="merchant_payment_method_route_id"
+label="Merchant Payment Method Route Id"
+placeholder="Enter Merchant Payment Method Route Id"
 required=true
-type="Text"
-[peachpayments.metadata.mcc]
-name="mcc"
-label="Merchant Category Code"
-placeholder="Enter MCC (e.g., 5411)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_phone]
-name="merchant_phone"
-label="Merchant Phone"
-placeholder="Enter merchant phone (e.g., +27123456789)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_email]
-name="merchant_email"
-label="Merchant Email"
-placeholder="Enter merchant email"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_mobile]
-name="merchant_mobile"
-label="Merchant Mobile"
-placeholder="Enter merchant mobile (e.g., +27123456789)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_address]
-name="merchant_address"
-label="Merchant Address"
-placeholder="Enter merchant address"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_city]
-name="merchant_city"
-label="Merchant City"
-placeholder="Enter merchant city"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_postal_code]
-name="merchant_postal_code"
-label="Merchant Postal Code"
-placeholder="Enter postal code"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_region_code]
-name="merchant_region_code"
-label="Merchant Region Code"
-placeholder="Enter region code (e.g., WC)"
-required=true
-type="Text"
-[peachpayments.metadata.merchant_type]
-name="merchant_type"
-label="Merchant Type"
-placeholder="Select merchant type"
-required=true
-type="Select"
-options=["direct", "sub"]
-[peachpayments.metadata.merchant_website]
-name="merchant_website"
-label="Merchant Website"
-placeholder="Enter merchant website URL"
-required=true
-type="Text"
-[peachpayments.metadata.mid]
-name="mid"
-label="Routing MID"
-placeholder="Enter routing MID"
-required=true
-type="Text"
-[peachpayments.metadata.tid]
-name="tid"
-label="Routing TID"
-placeholder="Enter routing TID"
-required=true
-type="Text"
-[peachpayments.metadata.route]
-name="route"
-label="Routing Route"
-placeholder="Select routing route"
-required=true
-type="Select"
-options=["cardgateway_emulator", "exipay_emulator", "absa_base24", "nedbank_postbridge"]
-[peachpayments.metadata.amex_id]
-name="amex_id"
-label="AmEx ID"
-placeholder="Enter AmEx ID for routing"
-required=false
-type="Text"
-[peachpayments.metadata.sub_mid]
-name="sub_mid"
-label="Sub Mid"
-placeholder="Enter Sub Mid"
-required=false
-type="Text"
-[peachpayments.metadata.visa_payment_facilitator_id]
-name="visa_payment_facilitator_id"
-label="Visa Payment Facilitator Id"
-placeholder="Enter Visa Payment Facilitator Id"
-required=false
-type="Text"
-[peachpayments.metadata.mastercard_payment_facilitator_id]
-name="mastercard_payment_facilitator_id"
-label="mastercard Payment Facilitator Id"
-placeholder="Enter mastercard Payment Facilitator Id"
-required=false
 type="Text"
 
 [tokenex]
@@ -7634,9 +7777,65 @@ type="MultiSelect"
 options=["CRYPTOGRAM_3DS"]
 
 [zift]
-[zift.connector_auth.HeaderKey]
+[[zift.credit]]
+  payment_method_type = "Mastercard"
+[[zift.credit]]
+  payment_method_type = "Visa"
+[[zift.credit]]
+  payment_method_type = "Interac"
+[[zift.credit]]
+  payment_method_type = "AmericanExpress"
+[[zift.credit]]
+  payment_method_type = "JCB"
+[[zift.credit]]
+  payment_method_type = "DinersClub"
+[[zift.credit]]
+  payment_method_type = "Discover"
+[[zift.credit]]
+  payment_method_type = "CartesBancaires"
+[[zift.credit]]
+  payment_method_type = "UnionPay"
+[[zift.debit]]
+  payment_method_type = "Mastercard"
+[[zift.debit]]
+  payment_method_type = "Visa"
+[[zift.debit]]
+  payment_method_type = "Interac"
+[[zift.debit]]
+  payment_method_type = "AmericanExpress"
+[[zift.debit]]
+  payment_method_type = "JCB"
+[[zift.debit]]
+  payment_method_type = "DinersClub"
+[[zift.debit]]
+  payment_method_type = "Discover"
+[[zift.debit]]
+  payment_method_type = "CartesBancaires"
+[[zift.debit]]
+  payment_method_type = "UnionPay"
+[zift.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Account ID"
+[zift.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[zift.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[zift.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
-api_key = "API Key"
 [payjustnow]
 [payjustnow.connector_auth.BodyKey]
 api_key = "Signing Key"
@@ -7644,4 +7843,14 @@ key1 = "Merchant Account Id"
 
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
+
+
+[envoy]
+[envoy.connector_auth.HeaderKey]
+api_key = "API Key"
+[vgs]
+[vgs.connector_auth.SignatureKey]
+  api_key="Client Id"
+  key1="Client Secret"
+  api_secret="Vault Id"
 

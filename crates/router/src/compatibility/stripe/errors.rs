@@ -283,6 +283,10 @@ pub enum StripeErrorCode {
     PlatformBadRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
     PlatformUnauthorizedRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Connected Bad Request")]
+    ConnectedBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Connected Unauthorized Request")]
+    ConnectedUnauthorizedRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Profile Acquirer not found")]
     ProfileAcquirerNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "Subscription Error", message = "Subscription operation: {operation} failed with connector")]
@@ -450,10 +454,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::InvalidBasicAuth
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey
+            | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -692,6 +698,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
             errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
+            errors::ApiErrorResponse::ConnectedAccountAuthNotSupported => Self::ConnectedBadRequest,
+            errors::ApiErrorResponse::InvalidConnectedOperation => {
+                Self::ConnectedUnauthorizedRequest
+            }
             errors::ApiErrorResponse::ProfileAcquirerNotFound { .. } => {
                 Self::ProfileAcquirerNotFound
             }
@@ -711,7 +721,9 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized
+            | Self::PlatformUnauthorizedRequest
+            | Self::ConnectedUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
@@ -776,6 +788,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodDeleteFailed
             | Self::ExtendedCardInfoNotFound
             | Self::PlatformBadRequest
+            | Self::ConnectedBadRequest
             | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
