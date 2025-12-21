@@ -598,8 +598,7 @@ fn to_connector_response_data<T>(connector_response: &str) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
-    let decoded_bytes = BASE64_ENGINE
-        .decode(connector_response)
+    let decoded_bytes = connector_utils::safe_base64_decode(connector_response.to_string())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode Base64")?;
 
