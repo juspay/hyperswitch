@@ -212,7 +212,9 @@ pub async fn create_or_update_address_for_payment_by_request(
                     country_code: address
                         .phone
                         .as_ref()
-                        .and_then(|value| value.country_code.clone()),
+                        .and_then(|phone_details| phone_details.country_code.as_ref())
+                        .map(|code| code.trim().to_string())
+                        .filter(|code| !code.is_empty()),
                     updated_by: storage_scheme.to_string(),
                     email: encryptable_address.email.map(|email| {
                         let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
@@ -403,7 +405,12 @@ pub async fn get_domain_address(
                 .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             phone_number: encryptable_address.phone_number,
-            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            country_code: address
+                .phone
+                .as_ref()
+                .and_then(|phone_details| phone_details.country_code.as_ref())
+                .map(|code| code.trim().to_string())
+                .filter(|code| !code.is_empty()),
             merchant_id: merchant_id.to_owned(),
             address_id: generate_id(consts::ID_LENGTH, "add"),
             city: address_details.and_then(|address_details| address_details.city.clone()),
