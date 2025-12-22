@@ -2817,6 +2817,9 @@ impl AddressData for Address {
 pub trait PaymentsPreAuthenticateRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
 }
 impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
     fn get_webhook_url(&self) -> Result<String, Error> {
@@ -2834,6 +2837,15 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())
             }
         }
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        Ok(self.payment_method_data.clone())
+    }
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        Ok(self.minor_amount)
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 pub trait PaymentsPreProcessingRequestData {

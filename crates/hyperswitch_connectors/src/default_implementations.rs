@@ -2014,7 +2014,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Noon,
     connectors::Nordea,
     connectors::Novalnet,
-    connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Paybox,
