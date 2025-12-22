@@ -3,7 +3,9 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
-use common_utils::{errors, id_type, types::MinorUnit, ucs_types};
+#[cfg(feature = "v2")]
+use common_utils::types::MinorUnit;
+use common_utils::{errors, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -23,6 +25,13 @@ use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterf
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
+#[cfg(feature = "v2")]
+use crate::core::unified_connector_service::{
+    get_access_token_from_ucs_response,
+    handle_unified_connector_service_response_for_payment_authorize,
+    handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
+    ucs_logging_wrapper,
+};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -32,11 +41,7 @@ use crate::{
             helpers, session_token, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            self, build_unified_connector_service_auth_metadata,
-            get_access_token_from_ucs_response,
-            handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-            ucs_logging_wrapper, ucs_logging_wrapper_granular,
+            self, build_unified_connector_service_auth_metadata, ucs_logging_wrapper_granular,
         },
     },
     logger,
@@ -584,6 +589,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         }
     }
 
+    #[cfg(feature = "v2")]
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
@@ -969,6 +975,7 @@ async fn process_capture_flow(
     Ok(router_data)
 }
 
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_authorize(
     router_data: &mut types::RouterData<
@@ -1084,6 +1091,9 @@ async fn call_unified_connector_service_authorize(
             router_data.amount_captured = payment_authorize_response.captured_amount;
             router_data.minor_amount_captured = payment_authorize_response
                 .minor_captured_amount
+                .map(MinorUnit::new);
+            router_data.minor_amount_capturable = payment_authorize_response
+                .minor_capturable_amount
                 .map(MinorUnit::new);
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
@@ -1300,6 +1310,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
 }
 
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 async fn call_unified_connector_service_repeat_payment(
     router_data: &mut types::RouterData<

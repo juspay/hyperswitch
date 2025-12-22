@@ -115,7 +115,7 @@ pub struct EncryptionCreateRequest {
 pub struct EncryptionTransferRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub key: String,
+    pub key: StrongSecret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

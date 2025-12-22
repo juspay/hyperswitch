@@ -34,6 +34,7 @@ use crate::{
         card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        metrics,
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
@@ -1034,6 +1035,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 card,
                 token,
             }) => {
+                let billing_address = payment_data.address.get_payment_method_billing().cloned();
+                let shipping = payment_data.address.get_shipping().cloned();
                 let authentication_store = Box::pin(authentication::perform_pre_authentication(
                     state,
                     key_store,
@@ -1045,6 +1048,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_attempt.organization_id.clone(),
                     payment_data.payment_intent.force_3ds_challenge,
                     payment_data.payment_intent.psd2_sca_exemption_type,
+                    billing_address,
+                    shipping,
                 ))
                 .await?;
                 if authentication_store
@@ -1119,19 +1124,24 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
+    ) {
+        metrics::THREE_DS_EXEMPTION_INCOMING_REQUESTS.add(
+            1,
+            router_env::metric_attributes!(("merchant_id", business_profile.merchant_id.clone()),),
+        );
         // If the business profile has a three_ds_decision_rule_algorithm, we will use it to determine the 3DS strategy (authentication_type, exemption_type and force_three_ds_challenge)
-        if let Some(three_ds_decision_rule) =
-            business_profile.three_ds_decision_rule_algorithm.clone()
-        {
-            // Parse the three_ds_decision_rule to get the algorithm_id
-            let algorithm_id = three_ds_decision_rule
-                .parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not decode profile routing algorithm ref")?
-                .algorithm_id
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("No algorithm_id found in three_ds_decision_rule_algorithm")?;
+        if let Some(algorithm_id) = business_profile.get_three_ds_decision_rule_algorithm_id() {
+            metrics::THREE_DS_EXEMPTION_ALGORITHM_FOUND.add(
+                1,
+                router_env::metric_attributes!((
+                    "merchant_id",
+                    business_profile.merchant_id.clone()
+                ),),
+            );
+            logger::info!(
+                "Three DS Decision Rule Algorithm Id {}",
+                algorithm_id.get_string_repr()
+            );
             // get additional card info from payment data
             let additional_card_info = payment_data
                 .payment_attempt
@@ -1146,7 +1156,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to parse value into additional_payment_method_data")?
+                .attach_printable("unable to parse value into additional_payment_method_data")
+                .inspect_err(|err| {
+                    logger::error!(
+                        "Error while parsing additional_payment_method_data {:?}",
+                        err
+                    )
+                })
+                .ok()
+                .flatten()
                 .and_then(|additional_payment_method_data| {
                     additional_payment_method_data.get_additional_card_info()
                 });
@@ -1157,7 +1175,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .and_then(|network| business_profile.get_acquirer_details_from_network(network))
             });
-            let country = business_profile
+            let acquirer_country = business_profile
                 .merchant_country_code
                 .as_ref()
                 .map(|country_code| {
@@ -1165,7 +1183,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while parsing country from merchant country code")?;
+                .attach_printable("Error while parsing country from merchant country code")
+                .inspect_err(|err| {
+                    logger::error!(
+                        "Error while parsing country from merchant country code {:?}",
+                        err
+                    )
+                })
+                .ok()
+                .flatten();
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1178,7 +1204,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .payment_intent
                             .currency
                             .ok_or(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("currency is not set in payment intent")?,
+                            .attach_printable("currency is not set in payment intent")
+                            .inspect_err(|err| logger::error!("{:?}", err))
+                            .ok()
+                            .unwrap_or_default(),
                     },
                     payment_method: Some(
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
@@ -1193,23 +1222,51 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .and_then(|info| info.card_issuer.clone()),
                         country: additional_card_info
                             .as_ref()
-                            .map(|info| info.card_issuing_country.clone().parse_enum("Country"))
+                            .map(|info| {
+                                info.card_issuing_country_code
+                                    .clone()
+                                    .parse_enum("CountryAlpha2")
+                            })
                             .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable(
-                                "Error while getting country enum from issuer country",
-                            )?,
+                                "Error while getting country enum from issuer country code",
+                            )
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Error while getting country enum from issuer country {:?}",
+                                    err
+                                )
+                            })
+                            .ok()
+                            .flatten()
+                            .map(common_enums::Country::from_alpha2),
                     }),
                     customer_device: None,
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
-                            country,
+                            country: acquirer_country,
                             fraud_rate: Some(acquirer.acquirer_fraud_rate),
                         }
                     }),
                 },
             )
-            .await?;
+            .await
+            .inspect_err(|err| {
+                logger::error!(
+                    "Error while getting three_ds_decision_rule output {:?}",
+                    err
+                )
+            })
+            .ok()
+            .unwrap_or_default();
+            metrics::THREE_DS_EXEMPTION_DECISION_COMPUTED.add(
+                1,
+                router_env::metric_attributes!((
+                    "merchant_id",
+                    business_profile.merchant_id.clone()
+                ),),
+            );
             logger::info!("Three DS Decision Rule Output: {:?}", decision);
             // We should update authentication_type from the Three DS Decision if it is not already set
             if payment_data.payment_attempt.authentication_type.is_none() {
@@ -1222,7 +1279,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             payment_data.payment_intent.force_3ds_challenge =
                 decision.should_force_3ds_challenge().then_some(true);
         }
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1246,6 +1302,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 mandate_type,
             )
             .await?;
+        let key_manager_state = &(state).into();
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -1375,7 +1432,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            None
+                            None,
+                            key_store
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1422,11 +1480,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_bin,
                     acquirer_merchant_id,
                     acquirer_country_code,
+                    Some(payment_data.payment_intent.amount),
+                    payment_data.payment_intent.currency,
                     None,
                     None,
                     None,
-                    None,
-                    None
+                    key_store
                 )
                 .await?;
             let acquirer_configs = authentication
@@ -1459,18 +1518,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse webhook url")?;
 
+            let merchant_category_code = business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code.clone()));
+
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
                 merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                merchant_category_code: merchant_category_code.clone(),
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
                 three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
                 three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-                merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+                merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
                 notification_url,
             });
             let domain_address  = payment_data.address.get_payment_method_billing();
+            let shipping = payment_data.address.get_shipping();
+            let browser_info = payment_data.payment_attempt.browser_info
+                .clone()
+                .parse_value("BrowserInfo")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse browser_info")?;
+            let email = payment_data.email.clone();
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
@@ -1493,17 +1561,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication.acquirer_merchant_id.clone(),
                     )
                     .await?;
-                let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
+                let updated_authentication = Box::pin(uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
                     key_store,
+                    domain_address.cloned(),
+                    shipping.cloned(),
+                    email,
+                    browser_info,
                     None,
-                    None,
-                    None,
-                    None,
-                ).await?;
+                    merchant_category_code,
+                    merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+                )).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
                     authentication: updated_authentication.clone(),
@@ -1558,6 +1629,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .find_authentication_by_merchant_id_authentication_id(
                         &business_profile.merchant_id,
                         &authentication_id,
+                        key_store,
+                        key_manager_state,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1582,6 +1655,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication,
                         None,
                         key_store,
+                        None,
+                        None,
+                        None,
                         None,
                         None,
                         None,
@@ -1773,7 +1849,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let status_handler_for_authentication_results =
-            |authentication: &storage::Authentication| {
+            |authentication: &hyperswitch_domain_models::authentication::Authentication| {
                 if authentication.authentication_status.is_failed() {
                     (
                         storage_enums::IntentStatus::Failed,
