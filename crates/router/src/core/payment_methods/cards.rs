@@ -907,9 +907,9 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        let (card, payload_metadata) =
+        let (card, locker_metadata) =
             if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                let (card_detail, payload_metadata) = if self.state.conf.locker.locker_enabled {
+                let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
                     let locker_card_response = get_card_from_locker(
                         self.state,
                         &pm.customer_id,
@@ -932,7 +932,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                     )
                 };
-                (Some(card_detail), payload_metadata)
+                (Some(card_detail), locker_metadata)
             } else {
                 (None, None)
             };
@@ -947,7 +947,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 bank_transfer: None,
                 card,
                 // merge payload metadata with pm metadata
-                metadata: pm.get_payment_method_metadata(payload_metadata),
+                metadata: pm.get_payment_method_metadata(locker_metadata),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),
@@ -1848,6 +1848,7 @@ pub async fn update_customer_payment_method(
                 bank_transfer: None,
                 card: Some(existing_card_data),
                 wallet: None,
+                // since locker is not called, no metadata is merged to payment method metadata
                 metadata: pm.get_payment_method_metadata(None),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),

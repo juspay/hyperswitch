@@ -347,11 +347,13 @@ pub fn merge_json_values(
                     serde_json::Value::Object(mut first_map),
                     serde_json::Value::Object(second_map),
                 ) => {
+                    // if the first and second has the same keys then the value will be updated with that of the second
                     first_map.extend(second_map);
                     Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
                         first_map,
                     )))
                 }
+                // ideally both Value should of variant Object but if one of them is not an object, it follows the previous behaviour i.e pass payment method metadata
                 (first_val, _) => Some(pii::SecretSerdeValue::new(first_val)),
             }
         }
