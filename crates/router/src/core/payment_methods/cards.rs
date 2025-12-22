@@ -67,9 +67,7 @@ use super::tokenize::NetworkTokenizationProcess;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
-    utils::{
-        get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache,
-    },
+    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;

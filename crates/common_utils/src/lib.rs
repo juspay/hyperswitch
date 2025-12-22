@@ -1,7 +1,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
-use masking::{PeekInterface, Secret, ExposeInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 pub mod access_token;
 pub mod consts;
