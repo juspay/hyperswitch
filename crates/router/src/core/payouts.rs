@@ -3540,6 +3540,7 @@ pub async fn payouts_manual_update_core(
             Some(message.to_string()),
             Some(connector_name.to_string()),
             consts::PAYOUT_FLOW_STR,
+            crate::consts::DEFAULT_SUBFLOW_STR,
         )
         .await
     } else {
