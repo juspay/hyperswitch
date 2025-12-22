@@ -526,7 +526,8 @@ pub trait ConnectorSpecifications {
         // Send payment_id if config is enabled for a merchant, else send attempt_id
         if is_config_enabled_to_send_payment_id_as_connector_request_id {
             payment_intent
-                .merchant_reference_id.clone()
+                .merchant_reference_id
+                .clone()
                 .map(|data| data.get_string_repr().to_owned())
                 .unwrap_or(payment_attempt.payment_id.get_string_repr().to_owned())
         } else {

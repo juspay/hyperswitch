@@ -497,7 +497,7 @@ pub struct PaymentIntentNew {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-        pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
+    pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
