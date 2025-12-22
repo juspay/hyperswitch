@@ -49,6 +49,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -292,12 +293,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
         payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         platform: &domain::Platform,
-        profile: &domain::Profile,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        split_amount_data: (
-            api_models::payments::PaymentMethodData,
-            common_utils::types::MinorUnit,
-        ),
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        pm_split_amount_data: domain::PaymentMethodDetailsWithSplitAmount,
         attempts_group_id: &id_type::GlobalAttemptGroupId,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
@@ -350,8 +348,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 storage_scheme,
                 request,
                 encrypted_data,
-                split_amount_data.1,
+                pm_split_amount_data.split_amount,
                 attempts_group_id,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_type,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_subtype,
             )
             .await?;
 
@@ -367,7 +371,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
 
         let payment_method_data =
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::from(
-                split_amount_data.0,
+                pm_split_amount_data
+                    .payment_method_details
+                    .payment_method_data,
             );
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -603,11 +609,12 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id,
+                    customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
                     psp_tokenization: None,
                     network_tokenization: None,
+                    storage_type: Some(common_enums::StorageType::Persistent), //since customer acceptance is present, we always store it persistently
                 };
 
                 let (_pm_response, payment_method) =

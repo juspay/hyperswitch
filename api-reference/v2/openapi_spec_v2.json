@@ -4659,6 +4659,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6678,6 +6686,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -8070,6 +8089,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -8833,7 +8857,6 @@
           "card_brands",
           "acquirer_bin",
           "acquirer_merchant_id",
-          "merchant_category_code",
           "merchant_country_code",
           "transaction_amount",
           "transaction_currency_code"
@@ -8862,7 +8885,8 @@
             "type": "string"
           },
           "merchant_category_code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "merchant_country_code": {
             "type": "string"
@@ -10322,13 +10346,38 @@
           }
         }
       },
-      "CustomTermsByPaymentMethodTypes": {
+      "CustomMessage": {
         "type": "object",
-        "description": "Custom T&C Message to be shown per payment method type",
-        "additionalProperties": {
-          "type": "string"
-        },
-        "nullable": true
+        "description": "Custom T&C message content and display mode",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The text to be shown per payment method type",
+            "example": "I authorize Novalnet AG to debit my account."
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/SdkDisplayMode"
+          }
+        }
+      },
+      "CustomTerms": {
+        "type": "object",
+        "description": "Custom T&C message for a specific payment method type",
+        "required": [
+          "payment_method_type",
+          "message"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "message": {
+            "$ref": "#/components/schemas/CustomMessage"
+          }
+        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -11013,6 +11062,32 @@
           "APP",
           "BRW"
         ]
+      },
+      "DeviceDetails": {
+        "type": "object",
+        "description": "Device details for collecting Device information",
+        "properties": {
+          "device_type": {
+            "type": "string",
+            "description": "Device type",
+            "nullable": true
+          },
+          "device_brand": {
+            "type": "string",
+            "description": "Device brand",
+            "nullable": true
+          },
+          "device_os": {
+            "type": "string",
+            "description": "Device OS",
+            "nullable": true
+          },
+          "device_display": {
+            "type": "string",
+            "description": "Device display",
+            "nullable": true
+          }
+        }
       },
       "DisplayAmountOnSdk": {
         "type": "object",
@@ -11968,6 +12043,12 @@
           {
             "type": "string",
             "enum": [
+              "user_gift_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_card_expiry_month"
             ]
           },
@@ -11981,6 +12062,12 @@
             "type": "string",
             "enum": [
               "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_gift_card_pin"
             ]
           },
           {
@@ -13299,6 +13386,24 @@
               }
             ],
             "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -13475,6 +13580,24 @@
           },
           "feature_data": {
             "$ref": "#/components/schemas/GsmFeatureData"
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
+            "nullable": true
           }
         }
       },
@@ -13601,6 +13724,24 @@
                 "$ref": "#/components/schemas/GsmFeatureData"
               }
             ],
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A detailed description of the error intended for debugging, analytics, and support teams.",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "A user-friendly message that can be safely displayed to the customer.\nThis message provides guidance on what the user should do to\nresolve the issue.",
             "nullable": true
           }
         }
@@ -13791,6 +13932,7 @@
           "partially_captured",
           "partially_captured_and_capturable",
           "partially_authorized_and_requires_capture",
+          "partially_captured_and_processing",
           "conflicted",
           "expired"
         ]
@@ -14722,15 +14864,8 @@
       },
       "MerchantCategoryCode": {
         "type": "string",
-        "enum": [
-          "5411",
-          "7011",
-          "0763",
-          "8111",
-          "5021",
-          "4816",
-          "5661"
-        ]
+        "title": "4 digit Merchant category code (MCC)",
+        "example": "5411"
       },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
@@ -15597,6 +15732,85 @@
           }
         }
       },
+      "NetworkTokenData": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "token_cryptogram",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The network token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "token_cryptogram": {
+            "type": "string",
+            "description": "The token cryptogram"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTokenDetailsPaymentMethod": {
         "type": "object",
         "properties": {
@@ -15928,6 +16142,11 @@
             "example": "INDIA",
             "nullable": true
           },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
           "bank_code": {
             "type": "string",
             "example": "JP_AMEX",
@@ -15941,7 +16160,86 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NetworkTransactionIdAndNetworkTokenDetails": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
@@ -17396,6 +17694,14 @@
               }
             ],
             "nullable": true
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17854,7 +18160,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -18034,7 +18340,7 @@
           "custom_message_for_payment_method_types": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomTermsByPaymentMethodTypes"
+                "$ref": "#/components/schemas/PaymentMethodsConfig"
               }
             ],
             "nullable": true
@@ -18261,7 +18567,8 @@
           "voucher",
           "gift_card",
           "open_banking",
-          "mobile_payment"
+          "mobile_payment",
+          "network_token"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -18372,6 +18679,35 @@
           }
         ]
       },
+      "PaymentMethodConfig": {
+        "type": "object",
+        "description": "Custom T&C messages for a specific payment method",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomTerms"
+            },
+            "description": "Payment Method Types",
+            "example": [
+              {
+                "message": {
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
+              }
+            ]
+          }
+        }
+      },
       "PaymentMethodCreate": {
         "type": "object",
         "required": [
@@ -18422,6 +18758,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkTokenization"
+              }
+            ],
+            "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
               }
             ],
             "nullable": true
@@ -18650,6 +18994,18 @@
                 "$ref": "#/components/schemas/MobilePaymentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "NetworkToken",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
           }
         ]
       },
@@ -18865,6 +19221,17 @@
             "properties": {
               "mobile_payment": {
                 "$ref": "#/components/schemas/MobilePaymentResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
               }
             }
           }
@@ -19132,6 +19499,14 @@
               }
             ],
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19268,6 +19643,14 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19286,14 +19669,12 @@
       },
       "PaymentMethodSessionRequest": {
         "type": "object",
-        "required": [
-          "customer_id"
-        ],
         "properties": {
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -19343,7 +19724,6 @@
         "type": "object",
         "required": [
           "id",
-          "customer_id",
           "expires_at",
           "client_secret"
         ],
@@ -19355,7 +19735,8 @@
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
           },
           "billing": {
             "allOf": [
@@ -19428,6 +19809,14 @@
             "type": "string",
             "description": "The token-id created if there is tokenization_data present",
             "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          },
+          "storage_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StorageType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19615,7 +20004,9 @@
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
           "revolut_pay",
-          "indonesian_bank_transfer"
+          "indonesian_bank_transfer",
+          "open_banking",
+          "network_token"
         ]
       },
       "PaymentMethodUpdate": {
@@ -19654,6 +20045,13 @@
             }
           }
         ]
+      },
+      "PaymentMethodsConfig": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PaymentMethodConfig"
+        },
+        "description": "List of custom T&C messages grouped by payment method"
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -20356,6 +20754,11 @@
           "three_ds_requestor_app_url": {
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
             "nullable": true
           }
         }
@@ -24033,6 +24436,24 @@
                 "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_transaction_id_and_network_token_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
           }
         ],
         "description": "Details required for recurring payment",
@@ -25511,6 +25932,15 @@
           "transaction_risk_analysis"
         ]
       },
+      "SdkDisplayMode": {
+        "type": "string",
+        "description": "Display mode options for controlling how messages are shown.",
+        "enum": [
+          "default_sdk_message",
+          "custom_message",
+          "hidden"
+        ]
+      },
       "SdkInformation": {
         "type": "object",
         "description": "SDK Information if request is from SDK",
@@ -25556,6 +25986,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
@@ -26147,6 +26585,56 @@
           "skip"
         ]
       },
+      "StandardisedCode": {
+        "type": "string",
+        "enum": [
+          "account_closed_or_invalid",
+          "authentication_failed",
+          "authentication_required",
+          "authorization_missing_or_revoked",
+          "card_lost_or_stolen",
+          "card_not_supported_restricted",
+          "cfg_pm_not_enabled_or_misconfigured",
+          "compliance_or_sanctions_restriction",
+          "configuration_issue",
+          "credit_limit_exceeded",
+          "currency_or_corridor_not_enabled",
+          "do_not_honor",
+          "downstream_technical_issue",
+          "duplicate_request",
+          "generic_unknown_error",
+          "incorrect_authentication_code",
+          "insufficient_funds",
+          "integ_cryptographic_issue",
+          "integration_issue",
+          "invalid_card_number",
+          "invalid_credentials",
+          "invalid_cvv",
+          "invalid_expiry_date",
+          "invalid_state",
+          "issuer_unavailable",
+          "merchant_inactive",
+          "missing_or_invalid_param",
+          "operation_not_allowed",
+          "payment_cancelled_by_user",
+          "payment_method_issue",
+          "payment_session_timeout",
+          "pm_address_mismatch",
+          "psp_acquirer_error",
+          "psp_fraud_engine_decline",
+          "rate_limit",
+          "stored_credential_or_mit_not_enabled",
+          "subscription_plan_inactive",
+          "suspected_fraud",
+          "three_ds_authentication_service_issue",
+          "three_ds_configuration_issue",
+          "three_ds_data_or_protocol_invalid",
+          "transaction_not_permitted",
+          "transaction_timed_out",
+          "velocity_limit_exceeded",
+          "wallet_or_token_config_issue"
+        ]
+      },
       "StaticRoutingAlgorithm": {
         "oneOf": [
           {
@@ -26249,6 +26737,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StorageType": {
+        "type": "string",
+        "enum": [
+          "volatile",
+          "persistent"
+        ]
       },
       "StraightThroughAlgorithm": {
         "oneOf": [
@@ -26975,6 +27470,11 @@
             "nullable": true
           },
           "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
             "type": "string",
             "description": "Card Issuing Country",
             "nullable": true

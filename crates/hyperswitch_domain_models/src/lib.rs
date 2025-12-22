@@ -22,7 +22,6 @@ pub mod master_key;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-pub mod network_tokenization;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payment_methods;
@@ -731,6 +730,7 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
@@ -747,6 +747,7 @@ impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
             amount_capturable: amount.amount_capturable,
             shipping_cost: amount.shipping_cost,
             order_tax_amount: amount.order_tax_amount,
+            amount_captured: amount.amount_captured,
         }
     }
 }
