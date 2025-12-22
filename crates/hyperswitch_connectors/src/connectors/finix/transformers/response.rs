@@ -33,22 +33,20 @@ pub struct FinixPaymentsResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FinixCombinedPaymentResponse {
-    SyncResponse(FinixPaymentsResponse),
-    WebhookResponse(FinixEmbedded),
+    SyncResponse(Box<FinixPaymentsResponse>),
+    WebhookResponse(Box<FinixEmbedded>),
 }
 impl FinixCombinedPaymentResponse {
     pub fn get_payment_response(&self) -> Result<FinixPaymentsResponse, ConnectorError> {
         match self {
-            Self::SyncResponse(txn_res) => Ok(txn_res.clone()),
-            Self::WebhookResponse(FinixEmbedded::Authorizations { authorizations }) => {
-                authorizations.get_first_event()
-            }
-            Self::WebhookResponse(FinixEmbedded::Transfers { transfers }) => {
-                transfers.get_first_event()
-            }
-            Self::WebhookResponse(FinixEmbedded::Disputes { .. }) => {
-                Err(ConnectorError::ResponseHandlingFailed)
-            }
+            Self::SyncResponse(txn_res) => Ok(*txn_res.clone()),
+            Self::WebhookResponse(webhook_res) => match webhook_res.as_ref() {
+                FinixEmbedded::Authorizations { authorizations } => {
+                    authorizations.get_first_event()
+                }
+                FinixEmbedded::Transfers { transfers } => transfers.get_first_event(),
+                FinixEmbedded::Disputes { .. } => Err(ConnectorError::ResponseHandlingFailed),
+            },
         }
     }
 }
