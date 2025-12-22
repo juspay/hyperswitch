@@ -2011,10 +2011,10 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payload,
-    connectors::Paysafe,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -2162,11 +2162,11 @@ default_imp_for_authenticate_steps!(
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payjustnow,
-    connectors::Paysafe,
     connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -2315,10 +2315,10 @@ default_imp_for_post_authenticate_steps!(
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payload,
-    connectors::Paysafe,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
+    connectors::Paysafe,
     connectors::Paytm,
     connectors::Payu,
     connectors::Peachpayments,
@@ -9435,6 +9435,32 @@ impl<const T: u8> ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncRespon
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPostAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsGiftCardBalanceCheck for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -9625,31 +9651,6 @@ impl<const T: u8> ConnectorMandateRevoke for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
-    for connectors::DummyConnector<T>
-{
-}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> PaymentsAuthenticate for connectors::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> PaymentsPostAuthenticate for connectors::DummyConnector<T> {}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
-    for connectors::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
-    for connectors::DummyConnector<T>
-{
-}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

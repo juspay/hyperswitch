@@ -44,6 +44,7 @@ use hyperswitch_domain_models::router_flow_types::{
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
+    Authenticate, PostAuthenticate, PreAuthenticate,
 };
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
@@ -137,6 +138,12 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsAuthenticateRouterData =
+    RouterData<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>;
+pub type PaymentsPreAuthenticateRouterData =
+    RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
+pub type PaymentsPostAuthenticateRouterData =
+    RouterData<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

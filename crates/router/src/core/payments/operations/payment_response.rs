@@ -2768,6 +2768,166 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 }
 
 #[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsPreAuthenticateData> for PaymentResponse {
+    type Data = PaymentConfirmData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsPreAuthenticateData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsPreAuthenticateData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<F>,
+        response: types::RouterData<
+            F,
+            types::PaymentsPreAuthenticateData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentConfirmData<F>>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+                F,
+                types::PaymentsPreAuthenticateData,
+                PaymentConfirmData<F>,
+            >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let payment_attempt = payment_data.payment_attempt;
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_store,
+                payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsAuthenticateData> for PaymentResponse {
+    type Data = PaymentConfirmData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsAuthenticateData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthenticateData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<F>,
+        response: types::RouterData<
+            F,
+            types::PaymentsAuthenticateData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentConfirmData<F>>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, types::PaymentsAuthenticateData, types::PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+                F,
+                types::PaymentsAuthenticateData,
+                PaymentConfirmData<F>,
+            >,
+    {
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let db = &*state.store;
+
+        let response_router_data = response;
+
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let payment_attempt = payment_data.payment_attempt;
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                payment_data.payment_intent,
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment intent")?;
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_store,
+                payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt")?;
+
+        payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::PaymentsSyncData> for PaymentResponse {
     type Data = PaymentStatusData<F>;
     fn to_post_update_tracker(

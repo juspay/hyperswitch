@@ -288,6 +288,7 @@ pub trait PaymentV2:
     ConnectorCommon
     + ConnectorSpecifications
     + ConnectorValidation
+    + PaymentsAuthenticateV2
     + PaymentAuthorizeV2
     + PaymentsPreAuthenticateV2
     + PaymentsAuthenticateV2
@@ -303,8 +304,11 @@ pub trait PaymentV2:
     + MandateSetupV2
     + PaymentSessionV2
     + PaymentTokenV2
+    + PaymentsPreAuthenticateV2
+    + PaymentsPostAuthenticateV2
     + PaymentsPreProcessingV2
     + PaymentsPostProcessingV2
+    + PaymentsPostAuthenticateV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
     + PaymentExtendAuthorizationV2

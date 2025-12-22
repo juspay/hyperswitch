@@ -1417,6 +1417,464 @@ impl
 #[cfg(feature = "v2")]
 impl
     TrackerPostUpdateObjects<
+        router_flow_types::PreAuthenticate,
+        router_request_types::PaymentsPreAuthenticateData,
+        payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+    >
+    for RouterData<
+        router_flow_types::PreAuthenticate,
+        router_request_types::PaymentsPreAuthenticateData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        let amount_captured = self.get_captured_amount(payment_data);
+
+        match self.response {
+            Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: common_enums::IntentStatus::from(
+                    self.get_attempt_status_for_db_update(payment_data),
+                ),
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
+            },
+            Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            500..=511 => common_enums::enums::AttemptStatus::Pending,
+                            _ => common_enums::enums::AttemptStatus::Failure,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
+            },
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
+
+        match self.response {
+            Ok(ref response_router_data) => match response_router_data {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    connector_metadata,
+                    connector_response_reference_id,
+                    ..
+                } => {
+                    let attempt_status = self.get_attempt_status_for_db_update(payment_data);
+
+                    let connector_payment_id = match resource_id {
+                        router_request_types::ResponseId::NoResponseId => None,
+                        router_request_types::ResponseId::ConnectorTransactionId(id)
+                        | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
+                    };
+
+                    PaymentAttemptUpdate::ConfirmIntentResponse(Box::new(
+                        payments::payment_attempt::ConfirmIntentResponseUpdate {
+                            status: attempt_status,
+                            connector_payment_id,
+                            updated_by: storage_scheme.to_string(),
+                            redirection_data: *redirection_data.clone(),
+                            amount_capturable,
+                            connector_metadata: connector_metadata.clone().map(Secret::new),
+                            connector_token_details: response_router_data
+                                .get_updated_connector_token_details(
+                                    payment_data
+                                        .payment_attempt
+                                        .connector_token_details
+                                        .as_ref()
+                                        .and_then(|token_details| {
+                                            token_details.get_connector_token_request_reference_id()
+                                        }),
+                                ),
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
+                            amount_captured,
+                        },
+                    ))
+                }
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::SessionTokenResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::TokenizationResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::ConnectorCustomerResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PreProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
+            },
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status: _,
+                    connector_transaction_id,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
+                    connector_metadata: _,
+                } = error_response.clone();
+
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    },
+                };
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status: attempt_status,
+                    error: error_details,
+                    amount_capturable,
+                    connector_payment_id: connector_transaction_id,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
+        }
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+    ) -> common_enums::AttemptStatus {
+        // For this step, consider whatever status was given by the connector module
+        // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
+        self.status
+    }
+
+    fn get_amount_capturable(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is already succeeded / failed we cannot capture any more amount
+            // So set the amount capturable to zero
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            // If status is requires capture, get the total amount that can be captured
+            // This is in cases where the capture method will be `manual` or `manual_multiple`
+            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow, after doing authorization this state is invalid
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+        }
+    }
+
+    fn get_captured_amount(
+        &self,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+    ) -> Option<MinorUnit> {
+        // Amount is not captured in PreAuthenticate Flow
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Authenticate,
+        router_request_types::PaymentsAuthenticateData,
+        payments::PaymentConfirmData<router_flow_types::Authenticate>,
+    >
+    for RouterData<
+        router_flow_types::Authenticate,
+        router_request_types::PaymentsAuthenticateData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        let amount_captured = self.get_captured_amount(payment_data);
+
+        match self.response {
+            Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: common_enums::IntentStatus::from(
+                    self.get_attempt_status_for_db_update(payment_data),
+                ),
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
+            },
+            Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            500..=511 => common_enums::enums::AttemptStatus::Pending,
+                            _ => common_enums::enums::AttemptStatus::Failure,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
+                amount_captured,
+                updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
+            },
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        let amount_capturable = self.get_amount_capturable(payment_data);
+        let amount_captured = self.get_captured_amount(payment_data);
+
+        match self.response {
+            Ok(ref response_router_data) => match response_router_data {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    connector_metadata,
+                    connector_response_reference_id,
+                    ..
+                } => {
+                    let attempt_status = self.get_attempt_status_for_db_update(payment_data);
+
+                    let connector_payment_id = match resource_id {
+                        router_request_types::ResponseId::NoResponseId => None,
+                        router_request_types::ResponseId::ConnectorTransactionId(id)
+                        | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
+                    };
+
+                    PaymentAttemptUpdate::ConfirmIntentResponse(Box::new(
+                        payments::payment_attempt::ConfirmIntentResponseUpdate {
+                            status: attempt_status,
+                            connector_payment_id,
+                            updated_by: storage_scheme.to_string(),
+                            redirection_data: *redirection_data.clone(),
+                            amount_capturable,
+                            connector_metadata: connector_metadata.clone().map(Secret::new),
+                            connector_token_details: response_router_data
+                                .get_updated_connector_token_details(
+                                    payment_data
+                                        .payment_attempt
+                                        .connector_token_details
+                                        .as_ref()
+                                        .and_then(|token_details| {
+                                            token_details.get_connector_token_request_reference_id()
+                                        }),
+                                ),
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
+                            amount_captured,
+                        },
+                    ))
+                }
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::SessionTokenResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::TokenizationResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::ConnectorCustomerResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PreProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
+            },
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status: _,
+                    connector_transaction_id,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
+                    connector_metadata: _,
+                } = error_response.clone();
+
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    },
+                };
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status: attempt_status,
+                    error: error_details,
+                    amount_capturable,
+                    connector_payment_id: connector_transaction_id,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
+        }
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+    ) -> common_enums::AttemptStatus {
+        // For this step, consider whatever status was given by the connector module
+        // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
+        self.status
+    }
+
+    fn get_amount_capturable(
+        &self,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+    ) -> Option<MinorUnit> {
+        // Based on the status of the response, we can determine the amount capturable
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        match intent_status {
+            // If the status is already succeeded / failed we cannot capture any more amount
+            // So set the amount capturable to zero
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            // For these statuses, update the capturable amount when it reaches terminal / capturable state
+            common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::Processing => None,
+            // Invalid states for this flow
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation => None,
+            // If status is requires capture, get the total amount that can be captured
+            // This is in cases where the capture method will be `manual` or `manual_multiple`
+            // We do not need to handle the case where amount_to_capture is provided here as it cannot be passed in authroize flow
+            common_enums::IntentStatus::RequiresCapture => {
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+                Some(total_amount)
+            }
+            // Invalid statues for this flow, after doing authorization this state is invalid
+            common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::CancelledPostCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+        }
+    }
+
+    fn get_captured_amount(
+        &self,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+    ) -> Option<MinorUnit> {
+        // Amount is not captured in Authenticate Flow
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
         router_flow_types::PSync,
         router_request_types::PaymentsSyncData,
         payments::PaymentStatusData<router_flow_types::PSync>,

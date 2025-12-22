@@ -39,6 +39,8 @@ pub trait Payment:
     + PaymentsAuthenticate
     + PaymentsPostAuthenticate
     + PaymentAuthorizeSessionToken
+    + PaymentsPreAuthenticate
+    + PaymentsAuthenticate
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
@@ -50,6 +52,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
+    + PaymentsPostAuthenticate
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization

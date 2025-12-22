@@ -153,11 +153,11 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentsCompleteAuthorizeV2 for $path::$connector{}
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
-            impl PaymentsPreProcessingV2 for $path::$connector{}
-            impl PaymentsGiftCardBalanceCheckV2 for $path::$connector{}
             impl PaymentsPreAuthenticateV2 for $path::$connector{}
             impl PaymentsAuthenticateV2 for $path::$connector{}
             impl PaymentsPostAuthenticateV2 for $path::$connector{}
+            impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl PaymentsGiftCardBalanceCheckV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
@@ -230,6 +230,24 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 PaymentsResponseData,
             > for $path::$connector{}
             impl ConnectorIntegrationV2<
+            PreAuthenticate,
+            PaymentFlowData,
+                PaymentsPreAuthenticateData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            Authenticate,
+            PaymentFlowData,
+                PaymentsAuthenticateData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PostAuthenticate,
+            PaymentFlowData,
+                PaymentsPostAuthenticateData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
             PreProcessing,
             PaymentFlowData,
                 PaymentsPreProcessingData,
@@ -282,24 +300,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             > for $path::$connector{}
         impl ConnectorIntegrationV2<CreateOrder, PaymentFlowData, CreateOrderRequestData, PaymentsResponseData>
             for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
-        impl ConnectorIntegrationV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData,
-            PaymentsResponseData,
-        > for $path::$connector{}
     )*
     };
 }
