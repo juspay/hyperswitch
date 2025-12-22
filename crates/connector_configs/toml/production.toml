@@ -6616,3 +6616,7 @@ api_key = "API Key"
   key1="Client Secret"
   api_secret="Vault Id"
 
+
+[payjustnowinstore]
+[payjustnowinstore.connector_auth.HeaderKey]
+api_key = "Merchant Terminal Id"
