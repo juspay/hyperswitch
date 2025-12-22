@@ -74,6 +74,8 @@ pub enum Flow {
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
     MerchantsAccountRetrieve,
+    /// Merchants account details retrieve flow.
+    MerchantsAccountDetailsRetrieve,
     /// Merchants account update flow.
     MerchantsAccountUpdate,
     /// Merchants account delete flow.

@@ -21,6 +21,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::AccountView
+            | Self::WebhooksView
+            | Self::ApiKeysView
             | Self::ReconOpsView
             | Self::ReconReportsView
             | Self::ThemeView => PermissionScope::Read,
@@ -30,6 +32,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsManage
             | Self::UsersManage
             | Self::AccountManage
+            | Self::WebhooksManage
+            | Self::ApiKeysManage
             | Self::ReconOpsManage
             | Self::ReconReportsManage
             | Self::InternalManage
@@ -45,6 +49,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
             Self::AccountView | Self::AccountManage => ParentGroup::Account,
+            Self::WebhooksView | Self::WebhooksManage => ParentGroup::Webhook,
+            Self::ApiKeysView | Self::ApiKeysManage => ParentGroup::ApiKeys,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
@@ -83,6 +89,14 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
+            Self::WebhooksView => vec![Self::WebhooksView, Self::AccountView],
+            Self::WebhooksManage => {
+                vec![Self::WebhooksView, Self::WebhooksManage, Self::AccountView]
+            }
+
+            Self::ApiKeysView => vec![Self::ApiKeysView, Self::AccountView],
+            Self::ApiKeysManage => vec![Self::ApiKeysView, Self::ApiKeysManage, Self::AccountView],
+
             Self::ReconOpsView => vec![Self::ReconOpsView],
             Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
 
@@ -117,6 +131,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
+            Self::Webhook => WEBHOOK.to_vec(),
+            Self::ApiKeys => APIKEYS.to_vec(),
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
@@ -160,7 +176,7 @@ impl ParentGroupExt for ParentGroup {
     }
 }
 
-pub static OPERATIONS: [Resource; 8] = [
+pub static OPERATIONS: [Resource; 7] = [
     Resource::Payment,
     Resource::Refund,
     Resource::Mandate,
@@ -168,26 +184,28 @@ pub static OPERATIONS: [Resource; 8] = [
     Resource::Customer,
     Resource::Payout,
     Resource::Report,
-    Resource::Account,
 ];
 
-pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
+pub static CONNECTORS: [Resource; 1] = [Resource::Connector];
 
-pub static WORKFLOWS: [Resource; 5] = [
+pub static WORKFLOWS: [Resource; 4] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
-    Resource::Account,
     Resource::RevenueRecovery,
 ];
 
-pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
+pub static ANALYTICS: [Resource; 2] = [Resource::Analytics, Resource::Report];
 
-pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
+pub static USERS: [Resource; 1] = [Resource::User];
 
-pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
+pub static ACCOUNT: [Resource; 1] = [Resource::Account];
 
-pub static RECON_OPS: [Resource; 8] = [
+pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
+
+pub static APIKEYS: [Resource; 1] = [Resource::ApiKey];
+
+pub static RECON_OPS: [Resource; 7] = [
     Resource::ReconToken,
     Resource::ReconFiles,
     Resource::ReconUpload,
@@ -195,16 +213,14 @@ pub static RECON_OPS: [Resource; 8] = [
     Resource::ReconConfig,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
-    Resource::Account,
 ];
 
 pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
-pub static RECON_REPORTS: [Resource; 4] = [
+pub static RECON_REPORTS: [Resource; 3] = [
     Resource::ReconToken,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
-    Resource::Account,
 ];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
