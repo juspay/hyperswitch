@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix2
+
+### Bug Fixes
+
+- **docker:** Increase RUST_MIN_STACK size to handle stack overflow ([#10732](https://github.com/juspay/hyperswitch/pull/10732)) ([`1af7d0c`](https://github.com/juspay/hyperswitch/commit/1af7d0c9def6b75749280cc6c86292c8ab74f416))
+
+**Full Changelog:** [`2025.12.17.0-hotfix1...2025.12.17.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix1...2025.12.17.0-hotfix2)
+
+- - -
+
+## 2025.12.17.0-hotfix1
+
+### Features
+
+- **core:** [Network Token] Passing Network Token in payments request ([#10728](https://github.com/juspay/hyperswitch/pull/10728)) ([`cf99158`](https://github.com/juspay/hyperswitch/commit/cf991583a287ef2f66e6c5ff1c8338c8261502c1))
+
+**Full Changelog:** [`2025.12.17.0...2025.12.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0...2025.12.17.0-hotfix1)
+
+- - -
+
 ## 2025.12.17.0
 
 ### Features
