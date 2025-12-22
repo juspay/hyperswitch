@@ -895,7 +895,7 @@ redsys = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 hipay = { long_lived_token = false, payment_method = "card" }

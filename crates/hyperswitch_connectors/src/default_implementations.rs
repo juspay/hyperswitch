@@ -2040,7 +2040,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
-    connectors::Redsys,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,

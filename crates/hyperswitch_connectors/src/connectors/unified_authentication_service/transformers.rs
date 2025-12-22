@@ -386,7 +386,11 @@ impl<F, T>
                     message_version: maximum_supported_3ds_version,
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
-                        .and_then(|response| response.directory_server_id),
+                        .as_ref()
+                        .and_then(|response| response.directory_server_id.clone()),
+                    scheme_id: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.scheme_id.clone()),
                 },
             }),
             ..item.data
@@ -417,7 +421,7 @@ pub struct AuthenticationDetails {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,

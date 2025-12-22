@@ -426,7 +426,7 @@ mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 hipay = { long_lived_token = false, payment_method = "card" }
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
