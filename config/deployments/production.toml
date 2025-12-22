@@ -117,6 +117,7 @@ paybox.base_url = "https://ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://tpeweb.paybox.com/"
 payeezy.base_url = "https://api.payeezy.com/"
 payjustnow.base_url = "https://checkout.payjustnow.io/v2"
+payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
@@ -899,7 +900,7 @@ redsys = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 hipay = { long_lived_token = false, payment_method = "card" }

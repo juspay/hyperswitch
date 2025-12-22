@@ -290,6 +290,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::AcquirerCountry => lower_enum!(AcquirerCountry, value),
         dir::DirKeyKind::AcquirerFraudRate => lower_number!(AcquirerFraudRate, value, comparison),
         dir::DirKeyKind::TransactionInitiator => lower_enum!(TransactionInitiator, value),
+        dir::DirKeyKind::NetworkTokenType => lower_enum!(NetworkTokenType, value),
     }
 }
 

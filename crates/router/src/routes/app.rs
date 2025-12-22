@@ -3174,7 +3174,8 @@ impl Authentication {
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/redirect")
-                    .route(web::post().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync_post_update))
+                    .route(web::get().to(authentication::authentication_sync_post_update)),
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
