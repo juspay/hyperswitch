@@ -664,7 +664,6 @@ impl FinixWebhookBody {
 
                 match transfer.payment_type {
                     Some(FinixPaymentType::REVERSAL) => {
-                        // check credit
                         Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                             RefundIdType::ConnectorRefundId(transfer.id.to_string()),
                         ))

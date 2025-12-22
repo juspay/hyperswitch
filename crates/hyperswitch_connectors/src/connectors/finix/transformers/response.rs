@@ -28,7 +28,6 @@ pub struct FinixPaymentsResponse {
     pub payment_type: Option<FinixPaymentType>,
     // pub trace_id: String,
     pub three_d_secure: Option<FinixThreeDSecure>,
-    // Add other fields from the API response as needed.
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
