@@ -639,9 +639,9 @@ function bankRedirectRedirection(
                   .then(($el) => {
                     const candidate = $el.closest(clickableSelector);
                     if (candidate.length) {
-                      cy.wrap(candidate).click({ force: true });
+                      cy.wrap(candidate).click();
                     } else {
-                      cy.wrap($el).click({ force: true });
+                      cy.wrap($el).click();
                     }
                   });
 

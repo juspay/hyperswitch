@@ -125,7 +125,7 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
-  OpenBankingUk: "GBP",
+  OpenBankingUk: "GBP", // Great British Pound payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
