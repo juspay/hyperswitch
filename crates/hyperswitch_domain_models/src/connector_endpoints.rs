@@ -62,6 +62,7 @@ pub struct Connectors {
     pub flexiti: ConnectorParams,
     pub forte: ConnectorParams,
     pub getnet: ConnectorParams,
+    pub getnetglobal: ConnectorParams,
     pub gigadat: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
