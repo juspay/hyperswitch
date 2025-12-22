@@ -63,7 +63,8 @@ use crate::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsPreAuthenticateRequestData, PaymentsPreProcessingRequestData,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
