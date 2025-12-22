@@ -666,7 +666,9 @@ pub async fn payouts_manual_update(
         state,
         &req,
         payload,
-        |state, _auth, req, _req_state| payouts_manual_update_core(state, req),
+        |state, _auth: auth::AuthenticationData, req, _req_state| {
+            payouts_manual_update_core(state, req)
+        },
         &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
     ))
