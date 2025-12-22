@@ -6428,6 +6428,7 @@ pub enum PaymentMethodDataType {
     Fps,
     PromptPay,
     VietQr,
+    Qris,
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
@@ -6639,6 +6640,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     payment_method_data::RealTimePaymentData::Fps {} => Self::Fps,
                     payment_method_data::RealTimePaymentData::PromptPay {} => Self::PromptPay,
                     payment_method_data::RealTimePaymentData::VietQr {} => Self::VietQr,
+                    payment_method_data::RealTimePaymentData::Qris {} => Self::Qris,
                 }
             }
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {

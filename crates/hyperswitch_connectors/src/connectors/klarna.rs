@@ -640,6 +640,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::InstantBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransferFinland
                         | common_enums::PaymentMethodType::InstantBankTransferPoland
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -918,6 +919,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow

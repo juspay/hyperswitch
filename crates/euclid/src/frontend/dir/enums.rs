@@ -351,6 +351,7 @@ pub enum RealTimePaymentType {
     DuitNow,
     PromptPay,
     VietQr,
+    Qris,
 }
 
 #[derive(

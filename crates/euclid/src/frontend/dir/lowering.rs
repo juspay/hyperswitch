@@ -236,6 +236,7 @@ impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
             enums::RealTimePaymentType::DuitNow => Self::DuitNow,
             enums::RealTimePaymentType::PromptPay => Self::PromptPay,
             enums::RealTimePaymentType::VietQr => Self::VietQr,
+            enums::RealTimePaymentType::Qris => Self::Qris,
         }
     }
 }

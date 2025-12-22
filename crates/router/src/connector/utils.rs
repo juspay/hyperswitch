@@ -2636,6 +2636,7 @@ pub enum PaymentMethodDataType {
     Mifinity,
     Fps,
     PromptPay,
+    Qris,
     VietQr,
     OpenBanking,
     NetworkToken,
@@ -2845,6 +2846,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Qris {  } => Self::Qris,
             },
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {

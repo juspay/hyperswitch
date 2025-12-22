@@ -254,10 +254,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/payment_requests", self.base_url(connectors)))
+        let base_url = self.base_url(connectors);
+        match req.request.payment_method_type {
+            Some(PaymentMethodType::Qris) => {
+                // return Ok(format!("https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034"));
+                return Ok(format!("{}/qr_codes", base_url));
+            },
+            _ => {
+                Ok(format!("{}/payment_requests", self.base_url(connectors)))
+            }
+        }
     }
 
     fn get_request_body(
@@ -307,7 +316,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_converter,
             response.amount,
-            response.currency.to_string().clone(),
+            response.currency.unwrap_or(data.request.currency).to_string().clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -503,7 +512,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
             xendit::XenditResponse::Payment(p) => connector_utils::get_sync_integrity_object(
                 self.amount_converter,
                 p.amount,
-                p.currency.to_string().clone(),
+                p.currency.unwrap_or(data.request.currency).to_string().clone(),
             ),
             xendit::XenditResponse::Webhook(p) => connector_utils::get_sync_integrity_object(
                 self.amount_converter,
@@ -1004,6 +1013,17 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                     }
                 }),
             ),
+        },
+    );
+
+       xendit_supported_payment_methods.add(
+        enums::PaymentMethod::RealTimePayment,
+        PaymentMethodType::Qris,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 
