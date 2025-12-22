@@ -335,6 +335,7 @@ pub struct ConnectorConfig {
     pub payu: Option<ConnectorTomlConfig>,
     pub peachpayments: Option<ConnectorTomlConfig>,
     pub payjustnow: Option<ConnectorTomlConfig>,
+    pub payjustnowinstore: Option<ConnectorTomlConfig>,
     pub phonepe: Option<ConnectorTomlConfig>,
     pub placetopay: Option<ConnectorTomlConfig>,
     pub plaid: Option<ConnectorTomlConfig>,
@@ -627,6 +628,7 @@ impl ConnectorConfig {
             Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
+            // Connector::Payjustnowinstore => Ok(connector_data.Payjustnowinstore),
         }
     }
 }

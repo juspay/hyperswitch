@@ -643,6 +643,7 @@ pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: PaymentMethodData,
     pub amount: i64,
     pub email: Option<pii::Email>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
@@ -653,6 +654,7 @@ pub struct PaymentsPreAuthenticateData {
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -666,12 +668,14 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             amount: data.amount,
             minor_amount: data.minor_amount,
             email: data.email,
+            capture_method: data.capture_method,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            webhook_url: data.webhook_url,
         })
     }
 }
