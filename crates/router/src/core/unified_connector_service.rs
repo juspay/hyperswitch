@@ -701,8 +701,146 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal { bank_name } => {
+                let ideal = payments_grpc::Ideal {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Ideal(ideal)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Sofort { .. } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Sofort(payments_grpc::Sofort {})),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+                country,
+            } => {
+                let giropay = payments_grpc::Giropay {
+                    bank_account_bic: bank_account_bic.map(|v| v.expose().into()),
+                    bank_account_iban: bank_account_iban.map(|v| v.expose().into()),
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Giropay(giropay)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { bank_name, country } => {
+                let eps = payments_grpc::Eps {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into()),
+                };
+
+                println!("banprint{:?},{:?}",bank_name,eps.bank_name);
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eps(eps)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Przelewy24 { bank_name } => {
+                let p24 = payments_grpc::Przelewy24 {
+                    bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?
+                    .map(|b| b.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Przelewy24(p24)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Blik { blik_code}  => {
+                let blik = payments_grpc::Blik { 
+                    blik_code,
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Blik(blik)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+                card_holder_name,
+            } => {
+                let bancontact = payments_grpc::BancontactCard {
+                    card_number: card_number.map(|v| CardNumber::from_str(&v.get_card_no())).transpose()
+                        .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                    card_exp_month: card_exp_month.map(|v| v.expose().into()),
+                    card_exp_year: card_exp_year.map(|v| v.expose().into()),
+                    card_holder_name: card_holder_name.map(|v| v.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::BancontactCard(bancontact)),
+                })
+            }
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented bank redirect type: {bank_redirect_data:?}"
+            ))
+            .into()),
+        },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(
+            bank_redirect_data,
+        ) => match *bank_redirect_data {
+            hyperswitch_domain_models::payment_method_data::BankTransferData::AchBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::AchBankTransfer(
+                    payments_grpc::AchBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::InstantBankTransfer(
+                    payments_grpc::InstantBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::SepaBankTransfer(
+                    payments_grpc::SepaBankTransfer {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::MultibancoBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::MultibancoBankTransfer(
+                    payments_grpc::MultibancoBankTransfer {  }
+                )),
+            }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank redirect type: {bank_redirect_data:?}"
+            ))
+            .into()),
+        },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(
+            paylater,
+        ) => match paylater {
+            hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Klarna(
+                    payments_grpc::Klarna {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Affirm(
+                    payments_grpc::Affirm {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::AfterpayClearpay(
+                    payments_grpc::AfterpayClearpay {  }
+                )),
+            }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank redirect type: {paylater:?}"
             ))
             .into()),
         },
@@ -765,6 +903,43 @@ pub fn build_unified_connector_service_payment_method(
                             tokenization_data: Some(payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from(&google_pay_wallet_data.tokenization_data)?),
                         }),
                     })),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::AmazonPayRedirect(
+                    amazonpay,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AmazonPayRedirect(
+                        payments_grpc::AmazonPayRedirectWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::CashappQr(
+                    amazonpay,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::CashappQr(
+                        payments_grpc::CashappQrWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect(
+                    amazonpay,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AliPayRedirect(
+                        payments_grpc::AliPayRedirectWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::RevolutPay(
+                    amazonpay,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::RevolutPay(
+                        payments_grpc::RevolutPayWallet {  }
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    paypal,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PaypalRedirect(
+                        payments_grpc::PaypalRedirectWallet { 
+                            email: paypal.email.map(|e| e.expose().expose().into()),
+                        }
+                    )),
                 }),
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
