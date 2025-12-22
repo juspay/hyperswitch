@@ -129,9 +129,6 @@ pub struct FinixDisputes {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum FinixWebhookEvent {}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SingleEventType<T>(Vec<T>);
 impl<T: Clone> SingleEventType<T> {
     pub fn get_first_event(&self) -> Result<T, ConnectorError> {

@@ -758,7 +758,7 @@ impl FinixWebhookBody {
                     dispute.currency,
                 )?;
                 Ok(DisputePayload {
-                    amount: amount,
+                    amount,
                     currency: dispute.currency,
                     dispute_stage: DisputeStage::Dispute,
                     connector_status: dispute.state.to_string(),
