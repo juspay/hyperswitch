@@ -64,6 +64,7 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use hyperswitch_domain_models::{
+    payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
@@ -3746,9 +3747,15 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
+        let key_manager_state = &(state).into();
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id)
+            .find_authentication_by_merchant_id_authentication_id(
+                &merchant_id,
+                &authentication_id,
+                platform.get_processor().get_key_store(),
+                key_manager_state,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
                 id: authentication_id.get_string_repr().to_string(),
@@ -9129,7 +9136,7 @@ async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsFo
     business_profile: &domain::Profile,
 ) -> RouterResult<(
     api_models::payments::MandateReferenceId,
-    hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     api::ConnectorData,
 )>
 where
@@ -9141,13 +9148,6 @@ where
         .get_recurring_details()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
         .attach_printable("Failed to fetch recurring details for mit")?;
-
-    let (mandate_reference_id, card_details_for_network_transaction_id)= hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and card details").attach_printable("Failed to fetch network transaction id and card details for mit")?;
-
-    helpers::validate_card_expiry(
-        &card_details_for_network_transaction_id.card_exp_month,
-        &card_details_for_network_transaction_id.card_exp_year,
-    )?;
 
     let network_transaction_id_supported_connectors = &state
         .conf
@@ -9178,9 +9178,18 @@ where
         .attach_printable(
             "No eligible connector found for the network transaction id based mit flow",
         )?;
+
+    let recurring_details = domain_recurring_details::try_from(recurring_payment_details.clone())?;
+    let (mandate_reference_id, payment_method_details_for_network_transaction_id) =
+        recurring_details
+            .get_nti_and_payment_method_data_for_mit_flow()
+            .get_required_value("network transaction id and payment method details")
+            .attach_printable(
+                "Failed to fetch network transaction id and payment method details for mit",
+            )?;
     Ok((
         mandate_reference_id,
-        card_details_for_network_transaction_id,
+        payment_method_details_for_network_transaction_id,
         eligible_connector_data.clone(),
     ))
 }
@@ -9196,34 +9205,37 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let (mandate_reference_id, card_details_for_network_transaction_id, eligible_connector_data) =
-        match connector_choice {
-            api::ConnectorChoice::StraightThrough(straight_through) => {
-                get_eligible_connector_for_nti(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::Decide => {
-                get_eligible_connector_for_nti(
-                    state,
-                    key_store,
-                    payment_data,
-                    core_routing::DecideConnector,
-                    business_profile,
-                )
-                .await?
-            }
-            api::ConnectorChoice::SessionMultiple(_) => {
-                Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "Invalid routing rule configured for nti and card details based mit flow",
-                )?
-            }
-        };
+    let (
+        mandate_reference_id,
+        payment_method_details_for_network_transaction_id,
+        eligible_connector_data,
+    ) = match connector_choice {
+        api::ConnectorChoice::StraightThrough(straight_through) => {
+            get_eligible_connector_for_nti(
+                state,
+                key_store,
+                payment_data,
+                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::Decide => {
+            get_eligible_connector_for_nti(
+                state,
+                key_store,
+                payment_data,
+                core_routing::DecideConnector,
+                business_profile,
+            )
+            .await?
+        }
+        api::ConnectorChoice::SessionMultiple(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Invalid routing rule configured for nti and card details based mit flow",
+            )?
+        }
+    };
 
     // Set the eligible connector in the attempt
     payment_data
@@ -9236,9 +9248,7 @@ where
     });
 
     // Set the card details received in the recurring details within the payment method data.
-    payment_data.set_payment_method_data(Some(
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id),
-    ));
+    payment_data.set_payment_method_data(Some(payment_method_details_for_network_transaction_id));
 
     Ok(eligible_connector_data)
 }
@@ -10768,6 +10778,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     };
 
     let db = &*state.store;
+    let key_manager_state = &(&(state)).into();
 
     let merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -10871,6 +10882,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         None,
     )
     .await?;
+
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -10879,6 +10891,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?,
+            platform.get_processor().get_key_store(),
+            key_manager_state,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -10956,7 +10970,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 req.device_channel,
                 authentication.clone(),
                 return_url,
-                req.sdk_information,
+                req.sdk_information.clone(),
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
@@ -10967,7 +10981,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication.psd2_sca_exemption_type,
             )
             .await?;
-        let authentication = external_authentication_update_trackers(
+        let authentication = Box::pin(external_authentication_update_trackers(
             &state,
             auth_response,
             authentication.clone(),
@@ -10977,7 +10991,11 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             None,
             None,
             None,
-        )
+            req.sdk_information
+                .and_then(|sdk_information| sdk_information.device_details),
+            None,
+            None,
+        ))
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?
     } else {
@@ -11032,6 +11050,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             acs_signed_content: authentication_response.acs_signed_content,
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
             three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
+            error_message: authentication_response.error_message,
         },
     ))
 }
