@@ -4511,6 +4511,10 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 })?
                 .map(i32::from),
             connector_metadata,
+            customer_id: router_data
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
             refund_metadata,
             browser_info: router_data
                 .request
@@ -4528,6 +4532,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             metadata: HashMap::new(),
             payment_method_type: None,
             test_mode: router_data.test_mode,
+
         })
     }
 }

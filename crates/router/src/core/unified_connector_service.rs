@@ -766,6 +766,16 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::Blik(blik)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
+                let trustly = payments_grpc::Trustly {
+                    shopper_name: None,
+                    country: country.and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string())).map(|c| c.into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Trustly(trustly)),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
                 card_number,
                 card_exp_month,
