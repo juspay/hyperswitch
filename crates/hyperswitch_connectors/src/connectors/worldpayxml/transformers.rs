@@ -1178,7 +1178,9 @@ fn get_attempt_status(
         }
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
         LastEvent::Cancelled => Ok(common_enums::AttemptStatus::Voided),
-        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => Ok(common_enums::AttemptStatus::Charged),
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
+            Ok(common_enums::AttemptStatus::Charged)
+        }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
@@ -1194,7 +1196,7 @@ fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, error
         | LastEvent::SentForFastRefund
         | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Pending),
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
-        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => Ok(enums::RefundStatus::Pending),
+        LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
