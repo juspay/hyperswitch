@@ -281,6 +281,14 @@ impl PaymentMethod {
             .and_then(|record| record.connector_customer_id.clone()))
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_metadata(
+        &self,
+        optional_metadata: Option<pii::SecretSerdeValue>,
+    ) -> Option<pii::SecretSerdeValue> {
+        common_utils::merge_json_values(self.metadata.clone(), optional_metadata)
+    }
+
     #[cfg(feature = "v2")]
     pub fn get_payout_connector_customer_id(
         &self,

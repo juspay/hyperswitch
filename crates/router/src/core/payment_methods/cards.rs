@@ -68,7 +68,7 @@ use super::tokenize::NetworkTokenizationProcess;
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{
-        get_merchant_pm_filter_graph, make_pm_graph, merge_json_values, refresh_pm_filters_cache,
+        get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache,
     },
 };
 #[cfg(feature = "v1")]
@@ -949,7 +949,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 bank_transfer: None,
                 card,
                 // merge payload metadata with pm metadata
-                metadata: merge_json_values(payload_metadata, pm.metadata),
+                metadata: pm.get_payment_method_metadata(payload_metadata),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),
@@ -1812,7 +1812,7 @@ pub async fn update_customer_payment_method(
 
             db.update_payment_method(
                 provider.get_key_store(),
-                pm,
+                pm.clone(),
                 pm_update,
                 provider.get_account().storage_scheme,
             )
@@ -1830,10 +1830,7 @@ pub async fn update_customer_payment_method(
                 bank_transfer: add_card_resp.bank_transfer,
                 card: add_card_resp.card,
                 wallet: None,
-                metadata: merge_json_values(
-                    add_card_resp.metadata,
-                    locker_card_response.get_metadata(),
-                ),
+                metadata: pm.get_payment_method_metadata(locker_card_response.get_metadata()),
                 created: add_card_resp.created,
                 recurring_enabled: add_card_resp.recurring_enabled,
                 installment_payment_enabled: add_card_resp.installment_payment_enabled,
@@ -1853,7 +1850,7 @@ pub async fn update_customer_payment_method(
                 bank_transfer: None,
                 card: Some(existing_card_data),
                 wallet: None,
-                metadata: pm.metadata,
+                metadata: pm.get_payment_method_metadata(None),
                 created: Some(pm.created_at),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),

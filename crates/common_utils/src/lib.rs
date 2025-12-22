@@ -1,7 +1,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, ExposeInterface};
 
 pub mod access_token;
 pub mod consts;
@@ -327,6 +327,36 @@ mod base64_serializer {
     use base64_serde::base64_serde_type;
 
     base64_serde_type!(pub Base64Serializer, crate::consts::BASE64_ENGINE);
+}
+
+/// Merges two optional JSON values into a single JSON object.
+/// If both values are objects, their key-value pairs are merged.
+/// If only one value exists, it is returned.
+/// If neither exists, None is returned.
+pub fn merge_json_values(
+    first: Option<pii::SecretSerdeValue>,
+    second: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    match first.clone().zip(second.clone()) {
+        Some((first, second)) => {
+            let first_value = first.expose();
+            let second_value = second.expose();
+
+            match (first_value, second_value) {
+                (
+                    serde_json::Value::Object(mut first_map),
+                    serde_json::Value::Object(second_map),
+                ) => {
+                    first_map.extend(second_map);
+                    Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                        first_map,
+                    )))
+                }
+                (first_val, _) => Some(pii::SecretSerdeValue::new(first_val)),
+            }
+        }
+        None => first.or(second),
+    }
 }
 
 #[cfg(test)]
