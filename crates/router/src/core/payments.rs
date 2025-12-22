@@ -633,6 +633,11 @@ where
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
+    operation
+        .to_domain()?
+        .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
+        .await;
+
     let connector = get_connector_choice(
         &operation,
         state,
@@ -664,11 +669,6 @@ where
         connector,
     )
     .await;
-
-    operation
-        .to_domain()?
-        .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
-        .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 

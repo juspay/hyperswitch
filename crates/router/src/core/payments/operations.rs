@@ -445,8 +445,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
+    ) {
     }
 
     /// Get connector tokenization action
