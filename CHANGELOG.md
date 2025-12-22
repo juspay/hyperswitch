@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix3
+
+### Bug Fixes
+
+- **payment-methods:** Remove hardcoded `inactive` status in payment method create and update api ([#10761](https://github.com/juspay/hyperswitch/pull/10761)) ([`cb2fef2`](https://github.com/juspay/hyperswitch/commit/cb2fef20ae80f0f7c37fefdc137ae79e133afe96))
+
+**Full Changelog:** [`2025.12.17.0-hotfix2...2025.12.17.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix2...2025.12.17.0-hotfix3)
+
+- - -
+
 ## 2025.12.17.0-hotfix2
 
 ### Bug Fixes
