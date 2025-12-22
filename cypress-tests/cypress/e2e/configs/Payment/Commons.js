@@ -11,6 +11,32 @@ export const customerAcceptance = {
   },
 };
 
+export const cardCreditEnabled = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "Discover",
+          "JCB",
+          "DinersClub",
+          "UnionPay",
+          "RuPay",
+          "Interac",
+        ],
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -186,6 +212,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "przelewy24",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -524,6 +561,20 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
+      },
+    }),
+    OnlineBankingFpx: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: standardBillingAddress,
       },
     }),
     Giropay: getCustomExchange({
@@ -1039,6 +1090,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({

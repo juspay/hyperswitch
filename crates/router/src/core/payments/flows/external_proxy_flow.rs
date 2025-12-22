@@ -387,6 +387,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
                 platform,
+                self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
@@ -437,7 +438,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)|{
+                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
                     router_data.status = status;
                     response
                 });

@@ -205,6 +205,7 @@ pub async fn construct_payout_router_data<'a, F>(
             webhook_url: Some(webhook_url),
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
+            additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -1018,7 +1019,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             &dispute.connector,
@@ -1125,7 +1126,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1240,7 +1241,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1423,7 +1424,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1552,7 +1553,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             &merchant_connector_account.connector_name,
@@ -1662,7 +1663,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1799,8 +1800,9 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
     conf: &Settings,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor: &domain::Processor,
 ) -> bool {
+    let merchant_id = processor.get_account().get_id();
     let config_map = &conf
         .connector_request_reference_id_config
         .merchant_ids_send_payment_id_as_connector_request_id;
@@ -1810,13 +1812,13 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 #[cfg(feature = "v1")]
 pub fn get_connector_request_reference_id(
     conf: &Settings,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor: &domain::Processor,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let is_config_enabled_to_send_payment_id_as_connector_request_id =
-        is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
+        is_merchant_enabled_for_payment_id_as_connector_request_id(conf, processor);
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &conf.connectors,
@@ -1930,15 +1932,14 @@ pub fn get_payout_connector_customer_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     profile_id: Option<&common_utils::id_type::ProfileId>,
-    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
             db.find_business_profile_by_merchant_id_profile_id(
-                merchant_key_store,
-                merchant_id,
+                processor.get_key_store(),
+                processor.get_account().get_id(),
                 profile_id,
             )
             .await
@@ -1996,27 +1997,16 @@ pub fn get_connector_label(
 pub async fn get_profile_id_from_business_details(
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     request_profile_id: Option<&common_utils::id_type::ProfileId>,
     db: &dyn StorageInterface,
     should_validate: bool,
 ) -> RouterResult<common_utils::id_type::ProfileId> {
-    match request_profile_id.or(platform
-        .get_processor()
-        .get_account()
-        .default_profile
-        .as_ref())
-    {
+    match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
             if should_validate {
-                let _ = validate_and_get_business_profile(
-                    db,
-                    platform.get_processor().get_key_store(),
-                    Some(profile_id),
-                    platform.get_processor().get_account().get_id(),
-                )
-                .await?;
+                let _ = validate_and_get_business_profile(db, processor, Some(profile_id)).await?;
             }
             Ok(profile_id.clone())
         }
@@ -2025,9 +2015,9 @@ pub async fn get_profile_id_from_business_details(
                 let profile_name = format!("{business_country}_{business_label}");
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
-                        platform.get_processor().get_key_store(),
+                        processor.get_key_store(),
                         &profile_name,
-                        platform.get_processor().get_account().get_id(),
+                        processor.get_account().get_id(),
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

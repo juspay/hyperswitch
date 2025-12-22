@@ -669,13 +669,26 @@ async fn handle_invitation(
     let inviter_user = user_from_token.get_user_from_db(state).await?;
 
     if inviter_user.get_email() == request.email {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
+        Err(report!(UserErrors::InvalidRoleOperationWithMessage(
             "User Inviting themselves".to_string(),
-        )
-        .into());
+        )))?;
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_lineage(
+    let inviter_role_info = roles::RoleInfo::from_role_id_in_lineage(
+        state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+        &user_from_token.profile_id,
+        user_from_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .to_not_found_response(UserErrors::InternalServerError)?;
+
+    let req_role_info = roles::RoleInfo::from_role_id_in_lineage(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -689,9 +702,20 @@ async fn handle_invitation(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    if !role_info.is_invitable() {
-        return Err(report!(UserErrors::InvalidRoleId))
-            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    if inviter_role_info.get_entity_type() < req_role_info.get_entity_type() {
+        Err(report!(UserErrors::InvalidRoleOperationWithMessage(
+            "Inviter role entity type is lower than requested role entity type".to_string(),
+        )))
+        .attach_printable(format!(
+            "{} is trying to invite {}",
+            inviter_role_info.get_entity_type(),
+            req_role_info.get_entity_type()
+        ))?;
+    };
+
+    if !req_role_info.is_invitable() {
+        Err(report!(UserErrors::InvalidRoleId))
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id))?;
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
@@ -703,7 +727,7 @@ async fn handle_invitation(
             user_from_token,
             request,
             invitee_user.into(),
-            role_info,
+            req_role_info,
             auth_id,
         )
         .await
@@ -717,7 +741,7 @@ async fn handle_invitation(
             state,
             user_from_token,
             request,
-            role_info,
+            req_role_info,
             req_state.clone(),
             auth_id,
         )
@@ -740,7 +764,7 @@ async fn handle_existing_user_invitation(
 
     if state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             invitee_user_from_db.get_user_id(),
             user_from_token
                 .tenant_id
@@ -760,7 +784,7 @@ async fn handle_existing_user_invitation(
 
     if state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             invitee_user_from_db.get_user_id(),
             user_from_token
                 .tenant_id
@@ -1152,7 +1176,7 @@ pub async fn resend_invite(
 
     let user_role = match state
         .global_store
-        .find_user_role_by_user_id_and_lineage(
+        .find_user_role_by_user_id_and_lineage_with_entity_type(
             user.get_user_id(),
             user_from_token
                 .tenant_id
@@ -1179,7 +1203,7 @@ pub async fn resend_invite(
         Some(user_role) => user_role,
         None => state
             .global_store
-            .find_user_role_by_user_id_and_lineage(
+            .find_user_role_by_user_id_and_lineage_with_entity_type(
                 user.get_user_id(),
                 user_from_token
                     .tenant_id
