@@ -7834,3 +7834,7 @@ api_key = "API Key"
   api_key="Client Id"
   key1="Client Secret"
   api_secret="Vault Id"
+
+[worldpaymodular]
+[worldpaymodular.connector_auth.HeaderKey]
+api_key = "API Key"

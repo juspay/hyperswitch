@@ -126,6 +126,7 @@ mod utils;
 mod vgs;
 mod volt;
 mod wellsfargo;
+mod worldpaymodular;
 mod worldpayvantiv;
 mod zift;
 // mod wellsfargopayout;
