@@ -132,6 +132,7 @@ cards = [
     "fiuu",
     "forte",
     "getnet",
+    "getnetglobal",
     "globalpay",
     "globepay",
     "gocardless",
@@ -1461,3 +1462,6 @@ org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+
+[getnetglobal]
+base_url = "https://api-sbx.globalgetnet.com"

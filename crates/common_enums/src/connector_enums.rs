@@ -110,6 +110,7 @@ pub enum Connector {
     Flexiti,
     Forte,
     Getnet,
+    Getnetglobal,
     Gigadat,
     Globalpay,
     Globepay,
@@ -324,6 +325,7 @@ impl Connector {
             | Self::Flexiti
             | Self::Forte
             | Self::Getnet
+            | Self::Getnetglobal
             | Self::Gigadat
             | Self::Globalpay
             | Self::Globepay

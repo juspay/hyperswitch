@@ -747,7 +747,13 @@ impl
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
-            connector_metadata: None,
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(convert_value_map_to_hashmap)
+                .transpose()?
+                .unwrap_or_default(),
             merchant_account_metadata: HashMap::new(),
             metadata: HashMap::new(),
             sync_type: Some(
@@ -4413,6 +4419,22 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
     fn foreign_try_from(
         router_data: &RouterData<Execute, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Log router data being passed to UCS for Execute Refund
+        tracing::info!(
+            router_data = ?router_data,
+            payment_id = ?router_data.payment_id,
+            refund_id = ?router_data.request.refund_id,
+            merchant_id = ?router_data.merchant_id,
+            connector = ?router_data.connector,
+            connector_transaction_id = ?router_data.request.connector_transaction_id,
+            connector_request_reference_id = ?router_data.connector_request_reference_id,
+            refund_amount = ?router_data.request.refund_amount,
+            currency = ?router_data.request.currency,
+            payment_method_type = ?router_data.payment_method_type,
+            flow = "ExecuteRefund",
+            "RouterData being passed to UCS for Execute Refund"
+        );
+
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
         let transaction_id = Identifier {
@@ -4427,23 +4449,65 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             )),
         });
 
+        // Debug: Log connector_metadata before conversion
+        tracing::debug!(
+            connector_metadata_raw = ?router_data.request.connector_metadata,
+            "connector_metadata before conversion"
+        );
+
         // Convert connector_metadata to gRPC format
-        let connector_metadata = router_data
+        let connector_metadata = match router_data
             .request
             .connector_metadata
             .as_ref()
-            .map(convert_value_map_to_hashmap)
-            .transpose()?
-            .unwrap_or_default();
+            .map(|metadata| convert_value_map_to_hashmap(metadata))
+            .transpose()
+        {
+            Ok(metadata) => {
+                tracing::debug!(
+                    connector_metadata_converted = ?metadata,
+                    "connector_metadata after conversion"
+                );
+                metadata.unwrap_or_default()
+            }
+            Err(e) => {
+                tracing::error!(
+                    error = ?e,
+                    "Failed to convert connector_metadata to HashMap"
+                );
+                HashMap::new()
+            }
+        };
+
+        // Debug: Log refund_connector_metadata before conversion
+        tracing::debug!(
+            refund_connector_metadata_raw = ?router_data.request.refund_connector_metadata,
+            "refund_connector_metadata before conversion"
+        );
 
         // Convert refund_connector_metadata to gRPC format
-        let refund_metadata = router_data
+        let refund_metadata = match router_data
             .request
             .refund_connector_metadata
             .as_ref()
             .map(|metadata| convert_value_map_to_hashmap(&metadata.clone().expose()))
-            .transpose()?
-            .unwrap_or_default();
+            .transpose()
+        {
+            Ok(metadata) => {
+                tracing::debug!(
+                    refund_metadata_converted = ?metadata,
+                    "refund_metadata after conversion"
+                );
+                metadata.unwrap_or_default()
+            }
+            Err(e) => {
+                tracing::error!(
+                    error = ?e,
+                    "Failed to convert refund_connector_metadata to HashMap"
+                );
+                HashMap::new()
+            }
+        };
 
         let state = router_data
             .access_token
@@ -4494,7 +4558,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                     )
                 })?
                 .map(i32::from),
-            connector_metadata,
+            connector_metadata: connector_metadata,
             refund_metadata,
             browser_info: router_data
                 .request
@@ -4525,6 +4589,21 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
     fn foreign_try_from(
         router_data: &RouterData<RSync, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Log router data being passed to UCS for Refund Sync
+        tracing::info!(
+            router_data = ?router_data,
+            payment_id = ?router_data.payment_id,
+            refund_id = ?router_data.request.refund_id,
+            merchant_id = ?router_data.merchant_id,
+            connector = ?router_data.connector,
+            connector_transaction_id = ?router_data.request.connector_transaction_id,
+            connector_request_reference_id = ?router_data.connector_request_reference_id,
+            connector_refund_id = ?router_data.request.connector_refund_id,
+            payment_method_type = ?router_data.payment_method_type,
+            flow = "RSync",
+            "RouterData being passed to UCS for Refund Sync"
+        );
+
         let transaction_id = Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(
                 router_data.request.connector_transaction_id.clone(),

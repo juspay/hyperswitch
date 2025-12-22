@@ -77,6 +77,7 @@ fiuu.secondary_base_url="https://api.merchant.razer.com/"
 fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://api.forte.net/v3"
 getnet.base_url = "https://api.getneteurope.com/engine/rest"
+getnetglobal.base_url = "https://api.globalgetnet.com"
 gigadat.base_url = "https://interac.express-connect.com/"
 globalpay.base_url = "https://apis.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -418,6 +419,9 @@ debit = { country = "DE, FR, IT, NL, PL, ES, ZA, GB, AE", currency = "AED,AFN,AL
 
 [pm_filters.getnet]
 credit = { country = "AR, BR, CL, MX, UY, ES, PT, DE, IT, FR, NL, BE, AT, PL, CH, GB, IE, LU, DK, SE, NO, FI, IN, AE", currency = "ARS, BRL, CLP, MXN, UYU, EUR, PLN, CHF, GBP, DKK, SEK, NOK, INR, AED" }
+
+[pm_filters.getnetglobal]
+credit = { country = "AR, BR, CL, MX, UY, CO, PE, PA, EC, BO, CR, GT, HN, NI, SV, PY, DO, VE", currency = "ARS, BRL, CLP, MXN, UYU, COP, PEN, PAB, USD, BOB, CRC, GTQ, HNL, NIO, PYG, DOP, VES" }
 
 [pm_filters.hipay]
 credit = { country = "GB, CH, SE, DK, NO, PL, CZ, US, CA, JP, HK, AU, ZA", currency = "EUR, GBP, CHF, SEK, DKK, NOK, PLN, CZK, USD, CAD, JPY, HKD, AUD, ZAR" }
