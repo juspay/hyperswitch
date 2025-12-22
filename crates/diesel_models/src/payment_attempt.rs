@@ -66,7 +66,7 @@ pub struct UnifiedErrorDetails {
     pub standardised_code: Option<storage_enums::StandardisedCode>,
     pub description: Option<String>,
     pub user_guidance_message: Option<String>,
-    pub recommended_action: Option<storage_enums::Retry>,
+    pub recommended_action: Option<storage_enums::RecommendedAction>,
 }
 
 #[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
