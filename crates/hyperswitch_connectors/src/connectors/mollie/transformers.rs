@@ -242,6 +242,7 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankTransfer(_)

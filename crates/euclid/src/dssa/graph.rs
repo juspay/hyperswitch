@@ -84,6 +84,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::AcquirerCountry(acquirer_country) => acquirer_country.to_string(),
             Self::AcquirerFraudRate(acquirer_fraud_rate) => acquirer_fraud_rate.number.to_string(),
             Self::TransactionInitiator(transaction_initiator) => transaction_initiator.to_string(),
+            Self::NetworkTokenType(ntt) => ntt.to_string(),
         }
     }
 }

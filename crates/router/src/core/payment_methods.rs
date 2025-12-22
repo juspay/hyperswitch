@@ -1153,6 +1153,7 @@ pub async fn create_payment_method_card_core(
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
                 external_vault_source,
+                Some(enums::PaymentMethodStatus::Active),
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -2459,6 +2460,7 @@ pub async fn create_pm_additional_data_update(
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
+    status: Option<storage_enums::PaymentMethodStatus>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
@@ -2491,7 +2493,7 @@ pub async fn create_pm_additional_data_update(
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
         // A new payment method is created with inactive state
         // It will be marked active after payment succeeds
-        status: Some(enums::PaymentMethodStatus::Inactive),
+        status,
         locker_id: vault_id,
         payment_method_type_v2: payment_method_type,
         payment_method_subtype,
@@ -3340,6 +3342,7 @@ pub async fn update_payment_method_core(
         None,
         None,
         None,
+        None,
     )
     .await
     .attach_printable("Unable to create Payment method data")?;
@@ -4181,6 +4184,8 @@ async fn create_single_use_tokenization_flow(
         customer_acceptance: None,
         setup_mandate_details: None,
         payment_method_type: None,
+        capture_method: None,
+        router_return_url: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(

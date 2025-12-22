@@ -42,7 +42,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -701,6 +701,10 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
+                    }),
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented bank redirect type: {bank_redirect_data:?}"
             ))
@@ -766,6 +770,39 @@ pub fn build_unified_connector_service_payment_method(
                         }),
                     })),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(
+                    google_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GooglePayThirdPartySdk(
+                            payments_grpc::GooglePayThirdPartySdkWallet {
+                                token: google_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePayThirdPartySdk(
+                    apple_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::ApplePayThirdPartySdk(
+                            payments_grpc::ApplePayThirdPartySdkWallet {
+                                token: apple_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(
+                    paypal_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::PaypalSdk(
+                            payments_grpc::PaypalSdkWallet {
+                                token: Some(paypal_sdk_data.token.into()),
+                            }
+                        )),
+                    })
+                },
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))

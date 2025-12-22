@@ -3774,11 +3774,14 @@ impl AuthorizationInterface for KafkaStore {
 impl AuthenticationInterface for KafkaStore {
     async fn insert_authentication(
         &self,
-        authentication: storage::AuthenticationNew,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        authentication: hyperswitch_domain_models::authentication::Authentication,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         let auth = self
             .diesel_store
-            .insert_authentication(authentication)
+            .insert_authentication(state, key_store, authentication)
             .await?;
 
         if let Err(er) = self
@@ -3796,9 +3799,17 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         authentication_id: &id_type::AuthenticationId,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         self.diesel_store
-            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
+            .find_authentication_by_merchant_id_authentication_id(
+                merchant_id,
+                authentication_id,
+                key_store,
+                state,
+            )
             .await
     }
 
@@ -3806,25 +3817,35 @@ impl AuthenticationInterface for KafkaStore {
         &self,
         merchant_id: id_type::MerchantId,
         connector_authentication_id: String,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
                 connector_authentication_id,
+                key_store,
+                state,
             )
             .await
     }
 
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
-        previous_state: storage::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
+        previous_state: hyperswitch_domain_models::authentication::Authentication,
+        authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
+        key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    {
         let auth = self
             .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
                 previous_state.clone(),
                 authentication_update,
+                key_store,
+                state,
             )
             .await?;
 

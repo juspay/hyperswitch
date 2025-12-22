@@ -1430,6 +1430,85 @@ required=true
 type="Select"
 options=[]
 
+[braintree.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[braintree.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[braintree.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
+
+[[braintree.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+
+[[braintree.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+
+[[braintree.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
 [[braintree.metadata.google_pay]]
 name = "merchant_name"
 label = "Google Pay Merchant Name"
@@ -3220,7 +3299,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options=["Connector","Hyperswitch"]
 
 [[nmi.metadata.google_pay]]
 name="merchant_name"
@@ -7802,3 +7881,7 @@ api_key = "API Key"
   api_key="Client Id"
   key1="Client Secret"
   api_secret="Vault Id"
+
+[payjustnowinstore]
+[payjustnowinstore.connector_auth.HeaderKey]
+api_key = "Merchant Terminal Id"

@@ -17317,6 +17317,32 @@
           "BRW"
         ]
       },
+      "DeviceDetails": {
+        "type": "object",
+        "description": "Device details for collecting Device information",
+        "properties": {
+          "device_type": {
+            "type": "string",
+            "description": "Device type",
+            "nullable": true
+          },
+          "device_brand": {
+            "type": "string",
+            "description": "Device brand",
+            "nullable": true
+          },
+          "device_os": {
+            "type": "string",
+            "description": "Device OS",
+            "nullable": true
+          },
+          "device_display": {
+            "type": "string",
+            "description": "Device display",
+            "nullable": true
+          }
+        }
+      },
       "DisplayAmountOnSdk": {
         "type": "object",
         "required": [
@@ -22642,6 +22668,138 @@
           }
         }
       },
+      "NetworkTokenData": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "token_cryptogram",
+          "card_holder_name"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The network token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "token_cryptogram": {
+            "type": "string",
+            "description": "The token cryptogram"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          }
+        }
+      },
+      "NetworkTokenResponse": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "The last four digit of the network token",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "token_isin": {
+            "type": "string",
+            "description": "The ISIN of the token",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "nullable": true
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The expiry month of the network token",
+            "nullable": true
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The expiry year of the network token",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -22714,7 +22872,86 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhere `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NetworkTransactionIdAndNetworkTokenDetails": {
+        "type": "object",
+        "required": [
+          "network_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "network_token": {
+            "type": "string",
+            "description": "The Network Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
           }
         }
       },
@@ -25156,7 +25393,8 @@
           "voucher",
           "gift_card",
           "open_banking",
-          "mobile_payment"
+          "mobile_payment",
+          "network_token"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -25604,6 +25842,18 @@
                 "$ref": "#/components/schemas/MobilePaymentData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "NetworkToken",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
           }
         ]
       },
@@ -25819,6 +26069,17 @@
             "properties": {
               "mobile_payment": {
                 "$ref": "#/components/schemas/MobilePaymentResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
               }
             }
           }
@@ -26279,7 +26540,8 @@
           "instant_bank_transfer_poland",
           "revolut_pay",
           "indonesian_bank_transfer",
-          "open_banking"
+          "open_banking",
+          "network_token"
         ]
       },
       "PaymentMethodUpdate": {
@@ -28576,6 +28838,11 @@
           "three_ds_requestor_app_url": {
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
             "nullable": true
           }
         }
@@ -33766,6 +34033,24 @@
                 "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "network_transaction_id_and_network_token_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
           }
         ],
         "description": "Details required for recurring payment",
@@ -35520,6 +35805,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
