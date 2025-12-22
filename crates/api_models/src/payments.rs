@@ -4825,7 +4825,6 @@ pub enum RealTimePaymentData {
     VietQr {},
     #[smithy(nested_value_type)]
     Qris {},
-
 }
 
 impl GetAddressFromPaymentMethodData for BankTransferData {

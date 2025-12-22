@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
+use api_models::payments::QrCodeInformation;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
-use common_utils::{pii, request::Method, types::FloatMajorUnit, errors::CustomResult, ext_traits::Encode};
+use common_utils::{
+    errors::CustomResult, ext_traits::Encode, pii, request::Method, types::FloatMajorUnit,
+};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse},
@@ -22,8 +26,6 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use api_models::payments::QrCodeInformation;
-use error_stack::ResultExt;
 
 use crate::{
     types::{
@@ -32,7 +34,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as OtherRouterData, QrImage,
+        PaymentsSyncRequestData, QrImage, RouterData as OtherRouterData,
     },
 };
 
@@ -97,7 +99,7 @@ pub struct CommonXenditPaymentsRequestData {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum QrType {
-    Dynamic
+    Dynamic,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -106,7 +108,7 @@ pub struct XenditQrisPaymentsRequestData {
     pub external_id: String,
     #[serde(rename = "type")]
     pub qr_type: QrType,
-    pub callback_url: String
+    pub callback_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -114,7 +116,6 @@ pub struct XenditQrisPaymentsRequestData {
 pub enum XenditPaymentsRequest {
     CommonXenditPaymentsRequest(CommonXenditPaymentsRequestData),
     QrPaymentsRequest(XenditQrisPaymentsRequestData),
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -217,8 +218,7 @@ fn map_payment_response_to_attempt_status(
     is_auto_capture: bool,
 ) -> enums::AttemptStatus {
     match response.status {
-        PaymentStatus::Failed 
-        | PaymentStatus::Inactive => enums::AttemptStatus::Failure,
+        PaymentStatus::Failed | PaymentStatus::Inactive => enums::AttemptStatus::Failure,
         PaymentStatus::Succeeded | PaymentStatus::Verified => {
             if is_auto_capture {
                 enums::AttemptStatus::Charged
@@ -227,8 +227,9 @@ fn map_payment_response_to_attempt_status(
             }
         }
         PaymentStatus::Pending => enums::AttemptStatus::Pending,
-        PaymentStatus::RequiresAction 
-        | PaymentStatus::Active => enums::AttemptStatus::AuthenticationPending,
+        PaymentStatus::RequiresAction | PaymentStatus::Active => {
+            enums::AttemptStatus::AuthenticationPending
+        }
         PaymentStatus::AwaitingCapture => enums::AttemptStatus::Authorized,
     }
 }
@@ -259,7 +260,7 @@ pub struct PaymentMethodInfo {
     pub id: Secret<String>,
 }
 
-impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsRequest  {
+impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: XenditRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_type {
@@ -268,19 +269,20 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
                     amount: item.amount,
                     external_id: item.router_data.connector_request_reference_id.clone(),
                     qr_type: QrType::Dynamic,
-                    callback_url: "https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034".to_string(), // item.router_data.request.get_router_return_url()?,
+                    callback_url: "https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034"
+                        .to_string(), // item.router_data.request.get_router_return_url()?,
                 };
                 Ok(XenditPaymentsRequest::QrPaymentsRequest(qr_request))
-            },
+            }
             _ => {
                 let common_request = CommonXenditPaymentsRequestData::try_from(item)?;
-                Ok(XenditPaymentsRequest::CommonXenditPaymentsRequest(common_request))
+                Ok(XenditPaymentsRequest::CommonXenditPaymentsRequest(
+                    common_request,
+                ))
             }
         }
     }
-
 }
-
 
 impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for CommonXenditPaymentsRequestData {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -364,18 +366,18 @@ impl TryFrom<XenditRouterData<&PaymentsCaptureRouterData>> for XenditPaymentsCap
     }
 }
 
-pub fn get_qr_image(
-    qr_data: String,
-) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+pub fn get_qr_image(qr_data: String) -> CustomResult<serde_json::Value, errors::ConnectorError> {
     let image_data = QrImage::new_from_data(qr_data)
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-    let image_data_url = url::Url::parse(image_data.data.clone().as_str()).change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data_url = url::Url::parse(image_data.data.clone().as_str())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
     let qr_code_info = QrCodeInformation::QrDataUrl {
         image_data_url,
         display_to_timestamp: None,
     };
-     qr_code_info.encode_to_value()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    qr_code_info
+        .encode_to_value()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuthorizeRouterData {
@@ -446,7 +448,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
             let connector_metadata = if let Some(qr_data) = item.response.qr_string.clone() {
                 Some(get_qr_image(qr_data)?)
             } else {
-             None
+                None
             };
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -468,7 +470,10 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 },
                 mandate_reference: match item.data.request.is_mandate_payment() {
                     true => Box::new(Some(MandateReference {
-                        connector_mandate_id: item.response.payment_method.map(|payment_method|payment_method.id.expose()),
+                        connector_mandate_id: item
+                            .response
+                            .payment_method
+                            .map(|payment_method| payment_method.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
@@ -477,7 +482,10 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 },
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.reference_id.map(|reference_id| reference_id.expose()),
+                connector_response_reference_id: item
+                    .response
+                    .reference_id
+                    .map(|reference_id| reference_id.expose()),
                 incremental_authorization_allowed: None,
                 charges,
             })
@@ -502,7 +510,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
             PaymentStatus::Failed | PaymentStatus::Inactive => enums::AttemptStatus::Failure,
             PaymentStatus::Succeeded | PaymentStatus::Verified => enums::AttemptStatus::Charged,
             PaymentStatus::Pending => enums::AttemptStatus::Pending,
-            PaymentStatus::RequiresAction | PaymentStatus::Active => enums::AttemptStatus::AuthenticationPending,
+            PaymentStatus::RequiresAction | PaymentStatus::Active => {
+                enums::AttemptStatus::AuthenticationPending
+            }
             PaymentStatus::AwaitingCapture => enums::AttemptStatus::Authorized,
         };
         let response = if status == enums::AttemptStatus::Failure {
