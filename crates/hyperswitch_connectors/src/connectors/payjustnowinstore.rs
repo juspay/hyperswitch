@@ -176,10 +176,8 @@ impl ConnectorCommon for Payjustnowinstore {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: res.status_code.to_string(),
-            message: response.error.unwrap_or(error_message.to_string()),
-            reason: String::from_utf8(res.response.to_vec())
-                .ok()
-                .filter(|msg| !msg.is_empty()),
+            message: response.error.clone().unwrap_or(error_message.to_string()),
+            reason: response.error,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,

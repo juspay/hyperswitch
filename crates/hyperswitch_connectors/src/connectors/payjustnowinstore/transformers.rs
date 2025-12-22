@@ -1,5 +1,6 @@
 use common_enums::enums;
-use common_utils::{request::Method, types::MinorUnit};
+use common_utils::{ext_traits::ValueExt, request::Method, types::MinorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::Execute,
@@ -14,7 +15,10 @@ use hyperswitch_interfaces::{
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils,
+};
 
 pub struct PayjustnowinstoreRouterData<T> {
     pub amount: MinorUnit,
@@ -129,7 +133,7 @@ impl TryFrom<&PayjustnowinstoreRouterData<&PaymentsAuthorizeRouterData>>
 pub struct PayjustnowinstorePaymentsResponse {
     token: String,
     amount: MinorUnit,
-    scan_url: String,
+    scan_url: url::Url,
 }
 
 impl<F, T>
@@ -140,9 +144,8 @@ impl<F, T>
     fn try_from(
         item: ResponseRouterData<F, PayjustnowinstorePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = url::Url::parse(&item.response.scan_url.clone())
-            .ok()
-            .map(|url| RedirectForm::from((url, Method::Get)));
+        let redirection_data = Some(RedirectForm::from((item.response.scan_url, Method::Get)));
+
         Ok(Self {
             status: common_enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -187,12 +190,17 @@ impl From<PayjustnowinstorePaymentStatus> for common_enums::AttemptStatus {
 pub struct PayjustnowinstoreSyncResponse {
     merchant_reference: String,
     token: String,
-    scan_url: Option<String>,
+    scan_url: Option<url::Url>,
     payment_status: PayjustnowinstorePaymentStatus,
     amount: Option<MinorUnit>,
     reason: Option<String>,
     paid_at: Option<String>,
     cancelled_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayjustnowinstorePaymentsResponseMetadata {
+    merchant_reference: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, PaymentsResponseData>>
@@ -203,13 +211,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
         item: ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.payment_status);
-        let redirection_data = item.response.scan_url.and_then(|url_string| {
-            url::Url::parse(&url_string)
-                .ok()
-                .map(|url| RedirectForm::from((url, Method::Get)))
-        });
+        let redirection_data = item
+            .response
+            .scan_url
+            .map(|url| RedirectForm::from((url, Method::Get)));
 
-        let response = if status == enums::AttemptStatus::Failure {
+        let response = if utils::is_payment_failure(status) {
             Err(ErrorResponse {
                 code: NO_ERROR_CODE.to_string(),
                 message: item
@@ -227,8 +234,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
                 connector_metadata: None,
             })
         } else {
-            let connector_metadata =
-                Some(serde_json::json!({"merchant_reference": item.response.merchant_reference}));
+            let connector_metadata = Some(serde_json::json!(
+                PayjustnowinstorePaymentsResponseMetadata {
+                    merchant_reference: item.response.merchant_reference,
+                }
+            ));
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.token),
                 redirection_data: Box::new(redirection_data),
@@ -264,22 +274,19 @@ impl<F> TryFrom<&PayjustnowinstoreRouterData<&RefundsRouterData<F>>>
     fn try_from(
         item: &PayjustnowinstoreRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let merchant_reference = item
+        let metadata: PayjustnowinstorePaymentsResponseMetadata = item
             .router_data
             .request
             .connector_metadata
             .as_ref()
-            .and_then(|metadata| {
-                metadata
-                    .get("merchant_reference")
-                    .and_then(|ref_id| ref_id.as_str().map(|id| id.to_string()))
-            })
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_reference",
-            })?;
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+            .clone()
+            .parse_value("PayjustnowinstorePaymentsResponseMetadata")
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+
         Ok(Self {
             request_id: item.router_data.request.refund_id.clone(),
-            merchant_reference,
+            merchant_reference: metadata.merchant_reference,
             token: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount.to_owned(),
         })
@@ -319,7 +326,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>
         item: RefundsResponseRouterData<Execute, PayjustnowinstoreRefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
-        let response = if refund_status == enums::RefundStatus::Failure {
+        let response = if utils::is_refund_failure(refund_status) {
             Err(ErrorResponse {
                 code: NO_ERROR_CODE.to_string(),
                 message: item
