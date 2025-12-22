@@ -1545,6 +1545,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
+    #[schema(value_type = Option<String>)]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7381,6 +7385,10 @@ pub struct PaymentsResponse {
 
     /// Tokenization details of the payment method data
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
+
+    /// The reference id for the order in the merchant's system. This value can be passed by the merchant.
+    #[schema(value_type = Option<String>)]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v1")]

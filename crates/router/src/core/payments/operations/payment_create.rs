@@ -232,7 +232,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &state.conf,
             platform.get_processor(),
         ) {
-            payment_id.get_string_repr().to_string()
+            request
+                .merchant_reference_id
+                .clone()
+                .map(|data| data.get_string_repr().to_string())
+                .unwrap_or(payment_id.get_string_repr().to_string())
         } else {
             payment_id.get_attempt_id(1)
         };
@@ -1237,7 +1241,11 @@ impl PaymentCreate {
             &state.conf,
             platform.get_processor(),
         ) {
-            payment_id.get_string_repr().to_owned()
+            request
+                .merchant_reference_id
+                .clone()
+                .map(|data| data.get_string_repr().to_owned())
+                .unwrap_or(payment_id.get_string_repr().to_owned())
         } else {
             payment_id.get_attempt_id(1)
         };
@@ -1655,6 +1663,7 @@ impl PaymentCreate {
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            merchant_reference_id: request.merchant_reference_id.clone(),
         })
     }
 }
