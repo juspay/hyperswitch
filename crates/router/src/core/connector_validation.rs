@@ -409,6 +409,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 payjustnow::transformers::PayjustnowAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Payjustnowinstore => {
+            //     payjustnowinstore::transformers::PayjustnowinstoreAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
