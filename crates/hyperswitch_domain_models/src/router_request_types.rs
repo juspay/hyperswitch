@@ -541,6 +541,23 @@ pub struct CreateOrderRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: Option<PaymentMethodData>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub webhook_url: Option<String>,
+    pub router_return_url: Option<String>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+}
+
+impl CreateOrderRequestData {
+    pub fn is_auto_capture(&self) -> bool {
+        match self.capture_method {
+            Some(storage_enums::CaptureMethod::Automatic)
+            | Some(storage_enums::CaptureMethod::SequentialAutomatic)
+            | None => true,
+            Some(storage_enums::CaptureMethod::Manual)
+            | Some(storage_enums::CaptureMethod::ManualMultiple)
+            | Some(storage_enums::CaptureMethod::Scheduled) => false,
+        }
+    }
 }
 
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
@@ -552,6 +569,10 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             currency: data.currency,
             payment_method_data: Some(data.payment_method_data),
             order_details: data.order_details,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -565,6 +586,10 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             currency: data.currency,
             payment_method_data: None,
             order_details: data.order_details,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
         })
     }
 }
