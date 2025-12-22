@@ -302,6 +302,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("OpenBankingUk Create and Confirm flow test", () => {
+  context("OnlineBankingFpx Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
@@ -329,6 +330,7 @@ describe("Bank Redirect tests", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("OpenBankingUk");
+      ]["PaymentIntent"]("OnlineBankingFpx");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -348,6 +350,7 @@ describe("Bank Redirect tests", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["OpenBankingUk"];
+      ]["OnlineBankingFpx"];
 
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
@@ -358,6 +361,7 @@ describe("Bank Redirect tests", () => {
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
+
     it("Handle bank redirect redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
@@ -372,6 +376,7 @@ describe("Bank Redirect tests", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["OpenBankingUk"];
+      ]["OnlineBankingFpx"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
