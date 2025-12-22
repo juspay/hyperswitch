@@ -119,18 +119,12 @@ pub struct GetnetglobalRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    TryFrom<(
-        &types::RouterData<T>,
-        types::PaymentsAuthorizeData,
-    )> for GetnetglobalRouterData<types::RouterData<T>>
+impl<T> TryFrom<(&types::RouterData<T>, types::PaymentsAuthorizeData)>
+    for GetnetglobalRouterData<types::RouterData<T>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, _): (
-            &types::RouterData<T>,
-            types::PaymentsAuthorizeData,
-        ),
+        (item, _): (&types::RouterData<T>, types::PaymentsAuthorizeData),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.minor_amount,
@@ -139,18 +133,12 @@ impl<T>
     }
 }
 
-impl<T>
-    TryFrom<(
-        &types::RouterData<T>,
-        types::PaymentsCaptureData,
-    )> for GetnetglobalRouterData<types::RouterData<T>>
+impl<T> TryFrom<(&types::RouterData<T>, types::PaymentsCaptureData)>
+    for GetnetglobalRouterData<types::RouterData<T>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, _): (
-            &types::RouterData<T>,
-            types::PaymentsCaptureData,
-        ),
+        (item, _): (&types::RouterData<T>, types::PaymentsCaptureData),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.minor_amount_to_capture,
@@ -159,18 +147,12 @@ impl<T>
     }
 }
 
-impl<T>
-    TryFrom<(
-        &types::RouterData<T>,
-        types::RefundsData,
-    )> for GetnetglobalRouterData<types::RouterData<T>>
+impl<T> TryFrom<(&types::RouterData<T>, types::RefundsData)>
+    for GetnetglobalRouterData<types::RouterData<T>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, _): (
-            &types::RouterData<T>,
-            types::RefundsData,
-        ),
+        (item, _): (&types::RouterData<T>, types::RefundsData),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.minor_refund_amount,
@@ -179,10 +161,8 @@ impl<T>
     }
 }
 
-impl
-    TryFrom<
-        &GetnetglobalRouterData<types::RouterData<types::PaymentsAuthorizeData>>,
-    > for GetnetglobalPaymentsRequest
+impl TryFrom<&GetnetglobalRouterData<types::RouterData<types::PaymentsAuthorizeData>>>
+    for GetnetglobalPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -210,9 +190,7 @@ impl
                         .payment_method_data
                         .card
                         .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "card",
-                        })?
+                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "card" })?
                         .card_number,
                     expiration_month: item
                         .router_data
@@ -220,9 +198,7 @@ impl
                         .payment_method_data
                         .card
                         .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "card",
-                        })?
+                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "card" })?
                         .card_exp_month,
                     expiration_year: item
                         .router_data
@@ -230,9 +206,7 @@ impl
                         .payment_method_data
                         .card
                         .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "card",
-                        })?
+                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "card" })?
                         .card_exp_year,
                     cvv: item
                         .router_data
@@ -240,9 +214,7 @@ impl
                         .payment_method_data
                         .card
                         .clone()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "card",
-                        })?
+                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "card" })?
                         .card_cvc,
                 },
             },
@@ -250,10 +222,8 @@ impl
     }
 }
 
-impl
-    TryFrom<
-        &GetnetglobalRouterData<types::RouterData<types::PaymentsCaptureData>>,
-    > for GetnetglobalCaptureRequest
+impl TryFrom<&GetnetglobalRouterData<types::RouterData<types::PaymentsCaptureData>>>
+    for GetnetglobalCaptureRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -265,10 +235,8 @@ impl
     }
 }
 
-impl
-    TryFrom<
-        &GetnetglobalRouterData<types::RouterData<types::RefundsData>>,
-    > for GetnetglobalRefundRequest
+impl TryFrom<&GetnetglobalRouterData<types::RouterData<types::RefundsData>>>
+    for GetnetglobalRefundRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

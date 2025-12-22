@@ -193,17 +193,19 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Getnetglobal {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Getnetglobal {
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Getnetglobal
+{
     // Not Implemented (R)
     fn build_request(
         &self,
         _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Getnetglobal".to_string())
-                .into(),
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Getnetglobal".to_string(),
         )
+        .into())
     }
 }
 
@@ -240,7 +242,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
         let connector_router_data = getnetglobal::GetnetglobalRouterData::from((amount, req));
-        let connector_req = getnetglobal::GetnetglobalPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            getnetglobal::GetnetglobalPaymentsRequest::try_from(&connector_router_data)?;
         let res = RequestContent::Json(Box::new(connector_req));
 
         Ok(res)
@@ -407,7 +410,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
 
         let connector_router_data = getnetglobal::GetnetglobalRouterData::from((amount, req));
-        let connector_req = getnetglobal::GetnetglobalCaptureRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            getnetglobal::GetnetglobalCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -572,8 +576,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Getnetg
             req.request.currency,
         )?;
 
-        let connector_router_data = getnetglobal::GetnetglobalRouterData::from((refund_amount, req));
-        let connector_req = getnetglobal::GetnetglobalRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data =
+            getnetglobal::GetnetglobalRouterData::from((refund_amount, req));
+        let connector_req =
+            getnetglobal::GetnetglobalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -602,10 +608,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Getnetg
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: getnetglobal::RefundResponse =
-            res.response
-                .parse_struct("getnetglobal RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: getnetglobal::RefundResponse = res
+            .response
+            .parse_struct("getnetglobal RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -816,50 +822,51 @@ impl webhooks::IncomingWebhook for Getnetglobal {
     }
 }
 
-static GETNETGLOBAL_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
-        enums::CaptureMethod::Manual,
-        enums::CaptureMethod::SequentialAutomatic,
-    ];
+static GETNETGLOBAL_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
 
-    let supported_card_network = vec![
-        common_enums::CardNetwork::Mastercard,
-        common_enums::CardNetwork::Visa,
-        common_enums::CardNetwork::Interac,
-        common_enums::CardNetwork::AmericanExpress,
-        common_enums::CardNetwork::JCB,
-        common_enums::CardNetwork::DinersClub,
-        common_enums::CardNetwork::Discover,
-        common_enums::CardNetwork::CartesBancaires,
-        common_enums::CardNetwork::UnionPay,
-        common_enums::CardNetwork::RuPay,
-        common_enums::CardNetwork::Maestro,
-    ];
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::RuPay,
+            common_enums::CardNetwork::Maestro,
+        ];
 
-    let mut getnetglobal_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut getnetglobal_supported_payment_methods = SupportedPaymentMethods::new();
 
-    getnetglobal_supported_payment_methods.add(
-        enums::PaymentMethod::Card,
-        enums::PaymentMethodType::Credit,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods,
-            specific_features: Some(
-                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
-                        no_three_ds: common_enums::FeatureStatus::Supported,
-                        supported_card_networks: supported_card_network,
-                    }
-                }),
-            ),
-        },
-    );
+        getnetglobal_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network,
+                        }
+                    }),
+                ),
+            },
+        );
 
-    getnetglobal_supported_payment_methods
-});
+        getnetglobal_supported_payment_methods
+    });
 
 static GETNETGLOBAL_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Getnet Global",
