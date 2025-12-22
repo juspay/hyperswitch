@@ -877,6 +877,9 @@ apple_pay = {country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD
 [pm_filters.payjustnow]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
+[pm_filters.payjustnowinstore]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 

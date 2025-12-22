@@ -628,7 +628,7 @@ impl ConnectorConfig {
             Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
-            // Connector::Payjustnowinstore => Ok(connector_data.Payjustnowinstore),
+            Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
         }
     }
 }
