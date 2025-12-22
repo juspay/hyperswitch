@@ -27430,6 +27430,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
+            "nullable": true
           }
         }
       },
@@ -27957,6 +27962,11 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
             "nullable": true
           }
         }
@@ -28640,6 +28650,11 @@
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
             "nullable": true
           }
         }
@@ -29522,6 +29537,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30231,6 +30251,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
+            "nullable": true
           }
         }
       },
@@ -30891,6 +30916,11 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "The reference id for the order in the merchant's system. This value can be passed by the merchant.",
             "nullable": true
           }
         }
