@@ -3299,7 +3299,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options=["Connector","Hyperswitch"]
 
 [[nmi.metadata.google_pay]]
 name="merchant_name"
