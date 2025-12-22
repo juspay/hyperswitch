@@ -12,7 +12,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{Execute, Void},
-    router_request_types::{PaymentsCancelData, PaymentsPreProcessingData, ResponseId},
+    router_request_types::{
+        CreateOrderRequestData, PaymentsCancelData, PaymentsPreProcessingData, ResponseId,
+    },
     router_response_types::{
         MandateReference, PaymentsResponseData, PreprocessingResponseId, RedirectForm,
         RefundsResponseData,
@@ -632,6 +634,132 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
+                let pmd = item.data.request.payment_method_data.to_owned();
+                let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
+
+                let session_token = match pmd {
+                    Some(PaymentMethodData::Wallet(WalletData::ApplePayThirdPartySdk(
+                        _,
+                    ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                        api_models::payments::ApplepaySessionTokenResponse {
+                            session_token_data: Some(
+                                api_models::payments::ApplePaySessionResponse::NoSessionResponse(api_models::payments::NullObject),
+                            ),
+                            payment_request_data: Some(
+                                api_models::payments::ApplePayPaymentRequest {
+                                    country_code: item.data.get_billing_country()?,
+                                    currency_code,
+                                    total: api_models::payments::AmountInfo {
+                                        label: "Apple Pay".to_string(),
+                                        total_type: None,
+                                        amount: apple_pay_amount,
+                                    },
+                                    merchant_capabilities: None,
+                                    supported_networks: None,
+                                    merchant_identifier: None,
+                                    required_billing_contact_fields: None,
+                                    required_shipping_contact_fields: None,
+                                    recurring_payment_request: None,
+                                },
+                            ),
+                            connector: "payme".to_string(),
+                            delayed_session_token: true,
+                            sdk_next_action: api_models::payments::SdkNextAction {
+                                next_action: api_models::payments::NextActionCall::Sync,
+                            },
+                            connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
+                            connector_sdk_public_key: Some(
+                                payme_auth_type.payme_public_key.expose(),
+                            ),
+                            connector_merchant_id: payme_auth_type
+                                .payme_merchant_id
+                                .map(|mid| mid.expose()),
+                        },
+                    ))),
+                    _ => None,
+                };
+                Ok(Self {
+                    // We don't get any status from payme, so defaulting it to pending
+                    status: enums::AttemptStatus::Pending,
+                    preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                    response: Ok(PaymentsResponseData::PreProcessingResponse {
+                        pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
+                            item.response.payme_sale_id,
+                        ),
+                        connector_metadata: None,
+                        session_token,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    utils::ForeignTryFrom<(
+        ResponseRouterData<F, GenerateSaleResponse, CreateOrderRequestData, PaymentsResponseData>,
+        StringMajorUnit,
+    )> for RouterData<F, CreateOrderRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, apple_pay_amount): (
+            ResponseRouterData<
+                F,
+                GenerateSaleResponse,
+                CreateOrderRequestData,
+                PaymentsResponseData,
+            >,
+            StringMajorUnit,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match item.data.payment_method {
+            PaymentMethod::Card => {
+                match item.data.auth_type {
+                    AuthenticationType::NoThreeDs => {
+                        Ok(Self {
+                            // We don't get any status from payme, so defaulting it to pending
+                            // then move to authorize flow
+                            status: enums::AttemptStatus::Pending,
+                            preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                            response: Ok(PaymentsResponseData::PreProcessingResponse {
+                                pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
+                                    item.response.payme_sale_id,
+                                ),
+                                connector_metadata: None,
+                                session_token: None,
+                                connector_response_reference_id: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                    AuthenticationType::ThreeDs => Ok(Self {
+                        // We don't go to authorize flow in 3ds,
+                        // Response is send directly after preprocessing flow
+                        // redirection data is send to run script along
+                        // status is made authentication_pending to show redirection
+                        status: enums::AttemptStatus::AuthenticationPending,
+                        preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                item.response.payme_sale_id.to_owned(),
+                            ),
+                            redirection_data: Box::new(Some(RedirectForm::Payme)),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    }),
+                }
+            }
+            _ => {
+                let currency_code = item.data.request.currency;
                 let pmd = item.data.request.payment_method_data.to_owned();
                 let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 

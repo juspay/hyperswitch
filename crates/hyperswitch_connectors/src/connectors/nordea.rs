@@ -238,6 +238,7 @@ impl Nordea {
 }
 
 impl api::Payment for Nordea {}
+impl api::PaymentsCreateOrder for Nordea {}
 impl api::PaymentSession for Nordea {}
 impl api::ConnectorAuthenticationToken for Nordea {}
 impl api::ConnectorAccessToken for Nordea {}

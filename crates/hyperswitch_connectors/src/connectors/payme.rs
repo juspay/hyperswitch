@@ -81,6 +81,7 @@ impl Payme {
     }
 }
 impl api::Payment for Payme {}
+impl api::PaymentsCreateOrder for Payme {}
 impl api::PaymentSession for Payme {}
 impl api::PaymentsCompleteAuthorize for Payme {}
 impl api::ConnectorAccessToken for Payme {}
