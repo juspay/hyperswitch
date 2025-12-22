@@ -772,7 +772,7 @@ impl FinixWebhookBody {
             }
             FinixEmbedded::Authorizations { .. } | FinixEmbedded::Transfers { .. } => {
                 Err(ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("Expected Dispute webhooks,but found other webhooks")?
+                    .attach_printable("Expected Dispute webhooks, but found other webhooks")?
             }
         }
     }
