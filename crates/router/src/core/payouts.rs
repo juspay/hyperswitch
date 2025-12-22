@@ -39,6 +39,8 @@ use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
 
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use crate::consts as payout_consts;
 #[cfg(feature = "olap")]
 use crate::types::domain::behaviour::Conversion;
 #[cfg(feature = "olap")]
@@ -3488,6 +3490,17 @@ pub async fn payouts_manual_update_core(
         connector_payout_id,
     } = req;
 
+    if status.is_none()
+        && error_code.is_none()
+        && error_message.is_none()
+        && connector_payout_id.is_none()
+    {
+        return Err(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Request must contain atleast one parameter to update".to_string(),
+        }
+        .into());
+    }
+
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -3495,7 +3508,7 @@ pub async fn payouts_manual_update_core(
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let merchant_account = state
@@ -3540,7 +3553,7 @@ pub async fn payouts_manual_update_core(
             Some(message.to_string()),
             Some(connector_name.to_string()),
             consts::PAYOUT_FLOW_STR,
-            crate::consts::DEFAULT_SUBFLOW_STR,
+            payout_consts::DEFAULT_SUBFLOW_STR,
         )
         .await
     } else {
