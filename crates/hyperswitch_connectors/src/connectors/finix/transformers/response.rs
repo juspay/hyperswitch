@@ -138,6 +138,7 @@ impl<T: Clone> SingleEventType<T> {
             .ok_or(ConnectorError::WebhookBodyDecodingFailed)
     }
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FinixEmbedded {

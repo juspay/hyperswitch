@@ -1182,7 +1182,6 @@ impl webhooks::IncomingWebhook for Finix {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        println!("webhook_request body {:?}", request.body);
         if is_test_webhook(request) {
             return Ok(IncomingWebhookEvent::SetupWebhook);
         }
