@@ -2778,6 +2778,18 @@ payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key = "Access Token"
 key1 = "Client Secret"
+[jpmorgan.metadata.company_name]
+name = "company_name"
+label = "Company Name"
+placeholder = "Enter the company name. Example: JPMC, Hyperswitch"
+required = true
+type = "Text"
+[jpmorgan.metadata.product_name]
+name = "product_name"
+label = "Product Name"
+placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3273,7 +3285,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector","Hyperswitch"]
 
 [[nmi.metadata.google_pay]]
 name = "merchant_name"
@@ -7853,7 +7865,6 @@ api_key = "API Key"
   api_key="Client Id"
   key1="Client Secret"
   api_secret="Vault Id"
-
 
 [payjustnowinstore]
 [payjustnowinstore.connector_auth.BodyKey]

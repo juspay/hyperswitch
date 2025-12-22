@@ -190,6 +190,8 @@ pub struct ConfigMetadata {
     pub organizational_unit_id: Option<InputData>,
     pub issuer_id: Option<InputData>,
     pub jwt_mac_key: Option<InputData>,
+    pub company_name: Option<InputData>,
+    pub product_name: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
