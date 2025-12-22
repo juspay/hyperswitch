@@ -136,6 +136,7 @@ impl Vaultable for domain::Card {
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: value1.nickname.map(masking::Secret::new),
             card_holder_name: value1.card_holder_name,
@@ -1931,7 +1932,11 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &pm.customer_id)
+            let customer_id = pm
+                .customer_id
+                .clone()
+                .get_required_value("GlobalCustomerId")?;
+            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to retrieve payment method from vault")
@@ -2078,6 +2083,10 @@ pub async fn delete_payment_method_data_from_vault(
         .clone()
         .get_required_value("locker_id")
         .attach_printable("Missing locker_id in PaymentMethod")?;
+    let customer_id = &pm
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
 
     match is_external_vault_enabled {
         true => {
@@ -2101,19 +2110,16 @@ pub async fn delete_payment_method_data_from_vault(
                 platform.get_provider().get_account(),
                 merchant_connector_account,
                 vault_id.clone(),
-                &pm.customer_id,
+                customer_id,
             )
             .await
         }
-        false => delete_payment_method_data_from_vault_internal(
-            state,
-            platform,
-            vault_id,
-            &pm.customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault"),
+        false => {
+            delete_payment_method_data_from_vault_internal(state, platform, vault_id, customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to delete payment method from vault")
+        }
     }
 }
 

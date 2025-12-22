@@ -352,7 +352,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
-                | PaymentMethodType::OpenBanking => {
+                | PaymentMethodType::OpenBanking
+                | PaymentMethodType::NetworkToken => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -2229,6 +2230,7 @@ impl IncomingWebhook for Adyen {
                 card_holder_name: None,
                 nick_name: None,
                 issuer_country: notif.additional_data.card_issuing_country.clone(),
+                issuer_country_code: None,
                 card_issuer: notif.additional_data.card_issuing_bank.clone(),
                 last4_digits: notif
                     .additional_data

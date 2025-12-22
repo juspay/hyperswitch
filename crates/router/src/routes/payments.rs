@@ -2215,14 +2215,10 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    let is_recurring_details_type_nti_and_card_details = req
-        .recurring_details
-        .clone()
-        .map(|recurring_details| {
-            recurring_details.is_network_transaction_id_and_card_details_flow()
-        })
-        .unwrap_or(false);
-    if is_recurring_details_type_nti_and_card_details {
+    let should_call_proxy_for_payments_core =
+        helpers::should_call_proxy_for_payments_core(req.clone());
+
+    if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
         payments::proxy_for_payments_core::<

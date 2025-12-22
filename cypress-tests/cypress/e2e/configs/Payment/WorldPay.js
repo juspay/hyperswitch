@@ -637,7 +637,8 @@ export const connectorDetails = {
           card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
-        mandate_data: singleUseMandateData,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

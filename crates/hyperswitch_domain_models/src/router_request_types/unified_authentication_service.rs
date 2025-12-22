@@ -119,6 +119,7 @@ pub struct PreAuthenticationDetails {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub connector_metadata: Option<serde_json::Value>,
     pub directory_server_id: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,7 +158,7 @@ pub struct RawCardDetails {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,

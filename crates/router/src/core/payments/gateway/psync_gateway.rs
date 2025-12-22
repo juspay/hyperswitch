@@ -15,7 +15,10 @@ use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{
+        payments::gateway::context::RouterGatewayContext,
+        unified_connector_service::{self, extract_connector_response_from_ucs},
+    },
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom, MinorUnit},
@@ -129,7 +132,7 @@ where
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
         let connector_name = router_data.connector.clone();
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             payment_get_request,
@@ -183,6 +186,13 @@ where
                     router_data.status = status;
                     response
                 });
+                let connector_response = extract_connector_response_from_ucs(
+                    payment_get_response.connector_response.as_ref(),
+                );
+                if let Some(connector_response) = connector_response {
+                    router_data.connector_response = Some(connector_response);
+                }
+
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_get_response.captured_amount;
                 router_data.minor_amount_captured = payment_get_response
@@ -194,13 +204,12 @@ where
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, payment_get_response))
+                Ok((router_data, (), payment_get_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .map(|(router_data, _)| router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 

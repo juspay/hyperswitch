@@ -11,7 +11,6 @@ use api_models::{
     enums as api_model_enums, routing::ConnectorSelection,
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
-use common_enums::RoutableConnectors;
 use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
@@ -23,6 +22,7 @@ use currency_conversion::{
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{self, analyzer, graph::CgraphExt, state_machine},
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},
@@ -275,7 +275,6 @@ pub fn get_all_keys() -> JsResult {
         "Connector",
         // 3DS Decision Rule Keys should not be included in the payument routing keys
         "issuer_name",
-        "issuer_country",
         "customer_device_platform",
         "customer_device_type",
         "customer_device_display_size",
@@ -356,9 +355,11 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
         dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
         dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::TransactionInitiator => dir_enums::TransactionInitiator::VARIANTS,
         dir::DirKeyKind::CustomerDeviceDisplaySize => {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
+        dir::DirKeyKind::NetworkTokenType => dir_enums::NetworkTokenType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector

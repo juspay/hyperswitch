@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+pub use euclid::enums::RoutableConnectors;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
@@ -441,11 +442,6 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
-}
-
-#[derive(Clone, Copy)]
-pub enum LockerChoice {
-    HyperswitchCardVault,
 }
 
 #[derive(

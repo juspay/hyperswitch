@@ -74,6 +74,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
+        refund_id: Option<String>,
     },
     #[cfg(feature = "v1")]
     NetworkTokenWebhook {
@@ -83,6 +84,7 @@ pub enum ApiEventsType {
     Webhooks {
         connector: id_type::MerchantConnectorAccountId,
         payment_id: Option<id_type::GlobalPaymentId>,
+        refund_id: Option<id_type::GlobalRefundId>,
     },
     Routing,
     Subscription,
@@ -140,6 +142,7 @@ pub enum ApiEventsType {
     },
     ThreeDsDecisionRule,
     Chat,
+    Oidc,
 }
 
 impl ApiEventMetric for serde_json::Value {}

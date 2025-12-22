@@ -106,6 +106,7 @@ impl TryFrom<&BreadpayRouterData<&PaymentsAuthorizeRouterData>> for BreadpayCart
             | PaymentMethodData::CardDetailsForNetworkTransactionId(
                 _,
             )
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::BankRedirect(_)

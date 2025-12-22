@@ -2826,7 +2826,7 @@ pub async fn update_connector(
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2896,7 +2896,7 @@ pub async fn delete_connector(
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2972,7 +2972,7 @@ pub async fn delete_connector(
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 },
@@ -4619,15 +4619,10 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::add_card_to_hs_locker(
-        state,
-        &payload,
-        &cust_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt merchant bank account data")?;
+    let store_resp = cards::add_card_to_vault(state, &payload, &cust_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
 }

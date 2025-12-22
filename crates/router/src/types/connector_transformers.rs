@@ -2,7 +2,7 @@ use api_models::enums as api_enums;
 
 use super::ForeignTryFrom;
 
-impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
+impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
 
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {

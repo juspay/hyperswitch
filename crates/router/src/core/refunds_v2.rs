@@ -457,7 +457,8 @@ async fn get_unified_error_and_message(
         Some(err.code.clone()),
         Some(err.message.clone()),
         connector.connector_name.to_string(),
-        consts::REFUND_FLOW_STR.to_string(),
+        consts::REFUND_FLOW_STR,
+        consts::DEFAULT_SUBFLOW_STR,
     )
     .await;
     // Note: Some connectors do not have a separate list of refund errors
@@ -469,7 +470,8 @@ async fn get_unified_error_and_message(
             Some(err.code.clone()),
             Some(err.message.clone()),
             connector.connector_name.to_string(),
-            consts::AUTHORIZE_FLOW_STR.to_string(),
+            consts::PAYMENT_FLOW_STR,
+            consts::AUTHORIZE_FLOW_STR,
         )
         .await
     } else {
