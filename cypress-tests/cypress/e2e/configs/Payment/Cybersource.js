@@ -1,6 +1,6 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -322,7 +322,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_message:
-            "Declined - One or more fields in the request contains invalid data",
+            "Declined - One or more fields in the request contains invalid data, detailed_error_information: orderInformation.billTo.administrativeArea : INVALID_DATA",
           attempt_count: 1,
         },
       },
@@ -834,6 +834,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

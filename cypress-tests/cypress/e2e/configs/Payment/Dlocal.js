@@ -1,7 +1,7 @@
 import {
   customerAcceptance,
-  singleUseMandateData,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
 const mockBillingDetails = {
   address: {
@@ -529,6 +529,8 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

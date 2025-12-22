@@ -252,12 +252,12 @@ pub async fn confirm_subscription(
 }
 
 #[instrument(skip_all)]
-pub async fn get_subscription_plans(
+pub async fn get_subscription_items(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<subscription_types::GetPlansQuery>,
+    query: web::Query<subscription_types::GetSubscriptionItemsQuery>,
 ) -> impl Responder {
-    let flow = Flow::GetPlansForSubscription;
+    let flow = Flow::GetSubscriptionItemsForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
     let payload = query.into_inner();
 
@@ -278,7 +278,7 @@ pub async fn get_subscription_plans(
         payload,
         |state, auth: auth::AuthenticationData, query, _| {
             let platform = auth.into();
-            subscriptions::get_subscription_plans(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_subscription_items(state.into(), platform, profile_id.clone(), query)
         },
         auth::auth_type(
             &*auth_type,
@@ -442,6 +442,48 @@ pub async fn update_subscription(
             is_connected_allowed: false,
             is_platform_allowed: false,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn list_subscriptions(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<subscription_types::ListSubscriptionQuery>,
+) -> impl Responder {
+    let flow = Flow::GetSubscription;
+    let query = query.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let platform = auth.into();
+            subscriptions::list_subscriptions(
+                state.into(),
+                platform,
+                profile_id.clone(),
+                query.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

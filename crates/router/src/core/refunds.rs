@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 use scheduler::{
     consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
 };
@@ -25,7 +25,10 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, access_token, helpers, helpers::MerchantConnectorAccountType},
+        payments::{
+            self, access_token, gateway::context as gateway_context, helpers,
+            helpers::MerchantConnectorAccountType,
+        },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
         utils::{
@@ -105,6 +108,7 @@ pub async fn refund_create_core(
             &req.payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
@@ -116,7 +120,8 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -205,12 +210,21 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -234,7 +248,7 @@ pub async fn trigger_refund_to_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -298,7 +312,8 @@ pub async fn trigger_refund_to_gateway(
                 Some(err.code.clone()),
                 Some(err.message.clone()),
                 connector.connector_name.to_string(),
-                consts::REFUND_FLOW_STR.to_string(),
+                consts::REFUND_FLOW_STR,
+                consts::DEFAULT_SUBFLOW_STR,
             )
             .await;
             // Note: Some connectors do not have a separate list of refund errors
@@ -310,7 +325,8 @@ pub async fn trigger_refund_to_gateway(
                     Some(err.code.clone()),
                     Some(err.message.clone()),
                     connector.connector_name.to_string(),
-                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                    consts::PAYMENT_FLOW_STR,
+                    consts::AUTHORIZE_FLOW_STR,
                 )
                 .await
             } else {
@@ -561,20 +577,21 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     // Clone direct result for comparison (if successful)
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
-    tokio::spawn(async move {
-        let ucs_result =
-            unified_connector_service::call_unified_connector_service_for_refund_execute(
-                &ucs_state,
-                &ucs_platform,
-                ucs_router_data,
-                ExecutionMode::Shadow,
-                merchant_connector_account,
-            )
-            .await;
+    tokio::spawn(
+        async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_execute(
+                    &ucs_state,
+                    &ucs_platform,
+                    ucs_router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-        match (ucs_result, direct_router_data_for_comparison) {
-            (Ok(ucs_router_data), Some(direct_router_data)) => {
-                unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+            match (ucs_result, direct_router_data_for_comparison) {
+                (Ok(ucs_router_data), Some(direct_router_data)) => {
+                    unified_connector_service::serialize_router_data_and_send_to_comparison_service(
                     &ucs_state,
                     direct_router_data,
                     ucs_router_data,
@@ -587,20 +604,22 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     );
                 })
                 .ok();
-            }
-            (Err(e), _) => {
-                router_env::logger::debug!(
-                    "Skipping refund execute comparison - UCS shadow execute failed: {:?}",
-                    e
-                );
-            }
-            (_, None) => {
-                router_env::logger::debug!(
-                    "Skipping refund execute comparison - direct execute failed"
-                );
+                }
+                (Err(e), _) => {
+                    router_env::logger::debug!(
+                        "Skipping refund execute comparison - UCS shadow execute failed: {:?}",
+                        e
+                    );
+                }
+                (_, None) => {
+                    router_env::logger::debug!(
+                        "Skipping refund execute comparison - direct execute failed"
+                    );
+                }
             }
         }
-    });
+        .instrument(tracing::Span::current()),
+    );
 
     // Return PRIMARY result (Direct connector response)
     direct_result
@@ -671,6 +690,7 @@ pub async fn refund_retrieve_core(
             payment_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -683,7 +703,8 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -818,12 +839,21 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account.clone(),
+        payment_intent.merchant_id.clone(),
+        profile_id.clone(),
+        creds_identifier.clone(),
+    );
+
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         creds_identifier.as_deref(),
+        &gateway_context,
     ))
     .await?;
 
@@ -847,7 +877,7 @@ pub async fn sync_refund_with_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -1066,19 +1096,21 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let merchant_connector_account = merchant_connector_account.clone();
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
-    tokio::spawn(async move {
-        let ucs_result = unified_connector_service::call_unified_connector_service_for_refund_sync(
-            &state,
-            &platform,
-            router_data,
-            ExecutionMode::Shadow,
-            merchant_connector_account,
-        )
-        .await;
+    tokio::spawn(
+        async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_sync(
+                    &state,
+                    &platform,
+                    router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-        match (ucs_result, direct_router_data_for_comparison) {
-            (Ok(ucs_router_data), Some(direct_router_data)) => {
-                unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+            match (ucs_result, direct_router_data_for_comparison) {
+                (Ok(ucs_router_data), Some(direct_router_data)) => {
+                    unified_connector_service::serialize_router_data_and_send_to_comparison_service(
                     &state,
                     direct_router_data,
                     ucs_router_data,
@@ -1088,17 +1120,21 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     router_env::logger::debug!("Shadow UCS sync comparison failed: {:?}", e);
                 })
                 .ok();
-            }
-            (Err(_), _) => {
-                router_env::logger::debug!(
-                    "Skipping refund sync comparison - UCS shadow sync failed"
-                );
-            }
-            (_, None) => {
-                router_env::logger::debug!("Skipping refund sync comparison - direct sync failed");
+                }
+                (Err(_), _) => {
+                    router_env::logger::debug!(
+                        "Skipping refund sync comparison - UCS shadow sync failed"
+                    );
+                }
+                (_, None) => {
+                    router_env::logger::debug!(
+                        "Skipping refund sync comparison - direct sync failed"
+                    );
+                }
             }
         }
-    });
+        .instrument(tracing::Span::current()),
+    );
 
     direct_result
 }
@@ -1688,7 +1724,7 @@ pub async fn schedule_refund_execution(
                     // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_execute_task(db, &refund, runner)
+                            add_refund_execute_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.refund_id))?;
@@ -1710,7 +1746,7 @@ pub async fn schedule_refund_execution(
 
                             match update_refund {
                                 Ok((updated_refund_data, raw_connector_response)) => {
-                                    add_refund_sync_task(db, &updated_refund_data, runner)
+                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
@@ -1729,7 +1765,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_sync_task(db, &refund, runner)
+                            add_refund_sync_task(db, &refund, runner, state.conf.application_source)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.refund_id))?;
@@ -1921,6 +1957,7 @@ pub async fn trigger_refund_execute_workflow(
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
+                    &key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1957,6 +1994,7 @@ pub async fn trigger_refund_execute_workflow(
                 db,
                 &updated_refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
+                state.conf.application_source,
             )
             .await?;
         }
@@ -1966,6 +2004,7 @@ pub async fn trigger_refund_execute_workflow(
                 db,
                 &refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
+                state.conf.application_source,
             )
             .await?;
         }
@@ -2000,6 +2039,7 @@ pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2020,6 +2060,7 @@ pub async fn add_refund_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;
@@ -2044,6 +2085,7 @@ pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -2059,6 +2101,7 @@ pub async fn add_refund_execute_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;

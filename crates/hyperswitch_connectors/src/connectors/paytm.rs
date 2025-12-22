@@ -643,4 +643,8 @@ impl ConnectorSpecifications for Paytm {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*PAYTM_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        true
+    }
 }

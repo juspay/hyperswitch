@@ -109,6 +109,8 @@ impl<F: Send + Clone + Sync>
         }
         let key_manager_state = &state.into();
 
+        let cell_id = state.conf.cell_information.id.clone();
+
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -143,6 +145,7 @@ impl<F: Send + Clone + Sync>
                 profile,
                 request.clone(),
                 encrypted_data,
+                cell_id,
             )
             .await?;
 

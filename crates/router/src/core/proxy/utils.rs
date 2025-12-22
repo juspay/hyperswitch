@@ -111,11 +111,16 @@ impl ProxyRecord {
         }
     }
 
-    fn get_customer_id(&self) -> id_type::GlobalCustomerId {
+    fn get_customer_id(&self) -> RouterResult<id_type::GlobalCustomerId> {
         match self {
-            Self::PaymentMethodRecord(payment_method) => payment_method.customer_id.clone(),
+            Self::PaymentMethodRecord(payment_method) => payment_method
+                .customer_id
+                .clone()
+                .get_required_value("customer_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Customer id not present in Payment Method Entry"),
             Self::TokenizationRecord(tokenization_record) => {
-                tokenization_record.customer_id.clone()
+                Ok(tokenization_record.customer_id.clone())
             }
         }
     }
@@ -131,7 +136,7 @@ impl ProxyRecord {
                     state,
                     &platform,
                     &self.get_vault_id()?,
-                    &self.get_customer_id(),
+                    &self.get_customer_id()?,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -145,7 +150,7 @@ impl ProxyRecord {
             }
             Self::TokenizationRecord(_) => {
                 let vault_request = pm_types::VaultRetrieveRequest {
-                    entity_id: self.get_customer_id(),
+                    entity_id: self.get_customer_id()?,
                     vault_id: self.get_vault_id()?,
                 };
 

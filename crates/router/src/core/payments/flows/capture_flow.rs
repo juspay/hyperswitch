@@ -141,12 +141,14 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         connector: &api::ConnectorData,
         _platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -202,10 +204,13 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Capture Request")?;
 
-        let connector_auth_metadata =
-            build_unified_connector_service_auth_metadata(merchant_connector_account, platform)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            platform,
+            self.connector.clone(),
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
         let merchant_reference_id = header_payload
             .x_reference_id
             .clone()
@@ -227,15 +232,14 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             payment_capture_request,
             header_payload,
             |mut router_data, payment_capture_request, grpc_headers| async move {
-                let response = client
-                    .payment_capture(
-                        payment_capture_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to capture payment")?;
+                let response = Box::pin(client.payment_capture(
+                    payment_capture_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to capture payment")?;
 
                 let payment_capture_response = response.into_inner();
 

@@ -1,4 +1,6 @@
-use diesel_models::{authentication::Authentication, enums as storage_enums};
+use api_models::payments::DeviceChannel;
+use common_enums::MerchantCategoryCode;
+use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
@@ -42,10 +44,32 @@ pub struct KafkaAuthentication<'a> {
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
     pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub platform: Option<&'a DeviceChannel>,
+    pub mcc: Option<&'a MerchantCategoryCode>,
+    pub currency: Option<&'a common_enums::Currency>,
+    pub amount: Option<&'a common_utils::types::MinorUnit>,
+    pub merchant_country: Option<&'a String>,
+    pub billing_country: Option<&'a String>,
+    pub shipping_country: Option<&'a String>,
+    pub issuer_country: Option<&'a String>,
+    pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub device_type: Option<&'a String>,
+    pub device_brand: Option<&'a String>,
+    pub device_os: Option<&'a String>,
+    pub device_display: Option<&'a String>,
+    pub browser_name: Option<&'a String>,
+    pub browser_version: Option<&'a String>,
+    pub issuer_id: Option<&'a String>,
+    pub scheme_name: Option<&'a String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
 }
 
 impl<'a> KafkaAuthentication<'a> {
-    pub fn from_storage(authentication: &'a Authentication) -> Self {
+    pub fn from_storage(
+        authentication: &'a hyperswitch_domain_models::authentication::Authentication,
+    ) -> Self {
         Self {
             created_at: authentication.created_at.assume_utc(),
             modified_at: authentication.modified_at.assume_utc(),
@@ -84,6 +108,26 @@ impl<'a> KafkaAuthentication<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
+            platform: authentication.platform.as_ref(),
+            mcc: authentication.mcc.as_ref(),
+            currency: authentication.currency.as_ref(),
+            amount: authentication.amount.as_ref(),
+            merchant_country: authentication.merchant_country_code.as_ref(),
+            billing_country: authentication.billing_country.as_ref(),
+            shipping_country: authentication.shipping_country.as_ref(),
+            issuer_country: authentication.issuer_country.as_ref(),
+            earliest_supported_version: authentication.earliest_supported_version.clone(),
+            latest_supported_version: authentication.latest_supported_version.clone(),
+            device_type: authentication.device_type.as_ref(),
+            device_brand: authentication.device_brand.as_ref(),
+            device_os: authentication.device_os.as_ref(),
+            device_display: authentication.device_display.as_ref(),
+            browser_name: authentication.browser_name.as_ref(),
+            browser_version: authentication.browser_version.as_ref(),
+            issuer_id: authentication.issuer_id.as_ref(),
+            scheme_name: authentication.scheme_name.as_ref(),
+            exemption_requested: authentication.exemption_requested,
+            exemption_accepted: authentication.exemption_accepted,
         }
     }
 }

@@ -57,8 +57,10 @@ use crate::{
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
-
 use common_enums::enums::ProcessTrackerStatus;
+
+#[cfg(feature = "v1")]
+use crate::types::common_enums;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
@@ -140,6 +142,7 @@ pub async fn upsert_calculate_pcr_task(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;
@@ -262,7 +265,7 @@ pub async fn perform_execute_payment(
         revenue_recovery_metadata
             .payment_connector_transmission
             .unwrap_or_default(),
-        payment_intent.active_attempt_id.clone(),
+        payment_intent.active_attempt_id.as_ref(),
         revenue_recovery_payment_data,
         &tracking_data.global_payment_id,
     )
@@ -316,8 +319,18 @@ pub async fn perform_execute_payment(
                         &tracking_data.payment_attempt_id,
                     ))
                     .await?;
-
-                    storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(state, &connector_customer_id, &payment_intent.id).await?;
+                    // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
+                    let _unlocked = match payment_intent.status {
+                        IntentStatus::Failed => {
+                            storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
+                                state,
+                                &connector_customer_id,
+                                &payment_intent.id,
+                            )
+                            .await?
+                        }
+                        _ => false,
+                    };
                 }
 
                 Some(payment_processor_token) => {
@@ -338,8 +351,7 @@ pub async fn perform_execute_payment(
                 }
             };
         }
-
-        types::Decision::Psync(attempt_status, attempt_id) => {
+        types::Decision::Psync(intent_status, attempt_id) => {
             // find if a psync task is already present
             let task = PSYNC_WORKFLOW;
             let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
@@ -348,11 +360,11 @@ pub async fn perform_execute_payment(
 
             match psync_process {
                 Some(_) => {
-                    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
-                        attempt_status.foreign_into();
+                    let pcr_status: types::RevenueRecoveryPaymentIntentStatus =
+                        intent_status.foreign_into();
 
                     pcr_status
-                        .update_pt_status_based_on_attempt_status_for_execute_payment(
+                        .update_pt_status_based_on_intent_status_for_execute_payment(
                             db,
                             execute_task_process,
                         )
@@ -373,6 +385,7 @@ pub async fn perform_execute_payment(
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
+                        state.conf.application_source,
                     )
                     .await?;
 
@@ -444,6 +457,7 @@ async fn insert_psync_pcr_task_to_pt(
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -467,6 +481,7 @@ async fn insert_psync_pcr_task_to_pt(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;
@@ -509,8 +524,8 @@ pub async fn perform_payments_sync(
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .get_required_value("Payment Revenue Recovery Metadata")?
         .convert_back();
-    let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
-        payment_attempt.status.foreign_into();
+    let pcr_status: types::RevenueRecoveryPaymentIntentStatus =
+        payment_intent.status.foreign_into();
 
     let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData {
         psync_data: Some(psync_data),
@@ -703,7 +718,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                "Hard decline flag is false, rescheduling for scheduled time + 15 mins"
+                "Hard decline flag is false, rescheduling after job_schedule_buffer_time_in_seconds"
             );
 
             update_calculate_job_schedule_time(
@@ -979,6 +994,7 @@ async fn insert_execute_pcr_task_to_pt(
                 Some(1),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .map_err(|e| {
                 logger::error!(
@@ -1177,10 +1193,14 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyCaptured
         | IntentStatus::PartiallyCapturedAndCapturable
         | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Conflicted
-        | IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
-            message: "Invalid Payment Status ".to_owned(),
-        })),
+        | IntentStatus::Expired
+        | IntentStatus::PartiallyCapturedAndProcessing => {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Invalid Payment Status ".to_owned(),
+            }))
+        }
     }
 }
 pub async fn get_payment_response_using_payment_get_operation(
@@ -1230,25 +1250,29 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .get_required_value("Payment Revenue Recovery Metadata")?
         .convert_back();
-    match active_payment_attempt_id {
-        Some(_) => {
+    match (active_payment_attempt_id, &payment_intent.status) {
+        // No active attempt OR status is PartiallyCaptured - return None
+        (None, _) | (Some(_), IntentStatus::PartiallyCaptured) => Ok(None),
+
+        // Has active attempt and status is not PartiallyCaptured - proceed with update
+        (Some(_), _) => {
             // update the connector payment transmission field to Unsuccessful and unset active attempt id
             revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
                 enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
             );
 
             let payment_update_req =
-        api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-            payment_intent
-                .feature_metadata
-                .clone()
-                .unwrap_or_default()
-                .convert_back()
-                .set_payment_revenue_recovery_metadata_using_api(
-                    revenue_recovery_metadata.clone(),
-                ),
-            enums::UpdateActiveAttempt::Unset,
-        );
+            api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                payment_intent
+                    .feature_metadata
+                    .clone()
+                    .unwrap_or_default()
+                    .convert_back()
+                    .set_payment_revenue_recovery_metadata_using_api(
+                        revenue_recovery_metadata.clone(),
+                    ),
+                enums::UpdateActiveAttempt::Unset,
+            );
             logger::info!(
                 "Call made to payments update intent api , with the request body {:?}",
                 payment_update_req
@@ -1264,7 +1288,6 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
 
             Ok(Some(()))
         }
-        None => Ok(None),
     }
 }
 
@@ -1423,7 +1446,9 @@ pub fn map_recovery_status(
 
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
-        IntentStatus::Processing => RecoveryStatus::Processing,
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            RecoveryStatus::Processing
+        }
         IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted

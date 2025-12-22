@@ -1,16 +1,18 @@
 use api_models::payments::AdditionalPaymentData;
-use common_enums::{enums, CountryAlpha2};
-use common_utils::{pii, types::StringMinorUnit};
+use common_enums::enums;
+use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{refunds::Execute, PSync},
-    router_request_types::{PaymentsAuthorizeData, PaymentsSyncData, ResponseId},
+    router_request_types::{
+        PaymentsAuthorizeData, PaymentsSyncData, ResponseId, SetupMandateRequestData,
+    },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -79,6 +81,8 @@ pub enum RequestType {
     Refund,
     Find,
     Void,
+    #[serde(rename = "account-verification")]
+    AccountVerification,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -135,25 +139,13 @@ pub struct ZiftCardPaymentRequest {
     account_type: AccountType,
     account_number: cards::CardNumber,
     account_accessory: Secret<String>,
+    transaction_code: String,
     csc: Secret<String>,
     transaction_industry_type: TransactionIndustryType,
     holder_name: Secret<String>,
     holder_type: HolderType,
     amount: StringMinorUnit,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    zip_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    country_code: Option<CountryAlpha2>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    phone: Option<Secret<String>>,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
 }
 // Mandate payment (MIT - Merchant Initiated)
 #[derive(Debug, Serialize)]
@@ -171,25 +163,12 @@ pub struct ZiftMandatePaymentRequest {
     holder_type: HolderType,
     amount: StringMinorUnit,
     transaction_mode_type: TransactionModeType,
+    transaction_code: String,
 
     // Required for MIT
     transaction_category_type: TransactionCategoryType,
     sequence_number: i32,
-    // Billing address
-    #[serde(skip_serializing_if = "Option::is_none")]
-    street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    zip_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    country_code: Option<CountryAlpha2>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    phone: Option<Secret<String>>,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
 }
 
 // External 3DS payment request
@@ -205,6 +184,7 @@ pub struct ZiftExternalThreeDsPaymentRequest {
     transaction_industry_type: TransactionIndustryType,
     holder_name: Secret<String>,
     holder_type: HolderType,
+    transaction_code: String,
     amount: StringMinorUnit,
     // 3DS authentication fields
     authentication_status: AuthenticationStatus,
@@ -213,21 +193,6 @@ pub struct ZiftExternalThreeDsPaymentRequest {
     authentication_verification_value: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     authentication_version: Option<Secret<String>>,
-    // Billing address
-    #[serde(skip_serializing_if = "Option::is_none")]
-    street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    zip_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    country_code: Option<CountryAlpha2>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    phone: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -292,8 +257,17 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
         };
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card) => {
-                // Check if this is an external 3DS payment - both is_three_ds() and authentication_data must be present
                 if item.router_data.is_three_ds()
+                    && item.router_data.request.authentication_data.is_none()
+                {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "3DS flow".to_string(),
+                        connector: "Zift",
+                    }
+                    .into())
+                }
+                // Check if this is an external 3DS payment - both is_three_ds() and authentication_data must be present
+                else if item.router_data.is_three_ds()
                     && item.router_data.request.authentication_data.is_some()
                 {
                     // Handle external 3DS authentication
@@ -325,13 +299,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                             .message_version
                             .as_ref()
                             .map(|v| Secret::new(v.to_string())),
-                        street: item.router_data.get_optional_billing_line1(),
-                        city: item.router_data.get_optional_billing_city(),
-                        state: item.router_data.get_optional_billing_state(),
-                        zip_code: item.router_data.get_optional_billing_zip(),
-                        country_code: item.router_data.get_optional_billing_country(),
-                        email: item.router_data.get_optional_billing_email(),
-                        phone: item.router_data.get_optional_billing_phone_number(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::ExternalThreeDs(external_3ds_request))
                 } else {
@@ -346,13 +314,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_type: AccountType::PaymentCard,
                         holder_type: HolderType::Personal,
                         csc: card.card_cvc,
-                        street: item.router_data.get_optional_billing_line1(),
-                        city: item.router_data.get_optional_billing_city(),
-                        state: item.router_data.get_optional_billing_state(),
-                        zip_code: item.router_data.get_optional_billing_zip(),
-                        country_code: item.router_data.get_optional_billing_country(),
-                        email: item.router_data.get_optional_billing_email(),
-                        phone: item.router_data.get_optional_billing_phone_number(),
+                        transaction_code: item.router_data.connector_request_reference_id.clone(),
                     };
                     Ok(Self::Card(card_request))
                 }
@@ -389,13 +351,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     transaction_mode_type: TransactionModeType::CardNotPresent,
                     transaction_category_type: TransactionCategoryType::Recurring,
                     sequence_number: 2, // Its required for MIT
-                    street: item.router_data.get_optional_billing_line1(),
-                    city: item.router_data.get_optional_billing_city(),
-                    state: item.router_data.get_optional_billing_state(),
-                    zip_code: item.router_data.get_optional_billing_zip(),
-                    country_code: item.router_data.get_optional_billing_country(),
-                    email: item.router_data.get_optional_billing_email(),
-                    phone: item.router_data.get_optional_billing_phone_number(),
+                    transaction_code: item.router_data.connector_request_reference_id.clone(),
                 };
                 Ok(Self::Mandate(mandate_request))
             }
@@ -437,6 +393,7 @@ pub struct ZiftAuthPaymentsResponse {
     pub response_code: String,
     pub response_message: String,
     pub transaction_id: Option<i64>,
+    pub transaction_code: Option<String>,
     pub token: Option<String>,
 }
 
@@ -548,7 +505,7 @@ impl<F>
                     mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item.response.transaction_code.clone(),
                     incremental_authorization_allowed: None,
                     charges: None,
                 }),
@@ -899,5 +856,154 @@ impl TryFrom<PaymentsCancelResponseRouterData<ZiftVoidResponse>> for PaymentsCan
             response,
             ..item.data
         })
+    }
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZiftSetupMandateRequest {
+    request_type: RequestType,
+    #[serde(flatten)]
+    auth: ZiftAuthType,
+    transaction_industry_type: TransactionIndustryType,
+    holder_name: Secret<String>,
+    holder_type: HolderType,
+    transaction_code: String,
+    #[serde(flatten)]
+    payment_method_details: SetupMandatePaymentMethod,
+    //Billing address fields are intentionally not passed to Zift.As confirmed by the Zift connector team, billing-related parameters must not be sent in payment or mandate requests. Passing billing address details was causing transaction failures in production. To ensure successful processing and alignment with Zift’s API expectations, all billing address fields have been removed.
+}
+
+// Enum for payment method specific fields
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum SetupMandatePaymentMethod {
+    Card(CardVerificationDetails),
+}
+
+// Card specific fields for account verification
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardVerificationDetails {
+    account_type: AccountType,
+    account_number: cards::CardNumber,
+    account_accessory: Secret<String>,
+    csc: Secret<String>,
+}
+
+impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if let Some(amount) = item.request.amount {
+            if amount > 0 {
+                return Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "Setup Mandate with non zero amount".to_string(),
+                    connector: "Zift".to_string(),
+                }
+                .into());
+            }
+        }
+        let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
+
+        let (transaction_industry_type, payment_method_details) =
+            match &item.request.payment_method_data {
+                PaymentMethodData::Card(card) => (
+                    TransactionIndustryType::CardPresent,
+                    SetupMandatePaymentMethod::Card(CardVerificationDetails {
+                        account_type: AccountType::PaymentCard,
+                        account_number: card.card_number.clone(),
+                        account_accessory: card.get_expiry_date_as_mmyy()?,
+                        csc: card.card_cvc.clone(),
+                    }),
+                ),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Only card supported for mandate setup".to_string(),
+                    connector: "Zift",
+                })?,
+            };
+
+        Ok(Self {
+            request_type: RequestType::AccountVerification,
+            auth,
+            transaction_industry_type,
+            holder_name: item.get_billing_full_name()?,
+            holder_type: HolderType::Personal,
+            transaction_code: item.connector_request_reference_id.clone(),
+            payment_method_details,
+        })
+    }
+}
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            ZiftAuthPaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            ZiftAuthPaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = if item.response.response_code.is_approved() {
+            common_enums::AttemptStatus::Charged
+        } else if item.response.response_code.is_pending() {
+            common_enums::AttemptStatus::Pending
+        } else {
+            common_enums::AttemptStatus::Failure
+        };
+        if status != common_enums::AttemptStatus::Failure {
+            let transaction_id = item.response.transaction_id.ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "transaction_id",
+                }
+            })?;
+
+            Ok(Self {
+                status,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.token.clone().map(|token| {
+                        MandateReference {
+                            connector_mandate_id: Some(token),
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: item.response.transaction_code.clone(),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: item.response.transaction_id.map(|id| id.to_string()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            })
+        }
     }
 }

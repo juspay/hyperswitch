@@ -1,13 +1,13 @@
-use common_utils::types::StringMajorUnit;
+use common_utils::{pii::Email, types::StringMajorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
-    PayloadCardsRequest(Box<PayloadCardsRequestData>),
+    PaymentRequest(Box<PayloadPaymentRequestData>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
 }
 
@@ -26,29 +26,27 @@ pub enum TransactionTypes {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillingAddress {
     #[serde(rename = "payment_method[billing_address][city]")]
-    pub city: String,
+    pub city: Option<String>,
     #[serde(rename = "payment_method[billing_address][country_code]")]
-    pub country: common_enums::CountryAlpha2,
+    pub country: Option<common_enums::CountryAlpha2>,
     #[serde(rename = "payment_method[billing_address][postal_code]")]
     pub postal_code: Secret<String>,
     #[serde(rename = "payment_method[billing_address][state_province]")]
-    pub state_province: Secret<String>,
+    pub state_province: Option<Secret<String>>,
     #[serde(rename = "payment_method[billing_address][street_address]")]
-    pub street_address: Secret<String>,
+    pub street_address: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadCardsRequestData {
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadPaymentRequestData {
     pub amount: StringMajorUnit,
     #[serde(flatten)]
-    pub card: PayloadCard,
+    pub payment_method: PayloadPaymentMethods,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
-    #[serde(rename = "payment_method[type]")]
-    pub payment_method_type: String,
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
@@ -57,6 +55,15 @@ pub struct PayloadCardsRequestData {
     /// This is true by default
     #[serde(rename = "payment_method[keep_active]")]
     pub keep_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CustomerRequest {
+    pub keep_active: bool,
+    pub email: Email,
+    pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -82,6 +89,42 @@ pub struct PayloadCard {
     pub cvc: Secret<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PayloadBank {
+    #[serde(rename = "payment_method[bank_account][account_class]")]
+    pub account_class: Option<PayloadAccClass>,
+    #[serde(rename = "payment_method[bank_account][account_currency]")]
+    pub account_currency: String,
+    #[serde(rename = "payment_method[bank_account][account_number]")]
+    pub account_number: Secret<String>,
+    #[serde(rename = "payment_method[bank_account][account_type]")]
+    pub account_type: PayloadAccAccountType,
+    #[serde(rename = "payment_method[bank_account][routing_number]")]
+    pub routing_number: Secret<String>,
+    #[serde(rename = "payment_method[account_holder]")]
+    pub account_holder: Secret<String>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadAccClass {
+    Personal,
+    Business,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadAccAccountType {
+    Checking,
+    Savings,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "payment_method[type]")]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadPaymentMethods {
+    Card(PayloadCard),
+    BankAccount(PayloadBank),
+}
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadCancelRequest {
     pub status: responses::PayloadPaymentStatus,

@@ -1390,7 +1390,7 @@ impl ConnectorRedirectResponse for Nuvei {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
                     let acs_response: nuvei::NuveiACSResponse =
-                        utils::base64_decode(redirect_response.cres.expose())?
+                        utils::safe_base64_decode(redirect_response.cres.expose())?
                             .as_slice()
                             .parse_struct("NuveiACSResponse")
                             .switch()?;
@@ -1585,5 +1585,9 @@ impl ConnectorSpecifications for Nuvei {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&NUVEI_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        true
     }
 }

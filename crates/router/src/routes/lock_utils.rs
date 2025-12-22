@@ -93,7 +93,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetSubscription
             | Flow::UpdateSubscription
             | Flow::GetSubscriptionEstimate
-            | Flow::GetPlansForSubscription
+            | Flow::GetSubscriptionItemsForSubscription
             | Flow::PauseSubscription
             | Flow::ResumeSubscription
             | Flow::CancelSubscription => Self::Subscription,
@@ -187,7 +187,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFilter
             | Flow::PayoutsAccounts
             | Flow::PayoutsConfirm
-            | Flow::PayoutLinkInitiate => Self::Payouts,
+            | Flow::PayoutLinkInitiate
+            | Flow::PayoutsAggregate => Self::Payouts,
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
@@ -287,6 +288,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::OidcDiscovery
+            | Flow::OidcJwks
+            | Flow::OidcAuthorize
+            | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant

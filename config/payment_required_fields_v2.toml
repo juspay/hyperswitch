@@ -2332,8 +2332,8 @@ non_mandate = []
 # Payment method type: Givex
 [required_fields.gift_card.givex.fields.Adyen]
 common = [   
-    { required_field = "payment_method_data.gift_card.givex.number", display_name = "gift_card_number", field_type = "user_card_number" },
-    { required_field = "payment_method_data.gift_card.givex.cvc", display_name = "gift_card_cvc", field_type = "user_card_cvc" }
+    { required_field = "payment_method_data.gift_card.givex.number", display_name = "gift_card_number", field_type = "user_gift_card_number" },
+    { required_field = "payment_method_data.gift_card.givex.cvc", display_name = "gift_card_cvc", field_type = "user_gift_card_pin" }
 ]
 mandate = []
 non_mandate = []

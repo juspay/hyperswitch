@@ -27,7 +27,6 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     payments as domain_payments, router_request_types::PaymentsCaptureData,
 };
-use hyperswitch_interfaces::api as api_interfaces;
 
 use crate::{
     core::{
@@ -105,6 +104,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         platform: &domain::Platform,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -112,16 +112,17 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_session_token<'a>(
-        self,
+        &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
-    ) -> RouterResult<Self>
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<()>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(self)
+        Ok(())
     }
 
     async fn add_payment_method_token<'a>(
@@ -130,6 +131,7 @@ pub trait Feature<F, T> {
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::PaymentMethodTokenResult>
     where
         F: Clone,
@@ -143,10 +145,49 @@ pub trait Feature<F, T> {
         })
     }
 
-    async fn preprocessing_steps<'a>(
+    async fn pre_authentication_step<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn post_authentication_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn preprocessing_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector_data: &api::ConnectorData,
     ) -> RouterResult<Self>
     where
         F: Clone,
@@ -173,6 +214,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>>
     where
         F: Clone,
@@ -197,6 +239,7 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>>
     where
         F: Clone,
@@ -210,10 +253,6 @@ pub trait Feature<F, T> {
         &mut self,
         _create_order_result: types::CreateOrderResult,
     ) {
-    }
-
-    fn get_current_flow_info(&self) -> Option<api_interfaces::CurrentFlowInfo<'_>> {
-        None
     }
 
     async fn call_preprocessing_through_unified_connector_service<'a>(

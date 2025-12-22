@@ -77,6 +77,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: None,
             card_holder_name: Some(Secret::new("John Doe".to_string())),

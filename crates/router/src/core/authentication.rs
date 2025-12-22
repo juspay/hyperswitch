@@ -7,6 +7,7 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::authentication;
 use masking::ExposeInterface;
 
 use super::errors::StorageErrorExt;
@@ -16,7 +17,6 @@ use crate::{
     types::{
         self as core_types, api,
         domain::{self},
-        storage,
     },
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
@@ -36,7 +36,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    authentication_data: storage::Authentication,
+    authentication_data: authentication::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -54,9 +54,9 @@ pub async fn perform_authentication(
         authentication_connector.clone(),
         payment_method_data,
         payment_method,
-        billing_address,
-        shipping_address,
-        browser_details,
+        billing_address.clone(),
+        shipping_address.clone(),
+        browser_details.clone(),
         amount,
         currency,
         message_category,
@@ -64,9 +64,9 @@ pub async fn perform_authentication(
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
-        sdk_information,
+        sdk_information.clone(),
         threeds_method_comp_ind,
-        email,
+        email.clone(),
         webhook_url,
         three_ds_requestor_url,
         psd2_sca_exemption_type,
@@ -79,13 +79,26 @@ pub async fn perform_authentication(
         router_data,
     ))
     .await?;
-    let authentication = utils::update_trackers(
+
+    let authentication_info =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+            billing_address: Some(billing_address),
+            shipping_address,
+            browser_info: browser_details,
+            email,
+            device_details: sdk_information
+                .and_then(|sdk_information| sdk_information.device_details),
+            merchant_category_code: None,
+            merchant_country_code: None,
+        };
+    let authentication = Box::pin(utils::update_trackers(
         state,
         response.clone(),
         authentication_data,
         None,
         merchant_key_store,
-    )
+        authentication_info,
+    ))
     .await?;
     response
         .response
@@ -109,6 +122,7 @@ pub async fn perform_post_authentication(
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
 > {
+    let key_state = &state.into();
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
@@ -122,6 +136,8 @@ pub async fn perform_post_authentication(
         .find_authentication_by_merchant_id_authentication_id(
             &business_profile.merchant_id,
             &authentication_id,
+            key_store,
+            key_state,
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -147,7 +163,27 @@ pub async fn perform_post_authentication(
         let router_data =
             utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
                 .await?;
-        utils::update_trackers(state, router_data, authentication, None, key_store).await?
+
+        let authentication_info =
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: None,
+                shipping_address: None,
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+            };
+
+        utils::update_trackers(
+            state,
+            router_data,
+            authentication,
+            None,
+            key_store,
+            authentication_info,
+        )
+        .await?
     } else {
         // trigger in case of webhook flow
         authentication
@@ -186,6 +222,8 @@ pub async fn perform_pre_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -207,6 +245,7 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
+        key_store,
     )
     .await?;
 
@@ -227,12 +266,24 @@ pub async fn perform_pre_authentication(
         )
         .await?;
 
+        let authentication_info =
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: billing_address.clone(),
+                shipping_address: shipping_address.clone(),
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+            };
+
         let updated_authentication = utils::update_trackers(
             state,
             router_data,
             authentication,
             acquirer_details.clone(),
             key_store,
+            authentication_info,
         )
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -260,12 +311,24 @@ pub async fn perform_pre_authentication(
     let router_data =
         utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
 
+    let authentication_info =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+            billing_address,
+            shipping_address,
+            browser_info: None,
+            email: None,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+        };
+
     let authentication_update = utils::update_trackers(
         state,
         router_data,
         authentication,
         acquirer_details,
         key_store,
+        authentication_info,
     )
     .await?;
 

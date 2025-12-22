@@ -56,6 +56,14 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// OIDC Discovery endpoint
+    OidcDiscovery,
+    /// OIDC JWKS endpoint
+    OidcJwks,
+    /// OIDC Authorize endpoint
+    OidcAuthorize,
+    /// OIDC Token endpoint
+    OidcToken,
     /// Organization create flow
     OrganizationCreate,
     /// Organization retrieve flow
@@ -269,8 +277,8 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
-    /// Subscription get plans flow,
-    GetPlansForSubscription,
+    /// Subscription get items flow,
+    GetSubscriptionItemsForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
     /// Subscription create and confirm flow,
@@ -698,6 +706,8 @@ pub enum Flow {
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
+    /// Payouts aggregates flow
+    PayoutsAggregate,
 }
 
 /// Trait for providing generic behaviour to flow metric

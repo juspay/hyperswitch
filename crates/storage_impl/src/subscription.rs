@@ -67,6 +67,29 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         )
         .await
     }
+
+    #[instrument(skip_all)]
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        self.find_resources(
+            key_store,
+            Subscription::list_by_merchant_id_profile_id(
+                &conn,
+                merchant_id,
+                profile_id,
+                limit,
+                offset,
+            ),
+        )
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -107,6 +130,20 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
             .update_subscription_entry(key_store, merchant_id, subscription_id, data)
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
+        self.router_store
+            .list_by_merchant_id_profile_id(key_store, merchant_id, profile_id, limit, offset)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -138,6 +175,18 @@ impl SubscriptionInterface for MockDb {
         _subscription_id: String,
         _data: DomainSubscriptionUpdate,
     ) -> CustomResult<DomainSubscription, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    #[instrument(skip_all)]
+    async fn list_by_merchant_id_profile_id(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _profile_id: &common_utils::id_type::ProfileId,
+        _limit: Option<i64>,
+        _offset: Option<i64>,
+    ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 }

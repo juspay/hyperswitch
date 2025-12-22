@@ -151,7 +151,8 @@ impl DashboardRequestPayload {
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
                     | PaymentMethod::CardRedirect
-                    | PaymentMethod::MobilePayment => {
+                    | PaymentMethod::MobilePayment
+                    | PaymentMethod::NetworkToken => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(
                                 request.connector,

@@ -85,7 +85,7 @@ pub trait UnifiedAuthenticationService {
         _currency: Option<common_enums::Currency>,
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
-        _authentication: diesel_models::authentication::Authentication,
+        _authentication: hyperswitch_domain_models::authentication::Authentication,
         _return_url: Option<String>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -112,7 +112,7 @@ pub trait UnifiedAuthenticationService {
         _currency: Option<common_enums::Currency>,
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
-        _authentication_data: diesel_models::authentication::Authentication,
+        _authentication_data: hyperswitch_domain_models::authentication::Authentication,
         _return_url: Option<String>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -131,7 +131,7 @@ pub trait UnifiedAuthenticationService {
     }
 
     fn get_post_authentication_request_data(
-        _authentication: Option<diesel_models::authentication::Authentication>,
+        _authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
     ) -> RouterResult<UasPostAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("post_authentication".to_string()),
@@ -149,7 +149,7 @@ pub trait UnifiedAuthenticationService {
         _authentication_id: &common_utils::id_type::AuthenticationId,
         _payment_method: common_enums::PaymentMethod,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _authentication: Option<&diesel_models::authentication::Authentication>,
+        _authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPostAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("post_authentication".to_string()),

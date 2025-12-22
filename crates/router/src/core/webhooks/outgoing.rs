@@ -201,6 +201,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         &*state.store,
         &business_profile,
         &event,
+        state.conf.application_source,
     )
     .await
     .inspect_err(|error| {
@@ -568,6 +569,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
     business_profile: &domain::Profile,
     event: &domain::Event,
+    application_source: common_enums::ApplicationSource,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,
@@ -608,6 +610,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .map_err(errors::StorageError::from)?;
 

@@ -35,6 +35,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -342,7 +343,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                                 .connector
                                 .connector_name
                                 .to_string()
-                                .parse::<common_enums::RoutableConnectors>()
+                                .parse::<euclid::enums::RoutableConnectors>()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             merchant_connector_id: choice.connector.merchant_connector_id.clone(),
                         };

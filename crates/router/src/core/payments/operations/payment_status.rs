@@ -310,7 +310,7 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id, storage_scheme, platform.get_processor().get_key_store())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
@@ -402,12 +402,8 @@ async fn get_tracker_for_sync<
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(
-                db,
-                platform.get_processor().get_account().get_id(),
-                mcd,
-            )
-            .await
+            helpers::insert_merchant_connector_creds_to_config(db, platform.get_processor(), mcd)
+                .await
         })
         .await
         .transpose()?;
@@ -453,30 +449,35 @@ async fn get_tracker_for_sync<
         };
 
     let merchant_id = payment_intent.merchant_id.clone();
+    let key_manager_state = &(state).into();
 
-    let authentication_store = if let Some(ref authentication_id) =
-        payment_attempt.authentication_id
-    {
-        let authentication = db
-            .find_authentication_by_merchant_id_authentication_id(&merchant_id, authentication_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Error while fetching authentication record with authentication_id {}",
-                    authentication_id.get_string_repr()
+    let authentication_store =
+        if let Some(ref authentication_id) = payment_attempt.authentication_id {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    &merchant_id,
+                    authentication_id,
+                    platform.get_processor().get_key_store(),
+                    key_manager_state,
                 )
-            })?;
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Error while fetching authentication record with authentication_id {}",
+                        authentication_id.get_string_repr()
+                    )
+                })?;
 
-        Some(
+            Some(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                 authentication,
                 cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },
         )
-    } else {
-        None
-    };
+        } else {
+            None
+        };
 
     let payment_link_data = payment_intent
         .payment_link_id
@@ -529,7 +530,6 @@ async fn get_tracker_for_sync<
         pm_token: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
-        ephemeral_key: None,
         multiple_capture_data,
         redirect_response: None,
         payment_link_data,
@@ -569,27 +569,24 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRetrieveRequest, Pa
     fn validate_request<'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();
-        helpers::validate_merchant_id(
-            platform.get_processor().get_account().get_id(),
-            request_merchant_id,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".to_string(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })?;
+        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string(),
+            })?;
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+                merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: request.resource_id.clone(),
-                storage_scheme: platform.get_processor().get_account().storage_scheme,
+                storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -622,6 +619,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         pi.active_attempt.get_id().as_str(),
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
             }
@@ -631,6 +629,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
                 pi = db
@@ -644,7 +643,12 @@ pub async fn get_payment_intent_payment_attempt(
             }
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
-                    .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                    .find_payment_attempt_by_attempt_id_merchant_id(
+                        id,
+                        merchant_id,
+                        storage_scheme,
+                        key_store,
+                    )
                     .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
@@ -661,6 +665,7 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         merchant_id,
                         storage_scheme,
+                        key_store,
                     )
                     .await?;
 

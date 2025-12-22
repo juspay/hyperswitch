@@ -23,6 +23,12 @@ pub struct CardTokenData {
     pub network_token_locker_id: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankDebitTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
@@ -60,6 +66,7 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
+    BankDebit(BankDebitTokenData),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

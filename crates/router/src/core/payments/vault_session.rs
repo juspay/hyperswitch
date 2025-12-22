@@ -26,6 +26,7 @@ use crate::{
         payments::{
             self as payments_core, call_multiple_connectors_service, customers,
             flows::{ConstructFlowSpecificData, Feature},
+            gateway::context as gateway_context,
             helpers, helpers as payment_helpers, operations,
             operations::{BoxedOperation, Operation},
             transformers, OperationSessionGetters, OperationSessionSetters,
@@ -149,7 +150,14 @@ where
 {
     let db_merchant_connector_account =
         merchant_connector_account_type.get_inner_db_merchant_connector_account();
-
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.clone(),
+        merchant_connector_account_type.clone(),
+        payment_data.get_payment_intent().merchant_id.clone(),
+        profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
     match db_merchant_connector_account {
         Some(merchant_connector_account) => {
             let connector_name = merchant_connector_account.get_connector_name_as_string();
@@ -185,7 +193,7 @@ where
                     .await?;
 
                 let connector_customer_id = router_data
-                    .create_connector_customer(state, &connector)
+                    .create_connector_customer(state, &connector, &default_gateway_context)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(

@@ -486,7 +486,8 @@ impl From<DwollaPaymentStatus> for enums::RefundStatus {
 pub struct DwollaErrorResponse {
     pub code: String,
     pub message: String,
-    pub _embedded: Option<Vec<DwollaErrorDetails>>,
+    #[serde(rename = "_embedded")]
+    pub embedded: Option<DwollaErrorDetails>,
     pub reason: Option<String>,
 }
 
