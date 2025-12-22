@@ -120,8 +120,11 @@ pub struct FinixDisputes {
     pub state: FinixDisputeState,
     pub currency: Currency,
     pub id: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub respond_by: Option<PrimitiveDateTime>,
 }
 
