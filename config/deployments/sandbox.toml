@@ -228,9 +228,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 card.credit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie"
 card.debit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet,nmi,tesouro"
+wallet.apple_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet,nmi,tesouro"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet,tesouro"
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet,tesouro"
 wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -907,7 +907,7 @@ redsys = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 hipay = { long_lived_token = false, payment_method = "card" }

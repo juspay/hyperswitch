@@ -95,36 +95,39 @@ impl TryFrom<&ElavonRouterData<&PaymentsAuthorizeRouterData>> for ElavonPayments
         item: &ElavonRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let auth = ElavonAuthType::try_from(&item.router_data.connector_auth_type)?;
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Elavon",
-            })?
-        };
+
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => Ok(Self::Card(CardPaymentRequest {
-                ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
-                    true => TransactionType::CcSale,
-                    false => TransactionType::CcAuthOnly,
-                },
-                ssl_account_id: auth.account_id.clone(),
-                ssl_user_id: auth.user_id.clone(),
-                ssl_pin: auth.pin.clone(),
-                ssl_amount: item.amount.clone(),
-                ssl_card_number: req_card.card_number.clone(),
-                ssl_exp_date: req_card.get_expiry_date_as_mmyy()?,
-                ssl_cvv2cvc2: req_card.card_cvc,
-                ssl_email: item.router_data.get_billing_email()?,
-                ssl_add_token: match item.router_data.request.is_mandate_payment() {
-                    true => Some("Y".to_string()),
-                    false => None,
-                },
-                ssl_get_token: match item.router_data.request.is_mandate_payment() {
-                    true => Some("Y".to_string()),
-                    false => None,
-                },
-                ssl_transaction_currency: item.router_data.request.currency,
-            })),
+            PaymentMethodData::Card(req_card) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Card 3DS".to_string(),
+                        connector: "Elavon",
+                    })?
+                };
+                Ok(Self::Card(CardPaymentRequest {
+                    ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
+                        true => TransactionType::CcSale,
+                        false => TransactionType::CcAuthOnly,
+                    },
+                    ssl_account_id: auth.account_id.clone(),
+                    ssl_user_id: auth.user_id.clone(),
+                    ssl_pin: auth.pin.clone(),
+                    ssl_amount: item.amount.clone(),
+                    ssl_card_number: req_card.card_number.clone(),
+                    ssl_exp_date: req_card.get_expiry_date_as_mmyy()?,
+                    ssl_cvv2cvc2: req_card.card_cvc,
+                    ssl_email: item.router_data.get_billing_email()?,
+                    ssl_add_token: match item.router_data.request.is_mandate_payment() {
+                        true => Some("Y".to_string()),
+                        false => None,
+                    },
+                    ssl_get_token: match item.router_data.request.is_mandate_payment() {
+                        true => Some("Y".to_string()),
+                        false => None,
+                    },
+                    ssl_transaction_currency: item.router_data.request.currency,
+                }))
+            }
             PaymentMethodData::MandatePayment => Ok(Self::MandatePayment(MandatePaymentRequest {
                 ssl_transaction_type: match item.router_data.request.is_auto_capture()? {
                     true => TransactionType::CcSale,

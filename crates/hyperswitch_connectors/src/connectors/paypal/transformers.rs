@@ -43,7 +43,10 @@ use hyperswitch_domain_models::{
     router_flow_types::PoFulfill, router_response_types::PayoutsResponseData,
     types::PayoutsRouterData,
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -702,6 +705,7 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::MobilePayment(_) => Err(errors::ConnectorError::NotImplemented(
@@ -1303,7 +1307,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Breadpay
                     | enums::PaymentMethodType::UpiQr
                     | enums::PaymentMethodType::Payjustnow
-                    | enums::PaymentMethodType::OpenBanking => {
+                    | enums::PaymentMethodType::OpenBanking
+                    | enums::PaymentMethodType::NetworkToken => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -1324,7 +1329,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -1709,12 +1715,8 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
                 .and_then(|status_details| status_details.reason.map(|reason| reason.to_string()));
 
             Err(ErrorResponse {
-                code: reason
-                    .clone()
-                    .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-                message: reason
-                    .clone()
-                    .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                code: reason.clone().unwrap_or(NO_ERROR_CODE.to_string()),
+                message: reason.clone().unwrap_or(NO_ERROR_MESSAGE.to_string()),
                 reason,
                 status_code: item.http_code,
                 attempt_status: None,
@@ -1915,6 +1917,114 @@ pub enum PaypalPreProcessingResponse {
     PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
 
+impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
+    type Error = ErrorResponse;
+
+    fn try_from(response: PaypalPreProcessingResponse) -> Result<Self, Self::Error> {
+        match response {
+            PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
+                Ok(auth_success_response())
+            }
+            PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
+                validate_liability_response(liability_response).map_err(|e| *e)
+            }
+        }
+    }
+}
+
+fn auth_success_response() -> PaymentsResponseData {
+    PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::NoResponseId,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
+        charges: None,
+    }
+}
+
+fn validate_liability_response(
+    liability_response: PaypalLiabilityResponse,
+) -> Result<PaymentsResponseData, Box<ErrorResponse>> {
+    let three_ds = &liability_response
+        .payment_source
+        .card
+        .authentication_result
+        .three_d_secure;
+    let auth_result = &liability_response.payment_source.card.authentication_result;
+
+    let allowed = matches!(
+        (
+            three_ds.enrollment_status.as_ref(),
+            three_ds.authentication_status.as_ref(),
+            auth_result.liability_shift.clone(),
+        ),
+        (
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Success),
+            LiabilityShift::Possible,
+        ) | (
+            Some(EnrollmentStatus::Ready),
+            Some(AuthenticationStatus::Attempted),
+            LiabilityShift::Possible,
+        ) | (Some(EnrollmentStatus::NotReady), None, LiabilityShift::No)
+            | (
+                Some(EnrollmentStatus::Unavailable),
+                None,
+                LiabilityShift::No
+            )
+            | (Some(EnrollmentStatus::Bypassed), None, LiabilityShift::No)
+    );
+
+    if allowed {
+        Ok(auth_success_response())
+    } else {
+        let reason = format!(
+            "{} Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
+            constants::CANNOT_CONTINUE_AUTH,
+            auth_result.liability_shift,
+            three_ds
+                .enrollment_status
+                .clone()
+                .unwrap_or(EnrollmentStatus::Null),
+            three_ds
+                .authentication_status
+                .clone()
+                .unwrap_or(AuthenticationStatus::Null),
+        );
+
+        Err(Box::new(ErrorResponse {
+            attempt_status: Some(enums::AttemptStatus::Failure),
+            code: NO_ERROR_CODE.to_string(),
+            message: NO_ERROR_MESSAGE.to_string(),
+            connector_transaction_id: None,
+            reason: Some(reason),
+            status_code: 400, // Will be overridden by caller
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        }))
+    }
+}
+
+impl TryFrom<PaypalPostAuthenticateResponse> for PaymentsResponseData {
+    type Error = ErrorResponse;
+
+    fn try_from(response: PaypalPostAuthenticateResponse) -> Result<Self, Self::Error> {
+        match response {
+            PaypalPostAuthenticateResponse::PaypalNonLiabilityResponse(_) => {
+                Ok(auth_success_response())
+            }
+            PaypalPostAuthenticateResponse::PaypalLiabilityResponse(liability_response) => {
+                validate_liability_response(liability_response).map_err(|e| *e)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalLiabilityResponse {
     pub payment_source: CardParams,
@@ -1923,6 +2033,13 @@ pub struct PaypalLiabilityResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalNonLiabilityResponse {
     payment_source: CardsData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalPostAuthenticateResponse {
+    PaypalLiabilityResponse(PaypalLiabilityResponse),
+    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
