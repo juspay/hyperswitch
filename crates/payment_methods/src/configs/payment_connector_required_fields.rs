@@ -3483,6 +3483,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             )
                             .to_tuple(),
                             RequiredField::SepaBankDebitIban.to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
                         ]),
                     },
                 ),
