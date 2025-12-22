@@ -707,7 +707,7 @@ pub struct KlarnaSdkResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteracCustomerInfo {
-    pub customer_info: Option<api_models::payments::InteracCustomerInfoDetails>,
+    pub customer_info: Option<common_payment_types::InteracCustomerInfoDetails>,
 }
 
 #[derive(Clone, Debug, Serialize)]

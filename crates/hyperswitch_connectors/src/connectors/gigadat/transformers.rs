@@ -291,7 +291,7 @@ pub struct GigadatTransactionStatusResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatSyncData {
     pub name: Option<Secret<String>>,
-    pub email: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub mobile: Option<Secret<String>>,
 }
 
@@ -345,13 +345,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
             ConnectorResponseData::with_additional_payment_method_data(
                 AdditionalPaymentMethodConnectorResponse::BankRedirect {
                     interac: Some(InteracCustomerInfo {
-                        customer_info: Some(api_models::payments::InteracCustomerInfoDetails {
-                            customer_name: sync_data.name.clone(),
-                            customer_email: sync_data.email.clone(),
-                            customer_phone_number: sync_data.mobile.clone(),
-                            customer_bank_id: None,
-                            customer_bank_name: item.response.interac_bank_name.clone(),
-                        }),
+                        customer_info: Some(build_interac_customer_info_details(
+                            sync_data,
+                            item.response.interac_bank_name.clone(),
+                        )),
                     }),
                 },
             )
@@ -371,6 +368,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
             connector_response,
             ..item.data
         })
+    }
+}
+
+fn build_interac_customer_info_details(
+    sync_data: &GigadatSyncData,
+    bank_name: Option<Secret<String>>,
+) -> common_types::payments::InteracCustomerInfoDetails {
+    common_types::payments::InteracCustomerInfoDetails {
+        customer_name: sync_data.name.clone(),
+        customer_email: sync_data.email.clone(),
+        customer_phone_number: sync_data.mobile.clone(),
+        customer_bank_id: None,
+        customer_bank_name: bank_name,
     }
 }
 
@@ -661,7 +671,7 @@ pub struct GigadatWebhookKeyValueBody {
     pub name: Option<Secret<String>>,
     pub mobile: Option<Secret<String>>,
     pub user_id: Option<Secret<String>>,
-    pub email: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub financial_institution: Option<Secret<String>>,
 }
 

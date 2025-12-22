@@ -243,28 +243,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         .as_ref()
                         .map(|customer_info| {
                             ConnectorResponseData::with_additional_payment_method_data(
-                                AdditionalPaymentMethodConnectorResponse::BankRedirect {
-                                    interac: Some(InteracCustomerInfo {
-                                        customer_info: Some(
-                                            api_models::payments::InteracCustomerInfoDetails {
-                                                customer_name: customer_info.customer_name.clone(),
-                                                customer_email: customer_info
-                                                    .customer_email
-                                                    .clone(),
-                                                customer_phone_number: customer_info
-                                                    .customer_phone_number
-                                                    .clone(),
-                                                customer_bank_id: customer_info
-                                                    .customer_bank_id
-                                                    .clone(),
-                                                customer_bank_name: customer_info
-                                                    .customer_bank_name
-                                                    .clone(),
-                                            },
+                            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                                interac: Some(InteracCustomerInfo {
+                                    customer_info: Some(
+                                        common_types::payments::InteracCustomerInfoDetails::from(
+                                            customer_info,
                                         ),
-                                    }),
-                                },
-                            )
+                                    ),
+                                }),
+                            },
+                        )
                         });
                 Ok(Self {
                     status: enums::AttemptStatus::from(sync_response.state),
@@ -291,17 +279,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         AdditionalPaymentMethodConnectorResponse::BankRedirect {
                             interac: Some(InteracCustomerInfo {
                                 customer_info: Some(
-                                    api_models::payments::InteracCustomerInfoDetails {
-                                        customer_name: customer_info.customer_name.clone(),
-                                        customer_email: customer_info.customer_email.clone(),
-                                        customer_phone_number: customer_info
-                                            .customer_phone_number
-                                            .clone(),
-                                        customer_bank_id: customer_info.customer_bank_id.clone(),
-                                        customer_bank_name: customer_info
-                                            .customer_bank_name
-                                            .clone(),
-                                    },
+                                    common_types::payments::InteracCustomerInfoDetails::from(
+                                        customer_info,
+                                    ),
                                 ),
                             }),
                         },
@@ -325,6 +305,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                     ..item.data
                 })
             }
+        }
+    }
+}
+
+impl From<&LoonioCustomerInfo> for common_types::payments::InteracCustomerInfoDetails {
+    fn from(value: &LoonioCustomerInfo) -> Self {
+        Self {
+            customer_name: value.customer_name.clone(),
+            customer_email: value.customer_email.clone(),
+            customer_phone_number: value.customer_phone_number.clone(),
+            customer_bank_id: value.customer_bank_id.clone(),
+            customer_bank_name: value.customer_bank_name.clone(),
         }
     }
 }
@@ -444,7 +436,7 @@ pub struct LoonioWebhookBody {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LoonioCustomerInfo {
     pub customer_name: Option<Secret<String>>,
-    pub customer_email: Option<Secret<String>>,
+    pub customer_email: Option<Email>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_bank_id: Option<Secret<String>>,
     pub customer_bank_name: Option<Secret<String>>,
