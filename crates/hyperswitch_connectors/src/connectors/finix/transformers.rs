@@ -697,7 +697,7 @@ impl FinixWebhookBody {
                         FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
                             Ok(IncomingWebhookEvent::PaymentIntentCancelFailure)
                         }
-                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentCancelled),
+                        FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
                         FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentCancelled),
                     }
                 } else {
