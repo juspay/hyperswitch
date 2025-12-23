@@ -49,24 +49,6 @@ const multiUseMandateData = {
   },
 };
 
-const payment_method_data_3ds = {
-  card: {
-    last4: "1091",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
-    card_isin: "400000",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "30",
-    card_holder_name: "John Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
@@ -189,12 +171,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -211,12 +188,7 @@ export const connectorDetails = {
         Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -392,12 +364,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -413,12 +380,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -482,12 +444,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -520,12 +477,7 @@ export const connectorDetails = {
       Response: {
          status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -669,12 +621,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+           error: threeDSError,
         },
       },
     },
@@ -691,17 +638,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
         },
       },
     },
@@ -787,79 +723,7 @@ export const connectorDetails = {
       Response: {
          status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
-        },
-      },
-    },
-    PaymentMethod: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_issuer: "Gpay",
-        payment_method_issuer_code: "zift",
-        card: {
-          card_number: "4111111145551142",
-          card_exp_month: "03",
-          card_exp_year: "30",
-          card_holder_name: "John Doe",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {},
-      },
-    },
-    CaptureCapturedAmount: {
-      Request: {
-        Request: {
-          amount_to_capture: 6000,
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    ConfirmSuccessfulPayment: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "You cannot confirm this payment because it has status succeeded",
-            code: "IR_16",
-          },
-        },
-      },
-    },
-    RefundGreaterAmount: {
-      Request: {
-        amount: 6000000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The refund amount exceeds the amount captured",
-            code: "IR_13",
-          },
+           error: threeDSError,
         },
       },
     },
