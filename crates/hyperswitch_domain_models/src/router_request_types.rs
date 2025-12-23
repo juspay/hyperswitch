@@ -743,11 +743,13 @@ pub struct PaymentsPostAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -761,9 +763,11 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
+            capture_method: data.capture_method,
             browser_info: data.browser_info,
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
+            metadata: data.connector_meta.map(Secret::new),
         })
     }
 }
