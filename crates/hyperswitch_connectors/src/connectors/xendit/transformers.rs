@@ -266,11 +266,13 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
     fn try_from(item: XenditRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::Qris) => {
-                if let Some(common_enums::CaptureMethod::Manual) = item.router_data.request.capture_method {
-                    return Err(errors::ConnectorError::NotSupported{
-        message: "Manual Capture for QRIS payments".to_string(),
-        connector: "Xendit",
-    }
+                if let Some(common_enums::CaptureMethod::Manual) =
+                    item.router_data.request.capture_method
+                {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "Manual Capture for QRIS payments".to_string(),
+                        connector: "Xendit",
+                    }
                     .into());
                 }
                 let qr_request = XenditQrisPaymentsRequestData {
@@ -389,24 +391,18 @@ pub fn get_qr_image(qr_data: String) -> CustomResult<serde_json::Value, errors::
 
 pub fn extract_resource_id_from_payment_response(
     payment_method_type: Option<common_enums::PaymentMethodType>,
-    response: &XenditPaymentResponse
+    response: &XenditPaymentResponse,
 ) -> CustomResult<ResponseId, errors::ConnectorError> {
-    if payment_method_type
-        == Some(common_enums::PaymentMethodType::Qris)
-    {
-        let ext_id = 
-            response
+    if payment_method_type == Some(common_enums::PaymentMethodType::Qris) {
+        let ext_id = response
             .external_id
             .clone()
             .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(ResponseId::ConnectorTransactionId(ext_id))
     } else {
-        Ok(ResponseId::ConnectorTransactionId(
-            response.id.clone(),
-        ))
+        Ok(ResponseId::ConnectorTransactionId(response.id.clone()))
     }
 }
-
 
 impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;

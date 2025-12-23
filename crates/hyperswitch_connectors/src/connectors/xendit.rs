@@ -531,7 +531,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
                     connector_utils::get_sync_integrity_object(
                         self.amount_converter,
                         xendit_qris_webhook_response_data.amount,
-                       data.request.currency.to_string()
+                        data.request.currency.to_string(),
                     )
                 }
             },
@@ -936,7 +936,7 @@ impl webhooks::IncomingWebhook for Xendit {
                     Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::ConnectorTransactionId(
                             event_data
-                            .data
+                                .data
                                 .payment_request_id
                                 .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                         ),
