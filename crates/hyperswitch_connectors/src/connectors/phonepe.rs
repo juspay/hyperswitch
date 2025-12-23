@@ -1,5 +1,9 @@
 pub mod transformers;
 
+use crate::core::payments::ConnectorCommon;
+use crate::utils::connector_utils;
+use error_stack::Result;
+
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -56,6 +60,31 @@ impl Phonepe {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
         }
+    }
+
+    fn get_authorize_integrity_object(
+        &self,
+        amount_converter: &(dyn ConnectorCommon + Send + Sync),
+        amount: i64,
+        currency: String,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        connector_utils::get_authorize_integrity_object(amount_converter, amount, currency)
+    }
+    fn get_sync_integrity_object(
+        &self,
+        amount_converter: &(dyn ConnectorCommon + Send + Sync),
+        amount: i64,
+        currency: String,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        connector_utils::get_sync_integrity_object(amount_converter, amount, currency)
+    }
+    fn get_refund_integrity_object(
+        &self,
+        amount_converter: &(dyn ConnectorCommon + Send + Sync),
+        amount: i64,
+        currency: String,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        connector_utils::get_refund_integrity_object(amount_converter, amount, currency)
     }
 }
 
@@ -253,8 +282,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Phonepe PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if let (Some(amount), Some(currency)) = (response.amount, &response.currency) {
+            self.get_authorize_integrity_object(self, amount, currency.clone())?;
+        } else {
+            self.get_authorize_integrity_object(
+                self,
+                data.request.minor_amount,
+                data.request.currency.to_string(),
+            )?;
+        }
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -480,8 +520,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Phonepe
             .response
             .parse_struct("phonepe RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        self.get_refund_integrity_object(
+            self,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -547,6 +595,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Phonepe {
             .response
             .parse_struct("phonepe RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        self.get_refund_integrity_object(
+            self,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
