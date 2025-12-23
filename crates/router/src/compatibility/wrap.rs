@@ -32,7 +32,6 @@ where
     Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
-    error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug + Serialize + ApiEventMetric,
 {

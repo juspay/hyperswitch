@@ -48,14 +48,16 @@ function createIndividualRolloutConfig(
   const httpUrl = globalState.get("proxyHttp");
   const httpsUrl = globalState.get("proxyHttps");
 
-  const keySuffix = configType === "shadow" ? "_shadow" : "";
-  const rolloutPercent = configType === "shadow" ? 0.9 : 0.1;
-  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}${keySuffix}`;
+  // Shadow and rollout configs are now merged - no key suffix needed
+  // Set rollout_percent to 1.0 to ensure flows go through
+  const rolloutPercent = 1.0;
+  const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
 
   const configValue = {
     rollout_percent: rolloutPercent,
     http_url: httpUrl,
     https_url: httpsUrl,
+    execution_mode: "shadow",
   };
   const value = JSON.stringify(configValue);
 
@@ -3703,6 +3705,24 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "handleRewardRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "reward",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
   "confirmRealTimePaymentCallTest",
   (confirmBody, data, confirm, globalState) => {
     const {
@@ -3774,6 +3794,78 @@ Cypress.Commands.add(
                 );
                 globalState.set("nextActionType", "image_data_url");
                 break;
+            }
+          } else {
+            throw new Error(
+              `Invalid capture method ${response.body.capture_method}`
+            );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "confirmRewardCallTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentID = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profile_id;
+
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+
+          validateErrorMessage(response, resData);
+
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+            globalState.set("nextActionType", "redirect_to_url");
+
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
             }
           } else {
             throw new Error(

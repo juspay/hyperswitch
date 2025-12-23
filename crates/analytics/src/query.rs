@@ -370,7 +370,7 @@ impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
 #[derive(Debug, Clone)]
 pub enum Filter {
     Plain(String, FilterTypes, String),
-    NestedFilter(FilterCombinator, Vec<Filter>),
+    NestedFilter(FilterCombinator, Vec<Self>),
 }
 
 impl Default for Filter {

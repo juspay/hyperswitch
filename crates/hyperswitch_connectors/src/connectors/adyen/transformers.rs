@@ -6,7 +6,7 @@ use api_models::{
     enums,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
-use cards::CardNumber;
+use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
 use common_utils::ext_traits::OptionExt;
@@ -19,7 +19,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, Card, CardRedirectData, GiftCardData,
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -1379,7 +1378,7 @@ pub struct AdyenCard {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPazeData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
@@ -1497,7 +1496,7 @@ pub struct AdyenApplePay {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNetworkTokenData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Option<Secret<String>>,
@@ -1909,7 +1908,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -3077,10 +3077,13 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
-                        message: "Network tokenization for payment method".to_string(),
-                        connector: "Adyen",
-                    })?,
+                    | PaymentMethodData::Card(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Network tokenization for payment method".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 }
             }
             payments::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
@@ -3121,7 +3124,8 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",

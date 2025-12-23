@@ -99,6 +99,7 @@ pub struct Connectors {
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
     pub payjustnow: ConnectorParams,
+    pub payjustnowinstore: ConnectorParams,
     pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,

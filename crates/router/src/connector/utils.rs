@@ -12,6 +12,7 @@ use api_models::{
     payments,
 };
 use base64::Engine;
+use cards::NetworkToken;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -22,9 +23,7 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
-};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
@@ -2654,6 +2653,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
+            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
@@ -2886,7 +2886,7 @@ pub fn convert_back_amount_to_minor_units<T>(
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token(&self) -> NetworkToken;
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
@@ -2922,12 +2922,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
     }
 
     #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.token_number.clone()
     }
 
     #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 

@@ -59,7 +59,7 @@ pub struct MockDb {
     pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
     #[cfg(feature = "payouts")]
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
-    pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
+    pub authentications: Arc<Mutex<Vec<hyperswitch_domain_models::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
     pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
     pub user_authentication_methods:
