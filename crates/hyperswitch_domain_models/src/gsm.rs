@@ -15,6 +15,9 @@ pub struct GatewayStatusMap {
     pub error_category: Option<common_enums::ErrorCategory>,
     pub feature_data: common_types::domain::GsmFeatureData,
     pub feature: common_enums::GsmFeature,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -29,6 +32,9 @@ pub struct GatewayStatusMappingUpdate {
     pub clear_pan_possible: Option<bool>,
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 impl TryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
@@ -59,6 +65,9 @@ impl TryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
                 .unwrap_or(false),
             feature_data: Some(value.feature_data),
             feature: Some(value.feature),
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         })
     }
 }
@@ -78,6 +87,9 @@ impl TryFrom<GatewayStatusMappingUpdate> for diesel_models::gsm::GatewayStatusMa
             clear_pan_possible: value.clear_pan_possible,
             feature_data: value.feature_data,
             feature: value.feature,
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         })
     }
 }
@@ -124,6 +136,9 @@ impl TryFrom<diesel_models::gsm::GatewayStatusMap> for GatewayStatusMap {
             error_category: item.error_category,
             feature_data,
             feature,
+            standardised_code: item.standardised_code,
+            description: item.description,
+            user_guidance_message: item.user_guidance_message,
         })
     }
 }

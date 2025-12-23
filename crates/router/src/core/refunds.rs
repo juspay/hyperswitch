@@ -248,7 +248,7 @@ pub async fn trigger_refund_to_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::Execute>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )
@@ -312,7 +312,8 @@ pub async fn trigger_refund_to_gateway(
                 Some(err.code.clone()),
                 Some(err.message.clone()),
                 connector.connector_name.to_string(),
-                consts::REFUND_FLOW_STR.to_string(),
+                consts::REFUND_FLOW_STR,
+                consts::DEFAULT_SUBFLOW_STR,
             )
             .await;
             // Note: Some connectors do not have a separate list of refund errors
@@ -324,7 +325,8 @@ pub async fn trigger_refund_to_gateway(
                     Some(err.code.clone()),
                     Some(err.message.clone()),
                     connector.connector_name.to_string(),
-                    consts::AUTHORIZE_FLOW_STR.to_string(),
+                    consts::PAYMENT_FLOW_STR,
+                    consts::AUTHORIZE_FLOW_STR,
                 )
                 .await
             } else {
@@ -491,6 +493,22 @@ async fn execute_refund_execute_via_direct(
                             errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
                         ),
                         refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                        updated_by: storage_scheme.to_string(),
+                        connector_refund_id: None,
+                        processor_refund_data: None,
+                        unified_code: None,
+                        unified_message: None,
+                        issuer_error_code: None,
+                        issuer_error_message: None,
+                    })
+                }
+                errors::ConnectorError::FlowNotSupported { flow, connector } => {
+                    Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                        refund_status: Some(enums::RefundStatus::Failure),
+                        refund_error_message: Some(format!(
+                            "{flow} is not supported by {connector}"
+                        )),
+                        refund_error_code: Some("NOT_SUPPORTED".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: None,
                         processor_refund_data: None,
@@ -875,7 +893,7 @@ pub async fn sync_refund_with_gateway(
                 state,
                 platform,
                 &router_data,
-                None::<&payments::PaymentData<api::RSync>>, // No payment data for refunds
+                None, // No previous gateway information required for refunds
                 payments::CallConnectorAction::Trigger,
                 None,
             )

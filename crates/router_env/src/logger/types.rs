@@ -56,6 +56,14 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// OIDC Discovery endpoint
+    OidcDiscovery,
+    /// OIDC JWKS endpoint
+    OidcJwks,
+    /// OIDC Authorize endpoint
+    OidcAuthorize,
+    /// OIDC Token endpoint
+    OidcToken,
     /// Organization create flow
     OrganizationCreate,
     /// Organization retrieve flow
@@ -120,6 +128,8 @@ pub enum Flow {
     PaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
+    /// Payment methods batch retrieve flow.
+    PaymentMethodsBatchRetrieve,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow

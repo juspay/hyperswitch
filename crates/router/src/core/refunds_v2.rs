@@ -457,7 +457,8 @@ async fn get_unified_error_and_message(
         Some(err.code.clone()),
         Some(err.message.clone()),
         connector.connector_name.to_string(),
-        consts::REFUND_FLOW_STR.to_string(),
+        consts::REFUND_FLOW_STR,
+        consts::DEFAULT_SUBFLOW_STR,
     )
     .await;
     // Note: Some connectors do not have a separate list of refund errors
@@ -469,7 +470,8 @@ async fn get_unified_error_and_message(
             Some(err.code.clone()),
             Some(err.message.clone()),
             connector.connector_name.to_string(),
-            consts::AUTHORIZE_FLOW_STR.to_string(),
+            consts::PAYMENT_FLOW_STR,
+            consts::AUTHORIZE_FLOW_STR,
         )
         .await
     } else {
@@ -569,6 +571,18 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
                         errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
                     ),
                     refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                    updated_by: storage_scheme.to_string(),
+                    connector_refund_id: None,
+                    processor_refund_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                })
+            }
+            errors::ConnectorError::FlowNotSupported { flow, connector } => {
+                Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                    refund_status: Some(enums::RefundStatus::Failure),
+                    refund_error_message: Some(format!("{flow} is not supported by {connector}")),
+                    refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
                     processor_refund_data: None,
