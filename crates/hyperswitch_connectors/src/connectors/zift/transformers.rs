@@ -114,6 +114,8 @@ pub enum TransactionIndustryType {
     Lodging,
     #[serde(rename = "PT")]
     Petroleum,
+    #[serde(rename = "EC")]
+    Ecommerce,
 }
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 pub enum HolderType {
@@ -287,7 +289,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         auth,
                         account_number: card.card_number.clone(),
                         account_accessory: card.get_expiry_date_as_mmyy()?,
-                        transaction_industry_type: TransactionIndustryType::CardNotPresent,
+                        transaction_industry_type: TransactionIndustryType::Ecommerce,
                         holder_name: item.router_data.get_billing_full_name()?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
@@ -308,7 +310,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         auth,
                         account_number: card.card_number.clone(),
                         account_accessory: card.get_expiry_date_as_mmyy()?,
-                        transaction_industry_type: TransactionIndustryType::CardPresent,
+                        transaction_industry_type: TransactionIndustryType::Ecommerce,
                         holder_name: item.router_data.get_billing_full_name()?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
@@ -344,7 +346,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         },
                     )?),
                     account_accessory: additional_card_details.get_expiry_date_as_mmyy()?,
-                    transaction_industry_type: TransactionIndustryType::CardNotPresent,
+                    transaction_industry_type: TransactionIndustryType::Ecommerce,
                     holder_name: additional_card_details.get_card_holder_name()?,
                     holder_type: HolderType::Personal,
                     amount: item.amount.to_owned(),
@@ -908,7 +910,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
         let (transaction_industry_type, payment_method_details) =
             match &item.request.payment_method_data {
                 PaymentMethodData::Card(card) => (
-                    TransactionIndustryType::CardPresent,
+                    TransactionIndustryType::Ecommerce,
                     SetupMandatePaymentMethod::Card(CardVerificationDetails {
                         account_type: AccountType::PaymentCard,
                         account_number: card.card_number.clone(),
