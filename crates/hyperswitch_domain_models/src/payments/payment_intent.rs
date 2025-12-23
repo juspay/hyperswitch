@@ -2323,6 +2323,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            merchant_reference_id: self.merchant_reference_id,
         })
     }
 
@@ -2437,6 +2438,7 @@ impl behaviour::Conversion for PaymentIntent {
                 tokenization: storage_model.tokenization,
                 partner_merchant_identifier_details: storage_model
                     .partner_merchant_identifier_details,
+                merchant_reference_id: storage_model.merchant_reference_id,
             })
         }
         .await
@@ -2522,6 +2524,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_descriptor: self.billing_descriptor,
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            merchant_reference_id: self.merchant_reference_id,
         })
     }
 }

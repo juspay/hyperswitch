@@ -4005,6 +4005,7 @@ where
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
+            merchant_reference_id: payment_intent.merchant_reference_id,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4313,6 +4314,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
+            merchant_reference_id: pi.merchant_reference_id,
         }
     }
 }

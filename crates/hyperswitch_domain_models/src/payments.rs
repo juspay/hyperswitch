@@ -137,6 +137,7 @@ pub struct PaymentIntent {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 impl PaymentIntent {
