@@ -708,7 +708,7 @@ pub struct KlarnaSdkResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteracCustomerInfo {
-    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
+    pub customer_info: Option<common_payment_types::InteracCustomerInfoDetails>,
 }
 
 #[derive(Clone, Debug, Serialize)]
