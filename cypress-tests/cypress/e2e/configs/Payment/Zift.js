@@ -84,6 +84,12 @@ const payment_method_data_no3ds = {
   },
   billing: null,
 };
+const threeDSError = {
+  code: "IR_19",
+  message: "Payment method type not supported",
+  reason: "Cards 3DS is not supported by zift",
+  type: "invalid_request",
+};
 
 const requiredFields = {
   payment_methods: [
@@ -202,7 +208,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
         Response: {
         status: 400,
         body: {
@@ -214,7 +219,6 @@ export const connectorDetails = {
           },
         },
       },
-    }
     },
     No3DSManualCapture: {
       Request: {
@@ -368,6 +372,7 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -465,22 +470,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
     MandateMultiUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -499,6 +488,23 @@ export const connectorDetails = {
             reason: "Cards 3DS is not supported by zift",
             type: "invalid_request",
           },
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method: "card",
         },
       },
     },
@@ -688,6 +694,17 @@ export const connectorDetails = {
         },
       },
     },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
@@ -753,12 +770,7 @@ export const connectorDetails = {
       Response: {
          status: 400,
         body: {
-           error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by zift",
-            type: "invalid_request",
-          },
+            error: threeDSError,
         },
       },
     },
@@ -811,10 +823,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          code: "IR_14",
-          message:
-            "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
-          type: "invalid_request",
+          status: "requires_customer_action",
         },
       },
     },
