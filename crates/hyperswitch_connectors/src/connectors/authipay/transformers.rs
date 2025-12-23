@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
+    utils::{self, CardData},
 };
 
 // Type definition for router data with amount
@@ -110,7 +110,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
             PaymentMethodData::Card(req_card) => {
                 let expiry_date = ExpiryDate {
                     month: req_card.card_exp_month.clone(),
-                    year: req_card.card_exp_year.clone(),
+                    year: req_card.get_card_expiry_year_2_digit()?,
                 };
 
                 let card = Card {
@@ -170,13 +170,9 @@ impl TryFrom<&ConnectorAuthType> for AuthipayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
-                api_key,
-                api_secret,
-                ..
-            } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
-                api_secret: api_secret.to_owned(),
+                api_secret: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

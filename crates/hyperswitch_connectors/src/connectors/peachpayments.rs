@@ -216,7 +216,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 "{}/transactions/create-and-confirm",
                 self.base_url(connectors)
             )),
-            CaptureMethod::Manual => Ok(format!("{}/transactions", self.base_url(connectors))),
+            CaptureMethod::Manual => Ok(format!(
+                "{}/transactions/authorization",
+                self.base_url(connectors)
+            )),
             CaptureMethod::ManualMultiple
             | CaptureMethod::Scheduled
             | CaptureMethod::SequentialAutomatic => {
@@ -385,7 +388,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}/transactions/{}/confirm",
+            "{}/transactions/authorization/{}/capture",
             self.base_url(connectors),
             connector_transaction_id
         ))
@@ -404,7 +407,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
         let connector_req =
-            peachpayments::PeachpaymentsConfirmRequest::try_from(&connector_router_data)?;
+            peachpayments::PeachpaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -434,7 +437,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsConfirmResponse = res
+        let response: peachpayments::PeachpaymentsCaptureResponse = res
             .response
             .parse_struct("Peachpayments PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -476,7 +479,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
         Ok(format!(
-            "{}/transactions/{}/void",
+            "{}/transactions/authorization/{}/reverse",
             self.base_url(connectors),
             connector_transaction_id
         ))
@@ -487,7 +490,24 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = peachpayments::PeachpaymentsVoidRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Currency",
+                })?,
+        )?;
+
+        let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
+
+        let connector_req =
+            peachpayments::PeachpaymentsVoidRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -831,7 +851,7 @@ static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Peach Payments",
     description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Beta,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =

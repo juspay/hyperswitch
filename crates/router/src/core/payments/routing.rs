@@ -165,6 +165,7 @@ pub fn make_dsl_input_for_payouts(
     let payment = dsl_inputs::PaymentInput {
         amount: payout_data.payouts.amount,
         card_bin: None,
+        transaction_initiator: None,
         extended_card_bin: None,
         currency: payout_data.payouts.destination_currency,
         authentication_type: None,
@@ -296,6 +297,7 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: None,
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -406,6 +408,33 @@ pub fn make_dsl_input(
             }),
     };
 
+    let issuer_data_input = dsl_inputs::IssuerDataInput {
+        name: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
+                _ => None,
+            }),
+        country: payments_dsl_input.payment_method_data.as_ref().and_then(
+            |pm_data| match pm_data {
+                domain::PaymentMethodData::Card(card) => {
+                    card.card_issuing_country_code.clone().and_then(|code| {
+                        CountryAlpha2::from_str(&code)
+                            .ok()
+                            .map(common_enums::Country::from_alpha2)
+                    })
+                }
+                _ => None,
+            },
+        ),
+    };
+
+    let issuer_data = match (&issuer_data_input.name, &issuer_data_input.country) {
+        (None, None) => None,
+        _ => Some(issuer_data_input),
+    };
+
     let payment_input = dsl_inputs::PaymentInput {
         amount: payments_dsl_input.payment_attempt.get_total_amount(),
         card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
@@ -416,6 +445,10 @@ pub fn make_dsl_input(
                 _ => None,
             },
         ),
+        transaction_initiator: match payments_dsl_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         extended_card_bin: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -459,7 +492,7 @@ pub fn make_dsl_input(
         mandate: mandate_data,
         acquirer_data: None,
         customer_device_data: None,
-        issuer_data: None,
+        issuer_data,
     })
 }
 
@@ -488,21 +521,35 @@ pub async fn perform_static_routing_v1(
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed);
     };
+
+    let fallback_config = get_merchant_fallback_config().await?;
+
     let algorithm_id = if let Some(id) = algorithm_id {
         id
     } else {
-        let fallback_config = get_merchant_fallback_config().await?;
         logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
         return Ok((fallback_config, None));
     };
-    let cached_algorithm = ensure_algorithm_cached_v1(
+
+    let cached_algorithm = match ensure_algorithm_cached_v1(
         state,
         merchant_id,
         algorithm_id,
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
     )
-    .await?;
+    .await
+    {
+        Ok(algo) => algo,
+        Err(err) => {
+            logger::error!(
+                error=?err,
+                "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+            );
+
+            return Ok((fallback_config, None));
+        }
+    };
 
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -535,7 +582,7 @@ pub async fn perform_static_routing_v1(
             backend_input.clone(),
             business_profile,
             payment_id,
-            get_merchant_fallback_config().await?,
+            fallback_config,
         )
         .await
         .map_err(|e|
@@ -856,7 +903,6 @@ pub async fn refresh_cgraph_cache(
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
             &key_store.merchant_id,
             false,
             key_store,
@@ -953,6 +999,7 @@ pub async fn perform_cgraph_filtering(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
@@ -961,24 +1008,6 @@ pub async fn perform_cgraph_filtering(
     );
 
     let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
-
-    let db_mcas = state
-        .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
-            &key_store.merchant_id,
-            false,
-            key_store,
-        )
-        .await
-        .unwrap_or_else(|_| {
-            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
-                vec![],
-            )
-        });
-
-    let active_mca_ids: std::collections::HashSet<_> =
-        db_mcas.iter().map(|mca| mca.get_id().clone()).collect();
 
     let mut final_selection = Vec::new();
 
@@ -1031,6 +1060,7 @@ pub async fn perform_eligibility_analysis(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
+    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -1039,6 +1069,7 @@ pub async fn perform_eligibility_analysis(
         eligible_connectors,
         profile_id,
         &api_enums::TransactionType::from(transaction_data),
+        &active_mca_ids,
     )
     .await
 }
@@ -1079,7 +1110,7 @@ pub async fn perform_fallback_routing(
         #[cfg(feature = "payouts")]
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
-
+    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -1088,6 +1119,7 @@ pub async fn perform_fallback_routing(
         eligible_connectors,
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
+        &active_mca_ids,
     )
     .await
 }
@@ -1168,6 +1200,7 @@ pub async fn perform_session_flow_routing<'a>(
             .payment_intent
             .amount_details
             .calculate_net_amount(),
+        transaction_initiator: None,
         currency: session_input.payment_intent.amount_details.currency,
         authentication_type: session_input.payment_intent.authentication_type,
         card_bin: None,
@@ -1220,6 +1253,7 @@ pub async fn perform_session_flow_routing<'a>(
         api_enums::PaymentMethodType,
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
+    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -1241,6 +1275,7 @@ pub async fn perform_session_flow_routing<'a>(
             &session_pm_input,
             transaction_type,
             business_profile,
+            &active_mca_ids,
         )
         .await?;
 
@@ -1310,6 +1345,10 @@ pub async fn perform_session_flow_routing(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: session_input.payment_attempt.get_total_amount(),
+        transaction_initiator: match session_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         currency: session_input
             .payment_intent
             .currency
@@ -1371,6 +1410,7 @@ pub async fn perform_session_flow_routing(
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
     let mut final_routing_approach = None;
+    let active_mca_ids = get_active_mca_ids(session_input.state, session_input.key_store).await?;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -1394,6 +1434,7 @@ pub async fn perform_session_flow_routing(
                 &session_pm_input,
                 transaction_type,
                 business_profile,
+                &active_mca_ids,
             )
             .await?;
 
@@ -1433,6 +1474,7 @@ async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     _business_profile: &domain::Profile,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<(
     Option<Vec<api_models::routing::RoutableConnectorChoice>>,
     Option<common_enums::RoutingApproach>,
@@ -1493,6 +1535,7 @@ async fn perform_session_routing_for_pm_type(
         None,
         session_pm_input.profile_id,
         transaction_type,
+        active_mca_ids,
     )
     .await?;
 
@@ -1513,6 +1556,7 @@ async fn perform_session_routing_for_pm_type(
             None,
             session_pm_input.profile_id,
             transaction_type,
+            active_mca_ids,
         )
         .await?;
     }
@@ -1571,6 +1615,7 @@ async fn perform_session_routing_for_pm_type<'a>(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = get_chosen_connectors(
@@ -1590,6 +1635,7 @@ async fn perform_session_routing_for_pm_type<'a>(
         None,
         session_pm_input.profile_id,
         transaction_type,
+        active_mca_ids,
     )
     .await?;
 
@@ -1606,6 +1652,7 @@ async fn perform_session_routing_for_pm_type<'a>(
             None,
             session_pm_input.profile_id,
             transaction_type,
+            active_mca_ids,
         )
         .await?;
     }
@@ -1639,6 +1686,10 @@ pub fn make_dsl_input_for_surcharge(
 
     let payment_input = dsl_inputs::PaymentInput {
         amount: payment_attempt.get_total_amount(),
+        transaction_initiator: match payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
         // currency is always populated in payment_attempt during payment create
         currency: payment_attempt
             .currency
@@ -2302,7 +2353,7 @@ where
                 )?;
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2481,7 +2532,7 @@ pub async fn perform_elimination_routing(
 
             let routable_connector = api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2710,7 +2761,7 @@ where
 
             connectors.push(api_routing::RoutableConnectorChoice {
                 choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: common_enums::RoutableConnectors::from_str(connector)
+                connector: euclid::enums::RoutableConnectors::from_str(connector)
                     .change_context(errors::RoutingError::GenericConversionError {
                         from: "String".to_string(),
                         to: "RoutableConnectors".to_string(),
@@ -2741,4 +2792,27 @@ where
     } else {
         Ok(routable_connectors)
     }
+}
+
+pub async fn get_active_mca_ids(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
+    let db_mcas = state
+        .store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &key_store.merchant_id,
+            false,
+            key_store,
+        )
+        .await
+        .unwrap_or_else(|_| {
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+                vec![],
+            )
+        });
+
+    let active_mca_ids: std::collections::HashSet<_> =
+        db_mcas.iter().map(|mca| mca.get_id().clone()).collect();
+    Ok(active_mca_ids)
 }

@@ -62,6 +62,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "reward":
+      rewardRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        connectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -314,7 +322,7 @@ function bankRedirectRedirection(
       redirectionUrl,
       expectedUrl,
       connectorId,
-      ({ connectorId, paymentMethodType }) => {
+      ({ connectorId, paymentMethodType, constants }) => {
         // Renamed expectedUrl arg for clarity
         // This callback now runs either in cy.origin (if redirected) or directly (if iframe)
         switch (connectorId) {
@@ -622,6 +630,64 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "fiuu":
+            if (paymentMethodType === "online_banking_fpx") {
+              cy.log("Handling FIUU OnlineBankingFpx redirect flow");
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                if ($body.find("#txtUsername").length > 0) {
+                  cy.get("#txtUsername").clear().type("Gaara", { delay: 10 });
+                }
+
+                if ($body.find("#txtPassword").length > 0) {
+                  cy.get("#txtPassword")
+                    .clear()
+                    .type("letmepaywithsand", { delay: 10 });
+                }
+
+                if ($body.find("#login-btn").length > 0) {
+                  cy.get("#login-btn").click();
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const requestTacButton = $body.find(
+                  "button.pay-btn:contains('Request TAC')"
+                );
+                if (requestTacButton.length > 0) {
+                  cy.wrap(requestTacButton).click();
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const otpText = $body.find("div.otp").text();
+                const otpMatch = otpText.match(/\d+/);
+
+                if (otpMatch) {
+                  cy.get("#otp-input")
+                    .should("be.visible")
+                    .should("be.enabled")
+                    .clear()
+                    .type(otpMatch[0]);
+                } else {
+                  cy.log("FIUU FPX OTP text not found; proceeding without OTP");
+                }
+              });
+
+              cy.contains("button.pay-btn", /Pay Now|Request TAC/i, {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported FIUU payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
@@ -708,189 +774,107 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   }
 
   // Special handling for Airwallex which uses multiple domains in 3DS flow
+  // Handle separately to avoid nested cy.origin() calls
   if (connectorId === "airwallex") {
-    cy.log("Starting specialized Airwallex 3DS handling");
+    cy.log("Starting Airwallex 3DS redirection flow");
 
-    // Wait for page to load completely by checking for document ready state
-    cy.document()
-      .should("have.property", "readyState")
-      .and("equal", "complete");
+    // Wait for initial redirect to complete
+    waitForRedirect(redirectionUrl.href);
 
-    // Check current URL to determine which stage of flow we're in
+    // Handle first domain: pci-api-demo.airwallex.com
     cy.url().then((currentUrl) => {
-      cy.log(`Current URL: ${currentUrl}`);
+      const urlObj = new URL(currentUrl);
+      if (urlObj.hostname === "pci-api-demo.airwallex.com") {
+        cy.log("On pci-api-demo.airwallex.com - waiting for auto-redirect");
 
-      // If we're on api-demo.airwallex.com
-      if (currentUrl.includes("api-demo.airwallex.com")) {
-        cy.log("Detected api-demo.airwallex.com domain");
+        const currentOrigin = urlObj.origin;
+        cy.origin(
+          currentOrigin,
+          { args: { constants: CONSTANTS } },
+          ({ constants }) => {
+            // Wait for automatic redirect to authentication page
+            cy.url({ timeout: constants.TIMEOUT }).should(
+              "not.include",
+              "pci-api-demo.airwallex.com"
+            );
+          }
+        );
+      }
+    });
+
+    // Handle second domain: api-demo.airwallex.com
+    cy.url().then((currentUrl) => {
+      if (new URL(currentUrl).hostname === "api-demo.airwallex.com") {
+        cy.log("Now on api-demo.airwallex.com for authentication");
 
         const currentOrigin = new URL(currentUrl).origin;
         cy.origin(
           currentOrigin,
-          { args: { timeout: CONSTANTS.TIMEOUT } },
-          ({ timeout }) => {
-            cy.log("Inside api-demo.airwallex.com origin");
+          { args: { constants: CONSTANTS } },
+          ({ constants }) => {
+            cy.log("Handling Airwallex authentication form");
 
-            // Try to find and interact with the form
-            cy.get("form", { timeout: timeout })
-              .should("exist")
-              .then(($form) => {
-                cy.log(`Found form with ID: ${$form.attr("id") || "unknown"}`);
-
-                // Try to find the password input field with various selectors
-                cy.get(
-                  'input[type="password"], input[type="text"], input[name="password"], input',
-                  {
-                    timeout: timeout,
-                  }
-                ).then(($inputs) => {
-                  cy.log(`Found ${$inputs.length} input fields`);
-
-                  if ($inputs.length > 0) {
-                    cy.wrap($inputs.first())
-                      .should("be.visible")
-                      .should("be.enabled")
-                      .clear()
-                      .type("1234");
-
-                    // Try to find and click the submit button with various selectors
-                    cy.get(
-                      'button[type="submit"], input[type="submit"], button, input[value="Submit"]',
-                      {
-                        timeout: timeout,
-                      }
-                    ).then(($buttons) => {
-                      cy.log(
-                        `Found ${$buttons.length} possible submit buttons`
-                      );
-
-                      if ($buttons.length > 0) {
-                        cy.wrap($buttons.first()).should("be.visible").click();
-
-                        cy.log("Clicked submit button");
-                      } else {
-                        cy.log("No submit button found. Trying form submit");
-                        cy.get("form").submit();
-                      }
-                    });
-                  } else {
-                    cy.log("No input fields found. Trying direct form submit");
-                    cy.get("form").submit();
-                  }
-                });
-              });
-          }
-        );
-
-        // Wait for any navigation or form submission effects to complete
-        cy.get("body").should("exist");
-      }
-      // If we're on pci-api-demo.airwallex.com
-      else if (currentUrl.includes("pci-api-demo.airwallex.com")) {
-        cy.log(
-          "Detected pci-api-demo.airwallex.com domain - waiting for auto-redirect"
-        );
-
-        // Wait for redirect to complete by checking for URL changes
-        cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
-          "not.include",
-          "pci-api-demo.airwallex.com"
-        );
-
-        // Check if we've been redirected to api-demo.airwallex.com
-        cy.url().then((newUrl) => {
-          cy.log(`URL after waiting: ${newUrl}`);
-
-          if (newUrl.includes("api-demo.airwallex.com")) {
-            const newOrigin = new URL(newUrl).origin;
-
-            cy.origin(
-              newOrigin,
-              { args: { timeout: CONSTANTS.TIMEOUT } },
-              ({ timeout }) => {
-                cy.log("Redirected to api-demo.airwallex.com");
-
-                // Try to find and interact with the form
-                cy.get("form", { timeout: timeout })
-                  .should("exist")
-                  .then(($form) => {
-                    cy.log(
-                      `Found form with ID: ${$form.attr("id") || "unknown"}`
-                    );
-
-                    // Try to find the password input field with various selectors
-                    cy.get(
-                      'input[type="password"], input[type="text"], input[name="password"], input',
-                      {
-                        timeout: timeout,
-                      }
-                    ).then(($inputs) => {
-                      cy.log(`Found ${$inputs.length} input fields`);
-
-                      if ($inputs.length > 0) {
-                        cy.wrap($inputs.first())
-                          .should("be.visible")
-                          .should("be.enabled")
-                          .clear()
-                          .type("1234");
-
-                        // Try to find and click the submit button with various selectors
-                        cy.get(
-                          'button[type="submit"], input[type="submit"], button, input[value="Submit"]',
-                          {
-                            timeout: timeout,
-                          }
-                        ).then(($buttons) => {
-                          cy.log(
-                            `Found ${$buttons.length} possible submit buttons`
-                          );
-
-                          if ($buttons.length > 0) {
-                            cy.wrap($buttons.first())
-                              .should("be.visible")
-                              .click();
-
-                            cy.log("Clicked submit button");
-                          } else {
-                            cy.log(
-                              "No submit button found. Trying form submit"
-                            );
-                            cy.get("form").submit();
-                          }
-                        });
-                      } else {
-                        cy.log(
-                          "No input fields found. Trying direct form submit"
-                        );
-                        cy.get("form").submit();
-                      }
-                    });
-                  });
-              }
+            // Wait for form to be available
+            cy.get("form, body", { timeout: constants.TIMEOUT }).should(
+              "exist"
             );
 
-            // Wait for form submission to complete by checking URL or DOM changes
-            cy.document()
-              .should("have.property", "readyState")
-              .and("equal", "complete");
+            // Look for authentication input field (password or text)
+            cy.get(
+              'input[type="password"], input[type="text"], input[name*="password"], input[name*="auth"], input',
+              { timeout: constants.TIMEOUT }
+            )
+              .first()
+              .should("be.visible")
+              .should("be.enabled")
+              .clear()
+              .type("1234");
+
+            // Look for submit button and click it
+            cy.get(
+              'button[type="submit"], input[type="submit"], button:contains("Submit"), button:contains("Continue"), button',
+              { timeout: constants.TIMEOUT }
+            )
+              .first()
+              .should("be.visible")
+              .click();
+
+            cy.log("Submitted Airwallex 3DS authentication with code 1234");
+          }
+        );
+      } else {
+        cy.log("On different domain, attempting generic form handling");
+        // Handle generic form without cy.origin() for same-domain forms
+        cy.get("body").then(($body) => {
+          // Check if there's a form on the page
+          if ($body.find("form").length > 0) {
+            cy.get("form")
+              .first()
+              .within(() => {
+                // Look for any input field that might be for authentication
+                cy.get('input[type="password"], input[type="text"], input')
+                  .first()
+                  .clear()
+                  .type("1234");
+
+                // Look for submit button
+                cy.get('button[type="submit"], input[type="submit"], button')
+                  .first()
+                  .click();
+              });
+          } else {
+            cy.log("No form found, waiting for redirect");
+            cy.wait(CONSTANTS.TIMEOUT / 6); // Wait 15 seconds for automatic redirect
           }
         });
       }
     });
 
-    // After handling the 3DS authentication, go to the expected return URL
-    cy.log(`Navigating to expected return URL: ${expectedUrl.href}`);
-    cy.visit(expectedUrl.href);
-
-    // Wait for page to load completely by checking for document ready state
-    cy.document()
-      .should("have.property", "readyState")
-      .and("equal", "complete");
-
-    // Skip the standard verification since we've manually navigated to expected URL
+    // Wait for final redirect back to expected URL
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
   }
-
   // Nuvei 3DS: 2-step flow (auth button + redirect button)
   if (connectorId === "nuvei") {
     cy.visit(redirectionUrl.href, { failOnStatusCode: false });
@@ -1188,8 +1172,38 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
         case "redsys":
+          // Suppress cross-origin JavaScript errors from Redsys's website
+          cy.on("uncaught:exception", (err) => {
+            if (err.message.includes("$ is not defined")) {
+              return false; // Prevent test failure
+            }
+            return true;
+          });
+
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
+          break;
+        case "mollie":
+          cy.get("body").then(($body) => {
+            const paidSelector = 'input[type="radio"][value="paid"]';
+
+            if ($body.find(paidSelector).length) {
+              cy.get(paidSelector, { timeout: 500 }) // Short timeout as we already checked existence
+                .click()
+                .log("Selected: Paid");
+            } else {
+              const authorizedSelector =
+                'input[type="radio"][value="authorized"]';
+
+              cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                .should("exist")
+                .click()
+                .log("Selected: Authorized");
+            }
+          });
+          cy.contains("button", "Continue", { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
           break;
         default:
           cy.wait(constants.WAIT_TIME);
@@ -1240,6 +1254,58 @@ function upiRedirection(
     }
   } else {
     return;
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function rewardRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = false;
+
+  // Skip if redirectionUrl is null (happens when nextActionUrl is invalid)
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType }) => {
+        switch (connectorId) {
+          case "cashtocode":
+            // Cashtocode reward payment redirects
+            switch (paymentMethodType) {
+              case "evoucher":
+              case "classic":
+                cy.log(`Handling Cashtocode ${paymentMethodType} payment`);
+                // Cashtocode reward payments don't reach terminal state
+                // Skip return URL verification
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Cashtocode payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+          default:
+            // Default handling for other connectors that may support reward payments
+            cy.log(`Handling reward payment for connector: ${connectorId}`);
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping reward redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {

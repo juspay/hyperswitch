@@ -59,6 +59,7 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
@@ -147,11 +148,11 @@ impl<F: Send + Clone + Sync>
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &ExternalVaultProxyPaymentsRequest,
-        merchant_context: &'a domain::MerchantContext,
+        platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+            storage_scheme: platform.get_processor().get_account().storage_scheme,
             requeue: false,
         };
 
@@ -169,20 +170,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &ExternalVaultProxyPaymentsRequest,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         _profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
-                key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 storage_scheme,
             )
             .await
@@ -202,8 +202,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
-            merchant_context.get_merchant_key_store().key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(platform.get_processor().get_account().get_id().to_owned()),
+            platform.get_processor().get_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -218,8 +218,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
         let payment_attempt = match payment_intent.active_attempt_id.clone() {
             Some(ref active_attempt_id) => db
                 .find_payment_attempt_by_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                     active_attempt_id,
                     storage_scheme,
                 )
@@ -239,8 +238,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                 )
                 .await?;
                 db.insert_payment_attempt(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                     payment_attempt_domain_model,
                     storage_scheme,
                 )
@@ -324,12 +322,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
             Some(id) => {
                 let customer = state
                     .store
-                    .find_customer_by_global_id(
-                        &state.into(),
-                        &id,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
+                    .find_customer_by_global_id(&id, merchant_key_store, storage_scheme)
                     .await?;
 
                 Ok((Box::new(self), Some(customer)))
@@ -360,7 +353,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -384,18 +377,19 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id,
+                    customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
                     psp_tokenization: None,
                     network_tokenization: None,
+                    storage_type: None, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
                     state,
                     &state.get_req_state(),
                     req,
-                    merchant_context,
+                    platform,
                     business_profile,
                 ))
                 .await?;
@@ -405,8 +399,8 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
             (_, Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)), None, Some(payment_token)) => {
                 payment_data.external_vault_pmd = Some(payment_methods::get_external_vault_token(
                     state,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
                     payment_token.clone(),
                     vault_token.clone(),
                     &payment_data.payment_attempt.payment_method_type
@@ -427,7 +421,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
     async fn update_payment_method<'a>(
         &'a self,
         state: &SessionState,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         payment_data: &mut PaymentConfirmData<F>,
     ) {
         if let (true, Some(payment_method)) = (
@@ -436,8 +430,8 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         ) {
             payment_methods::update_payment_method_status_internal(
                 state,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
                 payment_method.get_id(),
             )
@@ -451,7 +445,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         &'a self,
         _state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _merchant_context: &domain::MerchantContext,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -467,19 +461,12 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 
     async fn perform_routing<'a>(
         &'a self,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
         business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        payments::connector_selection(
-            state,
-            merchant_context,
-            business_profile,
-            payment_data,
-            None,
-        )
-        .await
+        payments::connector_selection(state, platform, business_profile, payment_data, None).await
     }
 }
 
@@ -504,7 +491,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         F: 'b + Send,
     {
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -561,7 +547,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
                 key_store,
@@ -575,7 +560,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
@@ -616,7 +600,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
         let db = &*state.store;
-        let key_manager_state = &state.into();
 
         let response_router_data = response;
 
@@ -627,7 +610,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_intent = db
             .update_payment_intent(
-                key_manager_state,
                 payment_data.payment_intent,
                 payment_intent_update,
                 key_store,
@@ -639,7 +621,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                key_manager_state,
                 key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,

@@ -119,6 +119,7 @@ pub struct PreAuthenticationDetails {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub connector_metadata: Option<serde_json::Value>,
     pub directory_server_id: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,7 +158,7 @@ pub struct RawCardDetails {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
@@ -202,30 +203,21 @@ pub struct ThreeDsMetaData {
 
 #[cfg(feature = "v1")]
 impl From<PostAuthenticationDetails>
-    for Option<api_models::authentication::AuthenticationVaultTokenData>
+    for Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>
 {
     fn from(item: PostAuthenticationDetails) -> Self {
         match (item.raw_card_details, item.token_details) {
             (Some(card_data), _) => Some(
-                api_models::authentication::AuthenticationVaultTokenData::CardToken {
-                    tokenized_card_number: Secret::new(card_data.pan.get_card_no()),
-                    tokenized_card_expiry_year: card_data.expiration_year,
-                    tokenized_card_expiry_month: card_data.expiration_month,
-                    tokenized_card_cvc: card_data.card_security_code,
+                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
+                    card_expiry_year: Some(card_data.expiration_year),
+                    card_expiry_month: Some(card_data.expiration_month),
                 },
             ),
             (None, Some(network_token_data)) => {
-                let token_cryptogram = item
-                    .dynamic_data_details
-                    .and_then(|data| data.dynamic_data_value);
                 Some(
-                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
-                        tokenized_payment_token: Secret::new(
-                            network_token_data.payment_token.get_card_no(),
-                        ),
-                        tokenized_expiry_year: network_token_data.token_expiration_year,
-                        tokenized_expiry_month: network_token_data.token_expiration_month,
-                        tokenized_cryptogram: token_cryptogram,
+                    api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
+                        network_token_expiry_year: Some(network_token_data.token_expiration_year),
+                        network_token_expiry_month: Some(network_token_data.token_expiration_month),
                     },
                 )
             }

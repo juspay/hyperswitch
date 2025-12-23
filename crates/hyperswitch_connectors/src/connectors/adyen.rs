@@ -351,7 +351,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
-                | PaymentMethodType::SepaGuarenteedDebit => {
+                | PaymentMethodType::SepaGuarenteedDebit
+                | PaymentMethodType::OpenBanking
+                | PaymentMethodType::NetworkToken => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -2228,6 +2230,7 @@ impl IncomingWebhook for Adyen {
                 card_holder_name: None,
                 nick_name: None,
                 issuer_country: notif.additional_data.card_issuing_country.clone(),
+                issuer_country_code: None,
                 card_issuer: notif.additional_data.card_issuing_bank.clone(),
                 last4_digits: notif
                     .additional_data
@@ -3339,5 +3342,20 @@ impl ConnectorSpecifications for Adyen {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(ADYEN_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id.as_ref().map(|cid| {
+            format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                cid.get_string_repr()
+            )
+        })
     }
 }

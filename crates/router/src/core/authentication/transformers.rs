@@ -4,6 +4,7 @@ use api_models::payments;
 use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::authentication;
 
 use crate::{
     core::{
@@ -11,7 +12,7 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{
-        self, domain, storage,
+        self, domain,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
@@ -40,7 +41,7 @@ pub fn construct_authentication_router_data(
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: storage::Authentication,
+    authentication_data: authentication::Authentication,
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
@@ -89,7 +90,7 @@ pub fn construct_post_authentication_router_data(
     authentication_connector: String,
     business_profile: domain::Profile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: &storage::Authentication,
+    authentication_data: &authentication::Authentication,
     payment_id: &common_utils::id_type::PaymentId,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
     let threeds_server_transaction_id = authentication_data

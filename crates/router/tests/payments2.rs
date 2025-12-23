@@ -36,7 +36,6 @@ fn connector_list() {
 #[ignore]
 #[actix_rt::test]
 async fn payments_create_core() {
-    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -57,11 +56,9 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -70,14 +67,16 @@ async fn payments_create_core() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let platform = hyperswitch_domain_models::platform::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
@@ -108,6 +107,7 @@ async fn payments_create_core() {
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 bank_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
@@ -138,6 +138,7 @@ async fn payments_create_core() {
         amount_received: None,
         client_secret: None,
         created: None,
+        modified_at: None,
         currency: "USD".to_string(),
         customer_id: None,
         description: Some("Its my first payment request".to_string()),
@@ -181,7 +182,6 @@ async fn payments_create_core() {
         business_label: None,
         business_sub_label: None,
         allowed_payment_method_types: None,
-        ephemeral_key: None,
         manual_retry_allowed: None,
         connector_transaction_id: None,
         frm_message: None,
@@ -215,6 +215,7 @@ async fn payments_create_core() {
         order_tax_amount: None,
         connector_mandate_id: None,
         mit_category: None,
+        tokenization: None,
         shipping_cost: None,
         card_discovery: None,
         force_3ds_challenge: None,
@@ -232,6 +233,8 @@ async fn payments_create_core() {
         is_stored_credential: None,
         request_extended_authorization: None,
         billing_descriptor: None,
+        partner_merchant_identifier_details: None,
+        payment_method_tokenization_details: None,
     };
 
     let expected_response =
@@ -246,7 +249,7 @@ async fn payments_create_core() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_context,
+        platform,
         None,
         payments::PaymentCreate,
         req,
@@ -335,7 +338,6 @@ async fn payments_create_core() {
 async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
-    use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
     let tx: oneshot::Sender<()> = oneshot::channel().0;
 
     let app_state = Box::pin(routes::AppState::with_storage(
@@ -358,11 +360,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
-    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -371,14 +371,16 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let platform = hyperswitch_domain_models::platform::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
-    )));
+        merchant_account.clone(),
+        key_store.clone(),
+    );
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
@@ -406,6 +408,7 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
             billing: None,
@@ -437,6 +440,7 @@ async fn payments_create_core_adyen_no_redirect() {
             amount_received: None,
             client_secret: None,
             created: None,
+            modified_at: None,
             currency: "USD".to_string(),
             customer_id: None,
             description: Some("Its my first payment request".to_string()),
@@ -480,7 +484,6 @@ async fn payments_create_core_adyen_no_redirect() {
             business_label: None,
             business_sub_label: None,
             allowed_payment_method_types: None,
-            ephemeral_key: None,
             manual_retry_allowed: None,
             connector_transaction_id: None,
             frm_message: None,
@@ -513,6 +516,7 @@ async fn payments_create_core_adyen_no_redirect() {
             extended_authorization_last_applied_at: None,
             order_tax_amount: None,
             mit_category: None,
+            tokenization: None,
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
@@ -531,6 +535,8 @@ async fn payments_create_core_adyen_no_redirect() {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            partner_merchant_identifier_details: None,
+            payment_method_tokenization_details: None,
         },
         vec![],
     ));
@@ -544,7 +550,7 @@ async fn payments_create_core_adyen_no_redirect() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_context,
+        platform,
         None,
         payments::PaymentCreate,
         req,

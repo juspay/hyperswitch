@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::payments::SessionToken;
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -10,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
@@ -238,7 +238,7 @@ pub enum TrustpayPaymentsRequest {
 pub struct PaymentRequestNetworkToken {
     pub amount: StringMajorUnit,
     pub currency: enums::Currency,
-    pub pan: NetworkTokenNumber,
+    pub pan: NetworkToken,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
     #[serde(rename = "RedirectUrl")]
@@ -293,12 +293,11 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
-            | BankRedirectData::LocalBankRedirect {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("trustpay"),
-                )
-                .into())
-            }
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
+            )
+            .into()),
         }
     }
 }
@@ -604,7 +603,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -949,8 +949,11 @@ fn handle_bank_redirects_error_response(
     };
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        // message vary for the same code, so relying on code alone as it is unique
-        message: response.payment_result_info.result_code.to_string(),
+        message: response
+            .payment_result_info
+            .additional_info
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: Some(status),
@@ -1775,8 +1778,11 @@ fn handle_bank_redirects_refund_sync_error_response(
 ) -> (Option<ErrorResponse>, RefundsResponseData) {
     let error = Some(ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        // message vary for the same code, so relying on code alone as it is unique
-        message: response.payment_result_info.result_code.to_string(),
+        message: response
+            .payment_result_info
+            .additional_info
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: response.payment_result_info.additional_info,
         status_code,
         attempt_status: None,
