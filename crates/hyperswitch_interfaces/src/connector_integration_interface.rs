@@ -532,7 +532,10 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo<'_>,
+    ) -> (bool, bool) {
         match self {
             Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),

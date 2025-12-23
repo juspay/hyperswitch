@@ -395,6 +395,8 @@ pub enum CurrentFlowInfo<'a> {
         auth_type: &'a enums::AuthenticationType,
         /// The payment authorize request data
         request_data: &'a router_request_types::PaymentsAuthorizeData,
+        /// The response data, when available (post pre-authentication)
+        response_data: Option<&'a router_response_types::PaymentsResponseData>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {
@@ -437,8 +439,11 @@ pub struct PreProcessingFlowResponse<'a> {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
-        false
+    fn is_pre_authentication_flow_required(
+        &self,
+        _current_flow: CurrentFlowInfo<'_>,
+    ) -> (bool, bool) {
+        (false, false)
     }
     /// Check if authentication flow is required
     fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {

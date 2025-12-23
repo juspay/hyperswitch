@@ -328,12 +328,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        if connector.connector.is_pre_authentication_flow_required(
+        let (is_required, should_continue) = connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: &self.auth_type,
                 request_data: &self.request,
+                response_data: None,
             },
-        ) {
+        );
+        if is_required {
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",
                 connector.connector_name
@@ -372,9 +374,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     authorize_request_data,
                     pre_authenticate_response,
                 );
-            // After doing pre_authentication, step, we should not proceed with authorize call.
-            // control must be returned to SDK.
-            Ok((authorize_router_data, false))
+            Ok((authorize_router_data, should_continue))
         } else {
             Ok((self, true))
         }
@@ -623,6 +623,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 api_interface::CurrentFlowInfo::Authorize {
                     auth_type: &self.auth_type,
                     request_data: &self.request,
+                    response_data: None,
                 },
             );
             match alternate_flow {
