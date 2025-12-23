@@ -875,6 +875,15 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         key_store: &MerchantKeyStore,
