@@ -3480,141 +3480,137 @@ pub async fn payouts_manual_update_core(
     state: SessionState,
     req: api_models::payouts::PayoutsManualUpdateRequest,
 ) -> RouterResponse<api_models::payouts::PayoutsManualUpdateResponse> {
-    let api_models::payouts::PayoutsManualUpdateRequest {
-        payout_id,
-        payout_attempt_id,
-        merchant_id,
-        status,
-        error_code,
-        error_message,
-        connector_payout_id,
-    } = req;
+    if req.is_update_parameter_present() {
+        let api_models::payouts::PayoutsManualUpdateRequest {
+            payout_id,
+            payout_attempt_id,
+            merchant_id,
+            status,
+            error_code,
+            error_message,
+            connector_payout_id,
+        } = req;
 
-    if status.is_none()
-        && error_code.is_none()
-        && error_message.is_none()
-        && connector_payout_id.is_none()
-    {
-        return Err(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Request must contain atleast one parameter to update".to_string(),
-        }
-        .into());
-    }
-
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
-
-    let payout_attempt = state
-        .store
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(
-            &merchant_id,
-            &payout_attempt_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
-        .attach_printable(
-            "Error while fetching the payout_attempt by merchant_id and attempt_id",
-        )?;
-
-    let payouts = state
-        .store
-        .find_payout_by_merchant_id_payout_id(
-            &merchant_id,
-            &payout_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
-        .attach_printable("Error while fetching the payout by merchant_id and payout_id")?;
-
-    let option_gsm = if let Some(((code, message), connector_name)) = error_code
-        .as_ref()
-        .zip(error_message.as_ref())
-        .zip(payout_attempt.connector.as_ref())
-    {
-        helpers::get_gsm_record(
-            &state,
-            Some(code.to_string()),
-            Some(message.to_string()),
-            Some(connector_name.to_string()),
-            consts::PAYOUT_FLOW_STR,
-            payout_consts::DEFAULT_SUBFLOW_STR,
-        )
-        .await
-    } else {
-        None
-    };
-
-    // Update the payout_attempt
-    let attempt_update = storage::PayoutAttemptUpdate::ManualUpdate {
-        status,
-        error_code: error_code.clone(),
-        error_message: error_message.clone(),
-        unified_code: option_gsm
-            .as_ref()
-            .and_then(|gsm| gsm.unified_code.clone())
-            .and_then(|unified_code| UnifiedCode::try_from(unified_code).ok()),
-        unified_message: option_gsm
-            .and_then(|gsm| gsm.unified_message)
-            .and_then(|unified_code| UnifiedMessage::try_from(unified_code).ok()),
-        connector_payout_id: connector_payout_id.clone(),
-    };
-
-    let updated_payout_attempt = state
-        .store
-        .update_payout_attempt(
-            &payout_attempt,
-            attempt_update,
-            &payouts,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
-        .attach_printable("Error while updating the payout_attempt")?;
-
-    let active_attempt_id =
-        utils::get_payout_attempt_id(payout_id.get_string_repr(), payouts.attempt_count);
-
-    // If the payout_attempt is the active attempt for the payout, update the payout status
-    if active_attempt_id == payout_attempt_id {
-        let payout_update = storage::PayoutsUpdate::ManualUpdate { status };
-        state
+        let key_store = state
             .store
-            .update_payout(
-                &payouts,
-                payout_update,
-                &updated_payout_attempt,
+            .get_merchant_key_store_by_merchant_id(
+                &merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching the key store by merchant_id")?;
+
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+        let payout_attempt = state
+            .store
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+                &merchant_id,
+                &payout_attempt_id,
                 merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
-            .attach_printable("Error while updating payout")?;
-    }
+            .attach_printable(
+                "Error while fetching the payout_attempt by merchant_id and attempt_id",
+            )?;
 
-    Ok(services::ApplicationResponse::Json(
-        api_models::payouts::PayoutsManualUpdateResponse {
-            payout_id: updated_payout_attempt.payout_id,
-            payout_attempt_id: updated_payout_attempt.payout_attempt_id,
-            merchant_id: updated_payout_attempt.merchant_id,
-            attempt_status: updated_payout_attempt.status,
-            error_code,
-            error_message,
-            connector_payout_id,
-        },
-    ))
+        let payouts = state
+            .store
+            .find_payout_by_merchant_id_payout_id(
+                &merchant_id,
+                &payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+            .attach_printable("Error while fetching the payout by merchant_id and payout_id")?;
+
+        let option_gsm = if let Some(((code, message), connector_name)) = error_code
+            .as_ref()
+            .zip(error_message.as_ref())
+            .zip(payout_attempt.connector.as_ref())
+        {
+            helpers::get_gsm_record(
+                &state,
+                Some(code.to_string()),
+                Some(message.to_string()),
+                Some(connector_name.to_string()),
+                consts::PAYOUT_FLOW_STR,
+                payout_consts::DEFAULT_SUBFLOW_STR,
+            )
+            .await
+        } else {
+            None
+        };
+
+        // Update the payout_attempt
+        let attempt_update = storage::PayoutAttemptUpdate::ManualUpdate {
+            status,
+            error_code: error_code.clone(),
+            error_message: error_message.clone(),
+            unified_code: option_gsm
+                .as_ref()
+                .and_then(|gsm| gsm.unified_code.clone())
+                .and_then(|unified_code| UnifiedCode::try_from(unified_code).ok()),
+            unified_message: option_gsm
+                .and_then(|gsm| gsm.unified_message)
+                .and_then(|unified_code| UnifiedMessage::try_from(unified_code).ok()),
+            connector_payout_id: connector_payout_id.clone(),
+        };
+
+        let updated_payout_attempt = state
+            .store
+            .update_payout_attempt(
+                &payout_attempt,
+                attempt_update,
+                &payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+            .attach_printable("Error while updating the payout_attempt")?;
+
+        let active_attempt_id =
+            utils::get_payout_attempt_id(payout_id.get_string_repr(), payouts.attempt_count);
+
+        // If the payout_attempt is the active attempt for the payout, update the payout status
+        if active_attempt_id == payout_attempt_id {
+            let payout_update = storage::PayoutsUpdate::ManualUpdate { status };
+            state
+                .store
+                .update_payout(
+                    &payouts,
+                    payout_update,
+                    &updated_payout_attempt,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
+                .attach_printable("Error while updating payout")?;
+        }
+
+        Ok(services::ApplicationResponse::Json(
+            api_models::payouts::PayoutsManualUpdateResponse {
+                payout_id: updated_payout_attempt.payout_id,
+                payout_attempt_id: updated_payout_attempt.payout_attempt_id,
+                merchant_id: updated_payout_attempt.merchant_id,
+                attempt_status: updated_payout_attempt.status,
+                error_code,
+                error_message,
+                connector_payout_id,
+            },
+        ))
+    } else {
+        Err(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Request must contain atleast one parameter to update".to_string(),
+        }
+        .into())
+    }
 }

@@ -1146,6 +1146,15 @@ pub struct PayoutsManualUpdateRequest {
     pub connector_payout_id: Option<String>,
 }
 
+impl PayoutsManualUpdateRequest {
+    pub fn is_update_parameter_present(&self) -> bool {
+        self.status.is_some()
+            || self.error_code.is_some()
+            || self.error_message.is_some()
+            || self.connector_payout_id.is_some()
+    }
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PayoutsManualUpdateResponse {
     /// The identifier for the payout
