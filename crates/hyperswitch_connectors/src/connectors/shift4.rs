@@ -144,10 +144,10 @@ impl ConnectorCommon for Shift4 {
             message: response.error.message,
             reason: None,
             attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            connector_transaction_id: response.error.charge_id,
+            network_advice_code: response.error.network_advice_code,
+            network_decline_code: response.error.issuer_decline_code,
+            network_error_message: response.error.advice_code,
             connector_metadata: None,
         })
     }
