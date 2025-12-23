@@ -414,7 +414,6 @@ export const CONNECTOR_LISTS = {
       "finix",
       "mollie",
       "zift",
-
     ],
     // Add more exclusion lists
   },
