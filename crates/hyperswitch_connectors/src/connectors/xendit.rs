@@ -998,6 +998,7 @@ impl webhooks::IncomingWebhook for Xendit {
 
 static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
+    let automatic_capture_supported = vec![CaptureMethod::Automatic];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Mastercard,
@@ -1057,7 +1058,7 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
+            supported_capture_methods: automatic_capture_supported.clone(),
             specific_features: None,
         },
     );
