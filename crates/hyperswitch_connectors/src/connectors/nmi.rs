@@ -1190,7 +1190,6 @@ impl ConnectorSpecifications for Nmi {
                 request_data: _,
                 auth_type,
             } => *auth_type == enums::AuthenticationType::ThreeDs,
-
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
