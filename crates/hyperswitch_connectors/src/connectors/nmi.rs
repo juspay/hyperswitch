@@ -1186,9 +1186,11 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
 impl ConnectorSpecifications for Nmi {
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
-            api::CurrentFlowInfo::Authorize { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::Authorize {
+                request_data: _,
+                auth_type,
+            } => *auth_type == enums::AuthenticationType::ThreeDs,
+
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }

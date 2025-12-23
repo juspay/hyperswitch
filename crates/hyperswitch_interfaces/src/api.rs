@@ -395,8 +395,6 @@ pub enum CurrentFlowInfo<'a> {
         auth_type: &'a enums::AuthenticationType,
         /// The payment authorize request data
         request_data: &'a router_request_types::PaymentsAuthorizeData,
-        /// The response data, when available (post pre-authentication)
-        response_data: Option<&'a router_response_types::PaymentsResponseData>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {

@@ -332,7 +332,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: &self.auth_type,
                 request_data: &self.request,
-                response_data: None,
             },
         );
         if is_required {
@@ -642,7 +641,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 api_interface::CurrentFlowInfo::Authorize {
                     auth_type: &self.auth_type,
                     request_data: &self.request,
-                    response_data: None,
                 },
             );
             match alternate_flow {
