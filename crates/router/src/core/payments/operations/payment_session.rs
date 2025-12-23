@@ -260,6 +260,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         F: 'b + Send,
     {
         let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
@@ -268,6 +273,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata,
                         updated_by: storage_scheme.to_string(),
+                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,

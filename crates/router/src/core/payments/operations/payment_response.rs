@@ -918,6 +918,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .clone()
                                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("payment_intent.metadata not found")?,
+                            feature_metadata: payment_intent.feature_metadata.clone().map(masking::Secret::new),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 

@@ -76,6 +76,7 @@ pub enum SantanderPaymentStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderVoidStatus {
     // RemovedByReceivingUser
     RemovidaPeloUsuarioRecebedor,
@@ -110,7 +111,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
     // Request Payer
     pub solicitacao_pagador: Option<String>,
     // Additional Info
-    pub info_adicionais: Vec<SantanderAdditionalInfo>,
+    pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
     // pix_qr_code_data
     pub pix_copia_e_cola: Option<String>,
@@ -208,6 +209,7 @@ pub struct SantanderPixVoidResponse {
     pub solicitacao_pagador: Option<String>,
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
+    pub pix: Option<Vec<SantanderPix>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,11 +233,11 @@ pub struct ValueResponse {
     // Original payment amount
     pub original: String,
     // Fine (penalty) details
-    pub multa: Fine,
+    pub multa: Option<Fine>,
     // Interest details
-    pub juros: Interest,
+    pub juros: Option<Interest>,
     // Discount details
-    pub desconto: DiscountResponse,
+    pub desconto: Option<DiscountResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,7 +301,7 @@ pub struct SantanderCalendarResponse {
     // Date and time when the payment was created
     pub criacao: String,
     // Expiration time of the payment (if applicable)
-    pub expiracao: String,
+    pub expiracao: Option<String>,
     // Due date for the payment
     pub data_de_vencimento: Option<String>,
     // Validity period after the due date
@@ -654,4 +656,13 @@ pub struct QrDataUrlSantander {
 pub enum SantanderUpdateMetadataResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NsuComposite {
+    pub nsu_code: String,
+    pub nsu_date: String,
+    pub environment: String,
+    pub covenant_code: String,
+    pub bank_number: String,
 }

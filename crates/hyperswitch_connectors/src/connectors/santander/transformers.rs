@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use api_models::payments::{QrCodeInformation, VoucherNextStepData};
+use api_models::payments::{ExpiryType, QrCodeInformation, VoucherNextStepData};
 use common_enums::{enums, AttemptStatus};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode},
+    ext_traits::{ByteSliceExt, Encode, ValueExt},
     request::Method,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -42,12 +42,12 @@ use crate::{
             SantanderValue,
         },
         responses::{
-            BoletoDocumentKind, FunctionType, Payer, PaymentType, SanatanderAccessTokenResponse,
-            SanatanderTokenResponse, SantanderPaymentStatus, SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderPixQRCodePaymentsResponse,
-            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
-            SantanderWebhookBody,
+            BoletoDocumentKind, FunctionType, NsuComposite, Payer, PaymentType,
+            SanatanderAccessTokenResponse, SanatanderTokenResponse, SantanderPaymentStatus,
+            SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
+            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
+            SantanderVoidResponse, SantanderVoidStatus, SantanderWebhookBody,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -944,7 +944,7 @@ fn get_qr_code_data<F, T>(
     // Scheduled type Pix QR Code Response already has a formed emv string data for QR Code
     // HS doesnt need to create it
     if let Some(data) = pix_data.pix_copia_e_cola.clone() {
-        return convert_pix_data_to_value(data, Some(api_models::payments::ExpiryType::Scheduled));
+        return convert_pix_data_to_value(data, Some(ExpiryType::Scheduled));
     }
 
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
@@ -982,9 +982,9 @@ fn get_qr_code_data<F, T>(
     )?;
 
     let variant = if pix_data.pix_copia_e_cola.is_some() {
-        Some(api_models::payments::ExpiryType::Scheduled)
+        Some(ExpiryType::Scheduled)
     } else {
-        Some(api_models::payments::ExpiryType::Immediate)
+        Some(ExpiryType::Immediate)
     };
 
     convert_pix_data_to_value(dynamic_pix_code, variant)
@@ -992,7 +992,7 @@ fn get_qr_code_data<F, T>(
 
 fn convert_pix_data_to_value(
     data: String,
-    variant: Option<api_models::payments::ExpiryType>,
+    variant: Option<ExpiryType>,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let image_data = QrImage::new_from_data(data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
@@ -1112,10 +1112,11 @@ impl TryFrom<&SantanderRouterData<&PaymentsUpdateMetadataRouterData>>
                 })?,
         );
 
+        let boleto_components =
+            extract_boleto_components(&value.router_data.request.connector_transaction_id)?;
+
         Ok(Self {
-            bank_number: Some(extract_bank_number(
-                value.router_data.request.connector_meta.clone(),
-            )?),
+            bank_number: Some(boleto_components.bank_number),
             covenant_code: Some(boleto_mca_metadata.covenant_code.clone()),
             environment: None,
             due_date,
@@ -1231,22 +1232,55 @@ where
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let status = if item.http_code == 200 {
+            common_enums::PaymentResourceUpdateStatus::Success
+        } else {
+            common_enums::PaymentResourceUpdateStatus::Failure
+        };
         match item.response {
-            SantanderUpdateMetadataResponse::Pix(_) => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            )
-            .into()),
-            SantanderUpdateMetadataResponse::Boleto(_) => {
-                let status = if item.http_code == 200 {
-                    common_enums::PaymentResourceUpdateStatus::Success
-                } else {
-                    common_enums::PaymentResourceUpdateStatus::Failure
-                };
-                Ok(Self {
-                    response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
-                    ..item.data
-                })
-            }
+            SantanderUpdateMetadataResponse::Pix(_) => Ok(Self {
+                response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
+                ..item.data
+            }),
+            SantanderUpdateMetadataResponse::Boleto(_) => Ok(Self {
+                response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
+                ..item.data
+            }),
         }
     }
+}
+
+pub fn get_qr_code_type(
+    metadata: Option<Value>,
+) -> CustomResult<ExpiryType, errors::ConnectorError> {
+    let qr_data_santander: Option<QrCodeInformation> = metadata
+        .clone()
+        .map(|qr_code_data| qr_code_data.parse_value("QrDataUrlSantander"))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    let santander_variant = match qr_data_santander {
+        Some(QrCodeInformation::QrCodeImageUrl { expiry_type, .. }) => expiry_type,
+        _ => {
+            return Err(errors::ConnectorError::ResponseDeserializationFailed.into());
+        }
+    };
+    Ok(santander_variant.ok_or_else(|| errors::ConnectorError::ResponseDeserializationFailed)?)
+}
+
+fn extract_boleto_components(input: &str) -> Result<NsuComposite, errors::ConnectorError> {
+    let parts: Vec<&str> = input.split('.').collect();
+
+    let [nsu_code, nsu_date, environment, covenant_code, bank_number] = parts
+        .as_slice()
+        .try_into()
+        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+    Ok(NsuComposite {
+        nsu_code: nsu_code.to_string(),
+        nsu_date: nsu_date.to_string(),
+        environment: environment.to_string(),
+        covenant_code: covenant_code.to_string(),
+        bank_number: bank_number.to_string(),
+    })
 }

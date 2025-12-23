@@ -9271,7 +9271,7 @@ pub struct PaymentsUpdateMetadataRequest {
     pub payment_id: id_type::PaymentId,
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     pub feature_metadata: Option<FeatureMetadata>,
 }
@@ -11151,6 +11151,7 @@ impl BoletoAdditionalDetails {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PixAdditionalDetails {
     Immediate(ImmediateExpirationTime),
     Scheduled(ScheduledExpirationTime),

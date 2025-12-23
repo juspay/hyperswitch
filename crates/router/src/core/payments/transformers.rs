@@ -5561,6 +5561,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                     .attach_printable("Failed parsing FeatureMetadata")
             })
             .transpose()?;
+
         Ok(Self {
             metadata: payment_data
                 .payment_intent

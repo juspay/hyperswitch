@@ -106,13 +106,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let merged_metadata = payment_intent
-            .merge_metadata(request.metadata.clone().expose())
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Metadata should be an object and contain at least 1 key".to_owned(),
-            })?;
+        if let Some(metadata) = request.metadata.as_ref().map(|data| data.clone().expose()) {
+            let merged_metadata = payment_intent.merge_metadata(metadata).change_context(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Metadata should be an object and contain at least 1 key".to_owned(),
+                },
+            )?;
 
-        payment_intent.metadata = Some(merged_metadata);
+            payment_intent.metadata = Some(merged_metadata);
+        }
 
         if let Some(feature_metadata) = request.feature_metadata.clone() {
             let existing_feature_metadata = payment_intent
