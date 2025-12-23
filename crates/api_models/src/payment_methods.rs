@@ -1325,6 +1325,26 @@ pub enum BankAccountAccessCreds {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct LockerCardResponse {
+    card: Card,
+    metadata: Option<pii::SecretSerdeValue>,
+}
+
+impl LockerCardResponse {
+    pub fn new(card: Card, metadata: Option<pii::SecretSerdeValue>) -> Self {
+        Self { card, metadata }
+    }
+
+    pub fn get_card(&self) -> Card {
+        self.card.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Card {
     pub card_number: CardNumber,
     pub name_on_card: Option<masking::Secret<String>>,
@@ -2864,6 +2884,31 @@ pub struct UpdatePaymentMethodRecord {
     pub card_expiry_month: Option<masking::Secret<String>>,
     pub card_expiry_year: Option<masking::Secret<String>>,
 }
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodsBatchRecord {
+    pub payment_method_id: String,
+    #[serde(skip_deserializing, default)]
+    pub line_number: Option<i64>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentMethodsBatchRetrieveResponse {
+    pub payment_method_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodsData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    pub line_number: Option<i64>,
+}
+
+impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRecord {}
+
+impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRetrieveResponse {}
 
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentMethodUpdateResponse {

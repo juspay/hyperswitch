@@ -2606,7 +2606,8 @@ pub async fn fetch_card_details_from_internal_locker(
     let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to fetch card information from the permanent locker")?;
+        .attach_printable("failed to fetch card information from the permanent locker")?
+        .get_card();
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
@@ -2725,7 +2726,8 @@ pub async fn fetch_network_token_details_from_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "failed to fetch network token information from the permanent locker",
-            )?;
+            )?
+            .get_card();
     let expiry = network_transaction_data
         .token_exp_month
         .zip(network_transaction_data.token_exp_year);
@@ -2771,7 +2773,8 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
         cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to fetch card details from locker")?;
+            .attach_printable("failed to fetch card details from locker")?
+            .get_card();
 
     let card_network = card_details_from_locker
         .card_brand
