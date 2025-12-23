@@ -1753,16 +1753,11 @@ where
         hyperswitch_data,
         unified_connector_service_data,
     };
-    let _ = send_comparison_data(
-        state,
-        comparison_data,
-        connector_name,
-        sub_flow_name,
-    )
-    .await
-    .map_err(|e| {
-        logger::debug!("Failed to send comparison data: {:?}", e);
-    });
+    let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
+        .await
+        .map_err(|e| {
+            logger::debug!("Failed to send comparison data: {:?}", e);
+        });
     Ok(())
 }
 
@@ -1792,16 +1787,10 @@ pub async fn send_comparison_data(
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
 
-    request.add_header(
-        X_CONNECTOR_NAME,
-        masking::Maskable::Normal(connector_name),
-    );
+    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
 
     if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(
-            X_SUB_FLOW_NAME,
-            masking::Maskable::Normal(sub_flow_name),
-        );
+        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
     }
 
     if let Some(req_id) = &state.request_id {
