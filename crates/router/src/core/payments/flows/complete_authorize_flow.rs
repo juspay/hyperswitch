@@ -391,7 +391,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
             // check if redirection is not present in the response and attempt status is not AuthenticationFailed
             // if condition does not satisfy, then we don't need to proceed further
-            let default_should_continue = matches!(
+            let should_continue = matches!(
                 complete_authorize_router_data.response,
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     ref redirection_data,
@@ -402,7 +402,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
             );
-            Ok((complete_authorize_router_data, default_should_continue))
+            Ok((complete_authorize_router_data, should_continue))
         } else {
             Ok((self, true))
         }
