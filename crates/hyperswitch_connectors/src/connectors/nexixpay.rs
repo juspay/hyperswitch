@@ -1238,10 +1238,7 @@ impl ConnectorSpecifications for Nexixpay {
         Some(&*NEXIXPAY_CONNECTOR_INFO)
     }
 
-    fn is_post_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-    ) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
             api::CurrentFlowInfo::CompleteAuthorize {
