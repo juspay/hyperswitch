@@ -328,13 +328,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        let is_required = connector.connector.is_pre_authentication_flow_required(
+        if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: &self.auth_type,
                 request_data: &self.request,
             },
-        );
-        if is_required {
+        ) {
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",
                 connector.connector_name
