@@ -10,7 +10,7 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::X_FLOW_NAME,
+    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
     errors::CustomResult,
     ext_traits::ValueExt,
     id_type,
@@ -1731,6 +1731,9 @@ where
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
 
+    let connector_name = hyperswitch_router_data.connector.clone();
+    let sub_flow_name = get_flow_name::<F>().ok();
+
     let [hyperswitch_data, unified_connector_service_data] = [
         (hyperswitch_router_data, "hyperswitch"),
         (unified_connector_service_router_data, "ucs"),
@@ -1750,11 +1753,16 @@ where
         hyperswitch_data,
         unified_connector_service_data,
     };
-    let _ = send_comparison_data(state, comparison_data)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
+    let _ = send_comparison_data(
+        state,
+        comparison_data,
+        connector_name,
+        sub_flow_name,
+    )
+    .await
+    .map_err(|e| {
+        logger::debug!("Failed to send comparison data: {:?}", e);
+    });
     Ok(())
 }
 
@@ -1762,6 +1770,8 @@ where
 pub async fn send_comparison_data(
     state: &SessionState,
     comparison_data: ComparisonData,
+    connector_name: String,
+    sub_flow_name: Option<String>,
 ) -> RouterResult<()> {
     // Check if comparison service is enabled
     let comparison_config = match state.conf.comparison_service.as_ref() {
@@ -1781,6 +1791,19 @@ pub async fn send_comparison_data(
         .header(X_FLOW_NAME, "router-data")
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
+
+    request.add_header(
+        X_CONNECTOR_NAME,
+        masking::Maskable::Normal(connector_name),
+    );
+
+    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
+        request.add_header(
+            X_SUB_FLOW_NAME,
+            masking::Maskable::Normal(sub_flow_name),
+        );
+    }
+
     if let Some(req_id) = &state.request_id {
         request.add_header(X_REQUEST_ID, masking::Maskable::Normal(req_id.to_string()));
     }
