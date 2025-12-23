@@ -244,7 +244,10 @@ where
                             RequestContent::FormData((_, i)) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
+                            RequestContent::RawBytes(bytes) => match String::from_utf8(bytes.clone()) {
+                                Ok(request) => json!({ "request_type": "RAW_BYTES", "request": request }),
+                                Err(_) => json!({ "request_type": "RAW_BYTES" }),
+                            }
                         },
                         None => serde_json::Value::Null,
                     };
