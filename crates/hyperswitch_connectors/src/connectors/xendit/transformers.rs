@@ -211,6 +211,7 @@ pub struct XenditPaymentResponse {
     pub amount: FloatMajorUnit,
     pub currency: Option<Currency>,
     pub qr_string: Option<String>,
+    pub external_id: Option<String>,
 }
 
 fn map_payment_response_to_attempt_status(
@@ -265,12 +266,18 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
     fn try_from(item: XenditRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::Qris) => {
+                if let Some(common_enums::CaptureMethod::Manual) = item.router_data.request.capture_method {
+                    return Err(errors::ConnectorError::NotSupported{
+        message: "Manual Capture for QRIS payments".to_string(),
+        connector: "Xendit",
+    }
+                    .into());
+                }
                 let qr_request = XenditQrisPaymentsRequestData {
                     amount: item.amount,
                     external_id: item.router_data.connector_request_reference_id.clone(),
                     qr_type: QrType::Dynamic,
-                    callback_url: "https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034"
-                        .to_string(), // item.router_data.request.get_router_return_url()?,
+                    callback_url: item.router_data.request.get_router_return_url()?,
                 };
                 Ok(XenditPaymentsRequest::QrPaymentsRequest(qr_request))
             }
@@ -380,6 +387,27 @@ pub fn get_qr_image(qr_data: String) -> CustomResult<serde_json::Value, errors::
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
+pub fn extract_resource_id_from_payment_response(
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    response: &XenditPaymentResponse
+) -> CustomResult<ResponseId, errors::ConnectorError> {
+    if payment_method_type
+        == Some(common_enums::PaymentMethodType::Qris)
+    {
+        let ext_id = 
+            response
+            .external_id
+            .clone()
+            .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(ResponseId::ConnectorTransactionId(ext_id))
+    } else {
+        Ok(ResponseId::ConnectorTransactionId(
+            response.id.clone(),
+        ))
+    }
+}
+
+
 impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -451,8 +479,13 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 None
             };
 
+            let resource_id = extract_resource_id_from_payment_response(
+                item.data.request.payment_method_type,
+                &item.response,
+            )?;
+
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id,
                 redirection_data: match item.response.actions {
                     Some(actions) if !actions.is_empty() => {
                         actions.first().map_or(Box::new(None), |single_action| {
@@ -485,7 +518,8 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                 connector_response_reference_id: item
                     .response
                     .reference_id
-                    .map(|reference_id| reference_id.expose()),
+                    .map(|reference_id| reference_id.expose())
+                    .or(item.response.external_id.clone()),
                 incremental_authorization_allowed: None,
                 charges,
             })
@@ -689,14 +723,17 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                 })
             }
             XenditResponse::Webhook(webhook_event) => {
-                let status = match webhook_event.event {
-                    XenditEventType::PaymentSucceeded | XenditEventType::CaptureSucceeded => {
-                        enums::AttemptStatus::Charged
-                    }
-                    XenditEventType::PaymentAwaitingCapture => enums::AttemptStatus::Authorized,
-                    XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
-                        enums::AttemptStatus::Failure
-                    }
+                let status = match webhook_event {
+                    XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                        XenditEventType::PaymentSucceeded
+                        | XenditEventType::CaptureSucceeded
+                        | XenditEventType::QrPayment => enums::AttemptStatus::Charged,
+                        XenditEventType::PaymentAwaitingCapture => enums::AttemptStatus::Authorized,
+                        XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                            enums::AttemptStatus::Failure
+                        }
+                    },
+                    XenditWebhookEvent::QrEvent(_) => enums::AttemptStatus::Charged,
                 };
                 Ok(Self {
                     status,
@@ -869,9 +906,18 @@ pub struct XenditMetadata {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct XenditWebhookEvent {
+pub struct XenditCommonWebhookEvent {
     pub event: XenditEventType,
     pub data: EventDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct XenditQRWebhookEvent {
+    pub id: String,
+    pub event: XenditEventType,
+    pub amount: FloatMajorUnit,
+    pub qr_code: QrData,
+    pub status: QRPaymentStatus,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -894,4 +940,25 @@ pub enum XenditEventType {
     CaptureSucceeded,
     #[serde(rename = "capture.failed")]
     CaptureFailed,
+    #[serde(rename = "qr.payment")]
+    QrPayment,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum QRPaymentStatus {
+    Completed,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct QrData {
+    pub id: String,
+    pub external_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum XenditWebhookEvent {
+    CommonEvent(XenditCommonWebhookEvent),
+    QrEvent(XenditQRWebhookEvent),
 }
