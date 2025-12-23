@@ -6850,7 +6850,7 @@ impl CardExpiry {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WebhooRegisterType {
+pub enum WebhookRegisterType {
     Standard,
 }
 
@@ -6864,13 +6864,13 @@ pub enum CommunicationFormat {
 #[serde(rename_all = "camelCase")]
 pub struct WebhookRegister {
     #[serde(rename = "type")]
-    webhook_type: WebhooRegisterType,
+    webhook_type: WebhookRegisterType,
     url: String,
     active: bool,
     communication_format: CommunicationFormat,
 }
 
-impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhooRegisterType {
+impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
         match item {
@@ -6890,7 +6890,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
         let webhook_type = item.request.event_type;
-        let webhook_type: WebhooRegisterType = WebhooRegisterType::try_from(&webhook_type)?;
+        let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
         Ok(Self {
             webhook_type,
             url: item.request.webhook_url.clone(),
