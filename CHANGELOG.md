@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix4
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fix PSync deserialization error response ([#10766](https://github.com/juspay/hyperswitch/pull/10766)) ([`c85704a`](https://github.com/juspay/hyperswitch/commit/c85704a1e2e95b5bf07628858ad3a238eaed3225))
+
+### Refactors
+
+- **router:** Handle failures in `apply_three_ds_authentication_strategy` gracefully ([#10763](https://github.com/juspay/hyperswitch/pull/10763)) ([`a740609`](https://github.com/juspay/hyperswitch/commit/a74060942653f559664366ffa9696c9124fcc373))
+
+**Full Changelog:** [`2025.12.17.0-hotfix3...2025.12.17.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix3...2025.12.17.0-hotfix4)
+
+- - -
+
 ## 2025.12.17.0-hotfix3
 
 ### Bug Fixes
