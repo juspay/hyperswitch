@@ -37,6 +37,7 @@ use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
     self, enums,
     mandates::RecurringDetails,
+    payment_methods as api_payment_methods,
     payments::{self as payments_api},
 };
 pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
@@ -4363,38 +4364,57 @@ where
         customer_acceptance,
         connector.connector_name,
     ) {
+        logger::info!("Network-Tokenization: Pre Network tokenization is enabled");
         let payment_method_data = payment_data.get_payment_method_data();
         let customer_id = payment_data.get_payment_intent().customer_id.clone();
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
-            let vault_operation =
-                get_vault_operation_for_pre_network_tokenization(state, customer_id, card_data)
-                    .await;
-            match vault_operation {
-                payments::VaultOperation::SaveCardAndNetworkTokenData(
-                    card_and_network_token_data,
-                ) => {
-                    payment_data.set_vault_operation(
-                        payments::VaultOperation::SaveCardAndNetworkTokenData(Box::new(
-                            *card_and_network_token_data.clone(),
-                        )),
-                    );
+            let card_bin = card_data.card_number.get_extended_card_bin();
+            let eiligibility_request =
+                api_payment_methods::NetworkTokenEligibilityRequest { card_bin };
+            let eligibility_response =
+                network_tokenization::make_nt_eligibility_call(state, eiligibility_request)
+                    .await
+                    .ok();
 
-                    payment_data.set_payment_method_data(Some(
-                        domain::PaymentMethodData::NetworkToken(
-                            card_and_network_token_data
-                                .network_token
-                                .network_token_data
-                                .clone(),
-                        ),
-                    ));
+            if eligibility_response
+                .as_ref()
+                .map(|response| response.tokenize_support)
+                == Some(true)
+            {
+                logger::info!("Network-Tokenization: network tokenization is enabled for the card");
+
+                let vault_operation =
+                    get_vault_operation_for_pre_network_tokenization(state, customer_id, card_data)
+                        .await;
+
+                // payment_data.set_is_eligible_for_network_tokenization(true);
+                match vault_operation {
+                    payments::VaultOperation::SaveCardAndNetworkTokenData(
+                        card_and_network_token_data,
+                    ) => {
+                        payment_data.set_vault_operation(
+                            payments::VaultOperation::SaveCardAndNetworkTokenData(Box::new(
+                                *card_and_network_token_data.clone(),
+                            )),
+                        );
+
+                        payment_data.set_payment_method_data(Some(
+                            domain::PaymentMethodData::NetworkToken(
+                                card_and_network_token_data
+                                    .network_token
+                                    .network_token_data
+                                    .clone(),
+                            ),
+                        ));
+                    }
+                    payments::VaultOperation::SaveCardData(card_data_for_vault) => payment_data
+                        .set_vault_operation(payments::VaultOperation::SaveCardData(
+                            card_data_for_vault.clone(),
+                        )),
+                    payments::VaultOperation::ExistingVaultData(_) => (),
                 }
-                payments::VaultOperation::SaveCardData(card_data_for_vault) => payment_data
-                    .set_vault_operation(payments::VaultOperation::SaveCardData(
-                        card_data_for_vault.clone(),
-                    )),
-                payments::VaultOperation::ExistingVaultData(_) => (),
             }
         }
     }
@@ -8105,6 +8125,7 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
+    // pub is_eligible_for_network_tokenization: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -11703,6 +11724,7 @@ pub trait OperationSessionSetters<F> {
     );
     #[cfg(feature = "v2")]
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>);
+    // fn set_is_eligible_for_network_tokenization(&mut self, is_eligible: bool);
 }
 
 #[cfg(feature = "v1")]
@@ -12047,6 +12069,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         self.payment_attempt.connector_request_reference_id = Some(connector_request_reference_id);
     }
+
+    // fn set_is_eligible_for_network_tokenization(&mut self, is_eligible: bool) {
+    //     self.is_eligible_for_network_tokenization = Some(is_eligible);
+    // }
 }
 
 #[cfg(feature = "v2")]

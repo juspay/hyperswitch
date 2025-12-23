@@ -211,13 +211,11 @@ pub struct CardNetworkTokenResponse {
     pub payload: Secret<String>, //encrypted payload
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Serialize)]
 pub struct NTEligibilityRequest {
     pub check_tokenize_support: bool,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct NTEligibilityResponse {
     pub country: Option<String>,

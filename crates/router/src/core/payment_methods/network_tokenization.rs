@@ -15,8 +15,6 @@ use common_utils::{
     request::RequestContent,
 };
 #[cfg(feature = "v1")]
-use error_stack::ResultExt;
-#[cfg(feature = "v2")]
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::{
@@ -152,7 +150,6 @@ pub async fn mk_tokenization_req(
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
 }
 
-#[cfg(feature = "v2")]
 pub async fn make_nt_eligibility_call(
     state: &routes::SessionState,
     payload: api_payment_methods::NetworkTokenEligibilityRequest,

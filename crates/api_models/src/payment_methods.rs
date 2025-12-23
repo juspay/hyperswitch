@@ -3456,21 +3456,17 @@ pub enum NetworkTokenStatusCheckResponse {
     FailureResponse(NetworkTokenStatusCheckFailureResponse),
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenEligibilityRequest {
     /// The card bin to retrieve information for
     pub card_bin: String,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct GetNetworkTokenEiligibilityResponse {
     pub eligible_for_network_tokenization: bool,
 }
 
-#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for NetworkTokenEligibilityRequest {}
 
-#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for GetNetworkTokenEiligibilityResponse {}
