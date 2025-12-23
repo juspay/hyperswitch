@@ -242,7 +242,7 @@ impl ProxyRecord {
             Self::VolatilePaymentMethodRecord(_) => {
                 //retrieve from redis
                 let vault_id = self.get_vault_id()?;
-                let key_store = platform.get_processor().get_key_store();
+                let key_store = platform.get_provider().get_key_store();
                 let encryption_key = key_store.key.get_inner();
 
                 let redis_conn = state
