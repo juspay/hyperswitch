@@ -333,7 +333,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "DataTrans",
+                        connector: "Zift",
                     })?,
                 };
                 let mandate_request = ZiftMandatePaymentRequest {
