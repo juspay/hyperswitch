@@ -1178,7 +1178,9 @@ fn get_attempt_status(
         }
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
         LastEvent::Cancelled => Ok(common_enums::AttemptStatus::Voided),
-        LastEvent::Captured | LastEvent::Settled => Ok(common_enums::AttemptStatus::Charged),
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
+            Ok(common_enums::AttemptStatus::Charged)
+        }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
@@ -2678,7 +2680,7 @@ pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::Inc
         LastEvent::Authorised | LastEvent::SentForAuthorisation => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
         }
-        LastEvent::Captured | LastEvent::Settled => {
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
         }
         LastEvent::Refunded | LastEvent::RefundedByMerchant => {

@@ -222,6 +222,17 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "online_banking_fpx",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "sofort",
         payment_experience: null,
         card_networks: null,
@@ -394,6 +405,33 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "reward",
+    payment_method_types: [
+      {
+        payment_method_type: "evoucher",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "classic",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -550,6 +588,20 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
+      },
+    }),
+    OnlineBankingFpx: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: standardBillingAddress,
       },
     }),
     Giropay: getCustomExchange({
@@ -1855,6 +1907,54 @@ export const connectorDetails = {
             upi_intent: {},
           },
         },
+      },
+    }),
+  },
+  reward_pm: {
+    PaymentIntentUSD: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentEUR: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Evoucher: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: "reward",
+        billing: standardBillingAddress,
+      },
+    }),
+    Classic: getCustomExchange({
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic",
+        payment_method_data: "reward",
+        billing: standardBillingAddress,
       },
     }),
   },

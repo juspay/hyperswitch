@@ -218,6 +218,7 @@ paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payjustnow.base_url = "https://sandbox-checkout.payjustnow.io/v2"
+payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
@@ -425,7 +426,7 @@ mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
 hipay = { long_lived_token = false, payment_method = "card" }
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
@@ -1014,6 +1015,9 @@ google_pay = { country = "AD, AE, AG, AI, AM, AO, AQ, AR, AS, AT, AU, AW, AX, AZ
 apple_pay = { currency = "USD, CAD" }
 
 [pm_filters.payjustnow]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
+[pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
 [bank_config.online_banking_fpx]
