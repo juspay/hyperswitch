@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{BytesExt, ValueExt, XmlExt},
+    ext_traits::{BytesExt, XmlExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -980,38 +980,13 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
-    fn is_pre_authentication_flow_required(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-    ) -> (bool, bool) {
-        let is_required = match current_flow {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
             api::CurrentFlowInfo::Authorize { auth_type, .. } => {
                 *auth_type == common_enums::AuthenticationType::ThreeDs
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-        };
-        let should_continue = match current_flow {
-            api::CurrentFlowInfo::Authorize { response_data, .. } => {
-                match response_data {
-                    Some(PaymentsResponseData::TransactionResponse {
-                        connector_metadata,
-                        ..
-                    }) => {
-                        let three_ds_invoke_data: Option<
-                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
-                        > = connector_metadata.clone().and_then(|metadata| {
-                            metadata
-                                .parse_value("PaymentsConnectorThreeDsInvokeData")
-                                .ok()
-                        });
-                        three_ds_invoke_data.is_none()
-                    }
-                    _ => false,
-                }
-            }
-            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-        };
-        (is_required, should_continue)
+        }
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -439,11 +439,8 @@ pub struct PreProcessingFlowResponse<'a> {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(
-        &self,
-        _current_flow: CurrentFlowInfo<'_>,
-    ) -> (bool, bool) {
-        (false, false)
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
     }
     /// Check if authentication flow is required
     fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {

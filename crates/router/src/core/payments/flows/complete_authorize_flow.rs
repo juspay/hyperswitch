@@ -376,6 +376,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
+            let post_auth_success = post_authenticate_router_data.response.is_ok();
             if let Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata, ..
             }) = &post_authenticate_router_data.response
@@ -391,14 +392,21 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
             // check if redirection is not present in the response and attempt status is not AuthenticationFailed
             // if condition does not satisfy, then we don't need to proceed further
-            let should_continue = (matches!(
+            let default_should_continue = matches!(
                 complete_authorize_router_data.response,
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     ref redirection_data,
                     ..
                 }) if redirection_data.is_none()
             ) && complete_authorize_router_data.status
-                != common_enums::AttemptStatus::AuthenticationFailed);
+                != common_enums::AttemptStatus::AuthenticationFailed;
+            let should_continue = match connector.connector_name {
+                api_models::enums::Connector::Nexixpay => {
+                    // Nexixpay: continue only when post-auth succeeds (parity with preprocessing).
+                    post_auth_success
+                }
+                _ => default_should_continue,
+            };
             Ok((complete_authorize_router_data, should_continue))
         } else {
             Ok((self, true))
