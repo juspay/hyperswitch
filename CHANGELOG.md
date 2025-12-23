@@ -4,6 +4,42 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.23.0
+
+### Features
+
+- **connector:**
+  - [Payjustnowinstore] Add Connector Template Code ([#10716](https://github.com/juspay/hyperswitch/pull/10716)) ([`91557fe`](https://github.com/juspay/hyperswitch/commit/91557febac55c15a4b0a2a874272f97131b3853a))
+  - [NOVALNET] Make Billing Email a required field for SEPA ([#10720](https://github.com/juspay/hyperswitch/pull/10720)) ([`3786053`](https://github.com/juspay/hyperswitch/commit/37860532fa0529bada92412b668c799019546ec9))
+  - [PayJustNow In-Store] Implement PayJustNow Payment Method ([#10745](https://github.com/juspay/hyperswitch/pull/10745)) ([`351de53`](https://github.com/juspay/hyperswitch/commit/351de53cd8faa8968ab48a4ab80bbb63ced65596))
+- **core:** Added OpenBanking PaymentMethod for Hyperswitch <> UCS Integration ([#10635](https://github.com/juspay/hyperswitch/pull/10635)) ([`b12fad8`](https://github.com/juspay/hyperswitch/commit/b12fad8ad457dd1290be80863318689c5c7a84b9))
+- **payouts:** Add passthrough payout flow for nuvei ([#10463](https://github.com/juspay/hyperswitch/pull/10463)) ([`0821d58`](https://github.com/juspay/hyperswitch/commit/0821d58d3a74fb3e04f01fd88b05bfa8608741d7))
+- **wasm:** [NMI] WASM changes for applepay - hyperswitch decryption flow ([#10740](https://github.com/juspay/hyperswitch/pull/10740)) ([`2fa1197`](https://github.com/juspay/hyperswitch/commit/2fa11971025b76775f6bec2f1810bb12ee827f12))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fix PSync deserialization error response ([#10764](https://github.com/juspay/hyperswitch/pull/10764)) ([`1440776`](https://github.com/juspay/hyperswitch/commit/1440776a0a97973afc971f82e2e693834456c9ff))
+- **payment-methods:** Remove hardcoded `inactive` status in payment method create and update api ([#10737](https://github.com/juspay/hyperswitch/pull/10737)) ([`dbc2018`](https://github.com/juspay/hyperswitch/commit/dbc2018e69d4f8c8258c1185404f5086cf4214d3))
+- **refund:** Mark refund as failed for connectors implementing FlowNotSupported error ([#10654](https://github.com/juspay/hyperswitch/pull/10654)) ([`ce5f3f3`](https://github.com/juspay/hyperswitch/commit/ce5f3f3ed7d8a2e91b1d977dd1331f97d02619cc))
+- Fix fallback decryption failures in case of unavailability of encryption service ([#10572](https://github.com/juspay/hyperswitch/pull/10572)) ([`b872630`](https://github.com/juspay/hyperswitch/commit/b872630132e79f6e70ab451bf7c9cc39da1e880e))
+
+### Refactors
+
+- **connector:** [jpmorgan] move hardcoded values to `merchant_account_metadata` ([#10717](https://github.com/juspay/hyperswitch/pull/10717)) ([`c843ed9`](https://github.com/juspay/hyperswitch/commit/c843ed912d6ca5bacce581b6ae92f47c7cebf770))
+- **router:** Handle failures in `apply_three_ds_authentication_strategy` gracefully ([#10722](https://github.com/juspay/hyperswitch/pull/10722)) ([`3305ed6`](https://github.com/juspay/hyperswitch/commit/3305ed6c54334bf8740a7b7dc62558cf4f060c61))
+- Introduce PreAuth for redsys HS<>UCS tunnel ([#10727](https://github.com/juspay/hyperswitch/pull/10727)) ([`902a660`](https://github.com/juspay/hyperswitch/commit/902a660e1abb39242dc040706216e57cd4f1a798))
+- Consolidate payment gateway routing with unified execution path ([#10710](https://github.com/juspay/hyperswitch/pull/10710)) ([`88cd005`](https://github.com/juspay/hyperswitch/commit/88cd005ae8f9cbdf16910a8b2e21b263963e8b60))
+- Added PreAuth flow for nuvei HS<>UCS tunnel ([#10726](https://github.com/juspay/hyperswitch/pull/10726)) ([`3831ecd`](https://github.com/juspay/hyperswitch/commit/3831ecdb285e44655f68ed2107df1ad188c3b792))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.92.0 clippy lints ([#10756](https://github.com/juspay/hyperswitch/pull/10756)) ([`85f23ec`](https://github.com/juspay/hyperswitch/commit/85f23ecea78e83c61fb1cf5c7efc8ce495c488bb))
+- Introduce order create integration for nordea and payme ([#10752](https://github.com/juspay/hyperswitch/pull/10752)) ([`5aed433`](https://github.com/juspay/hyperswitch/commit/5aed4336d2e768dd401a6d870105b249fde3f7dc))
+
+**Full Changelog:** [`2025.12.22.0...2025.12.23.0`](https://github.com/juspay/hyperswitch/compare/2025.12.22.0...2025.12.23.0)
+
+- - -
+
 ## 2025.12.22.0
 
 ### Features
