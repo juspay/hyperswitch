@@ -171,7 +171,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -185,10 +185,10 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-        Response: {
+      Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -270,8 +270,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-         error_code: "U23",
-         error_message: "Partial Capture feature is not supported by the processor configured."
+          error_code: "U23",
+          error_message:
+            "Partial Capture feature is not supported by the processor configured.",
         },
       },
     },
@@ -330,7 +331,7 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-    Configs: {
+      Configs: {
         TRIGGER_SKIP: true, //skipping a second partial refund test as Zift doesn't support multiple partial refunds
       },
       Request: {
@@ -364,7 +365,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -380,7 +381,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -444,7 +445,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -475,9 +476,9 @@ export const connectorDetails = {
         mandate_data: multiUseMandateData,
       },
       Response: {
-         status: 400,
+        status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -621,7 +622,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -704,9 +705,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-         status: 400,
+        status: 400,
         body: {
-            error: threeDSError,
+          error: threeDSError,
         },
       },
     },
@@ -721,9 +722,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-         status: 400,
+        status: 400,
         body: {
-           error: threeDSError,
+          error: threeDSError,
         },
       },
     },
