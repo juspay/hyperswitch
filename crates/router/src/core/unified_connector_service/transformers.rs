@@ -1092,7 +1092,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             metadata: router_data
                 .request
-                .metadata
+                .connector_meta
                 .as_ref()
                 .map(convert_value_map_to_hashmap)
                 .transpose()?
@@ -4677,7 +4677,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             currency: currency.map(|c| c.into()),
             metadata: router_data
                 .request
-                .metadata
+                .connector_meta
                 .as_ref()
                 .map(convert_value_map_to_hashmap)
                 .transpose()?
