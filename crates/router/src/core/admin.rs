@@ -243,7 +243,7 @@ pub async fn create_merchant_account(
             &state,
             key_store.clone(),
             &merchant_id,
-            org_data_from_auth.clone(),
+            org_data_from_auth,
         )
         .await?;
 

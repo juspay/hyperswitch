@@ -706,19 +706,19 @@ where
         )
         .await?;
 
-        let profile = if let Some(profile_id) = profile_id {
-            Some(
-                state
+        let profile = match profile_id {
+            Some(profile_id) => {
+                let profile = state
                     .store()
                     .find_business_profile_by_profile_id(
                         platform.get_processor().get_key_store(),
                         &profile_id,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?,
-            )
-        } else {
-            None
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                Some(profile)
+            }
+            None => None,
         };
 
         let auth = AuthenticationData { platform, profile };
@@ -859,12 +859,15 @@ where
                 .attach_printable("Platform authentication check failed"));
         }
 
-        if let Some(ref organization_id) = self.organization_id {
-            if organization_id != merchant_account.get_org_id() {
-                return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                    .attach_printable("Organization ID does not match");
-            }
-        }
+        fp_utils::when(
+            self.organization_id
+                .as_ref()
+                .is_some_and(|org_id| org_id != merchant_account.get_org_id()),
+            || {
+                Err(report!(errors::ApiErrorResponse::Unauthorized))
+                    .attach_printable("Organization ID does not match")
+            },
+        )?;
 
         Ok((
             Some(AuthenticationDataWithOrg {
@@ -941,12 +944,15 @@ where
                 .attach_printable("Platform authentication check failed"));
         }
 
-        if let Some(ref organization_id) = self.organization_id {
-            if organization_id != initiator_merchant_account.get_org_id() {
-                return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                    .attach_printable("Organization ID does not match");
-            }
-        }
+        fp_utils::when(
+            self.organization_id
+                .as_ref()
+                .is_some_and(|org_id| org_id != initiator_merchant_account.get_org_id()),
+            || {
+                Err(report!(errors::ApiErrorResponse::Unauthorized))
+                    .attach_printable("Organization ID does not match")
+            },
+        )?;
 
         let auth_type = AuthenticationType::ApiKey {
             merchant_id: initiator_merchant_account.get_id().clone(),
@@ -1318,19 +1324,19 @@ where
     )
     .await?;
 
-    let profile = if let Some(profile_id) = profile_id {
-        Some(
-            state
+    let profile = match profile_id {
+        Some(profile_id) => {
+            let profile = state
                 .store()
                 .find_business_profile_by_profile_id(
                     platform.get_processor().get_key_store(),
                     &profile_id,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?,
-        )
-    } else {
-        None
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            Some(profile)
+        }
+        None => None,
     };
 
     let auth = AuthenticationData { platform, profile };
@@ -1810,15 +1816,18 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        if let Some(ref organization_id) = self.organization_id {
-            if organization_id != merchant.get_org_id() {
-                return Err(
+        fp_utils::when(
+            self.organization_id
+                .as_ref()
+                .is_some_and(|org_id| org_id != merchant.get_org_id()),
+            || {
+                Err(
                     report!(errors::ApiErrorResponse::Unauthorized).attach_printable(
                         "Organization ID from request and merchant account does not match",
                     ),
-                );
-            }
-        }
+                )
+            },
+        )?;
 
         if fallback_merchant_ids
             .merchant_ids
