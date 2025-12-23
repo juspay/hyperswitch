@@ -412,11 +412,9 @@ export const CONNECTOR_LISTS = {
       "wellsfargo",
       "worldpayxml",
       "finix",
-<<<<<<< HEAD
-      "zift",
-=======
       "mollie",
->>>>>>> origin/main
+      "zift",
+
     ],
     // Add more exclusion lists
   },
