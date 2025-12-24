@@ -22,7 +22,9 @@ pub async fn update_merchant(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| recon::recon_merchant_account_update(state, auth, req),
+        |state, auth, req, _| {
+            recon::recon_merchant_account_update(state, auth.get_processor(), req)
+        },
         &authentication::AdminApiAuthWithMerchantIdFromRoute(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))

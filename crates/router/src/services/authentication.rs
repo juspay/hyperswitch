@@ -213,6 +213,8 @@ impl AuthenticationType {
         match self {
             Self::ApiKey { merchant_id, .. }
             | Self::PublishableKey { merchant_id }
+            | Self::InternalMerchantIdProfileId { merchant_id, .. }
+            | Self::MerchantId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id } => Some(common_utils::types::CreatedBy::Api {
                 merchant_id: merchant_id.get_string_repr().to_string(),
             }),
@@ -230,11 +232,9 @@ impl AuthenticationType {
                 })
             }
             Self::MerchantJwt { user_id: None, .. }
-            | Self::InternalMerchantIdProfileId { .. }
             | Self::AdminApiKey
             | Self::AdminApiAuthWithMerchantId { .. }
             | Self::BasicAuth { .. }
-            | Self::MerchantId { .. }
             | Self::NoAuth => None,
         }
     }
@@ -748,7 +748,7 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let api_auth = ApiKeyAuth {
-            is_connected_allowed: false,
+            is_connected_allowed: true,
             is_platform_allowed: false,
         };
         let (auth_data, auth_type) = api_auth

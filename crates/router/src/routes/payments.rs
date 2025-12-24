@@ -2489,7 +2489,7 @@ pub async fn retrieve_extended_card_info(
             payments::get_extended_card_info(
                 state,
                 auth.platform
-                    .get_processor()
+                    .get_provider()
                     .get_account()
                     .get_id()
                     .to_owned(),

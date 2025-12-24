@@ -621,7 +621,7 @@ impl NewUserMerchant {
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            platform,
+            platform.get_processor(),
         ))
         .await
         .change_context(UserErrors::InternalServerError)

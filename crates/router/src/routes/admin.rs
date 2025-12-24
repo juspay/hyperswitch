@@ -525,7 +525,7 @@ pub async fn connector_create(
             create_connector(
                 state,
                 req,
-                auth_data.platform,
+                auth_data.platform.get_processor().clone(),
                 auth_data.profile.map(|profile| profile.get_id().clone()),
             )
         },
@@ -559,7 +559,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            create_connector(state, req, auth_data.platform, None)
+            create_connector(state, req, auth_data.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -601,7 +601,7 @@ pub async fn connector_retrieve(
         |state, auth, req, _| {
             retrieve_connector(
                 state,
-                auth.platform.get_processor().get_account().get_id().clone(),
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| profile.get_id().clone()),
                 req.merchant_connector_id,
             )
@@ -641,7 +641,7 @@ pub async fn connector_retrieve(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            retrieve_connector(state, auth.platform, req.id.clone())
+            retrieve_connector(state, auth.platform.get_processor().clone(), req.id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -673,7 +673,7 @@ pub async fn connector_list(
         |state, auth: auth::AuthenticationData, _, _| {
             list_connectors_for_a_profile(
                 state,
-                auth.platform.get_processor().get_key_store().clone(),
+                auth.platform.get_processor().clone(),
                 profile_id.clone(),
             )
         },
@@ -708,11 +708,7 @@ pub async fn connector_list(
         &req,
         merchant_id.to_owned(),
         |state, auth, _, _| {
-            list_payment_connectors(
-                state,
-                auth.platform.get_processor().get_account().get_id().clone(),
-                None,
-            )
+            list_payment_connectors(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
@@ -748,7 +744,7 @@ pub async fn connector_list_profile(
         |state, auth, _, _| {
             list_payment_connectors(
                 state,
-                auth.platform.get_processor().get_account().get_id().clone(),
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },

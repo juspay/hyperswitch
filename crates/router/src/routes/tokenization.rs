@@ -48,8 +48,7 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             tokenization::create_vault_token_core(
                 state,
-                auth.platform.get_processor().get_account(),
-                auth.platform.get_processor().get_key_store(),
+                auth.platform.get_provider().clone(),
                 request,
             )
             .await

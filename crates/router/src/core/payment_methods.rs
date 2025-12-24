@@ -4038,8 +4038,7 @@ pub async fn payment_methods_session_confirm(
         (Some(tokenization_data), Some(customer_id)) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
-                &platform.get_provider().get_account().clone(),
-                &platform.get_provider().get_key_store().clone(),
+                platform.get_provider().clone(),
                 api_models::tokenization::GenericTokenizationRequest {
                     customer_id: customer_id.clone(),
                     token_request: tokenization_data,

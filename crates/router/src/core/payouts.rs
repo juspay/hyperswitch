@@ -998,12 +998,7 @@ pub async fn get_payout_filters_core(
     platform: domain::Platform,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(
-            state,
-            platform.get_processor().get_account().get_id().to_owned(),
-            None,
-        )
-        .await?
+        super::admin::list_payment_connectors(state, platform.get_processor().clone(), None).await?
     {
         data
     } else {

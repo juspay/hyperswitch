@@ -3894,7 +3894,7 @@ pub async fn clone_connector(
     admin::create_connector(
         state,
         merchant_connector_create,
-        destination_context,
+        destination_context.get_processor().clone(),
         Some(request.destination.profile_id),
     )
     .await

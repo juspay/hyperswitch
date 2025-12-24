@@ -33,8 +33,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub async fn create_vault_token_core(
     state: SessionState,
-    merchant_account: &domain::MerchantAccount,
-    merchant_key_store: &domain::MerchantKeyStore,
+    provider: domain::Provider,
     req: api_models::tokenization::GenericTokenizationRequest,
 ) -> RouterResponse<api_models::tokenization::GenericTokenizationResponse> {
     // Generate a unique vault ID
