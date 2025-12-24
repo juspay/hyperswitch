@@ -1472,13 +1472,6 @@ required=true
 type="Text"
 
 [[braintree.metadata.apple_pay]]
-name="display_name"
-label="Display Name"
-placeholder="Enter Display Name"
-required=true
-type="Text"
-
-[[braintree.metadata.apple_pay]]
 name="initiative"
 label="Domain"
 placeholder="Enter Domain"

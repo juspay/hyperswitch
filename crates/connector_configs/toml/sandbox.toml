@@ -1529,12 +1529,6 @@ required=false
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
-[[braintree.metadata.apple_pay]]
-name="display_name"
-label="Display Name"
-placeholder="Enter Display Name"
-required=true
-type="Text"
 
 [braintree.metadata.paypal_sdk]
 client_id="Client ID"
