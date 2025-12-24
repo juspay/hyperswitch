@@ -285,9 +285,7 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
             }
             _ => {
                 let common_request = CommonXenditPaymentsRequestData::try_from(item)?;
-                Ok(Self::CommonXenditPaymentsRequest(Box::new(
-                    common_request,
-                )))
+                Ok(Self::CommonXenditPaymentsRequest(Box::new(common_request)))
             }
         }
     }

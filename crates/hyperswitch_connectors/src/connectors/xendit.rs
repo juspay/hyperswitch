@@ -259,9 +259,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         match req.request.payment_method_type {
-            Some(PaymentMethodType::Qris) => {
-                Ok(format!("{}/qr_codes", base_url))
-            }
+            Some(PaymentMethodType::Qris) => Ok(format!("{}/qr_codes", base_url)),
             _ => Ok(format!("{}/payment_requests", self.base_url(connectors))),
         }
     }

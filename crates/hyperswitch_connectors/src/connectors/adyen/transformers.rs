@@ -3208,7 +3208,10 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = "https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034".to_string();
-        println!("SSSSsssssssss {:?}", item.router_data.request.get_router_return_url());
+        println!(
+            "SSSSsssssssss {:?}",
+            item.router_data.request.get_router_return_url()
+        );
         item.router_data.request.get_router_return_url()?;
         let testing_data = item
             .router_data
