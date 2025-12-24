@@ -3065,7 +3065,9 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::CimbBank => Ok(Self::CimbBank),
             common_enums::BankNames::Discover => Ok(Self::Discover),
             common_enums::BankNames::NavyFederalCreditUnion => Ok(Self::NavyFederalCreditUnion),
-            common_enums::BankNames::PentagonFederalCreditUnion => Ok(Self::PentagonFederalCreditUnion),
+            common_enums::BankNames::PentagonFederalCreditUnion => {
+                Ok(Self::PentagonFederalCreditUnion)
+            }
             common_enums::BankNames::SynchronyBank => Ok(Self::SynchronyBank),
             common_enums::BankNames::WellsFargo => Ok(Self::WellsFargo),
             common_enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
@@ -3089,7 +3091,9 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::BankAustria => Ok(Self::BankAustria),
             common_enums::BankNames::Bank99Ag => Ok(Self::Bank99Ag),
             common_enums::BankNames::BankhausCarlSpangler => Ok(Self::BankhausCarlSpangler),
-            common_enums::BankNames::BankhausSchelhammerUndSchatteraAg => Ok(Self::BankhausSchelhammerUndSchatteraAg),
+            common_enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
+                Ok(Self::BankhausSchelhammerUndSchatteraAg)
+            }
             common_enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
             common_enums::BankNames::BankPEKAOSA => Ok(Self::BankPekaoSa),
             common_enums::BankNames::BawagPskAg => Ok(Self::BawagPskAg),
@@ -3103,26 +3107,40 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::EPlatbyVUB => Ok(Self::Rabobank),
             common_enums::BankNames::ErsteBankUndSparkassen => Ok(Self::ErsteBankUndSparkassen),
             common_enums::BankNames::FrieslandBank => Ok(Self::FrieslandBank),
-            common_enums::BankNames::HypoAlpeadriabankInternationalAg => Ok(Self::HypoAlpeadriabankInternationalAg),
-            common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien => Ok(Self::HypoNoeLbFurNiederosterreichUWien),
-            common_enums::BankNames::HypoOberosterreichSalzburgSteiermark => Ok(Self::HypoOberosterreichSalzburgSteiermark),
+            common_enums::BankNames::HypoAlpeadriabankInternationalAg => {
+                Ok(Self::HypoAlpeadriabankInternationalAg)
+            }
+            common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
+                Ok(Self::HypoNoeLbFurNiederosterreichUWien)
+            }
+            common_enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
+                Ok(Self::HypoOberosterreichSalzburgSteiermark)
+            }
             common_enums::BankNames::HypoTirolBankAg => Ok(Self::HypoTirolBankAg),
             common_enums::BankNames::HypoVorarlbergBankAg => Ok(Self::HypoVorarlbergBankAg),
-            common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft => Ok(Self::HypoBankBurgenlandAktiengesellschaft),
+            common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
+                Ok(Self::HypoBankBurgenlandAktiengesellschaft)
+            }
             common_enums::BankNames::KomercniBanka => Ok(Self::KomercniBanka),
             common_enums::BankNames::MBank => Ok(Self::MBank),
             common_enums::BankNames::MarchfelderBank => Ok(Self::MarchfelderBank),
             common_enums::BankNames::Maybank => Ok(Self::Maybank),
             common_enums::BankNames::OberbankAg => Ok(Self::OberbankAg),
-            common_enums::BankNames::OsterreichischeArzteUndApothekerbank => Ok(Self::OsterreichischeArzteUndApothekerbank),
+            common_enums::BankNames::OsterreichischeArzteUndApothekerbank => {
+                Ok(Self::OsterreichischeArzteUndApothekerbank)
+            }
             common_enums::BankNames::OcbcBank => Ok(Self::OcbcBank),
             common_enums::BankNames::PayWithING => Ok(Self::Rabobank),
             common_enums::BankNames::PlaceZIPKO => Ok(Self::Rabobank),
-            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::PlatnoscOnlineKartaPlatnicza),
+            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => {
+                Ok(Self::PlatnoscOnlineKartaPlatnicza)
+            }
             common_enums::BankNames::PosojilnicaBankEGen => Ok(Self::PosojilnicaBankEGen),
             common_enums::BankNames::PostovaBanka => Ok(Self::PostovaBanka),
             common_enums::BankNames::PublicBank => Ok(Self::PublicBank),
-            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => Ok(Self::RaiffeisenBankengruppeOsterreich),
+            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+                Ok(Self::RaiffeisenBankengruppeOsterreich)
+            }
             common_enums::BankNames::RhbBank => Ok(Self::RhbBank),
             common_enums::BankNames::SchelhammerCapitalBankAg => Ok(Self::SchelhammerCapitalBankAg),
             common_enums::BankNames::StandardCharteredBank => Ok(Self::StandardCharteredBank),
