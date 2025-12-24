@@ -1020,7 +1020,7 @@ pub fn add_apple_pay_flow_metrics(
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+            domain::ApplePayFlow::DecryptionSupported(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 1,
                 router_env::metric_attributes!(
                     (
@@ -1030,7 +1030,7 @@ pub fn add_apple_pay_flow_metrics(
                     ("merchant_id", merchant_id.clone()),
                 ),
             ),
-            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::NonDecryption => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 1,
                 router_env::metric_attributes!(
                     (
@@ -1053,7 +1053,7 @@ pub fn add_apple_pay_payment_status_metrics(
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptionSupported(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1065,8 +1065,8 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
-                    .add(
+                domain::ApplePayFlow::NonDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
                             (
@@ -1075,13 +1075,14 @@ pub fn add_apple_pay_payment_status_metrics(
                             ),
                             ("merchant_id", merchant_id.clone()),
                         ),
-                    ),
+                    )
+                }
             }
         }
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptionSupported(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1093,16 +1094,18 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        (
-                            "connector",
-                            connector.to_owned().unwrap_or("null".to_string()),
+                domain::ApplePayFlow::NonDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            ("merchant_id", merchant_id.clone()),
                         ),
-                        ("merchant_id", merchant_id.clone()),
-                    ),
-                ),
+                    )
+                }
             }
         }
     }

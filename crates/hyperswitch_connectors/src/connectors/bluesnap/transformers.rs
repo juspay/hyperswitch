@@ -461,17 +461,20 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
         let applepay_metadata = apple_pay_metadata
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+            .change_context(errors::ConnectorError::ParsingFailed)
             .map(|combined_metadata| {
-                ApplepaySessionTokenMetadata::ApplePayCombined(combined_metadata.apple_pay_combined)
+                ApplepaySessionTokenMetadata::ApplePayCombined(
+                    combined_metadata.apple_pay_combined.clone(),
+                )
             })
             .or_else(|_| {
                 apple_pay_metadata
                     .parse_value::<ApplepaySessionTokenData>("ApplepaySessionTokenData")
+                    .change_context(errors::ConnectorError::ParsingFailed)
                     .map(|old_metadata| {
                         ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
-            })
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            })?;
         let session_token_data = match applepay_metadata {
             ApplepaySessionTokenMetadata::ApplePay(apple_pay_data) => {
                 Ok(apple_pay_data.session_token_data)
@@ -525,17 +528,18 @@ impl
         let applepay_metadata = metadata
             .clone()
             .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+            .change_context(errors::ConnectorError::ParsingFailed)
             .map(|combined_metadata| {
                 ApplepaySessionTokenMetadata::ApplePayCombined(combined_metadata.apple_pay_combined)
             })
             .or_else(|_| {
                 metadata
                     .parse_value::<ApplepaySessionTokenData>("ApplepaySessionTokenData")
+                    .change_context(errors::ConnectorError::ParsingFailed)
                     .map(|old_metadata| {
                         ApplepaySessionTokenMetadata::ApplePay(old_metadata.apple_pay)
                     })
-            })
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            })?;
 
         let (payment_request_data, session_token_data) = match applepay_metadata {
             ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined) => {
