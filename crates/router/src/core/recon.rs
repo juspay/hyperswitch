@@ -147,7 +147,7 @@ pub async fn generate_recon_token(
 
 pub async fn recon_merchant_account_update(
     state: SessionState,
-    processor: &domain::Processor,
+    processor: domain::Processor,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let db = &*state.store;
