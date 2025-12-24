@@ -114,7 +114,7 @@ pub struct XenditQrisPaymentsRequestData {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum XenditPaymentsRequest {
-    CommonXenditPaymentsRequest(CommonXenditPaymentsRequestData),
+    CommonXenditPaymentsRequest(Box<CommonXenditPaymentsRequestData>),
     QrPaymentsRequest(XenditQrisPaymentsRequestData),
 }
 
@@ -281,13 +281,13 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
                     qr_type: QrType::Dynamic,
                     callback_url: item.router_data.request.get_router_return_url()?,
                 };
-                Ok(XenditPaymentsRequest::QrPaymentsRequest(qr_request))
+                Ok(Self::QrPaymentsRequest(qr_request))
             }
             _ => {
                 let common_request = CommonXenditPaymentsRequestData::try_from(item)?;
-                Ok(XenditPaymentsRequest::CommonXenditPaymentsRequest(
+                Ok(Self::CommonXenditPaymentsRequest(Box::new(
                     common_request,
-                ))
+                )))
             }
         }
     }

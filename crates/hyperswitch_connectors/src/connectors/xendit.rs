@@ -260,8 +260,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let base_url = self.base_url(connectors);
         match req.request.payment_method_type {
             Some(PaymentMethodType::Qris) => {
-                // return Ok(format!("https://webhook.site/20e86969-2cf5-494d-bb44-3b2d70598034"));
-                return Ok(format!("{}/qr_codes", base_url));
+                Ok(format!("{}/qr_codes", base_url))
             }
             _ => Ok(format!("{}/payment_requests", self.base_url(connectors))),
         }
