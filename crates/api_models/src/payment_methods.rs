@@ -14,7 +14,7 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
-use utoipa::{schema, ToSchema};
+use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
@@ -122,7 +122,7 @@ pub struct PaymentMethodCreate {
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
@@ -138,6 +138,10 @@ pub struct PaymentMethodCreate {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -1077,7 +1081,7 @@ pub struct PaymentMethodResponse {
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -1107,7 +1111,12 @@ pub struct PaymentMethodResponse {
     /// The connector token details if available
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
 
+    /// Network token details if available
     pub network_token: Option<NetworkTokenResponse>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1313,6 +1322,26 @@ pub struct BankAccountConnectorDetails {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BankAccountAccessCreds {
     AccessToken(masking::Secret<String>),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct LockerCardResponse {
+    card: Card,
+    metadata: Option<pii::SecretSerdeValue>,
+}
+
+impl LockerCardResponse {
+    pub fn new(card: Card, metadata: Option<pii::SecretSerdeValue>) -> Self {
+        Self { card, metadata }
+    }
+
+    pub fn get_card(&self) -> Card {
+        self.card.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -2856,6 +2885,31 @@ pub struct UpdatePaymentMethodRecord {
     pub card_expiry_year: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodsBatchRecord {
+    pub payment_method_id: String,
+    #[serde(skip_deserializing, default)]
+    pub line_number: Option<i64>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentMethodsBatchRetrieveResponse {
+    pub payment_method_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_data: Option<PaymentMethodsData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    pub line_number: Option<i64>,
+}
+
+impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRecord {}
+
+impl common_utils::events::ApiEventMetric for PaymentMethodsBatchRetrieveResponse {}
+
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentMethodUpdateResponse {
     pub payment_method_id: String,
@@ -3360,6 +3414,10 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -3417,6 +3475,10 @@ pub struct PaymentMethodSessionResponse {
     /// The token-id created if there is tokenization_data present
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
     pub associated_token_id: Option<id_type::GlobalTokenId>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = Option<StorageType>)]
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]

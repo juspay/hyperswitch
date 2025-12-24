@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::Secret;
+use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
     Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
@@ -56,6 +56,7 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    headers, logger,
     routes::app,
     AppState,
 };
@@ -856,6 +857,44 @@ pub struct MerchantIdAuthSettings {
 #[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
+}
+
+impl ProxyStatusMapping {
+    pub fn extract_connector_http_status_code(
+        &self,
+        response_headers: &[(String, Maskable<String>)],
+    ) -> Option<actix_web::http::StatusCode> {
+        self.proxy_connector_http_status_code
+            .then_some(response_headers)
+            .and_then(|headers| {
+                headers
+                    .iter()
+                    .find(|(key, _)| key.as_str() == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+            })
+            .and_then(|(_, value)| {
+                value
+                    .clone()
+                    .into_inner()
+                    .parse::<u16>()
+                    .map_err(|err| {
+                        logger::error!(
+                            "Failed to parse connector_http_status_code from header: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+            .and_then(|code| {
+                actix_web::http::StatusCode::from_u16(code)
+                    .map_err(|err| {
+                        logger::error!(
+                            "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

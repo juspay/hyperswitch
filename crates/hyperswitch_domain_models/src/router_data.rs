@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use cards::NetworkToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
@@ -12,8 +13,8 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address::AddressDetails, network_tokenization::NetworkTokenNumber,
-    payment_address::PaymentAddress, payment_method_data, payments, router_response_types,
+    address::AddressDetails, payment_address::PaymentAddress, payment_method_data, payments,
+    router_response_types,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -567,7 +568,7 @@ pub struct PazeDecryptedData {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
-    pub payment_token: NetworkTokenNumber,
+    pub payment_token: NetworkToken,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
     pub payment_account_reference: Secret<String>,
@@ -707,7 +708,7 @@ pub struct KlarnaSdkResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteracCustomerInfo {
-    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
+    pub customer_info: Option<common_payment_types::InteracCustomerInfoDetails>,
 }
 
 #[derive(Clone, Debug, Serialize)]

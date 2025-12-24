@@ -426,6 +426,8 @@ pub struct PaymentMethodTokenizationData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub router_return_url: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -443,6 +445,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -463,6 +467,8 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             mandate_id: data.request.mandate_id.clone(),
             payment_method_type: data.payment_method_type,
+            router_return_url: None,
+            capture_method: None,
         }
     }
 }
@@ -482,6 +488,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -506,6 +514,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             setup_mandate_details: data.setup_mandate_details,
             mandate_id: data.mandate_id,
             payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -531,6 +541,23 @@ pub struct CreateOrderRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: Option<PaymentMethodData>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub webhook_url: Option<String>,
+    pub router_return_url: Option<String>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+}
+
+impl CreateOrderRequestData {
+    pub fn is_auto_capture(&self) -> bool {
+        match self.capture_method {
+            Some(storage_enums::CaptureMethod::Automatic)
+            | Some(storage_enums::CaptureMethod::SequentialAutomatic)
+            | None => true,
+            Some(storage_enums::CaptureMethod::Manual)
+            | Some(storage_enums::CaptureMethod::ManualMultiple)
+            | Some(storage_enums::CaptureMethod::Scheduled) => false,
+        }
+    }
 }
 
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
@@ -542,6 +569,10 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             currency: data.currency,
             payment_method_data: Some(data.payment_method_data),
             order_details: data.order_details,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -555,6 +586,10 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             currency: data.currency,
             payment_method_data: None,
             order_details: data.order_details,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -633,6 +668,7 @@ pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: PaymentMethodData,
     pub amount: i64,
     pub email: Option<pii::Email>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
@@ -643,6 +679,7 @@ pub struct PaymentsPreAuthenticateData {
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -656,12 +693,14 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             amount: data.amount,
             minor_amount: data.minor_amount,
             email: data.email,
+            capture_method: data.capture_method,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -704,11 +743,13 @@ pub struct PaymentsPostAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -722,9 +763,11 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
+            capture_method: data.capture_method,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
+            connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
+            metadata: data.connector_meta.map(Secret::new),
         })
     }
 }

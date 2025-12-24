@@ -243,7 +243,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method via Token flow through bluesnap".to_string(),
                 )
@@ -421,7 +422,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bluesnap"),
                 ))
@@ -433,7 +435,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             currency: item.router_data.request.currency,
             card_transaction_type: auth_mode,
             transaction_fraud_info: Some(TransactionFraudInfo {
-                fraud_session_id: item.router_data.payment_id.clone(),
+                fraud_session_id: item.router_data.connector_request_reference_id.clone(),
             }),
             card_holder_info,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
@@ -666,7 +668,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     .three_d_secure_reference_id,
             }),
             transaction_fraud_info: Some(TransactionFraudInfo {
-                fraud_session_id: item.router_data.payment_id.clone(),
+                fraud_session_id: item.router_data.connector_request_reference_id.clone(),
             }),
             card_holder_info: get_card_holder_info(
                 item.router_data.get_billing_address()?,
