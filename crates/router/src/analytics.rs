@@ -1661,9 +1661,15 @@ pub mod routes {
                     QueryType::Refund { payment_id, .. } => payment_id,
                     QueryType::Dispute { payment_id, .. } => payment_id,
                 };
-                utils::check_if_profile_id_is_present_in_payment_intent(payment_id, &state, &auth)
-                    .await
-                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    payment_id,
+                    &state,
+                    auth.platform.get_processor(),
+                    profile_id,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
                 api_events_core(
                     &state.pool,
                     req,
@@ -1694,10 +1700,12 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
-                    &auth,
+                    auth.platform.get_processor(),
+                    profile_id,
                 )
                 .await
                 .change_context(AnalyticsError::AccessForbiddenError)?;
@@ -1730,10 +1738,12 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
-                    &auth,
+                    auth.platform.get_processor(),
+                    profile_id,
                 )
                 .await
                 .change_context(AnalyticsError::AccessForbiddenError)?;
@@ -2616,10 +2626,12 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
-                    &auth,
+                    auth.platform.get_processor(),
+                    profile_id,
                 )
                 .await
                 .change_context(AnalyticsError::AccessForbiddenError)?;
@@ -2651,10 +2663,12 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
-                    &auth,
+                    auth.platform.get_processor(),
+                    profile_id,
                 )
                 .await
                 .change_context(AnalyticsError::AccessForbiddenError)?;
