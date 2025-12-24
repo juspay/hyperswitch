@@ -548,25 +548,70 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await
             .to_payment_failed_response()?;
 
-            let create_order_resp = match resp.response {
-                Ok(res) => {
-                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
-                        res
-                    {
-                        Ok(order_id)
-                    } else {
-                        Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                            .attach_printable(format!(
-                                "Unexpected response format from connector: {res:?}",
-                            )))?
+            let create_order_resp = match &resp.response {
+                Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id.clone()),
+                        should_continue_further: should_continue_payment,
                     }
                 }
-                Err(error) => Err(error),
+                // Some connector return PreProcessingResponse and TransactionResponse response type
+                // Rest of the match statements are temporary fixes. 
+                // Create Order response must always be PaymentsCreateOrderResponse only
+                Ok(types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    session_token,
+                    ..
+                }) => {
+                    let should_continue_further = if session_token.is_some() {
+                        // if SDK session token is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+                        should_continue_further,
+                    }
+                }
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    ..
+                }) => {
+                    let order_id = resource_id
+                        .get_connector_transaction_id()
+                        .change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "unable to get connector_transaction_id during order create",
+                        )?;
+                    let should_continue_further = if redirection_data.is_some() {
+                        // if redirection_data is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id),
+                        should_continue_further,
+                    }
+                }
+                Ok(res) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Unexpected response format from connector: {res:?}",
+                    )))?,
+                Err(error) => types::CreateOrderResult {
+                    create_order_result: Err(error.clone()),
+                    should_continue_further: false,
+                },
             };
-
-            Ok(Some(types::CreateOrderResult {
-                create_order_result: create_order_resp,
-            }))
+            // persist order create response
+            *self = helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                resp,
+                self.request.clone(),
+                self.response.clone(),
+            );
+            Ok(Some(create_order_resp))
         } else {
             // If the connector does not require order creation, return None
             Ok(None)
