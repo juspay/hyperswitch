@@ -829,7 +829,7 @@ fn build_threeds_invoke_response(
     error_stack::Report<errors::ConnectorError>,
 > {
     let threeds_invoke_data = ThreedsInvokeRequest {
-        three_d_s_server_trans_i_d: three_d_s_method_u_r_l.clone(),
+        three_d_s_server_trans_i_d,
         three_d_s_method_notification_u_r_l: webhook_url.to_string(),
     };
 
