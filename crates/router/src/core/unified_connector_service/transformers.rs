@@ -3104,7 +3104,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::CeskaSporitelna => Ok(Self::CeskaSporitelna),
             common_enums::BankNames::Dolomitenbank => Ok(Self::Dolomitenbank),
             common_enums::BankNames::EasybankAg => Ok(Self::EasybankAg),
-            common_enums::BankNames::EPlatbyVUB => Ok(Self::Rabobank),
+            common_enums::BankNames::EPlatbyVUB => Ok(Self::EPlatbyVub),
             common_enums::BankNames::ErsteBankUndSparkassen => Ok(Self::ErsteBankUndSparkassen),
             common_enums::BankNames::FrieslandBank => Ok(Self::FrieslandBank),
             common_enums::BankNames::HypoAlpeadriabankInternationalAg => {
@@ -3130,8 +3130,13 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
                 Ok(Self::OsterreichischeArzteUndApothekerbank)
             }
             common_enums::BankNames::OcbcBank => Ok(Self::OcbcBank),
+<<<<<<< Updated upstream
             common_enums::BankNames::PayWithING => Ok(Self::Rabobank),
             common_enums::BankNames::PlaceZIPKO => Ok(Self::Rabobank),
+=======
+            common_enums::BankNames::PayWithING => Ok(Self::PayWithIng),
+            common_enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZipko),
+>>>>>>> Stashed changes
             common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => {
                 Ok(Self::PlatnoscOnlineKartaPlatnicza)
             }
@@ -3157,10 +3162,10 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
             common_enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
             common_enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
-            common_enums::BankNames::BNPParibasPoland => Ok(Self::Rabobank),
-            common_enums::BankNames::BankNowySA => Ok(Self::Rabobank),
+            common_enums::BankNames::BNPParibasPoland => Ok(Self::BnpParibasPoland),
+            common_enums::BankNames::BankNowySA => Ok(Self::BankNowySa),
             common_enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
-            common_enums::BankNames::PayWithBOS => Ok(Self::CreditAgricole),
+            common_enums::BankNames::PayWithBOS => Ok(Self::PayWithBos),
             common_enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
             common_enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
             common_enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
