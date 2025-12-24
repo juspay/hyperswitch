@@ -85,9 +85,9 @@ jobs:
   build-hyperswitch:
     name: Build hyperswitch server
     runs-on: hyperswitch-runners
-    # env:
-    #   # Use `sccache` for caching compilation artifacts
-    #   RUSTC_WRAPPER: sccache
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -117,12 +117,12 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   if: ${{ env.RUN_TESTS == 'true' }}
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -560,9 +560,9 @@ jobs:
     name: Run mandatory Cypress tests runner 2
     needs: build-hyperswitch
     runs-on: hyperswitch-runners
-    # env:
-    #   # Use `sccache` for caching compilation artifacts
-    #   RUSTC_WRAPPER: sccache
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -605,12 +605,12 @@ jobs:
           toolchain: stable 2 weeks ago
           components: llvm-tools-preview, rustfmt
       
-      # - name: Install sccache
-      #   if: ${{ env.RUN_TESTS == 'true' }}
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
+      - name: Install sccache
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
