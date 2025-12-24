@@ -3130,13 +3130,8 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
                 Ok(Self::OsterreichischeArzteUndApothekerbank)
             }
             common_enums::BankNames::OcbcBank => Ok(Self::OcbcBank),
-<<<<<<< Updated upstream
-            common_enums::BankNames::PayWithING => Ok(Self::Rabobank),
-            common_enums::BankNames::PlaceZIPKO => Ok(Self::Rabobank),
-=======
             common_enums::BankNames::PayWithING => Ok(Self::PayWithIng),
             common_enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZipko),
->>>>>>> Stashed changes
             common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => {
                 Ok(Self::PlatnoscOnlineKartaPlatnicza)
             }
