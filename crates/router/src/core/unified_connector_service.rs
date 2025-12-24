@@ -757,7 +757,7 @@ pub fn build_unified_connector_service_payment_method(
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Blik { blik_code}  => {
-                let blik = payments_grpc::Blik { 
+                let blik = payments_grpc::Blik {
                     blik_code,
                 };
 
@@ -975,7 +975,7 @@ pub fn build_unified_connector_service_payment_method(
                     paypal_redirection,
                 ) => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::PaypalRedirect(
-                        payments_grpc::PaypalRedirectWallet { 
+                        payments_grpc::PaypalRedirectWallet {
                             email: paypal_redirection.email.map(|e| e.expose().expose().into()),
                         }
                     )),
