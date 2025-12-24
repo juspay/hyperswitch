@@ -3208,7 +3208,6 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_router_return_url();
-        item.router_data.request.get_router_return_url()?;
         let testing_data = item
             .router_data
             .request
