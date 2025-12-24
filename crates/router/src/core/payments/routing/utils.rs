@@ -1116,7 +1116,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     // #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
-    pub nested: Option<Vec<IfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 /// Represents a rule
