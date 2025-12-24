@@ -1135,6 +1135,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         encrypted_payment_method_data -> Nullable<Bytea>,
+        error_details -> Nullable<Jsonb>,
     }
 }
 
