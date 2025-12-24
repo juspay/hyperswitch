@@ -192,6 +192,41 @@ jobs:
           path: target/debug/router
           retention-days: 1
 
+  test-sudo_install:
+    name: install cypress and dependencies
+    runs-on: hyperswitch-runners
+    steps:
+      - name: Check sudo access
+        run: |
+          whoami
+          sudo -n true && echo "sudo works" || echo "no sudo"
+      
+      - name: Install Cypress deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-0 \
+            libgbm-dev \
+            libnotify-dev \
+            libnss3 \
+            libxss1 \
+            libasound2 \
+            libxtst6 \
+            xauth \
+            xvfb \
+            chromium
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Cypress and dependencies
+        run: |
+          sudo npm ci --prefix ./cypress-tests
 
   runner:
     name: Run mandatory Cypress tests
@@ -377,7 +412,7 @@ jobs:
           retention-days: 1
 
   runner_github_actions:
-    name: Run mandatory Cypress tests(github_actions)
+    name: Run mandatory Cypress tests (github_actions)
     needs: build-hyperswitch-github-actions
     runs-on: ubuntu-latest
     # env:
