@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix5
+
+### Features
+
+- **connector:** [Zift] use Ecommerce transaction_industry_type instead of card present/not present ([#10782](https://github.com/juspay/hyperswitch/pull/10782)) ([`c6944e8`](https://github.com/juspay/hyperswitch/commit/c6944e8ecaa1cf78f8a973761bd52f565e31cca7))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fixed 3DS challenge endpoint ([#10783](https://github.com/juspay/hyperswitch/pull/10783)) ([`9763533`](https://github.com/juspay/hyperswitch/commit/97635334e6aa68754eaf6063f7231f9c50bf95bc))
+
+**Full Changelog:** [`2025.12.17.0-hotfix4...2025.12.17.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix4...2025.12.17.0-hotfix5)
+
+- - -
+
 ## 2025.12.17.0-hotfix4
 
 ### Bug Fixes
