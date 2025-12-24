@@ -263,7 +263,7 @@ pub async fn trigger_refund_to_gateway(
         match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 unified_connector_service::call_unified_connector_service_for_refund_execute(
-                    state,
+                    &updated_state,
                     platform,
                     router_data.clone(),
                     ExecutionMode::Primary,
@@ -909,7 +909,7 @@ pub async fn sync_refund_with_gateway(
         match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 unified_connector_service::call_unified_connector_service_for_refund_sync(
-                    state,
+                    &updated_state,
                     platform,
                     router_data.clone(),
                     ExecutionMode::Primary,
