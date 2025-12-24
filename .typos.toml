@@ -1,11 +1,7 @@
 [default]
 check-filename = true
 extend-ignore-identifiers-re = [
-    "UE_[0-9]{3,4}", # Unified error codes,
-    "validadeAposVencimento",
-    "payed_value",
-    "CorrespondenteBancarioFisico",
-    "CorrespondenteBancarioDigital"
+    "UE_[0-9]{3,4}", # Unified error codes
 ]
 
 [default.extend-identifiers]

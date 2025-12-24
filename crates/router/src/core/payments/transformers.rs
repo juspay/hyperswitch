@@ -4096,21 +4096,7 @@ pub fn qr_code_next_steps_check(
         .connector_metadata
         .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
-    let mut qr_code_instructions = qr_code_steps.transpose().ok().flatten();
-
-    if let Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
-        qr_code_url,
-        display_to_timestamp,
-        expiry_type,
-    }) = qr_code_instructions.clone()
-    {
-        qr_code_instructions = Some(api_models::payments::QrCodeInformation::QrCodeImageUrl {
-            qr_code_url,
-            display_to_timestamp,
-            expiry_type,
-        });
-    }
-
+    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
 }
 pub fn paypal_sdk_next_steps_check(
