@@ -200,6 +200,43 @@ jobs:
         run: |
           whoami
           sudo -n true && echo "sudo works" || echo "no sudo"
+
+      - name: Check & install Cypress system deps
+        run: |
+          set -e
+
+          PACKAGES=(
+            libgtk-3-0
+            libgbm-dev
+            libnotify-dev
+            libnss3
+            libxss1
+            libasound2
+            libxtst6
+            xauth
+            xvfb
+            chromium
+          )
+
+          MISSING=()
+
+          for pkg in "${PACKAGES[@]}"; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+              echo "❌ $pkg is NOT installed"
+              MISSING+=("$pkg")
+            else
+              echo "✅ $pkg is already installed"
+            fi
+          done
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            echo "Installing missing packages: ${MISSING[*]}"
+            sudo apt-get update
+            sudo apt-get install -y "${MISSING[@]}"
+          else
+            echo "All Cypress dependencies are already installed 🎉"
+          fi
+
       
       - name: Install Cypress deps
         run: |
