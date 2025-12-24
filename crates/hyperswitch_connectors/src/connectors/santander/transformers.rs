@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use api_models::payments::{ExpiryType, QrCodeInformation, VoucherNextStepData};
 use common_enums::{enums, AttemptStatus};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, ValueExt},
-    request::Method,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};
@@ -14,7 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{PaymentsUpdateMetadataData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
         PaymentsUpdateMetadataRouterData, RefundsRouterData,
@@ -81,53 +78,25 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
 impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let update_metadata_fields = validate_metadata_fields(&item.request.metadata.clone())?;
-
         let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
 
         let boleto_mca_metadata = santander_mca_metadata
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
+        let boleto_components = extract_boleto_components(&item.request.connector_transaction_id)?;
+
         Ok(Self {
             covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: Secret::new(extract_bank_number(item.request.connector_meta.clone())?),
-            due_date: update_metadata_fields.due_date,
-            discount: update_metadata_fields.discount,
-            min_value_or_percentage: update_metadata_fields.min_value_or_percentage,
-            max_value_or_percentage: update_metadata_fields.max_value_or_percentage,
-            interest: update_metadata_fields.interest,
+            bank_number: boleto_components.bank_number,
+            due_date: item
+                .request
+                .feature_metadata
+                .clone()
+                .and_then(|data| data.boleto_additional_details)
+                .and_then(|boleto_details| boleto_details.due_date),
         })
     }
-}
-
-fn validate_metadata_fields(
-    metadata: &common_utils::pii::SecretSerdeValue,
-) -> Result<SantanderBoletoUpdateRequest, errors::ConnectorError> {
-    let metadata_value = metadata.clone().expose();
-
-    let metadata_map = match metadata_value.as_object() {
-        Some(map) => map,
-        None => {
-            return Err(errors::ConnectorError::GenericError {
-                error_message: "Metadata should be a key value pair".to_string(),
-                error_object: metadata_value,
-            });
-        }
-    };
-
-    if metadata_map.len() > 10 {
-        return Err(errors::ConnectorError::GenericError {
-            error_message: "Metadata field limit exceeded".to_string(),
-            error_object: Value::Object(metadata_map.clone()),
-        });
-    }
-
-    let parsed_metadata: SantanderBoletoUpdateRequest =
-        serde_json::from_value(metadata_value.clone())
-            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
-
-    Ok(parsed_metadata)
 }
 
 pub fn format_emv_field(id: &str, value: &str) -> String {
@@ -461,9 +430,9 @@ impl
                     .join(" "),
                 ),
                 neighborhood: value.0.router_data.get_billing_line1()?,
-                city: value.0.router_data.get_billing_city()?,
+                city: Secret::new(value.0.router_data.get_billing_city()?),
                 state: value.0.router_data.get_billing_state()?,
-                zip_code: value.0.router_data.get_billing_zip()?, // zip format: 05134-897
+                zip_code: value.0.router_data.get_billing_zip()?,
             }),
             beneficiary: None,
             document_kind: Some(BoletoDocumentKind::DuplicataMercantil), // Need confirmation
@@ -688,28 +657,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     }
                 }
             }
-            SantanderPaymentsSyncResponse::Boleto(boleto_data) => {
-                let redirection_data = boleto_data.link.clone().map(|url| RedirectForm::Form {
-                    endpoint: url.to_string(),
-                    method: Method::Get,
-                    form_fields: HashMap::new(),
-                });
-
-                Ok(Self {
-                    status: AttemptStatus::AuthenticationPending,
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::NoResponseId,
-                        redirection_data: Box::new(redirection_data),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charges: None,
-                    }),
-                    ..item.data
-                })
-            }
+            SantanderPaymentsSyncResponse::Boleto(_) => Ok(Self {
+                response: item.data.response,
+                ..item.data
+            }),
         }
     }
 }
@@ -810,7 +761,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     "{}.{}.P.{}.{}",
                     boleto_data.nsu_code.clone(),
                     boleto_data.nsu_date.clone(),
-                    boleto_data.covenant_code.clone(),
+                    boleto_data.covenant_code.clone().expose(),
                     boleto_data.bank_number.clone(),
                 );
 

@@ -168,7 +168,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                     let boleto_mca_metadata = santander_mca_metadata
                         .boleto
                         .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                    let workspace_id = boleto_mca_metadata.workspace_id.clone();
+                    let workspace_id = boleto_mca_metadata.workspace_id.peek();
                     Ok(format!("{base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips"))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -280,27 +280,27 @@ where
                 })?;
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
-        let client_id: Result<Secret<String>, error_stack::Report<errors::ConnectorError>> =
-            match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
-                    let pix_mca_metadata = santander_mca_metadata
-                        .pix
-                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                    Ok(pix_mca_metadata.client_id)
-                }
-                Some(enums::PaymentMethodType::Boleto) => {
-                    let boleto_mca_metadata = santander_mca_metadata
-                        .boleto
-                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                    Ok(boleto_mca_metadata.client_id)
-                }
-                _ => Err(errors::ConnectorError::NotSupported {
+        let client_id = match req.payment_method_type {
+            Some(enums::PaymentMethodType::Pix) => {
+                santander_mca_metadata
+                    .pix
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .client_id
+            }
+            Some(enums::PaymentMethodType::Boleto) => {
+                santander_mca_metadata
+                    .boleto
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .client_id
+            }
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
                 }
-                .into()),
-            };
-        let client_id = client_id?;
+                .into());
+            }
+        };
 
         let header = vec![
             (
@@ -434,13 +434,12 @@ impl ConnectorCommon for Santander {
                     })
                 }
                 SantanderGenericErrorResponse::Pattern3(response) => {
-                    let message = response.fault.fault_string;
                     let detail = response.fault.detail.error_code;
 
                     Ok(ErrorResponse {
                         status_code: res.status_code,
                         code: detail.clone(),
-                        message: message.clone(),
+                        message: response.fault.fault_string,
                         reason: Some(detail),
                         attempt_status: None,
                         connector_transaction_id: None,
@@ -590,9 +589,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
@@ -631,6 +627,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => {
+                    let boleto_mca_metadata = santander_mca_metadata
+                        .boleto
+                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                     let secondary_base_url =
                         connectors.santander.secondary_base_url.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
@@ -641,7 +640,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         "{}collection_bill_management/{}/workspaces/{}/bank_slips",
                         secondary_base_url,
                         santander_constants::SANTANDER_VERSION,
-                        boleto_mca_metadata.workspace_id.clone()
+                        boleto_mca_metadata.workspace_id.peek(),
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -784,9 +783,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
         let connector_transaction_id = match req.request.connector_transaction_id {
             hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
@@ -829,6 +825,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             },
             enums::PaymentMethod::Voucher => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Boleto) => {
+                    let boleto_mca_metadata = santander_mca_metadata
+                        .boleto
+                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                     let boleto_base_url = connectors
                         .santander
                         .secondary_base_url
@@ -838,7 +837,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                         "{}collection_bill_management/{}/workspaces/{}/bank_slips/{}",
                         boleto_base_url,
                         santander_constants::SANTANDER_VERSION,
-                        boleto_mca_metadata.workspace_id,
+                        boleto_mca_metadata.workspace_id.peek(),
                         connector_transaction_id.ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "connector_transaction_id"
@@ -1087,7 +1086,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
 
                     Ok(format!(
                         "{base_url}collection_bill_management/{version}/workspaces/{}/bank_slips",
-                        boleto_mca_metadata.workspace_id,
+                        boleto_mca_metadata.workspace_id.peek(),
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -1497,8 +1496,7 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
-    [enums::EventClass::Payments, enums::EventClass::Refunds];
+static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Santander {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

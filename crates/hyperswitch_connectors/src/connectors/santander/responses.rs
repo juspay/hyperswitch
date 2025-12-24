@@ -12,7 +12,7 @@ pub struct Payer {
     pub document_number: Option<Secret<String>>,
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
-    pub city: String,
+    pub city: Secret<String>,
     pub state: Secret<String>,
     pub zip_code: Secret<String>,
 }
@@ -22,7 +22,7 @@ pub struct Payer {
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
     pub document_type: Option<common_enums::DocumentKind>,
-    pub document_number: Option<String>,
+    pub document_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,7 +57,7 @@ pub enum BoletoDocumentKind {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderAdditionalInfo {
     // Name
-    pub nome: String,
+    pub nome: Secret<String>,
     // Value
     pub valor: String,
 }
@@ -123,7 +123,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub environment: requests::Environment,
     pub nsu_code: String,
     pub nsu_date: String,
-    pub covenant_code: String,
+    pub covenant_code: Secret<String>,
     pub bank_number: String,
     pub client_number: Option<String>,
     pub due_date: String,
@@ -147,11 +147,11 @@ pub struct SantanderBoletoPaymentsResponse {
     pub min_value_or_percentage: Option<String>,
     pub max_value_or_percentage: Option<String>,
     pub iof_percentage: Option<String>,
-    pub sharing: Option<Sharing>,
+    pub sharing: Option<Vec<Sharing>>,
     pub key: Option<Key>,
     pub tx_id: Option<String>,
     pub messages: Option<Vec<String>>,
-    pub barcode: Option<String>,
+    pub barcode: Option<Secret<String>>,
     pub digitable_line: Option<Secret<String>>,
     pub entry_date: Option<String>,
     pub qr_code_pix: Option<String>,
@@ -312,12 +312,7 @@ pub struct SantanderCalendarResponse {
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
-    Boleto(Box<SantanderBoletoPSyncResponse>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderBoletoPSyncResponse {
-    pub link: Option<url::Url>,
+    Boleto(Box<SantanderBoletoPaymentsResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -588,7 +583,9 @@ pub enum PaymentType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sharing {
+    // A 2-digit identifier for a split rule
     pub code: String,
+    // Exact monetary amount assigned to that split
     pub value: f64,
 }
 
@@ -596,7 +593,7 @@ pub struct Sharing {
 pub struct Key {
     #[serde(rename = "type")]
     pub key_type: Option<String>,
-    pub dict_key: Option<String>,
+    pub dict_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

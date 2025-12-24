@@ -6,16 +6,13 @@ use crate::connectors::santander::responses;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+// Only due date is updatable as of now. Will add other fields when required.
 pub struct SantanderBoletoUpdateRequest {
     #[serde(skip_deserializing)]
-    pub covenant_code: String,
+    pub covenant_code: Secret<String>,
     #[serde(skip_deserializing)]
-    pub bank_number: Secret<String>,
+    pub bank_number: String,
     pub due_date: Option<String>,
-    pub discount: Option<Discount>,
-    pub min_value_or_percentage: Option<f64>,
-    pub max_value_or_percentage: Option<f64>,
-    pub interest: Option<InterestPercentage>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,9 +60,9 @@ pub struct SantanderMetadataObject {
 pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub workspace_id: String,
-    // It’s a number that identifies the merchant’s boleto contract with Santander
-    pub covenant_code: String, // max_size : 9
+    pub workspace_id: Secret<String>,
+    // It’s a number that identifies the merchant’s boleto contract with Santander (max size = 9)
+    pub covenant_code: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -152,7 +149,7 @@ pub enum SantanderPixRequestCalendar {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderPixImmediateCalendarRequest {
     #[serde(rename = "expiracao")]
-    // expiration
+    // expiration time in seconds
     pub expiracao: i32,
 }
 
@@ -182,7 +179,7 @@ pub enum SantanderPaymentsCancelRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoCancelRequest {
-    pub covenant_code: String,
+    pub covenant_code: Secret<String>,
     pub bank_number: String,
     pub operation: SantanderBoletoCancelOperation,
 }
@@ -225,7 +222,7 @@ pub struct SantanderPixQRPaymentRequest {
     // value
     pub valor: Option<SantanderValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    // key
+    // A unique identifier that links a user’s bank account and allows others to send money without needing bank details. Instead of sharing: Bank name/Branch/Account number, one can just share the chave Pix, and the Central Bank of Brazil resolves it to the correct account.
     pub chave: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // request_payer
@@ -247,7 +244,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub nsu_date: Option<String>,
     // It is a number which shows a contract between merchant and bank => static for all txn's
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub covenant_code: Option<String>,
+    pub covenant_code: Option<Secret<String>>,
     // It is a unique ID which the merchant makes to identify each txn and the bank uses this to identify unique txn's
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_number: Option<String>,
@@ -307,7 +304,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub iof_percentage: Option<f64>,
     // This feature allows the merchant (beneficiário) to split the funds received from a boleto into up to four Santander accounts that they own.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sharing: Option<responses::Sharing>,
+    pub sharing: Option<Vec<responses::Sharing>>,
     // This field indicates the type of PIX key that the beneficiary (merchant) has registered in Santander.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<responses::Key>,
