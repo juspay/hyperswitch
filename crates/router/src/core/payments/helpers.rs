@@ -1938,66 +1938,29 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-#[allow(clippy::type_complexity)]
-pub async fn get_customer_if_exists<'a, F: Clone, R, D>(
+pub async fn get_customer_if_exists(
     state: &SessionState,
-    operation: BoxedOperation<'a, F, R, D>,
-    payment_data: &mut PaymentData<F>,
-    req: Option<CustomerDetails>,
+    customer_id_from_request: Option<&id_type::CustomerId>,
+    customer_id_from_intent: Option<&id_type::CustomerId>,
     provider: &domain::Provider,
-) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
-    let merchant_id = provider.get_account().get_id();
-    let storage_scheme = provider.get_account().storage_scheme;
-    let key_store = provider.get_key_store();
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     let db = &*state.store;
 
-    // Same customer_id resolution as create_customer_if_not_exist
-    let customer_id = req
-        .as_ref()
-        .and_then(|r| r.customer_id.clone())
-        .or(payment_data.payment_intent.customer_id.clone());
+    let customer_id = customer_id_from_request.or(customer_id_from_intent);
 
-    let customer = match customer_id {
+    match customer_id {
         Some(customer_id) => {
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &customer_id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
+                    customer_id,
+                    provider.get_account().get_id(),
+                    provider.get_key_store(),
+                    provider.get_account().storage_scheme,
                 )
                 .await?;
-            payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-            payment_data.email = payment_data
-                .email
-                .clone()
-                .or_else(|| customer.email.clone().map(Into::into));
-            Some(customer)
+            Ok(Some(customer))
         }
-        None => None,
-    };
-
-    Ok((operation, customer))
-}
-
-#[cfg(feature = "v1")]
-#[instrument(skip_all)]
-#[allow(clippy::type_complexity)]
-pub async fn get_or_create_customer_details<'a, F: Clone, R, D>(
-    state: &SessionState,
-    operation: BoxedOperation<'a, F, R, D>,
-    payment_data: &mut PaymentData<F>,
-    req: Option<CustomerDetails>,
-    provider: &domain::Provider,
-) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
-    match provider.get_account().merchant_account_type {
-        common_enums::MerchantAccountType::Standard => {
-            create_customer_if_not_exist(state, operation, payment_data, req, provider).await
-        }
-        common_enums::MerchantAccountType::Platform
-        | common_enums::MerchantAccountType::Connected => {
-            get_customer_if_exists(state, operation, payment_data, req, provider).await
-        }
+        None => Ok(None),
     }
 }
 

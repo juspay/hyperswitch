@@ -279,18 +279,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
-    /// This will populate raw customer details in payment intent (processor context)
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[cfg(feature = "v2")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_customer_details<'a>(
         &'a self,

@@ -557,14 +557,53 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        helpers::get_or_create_customer_details(
-            state,
-            Box::new(self),
-            payment_data,
-            request,
-            provider,
-        )
-        .await
+        match provider.get_account().merchant_account_type {
+            common_enums::MerchantAccountType::Standard => {
+                helpers::create_customer_if_not_exist(
+                    state,
+                    Box::new(self),
+                    payment_data,
+                    request,
+                    provider,
+                )
+                .await
+            }
+            common_enums::MerchantAccountType::Platform => {
+                let customer = helpers::get_customer_if_exists(
+                    state,
+                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                    payment_data.payment_intent.customer_id.as_ref(),
+                    provider,
+                )
+                .await?
+                .map(|cust| {
+                    payment_data
+                        .payment_intent
+                        .customer_id
+                        .as_ref()
+                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .then_some(errors::StorageError::ValueNotFound(
+                            "Customer id mismatch between payment intent and request".to_string(),
+                        ))
+                        .map_or(Ok(()), Err)?;
+                    payment_data.email = payment_data
+                        .email
+                        .clone()
+                        .or_else(|| cust.email.clone().map(Into::into));
+                    Ok(cust)
+                })
+                .transpose()
+                .map_err(|e: errors::StorageError| report!(e))?;
+
+                Ok((Box::new(self), customer))
+            }
+            common_enums::MerchantAccountType::Connected => {
+                Err(errors::StorageError::ValueNotFound(
+                    "Connected merchant cannot be a provider".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
