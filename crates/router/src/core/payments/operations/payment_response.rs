@@ -9,7 +9,7 @@ use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{ConnectorTransactionId, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -2191,10 +2191,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
 
     payment_data.payment_attempt = payment_attempt;
-
+    let key_manager_state: KeyManagerState = state.into();
     payment_data.authentication = match payment_data.authentication {
         Some(mut authentication_store) => {
-            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state
@@ -2202,6 +2202,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .update_authentication_by_merchant_id_authentication_id(
                     authentication_store.authentication,
                     authentication_update,
+                    key_store,
+                    &key_manager_state,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
