@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
-use common_types::callback_mapper::CallbackMapperData;
+use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -130,6 +130,9 @@ pub async fn save_payment_method<FData>(
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    payment_method_customer_details: Option<
+        common_types::payment_methods::PaymentMethodCustomerDetails,
+    >,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -371,6 +374,21 @@ where
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt payment method billing address")?;
 
+                let payment_method_customer_details_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = payment_method_customer_details
+                    .async_map(|customer_details| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_processor().get_key_store(),
+                            customer_details,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method customer details")?;
+
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
                 let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
@@ -479,6 +497,7 @@ where
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
                                                 Some(vault_source_details),
+                                                payment_method_customer_details_encrypted,
                                             )
                                             .await
                                     } else {
@@ -597,6 +616,7 @@ where
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
                                                     Some(vault_source_details),
+                                                    payment_method_customer_details_encrypted,
                                                 )
                                                 .await
                                         } else {
@@ -817,6 +837,7 @@ where
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                     Some(vault_source_details),
+                                    payment_method_customer_details_encrypted,
                                 )
                                 .await?;
 

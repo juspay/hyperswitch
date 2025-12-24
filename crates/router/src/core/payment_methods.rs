@@ -1951,6 +1951,7 @@ pub async fn create_payment_method_for_intent(
                 vault_type: None,
                 created_by: None,
                 last_modified_by: None,
+                payment_method_customer_details: None,
             },
             storage_scheme,
         )
@@ -2017,6 +2018,7 @@ pub async fn create_payment_method_for_confirm(
                 vault_type,
                 created_by: None,
                 last_modified_by: None,
+                payment_method_customer_details: None,
             },
             storage_scheme,
         )

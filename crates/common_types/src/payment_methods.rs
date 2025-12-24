@@ -8,6 +8,7 @@ use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, Queryable,
 };
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -264,4 +265,11 @@ pub struct PspTokenization {
     /// The merchant connector id to be used for tokenization
     #[schema(value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
+}
+
+/// Customer details associated with the payment method
+#[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodCustomerDetails {
+    /// Document number of the customer
+    pub customer_document_number: Option<Secret<String>>,
 }

@@ -141,6 +141,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
+        payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -202,6 +203,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                     created_by: None,
                     last_modified_by: None,
+                    payment_method_customer_details: payment_method_customer_details_encrypted,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -509,6 +511,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
+            None,
         )
         .await
     }
@@ -1347,6 +1350,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
             )
             .await?;
 
