@@ -800,9 +800,9 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::AchBankTransfer {  }
                 )),
             }),
-            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::InstantBankTransfer(
-                    payments_grpc::InstantBankTransfer {  }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::BacsBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::BacsBankTransfer(
+                    payments_grpc::BacsBankTransfer {  }
                 )),
             }),
             hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer {  } => Ok(payments_grpc::PaymentMethod {
