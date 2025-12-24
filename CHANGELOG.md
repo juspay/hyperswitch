@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.24.0
+
+### Features
+
+- **connector:**
+  - [Shift4] Enhance error mapping to support issuer error codes ([#10748](https://github.com/juspay/hyperswitch/pull/10748)) ([`644762d`](https://github.com/juspay/hyperswitch/commit/644762d0ee7e788153e8aaf5c6fc52a222192078))
+  - [Gigadat] store intearc customer_info in additional data ([#10749](https://github.com/juspay/hyperswitch/pull/10749)) ([`d2802ac`](https://github.com/juspay/hyperswitch/commit/d2802ac93eeafe4cdb8000492183f48008b73388))
+- **core:** Propagate metadata from locker response to payment method response ([#10645](https://github.com/juspay/hyperswitch/pull/10645)) ([`a9aecaa`](https://github.com/juspay/hyperswitch/commit/a9aecaa5bd761647f0d7e2951f50567e61b1dc40))
+- **payment_methods:** Add batch payment method data retrieval endpoint ([#10663](https://github.com/juspay/hyperswitch/pull/10663)) ([`d241c0b`](https://github.com/juspay/hyperswitch/commit/d241c0bdc7220d601db6e73f0032b9ad9a30dbe1))
+
+### Bug Fixes
+
+- Added PostAuth Flow for Nexixpay HS<>UCS ([#10706](https://github.com/juspay/hyperswitch/pull/10706)) ([`98f2a8e`](https://github.com/juspay/hyperswitch/commit/98f2a8ef71b658642a2be9cf6807779b79614d27))
+
+### Refactors
+
+- Added new headers for comparison service HS<>UCS ([#10770](https://github.com/juspay/hyperswitch/pull/10770)) ([`35c15e9`](https://github.com/juspay/hyperswitch/commit/35c15e9922a1fea303a76859af2c7228176ca944))
+
+**Full Changelog:** [`2025.12.23.0...2025.12.24.0`](https://github.com/juspay/hyperswitch/compare/2025.12.23.0...2025.12.24.0)
+
+- - -
+
 ## 2025.12.23.0
 
 ### Features
