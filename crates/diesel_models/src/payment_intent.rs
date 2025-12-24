@@ -536,7 +536,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     Update(Box<PaymentIntentUpdateFields>),
-    StateUpdate {
+    StateMetadataUpdate {
         state_metadata: PaymentIntentStateMetadata,
         updated_by: String,
     },
@@ -1095,7 +1095,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
             },
-            PaymentIntentUpdate::StateUpdate {
+            PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
                 updated_by,
             } => Self {

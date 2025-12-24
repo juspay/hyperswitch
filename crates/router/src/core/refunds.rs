@@ -87,21 +87,8 @@ pub async fn refund_create_core(
         },
     )?;
 
-    let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
-
-    let blocked_amount = MinorUnit::new(
-        state_metadata
-            .total_refunded_amount
-            .unwrap_or(MinorUnit::zero())
-            .get_amount_as_i64()
-            + state_metadata
-                .total_disputed_amount
-                .unwrap_or(MinorUnit::zero())
-                .get_amount_as_i64(),
-    );
-
     payment_intent
-        .validate_against_intent_state_metadata(blocked_amount, req.amount)
+        .validate_against_intent_state_metadata(req.amount)
         .map_err(|err| {
             err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Refund amount exceeds captured amount".to_string(),
@@ -1019,6 +1006,16 @@ pub async fn sync_refund_with_gateway(
             }
         },
     };
+
+    if let diesel_models::refund::RefundUpdate::StatusUpdate { refund_status, .. } = refund_update {
+        if refund_status.is_success() && !refund.refund_status.is_success() {
+            PaymentIntentStateMetadataExt::from(
+                payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
+            .await?;
+        }
+    }
 
     let response = state
         .store

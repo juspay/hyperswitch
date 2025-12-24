@@ -985,6 +985,19 @@ impl PaymentIntentStateMetadata {
         self.total_disputed_amount = Some(amount);
         self
     }
+    /// Get the blocked amount which is the sum of total disputed and total refunded amounts
+    pub fn get_blocked_amount(self) -> MinorUnit {
+        let blocked_amount = self
+            .total_disputed_amount
+            .unwrap_or(MinorUnit::zero())
+            .get_amount_as_i64()
+            + self
+                .total_refunded_amount
+                .unwrap_or(MinorUnit::zero())
+                .get_amount_as_i64();
+
+        MinorUnit::new(blocked_amount)
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);

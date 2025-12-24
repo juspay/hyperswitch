@@ -3,10 +3,7 @@ use std::{collections::HashMap, ops::Deref, str::FromStr};
 use api_models::{
     admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
 };
-use common_utils::{
-    ext_traits::{Encode, ValueExt},
-    types::MinorUnit,
-};
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -168,11 +165,8 @@ pub async fn retrieve_dispute(
     #[cfg(feature = "v1")]
     {
         let state = payment_intent.state_metadata.clone().unwrap_or_default();
-
-        let blocked_amount = state.total_refunded_amount.unwrap_or(MinorUnit::zero());
-
         dispute_response.is_already_refunded = payment_intent
-            .validate_against_intent_state_metadata(blocked_amount, state.total_disputed_amount)
+            .validate_against_intent_state_metadata(state.total_disputed_amount)
             .is_err();
     }
     #[cfg(not(feature = "v1"))]

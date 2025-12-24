@@ -338,9 +338,9 @@ impl PaymentIntent {
             })
     }
 
+    #[cfg(feature = "v1")]
     pub fn validate_against_intent_state_metadata(
         &self,
-        blocked_amount: MinorUnit,
         requested_amount: Option<MinorUnit>,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
         let captured = self
@@ -348,12 +348,17 @@ impl PaymentIntent {
             .unwrap_or(MinorUnit::zero())
             .get_amount_as_i64();
 
-        let blocked = blocked_amount.get_amount_as_i64();
+        let blocked_amount = self
+            .state_metadata
+            .clone()
+            .unwrap_or_default()
+            .get_blocked_amount()
+            .get_amount_as_i64();
         let requested = requested_amount
             .unwrap_or(MinorUnit::zero())
             .get_amount_as_i64();
 
-        let total = blocked + requested;
+        let total = blocked_amount + requested;
 
         if total > captured {
             return Err(
@@ -363,10 +368,10 @@ impl PaymentIntent {
                 .attach_printable(format!(
                     "Validation failed because blocked_amount ({}) + requested_amount ({}) \
              exceeds amount_captured ({}). Available amount: {}",
-                    blocked,
+                    blocked_amount,
                     requested,
                     captured,
-                    (captured - blocked).max(0),
+                    (captured - blocked_amount).max(0),
                 )),
             );
         }

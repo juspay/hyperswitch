@@ -330,7 +330,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
-    StateUpdate {
+    StateMetadataUpdate {
         state_metadata: common_types::payments::PaymentIntentStateMetadata,
         updated_by: String,
     },
@@ -1190,7 +1190,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details,
                 ..Default::default()
             },
-            PaymentIntentUpdate::StateUpdate {
+            PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
                 updated_by,
             } => Self {
@@ -1294,10 +1294,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 metadata,
                 updated_by,
             },
-            PaymentIntentUpdate::StateUpdate {
+            PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
                 updated_by,
-            } => Self::StateUpdate {
+            } => Self::StateMetadataUpdate {
                 state_metadata,
                 updated_by,
             },
