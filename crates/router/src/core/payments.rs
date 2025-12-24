@@ -1160,11 +1160,9 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform.get_processor(),
                     payment_data.clone(),
                     customer.clone(),
-                    validate_result.storage_scheme,
-                    None,
-                    platform.get_processor().get_key_store(),
                     #[cfg(feature = "frm")]
                     frm_info.and_then(|info| info.suggested_action),
                     #[cfg(not(feature = "frm"))]
@@ -1196,11 +1194,9 @@ where
             .update_trackers(
                 state,
                 req_state,
+                platform.get_processor(),
                 payment_data.clone(),
                 customer.clone(),
-                validate_result.storage_scheme,
-                None,
-                platform.get_processor().get_key_store(),
                 None,
                 header_payload.clone(),
             )
@@ -1745,11 +1741,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data,
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload,
         )
@@ -1823,11 +1817,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data,
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload,
         )
@@ -2533,11 +2525,9 @@ pub async fn record_attempt_core(
         .update_trackers(
             &state,
             req_state,
+            platform.get_processor(),
             record_payment_data,
             None,
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )
@@ -4277,23 +4267,27 @@ where
             .ok();
     }
 
-    // Update the payment trackers just before calling the connector
+    // Update customer information at provider level and payment trackers in parallel
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
+    let ((), (_, new_payment_data)) = tokio::try_join!(
+        operation.to_domain()?.update_customer(
+            state,
+            platform.get_provider(),
+            customer.clone(),
+            updated_customer.clone(),
+        ),
+        operation.to_update_tracker()?.update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
-        .await?;
+    )?;
+    *payment_data = new_payment_data;
 
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
@@ -4686,23 +4680,27 @@ where
         None => (None, false),
     };
 
-    // Update the payment trackers just before calling the connector
+    // Update customer information at provider level and payment trackers in parallel
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
+    let ((), (_, new_payment_data)) = tokio::try_join!(
+        operation.to_domain()?.update_customer(
+            state,
+            platform.get_provider(),
+            customer.clone(),
+            updated_customer.clone(),
+        ),
+        operation.to_update_tracker()?.update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
-        .await?;
+    )?;
+    *payment_data = new_payment_data;
 
     let router_data = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
@@ -5082,11 +5080,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             None, // customer is not used in internal flows
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
         )
@@ -5272,11 +5268,9 @@ where
             .update_trackers(
                 state,
                 req_state,
+                platform.get_processor(),
                 payment_data.clone(),
                 customer.clone(),
-                platform.get_processor().get_account().storage_scheme,
-                None,
-                platform.get_processor().get_key_store(),
                 frm_suggestion,
                 header_payload.clone(),
             )
@@ -5452,7 +5446,6 @@ where
             .ok();
     }
 
-    let updated_customer = None;
     let frm_suggestion = None;
 
     (_, *payment_data) = operation
@@ -5460,11 +5453,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             customer.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            updated_customer,
-            platform.get_processor().get_key_store(),
             frm_suggestion,
             header_payload.clone(),
         )
@@ -5595,11 +5586,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             None,
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )
@@ -5715,11 +5704,9 @@ where
         .update_trackers(
             state,
             req_state,
+            platform.get_processor(),
             payment_data.clone(),
             None,
-            platform.get_processor().get_account().storage_scheme,
-            None,
-            platform.get_processor().get_key_store(),
             None,
             header_payload.clone(),
         )
