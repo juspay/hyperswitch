@@ -496,7 +496,8 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                         }
                         RealTimePaymentData::Fps {}
                         | RealTimePaymentData::PromptPay {}
-                        | RealTimePaymentData::VietQr {} => {
+                        | RealTimePaymentData::VietQr {}
+                        | RealTimePaymentData::Qris {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("fiuu"),
                             )
