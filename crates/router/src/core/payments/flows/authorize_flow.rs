@@ -556,7 +556,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                 }
                 // Some connector return PreProcessingResponse and TransactionResponse response type
-                // Rest of the match statements are temporary fixes. 
+                // Rest of the match statements are temporary fixes.
                 // Create Order response must always be PaymentsCreateOrderResponse only
                 Ok(types::PaymentsResponseData::PreProcessingResponse {
                     pre_processing_id,
