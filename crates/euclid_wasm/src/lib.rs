@@ -50,6 +50,12 @@ struct SeedData {
 static SEED_DATA: OnceLock<SeedData> = OnceLock::new();
 static SEED_FOREX: OnceLock<currency_conversion_types::ExchangeRates> = OnceLock::new();
 
+const MERCHANT_CATEGORY_CODES: &[u16] = &[
+    743, 744, 763, 4011, 4511, 4733, 4813, 4815, 4816, 4829, 5021, 5262, 5411, 5552, 5661, 5715,
+    6050, 6532, 6533, 6536, 6537, 6538, 6540, 7011, 7013, 7280, 7295, 7322, 7512, 7523, 7800, 7801,
+    7802, 8111, 8912, 9211, 9222, 9223, 9311, 9399, 9400, 9402, 9405, 9406, 9700, 9701, 9702, 9950,
+];
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console, js_name = log)]
@@ -109,36 +115,31 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = vec![
-        763, 743, 744, 4011, 4511, 4733, 4813, 4815, 4816, 4829, 5021, 5262, 5411, 5552, 5661,
-        5715, 6050, 6532, 6533, 6536, 6537, 6538, 6540, 7011, 7013, 7280, 7295, 7322, 7512, 7523,
-        7800, 7801, 7802, 8111, 8912, 9211, 9222, 9223, 9311, 9399, 9400, 9402, 9405, 9406, 9700,
-        9701, 9702, 9950,
-    ]
-    .into_iter()
-    .filter_map(|mcc_value| match MerchantCategoryCode::new(mcc_value) {
-        Ok(mcc) => match mcc.get_category_name() {
-            Ok(mcc_name) => Some(MerchantCategoryCodeWithName {
-                code: mcc.clone(),
-                name: mcc_name.to_string(),
-            }),
+    let merchant_category_codes_with_name = MERCHANT_CATEGORY_CODES
+        .iter()
+        .filter_map(|&mcc_value| match MerchantCategoryCode::new(mcc_value) {
+            Ok(mcc) => match mcc.get_category_name() {
+                Ok(mcc_name) => Some(MerchantCategoryCodeWithName {
+                    code: mcc.clone(),
+                    name: mcc_name.to_string(),
+                }),
+                Err(err) => {
+                    console_error(&format!(
+                        "Failed to get category name for MCC {}: {:?}",
+                        mcc_value, err
+                    ));
+                    None
+                }
+            },
             Err(err) => {
                 console_error(&format!(
-                    "Failed to get category name for MCC {}: {:?}",
+                    "Failed to create MCC for value {}: {:?}",
                     mcc_value, err
                 ));
                 None
             }
-        },
-        Err(err) => {
-            console_error(&format!(
-                "Failed to create MCC for value {}: {:?}",
-                mcc_value, err
-            ));
-            None
-        }
-    })
-    .collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
     Ok(serde_wasm_bindgen::to_value(
         &merchant_category_codes_with_name,

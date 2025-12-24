@@ -3152,7 +3152,6 @@ impl MerchantCategoryCode {
     pub fn get_category_name(&self) -> Result<&str, InvalidMccError> {
         let code = self.get_code()?;
         match code {
-            // specific mapping needs to be depricated
             5411 => Ok("Grocery Stores, Supermarkets (5411)"),
             7011 => Ok("Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)"),
             763 => Ok("Agricultural Cooperatives (0763)"),
@@ -3160,8 +3159,6 @@ impl MerchantCategoryCode {
             5021 => Ok("Office and Commercial Furniture (5021)"),
             4816 => Ok("Computer Network/Information Services (4816)"),
             5661 => Ok("Shoe Stores (5661)"),
-
-            // New MCC mappings
             743 => Ok("Wine producers"),
             744 => Ok("Champagne producers"),
             4011 => Ok("Railroads"),
