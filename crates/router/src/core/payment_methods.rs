@@ -42,6 +42,8 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
