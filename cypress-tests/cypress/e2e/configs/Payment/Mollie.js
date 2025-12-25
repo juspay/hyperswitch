@@ -216,26 +216,15 @@ export const connectorDetails = {
         },
       },
     },
-    Void: getCustomExchange({
+    Void: {
       Request: {},
       Response: {
-        status: 400,
-        body: {
-          error: {
-            code: "IR_20",
-            message: "Void flow not supported",
-            connector: "mollie",
-            type: "invalid_request",
-          },
-        },
-      },
-      ResponseCustom: {
         status: 200,
         body: {
           status: "cancelled",
         },
       },
-    }),
+    },
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -261,7 +250,10 @@ export const connectorDetails = {
         },
       },
     },
-    PartialRefund: getCustomExchange({
+    PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -271,14 +263,7 @@ export const connectorDetails = {
           status: "pending",
         },
       },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "failed",
-          reason: "FRAUD",
-        },
-      },
-    }),
+    },
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -290,7 +275,10 @@ export const connectorDetails = {
         },
       },
     },
-    manualPaymentPartialRefund: getCustomExchange({
+    manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -298,16 +286,10 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "failed",
           reason: "FRAUD",
         },
       },
-    }),
+    },
     SyncRefund: getCustomExchange({
       Request: {},
       Response: {
@@ -407,6 +389,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -485,6 +470,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -518,6 +506,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -535,6 +526,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -637,6 +631,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
