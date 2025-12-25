@@ -791,6 +791,7 @@ pub struct PaymentsAuthenticateData {
     pub browser_info: Option<BrowserInformation>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -807,6 +808,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             redirect_response: data.redirect_response,
+            capture_method: data.capture_method,
         })
     }
 }
@@ -825,6 +827,7 @@ pub struct PaymentsPostAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub complete_authorize_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -843,6 +846,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
+            complete_authorize_url: data.complete_authorize_url,
         })
     }
 }
