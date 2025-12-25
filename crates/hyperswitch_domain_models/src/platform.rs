@@ -52,12 +52,10 @@ impl Processor {
 /// Initiator = The entity that initiated the operation.
 #[derive(Clone, Debug)]
 pub enum Initiator {
-    /// API Key initiated the operation.
     Api {
         merchant_id: common_utils::id_type::MerchantId,
         merchant_account_type: common_enums::MerchantAccountType,
     },
-    /// JWT User initiated the operation.
     Jwt {
         user_id: String,
     },
@@ -78,7 +76,6 @@ impl Platform {
     /// Creates a Platform pairing from two merchant identities:
     /// one acting as provider and one as processor
     /// Standard merchants can pass the same account/key_store for both provider and processor
-    /// The initiator parameter represents who triggered the operation (API key or JWT user)
     pub fn new(
         provider_account: MerchantAccount,
         provider_key_store: MerchantKeyStore,
