@@ -291,10 +291,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -492,10 +492,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(true),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -816,6 +816,11 @@ impl
             })
             .transpose()?;
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -865,6 +870,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: HashMap::new(),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -891,6 +897,12 @@ impl
         )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
 
         let payment_method = router_data
             .request
@@ -952,6 +964,7 @@ impl
                 .transpose()?,
             connector_metadata: HashMap::new(),
             connector_order_reference_id: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -984,6 +997,11 @@ impl
             )?,
         );
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let merchant_account_metadata = router_data
             .connector_meta_data
@@ -1032,6 +1050,8 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: HashMap::new(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -1195,8 +1215,8 @@ impl
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: false,
-            request_incremental_authorization: false,
+            enrolled_for_3ds: Some(false),
+            request_incremental_authorization: Some(false),
             minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
@@ -1333,10 +1353,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1495,10 +1515,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1751,7 +1771,7 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let mandate_reference = match &router_data.request.mandate_id {
+        let _mandate_reference = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                     connector_mandate_id,
@@ -1787,7 +1807,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            mandate_reference,
+            mandate_reference_id: None,
             amount: router_data.request.amount,
             currency: currency.into(),
             minor_amount: router_data.request.amount,
@@ -1841,6 +1861,8 @@ impl
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             connector_metadata: HashMap::new(),
+            authentication_data: None,
+            payment_method: None,
         })
     }
 }
@@ -4492,6 +4514,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             metadata: HashMap::new(),
             test_mode: router_data.test_mode,
             payment_method_type,
+            customer_id: None,
         })
     }
 }
