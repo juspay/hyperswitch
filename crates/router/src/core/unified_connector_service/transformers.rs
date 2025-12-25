@@ -679,14 +679,19 @@ impl
                 e
             })
             .ok();
-
-        let connector_ref_id = router_data
+        let connector_order_ref_id = router_data
             .request
             .connector_reference_id
             .clone()
             .map(|id| Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
+
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -724,7 +729,10 @@ impl
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
-            request_ref_id: connector_ref_id,
+            request_ref_id,
+            // to-do: uncomment L537 post ucs pr gets merged
+            // and then, bump the ucs
+            // connector_order_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
