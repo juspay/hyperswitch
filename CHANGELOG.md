@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0
+
+### Features
+
+- **connector:**
+  - [Zift] use Ecommerce transaction_industry_type instead of card present/not present ([#10775](https://github.com/juspay/hyperswitch/pull/10775)) ([`8279f8c`](https://github.com/juspay/hyperswitch/commit/8279f8c89ea2826b575829a4da024d29acde5cd4))
+  - [FINIX] webhook + statement descriptor ([#10758](https://github.com/juspay/hyperswitch/pull/10758)) ([`761183b`](https://github.com/juspay/hyperswitch/commit/761183bb198a65a53703a7e817d2ba63fef445ec))
+- **payouts:** Add manual update api for payouts ([#10539](https://github.com/juspay/hyperswitch/pull/10539)) ([`0e85d50`](https://github.com/juspay/hyperswitch/commit/0e85d50e65b8ef1f07606858b14e16ed5479fca8))
+- **platform:** Support update tracker for platform in payments ([#10691](https://github.com/juspay/hyperswitch/pull/10691)) ([`0ae8592`](https://github.com/juspay/hyperswitch/commit/0ae859227e0aa26e3dc7a97db3b6460ef86bc181))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fixed 3DS challenge endpoint ([#10772](https://github.com/juspay/hyperswitch/pull/10772)) ([`e5e3691`](https://github.com/juspay/hyperswitch/commit/e5e369181109fdd6dfe22e8fd231d72b9e91f643))
+
+### Refactors
+
+- Simplify payment processing flow and unify gateway context handling v2 ([#10774](https://github.com/juspay/hyperswitch/pull/10774)) ([`45b7d28`](https://github.com/juspay/hyperswitch/commit/45b7d287163e8db3ac8ef93f554038c97c02fc2b))
+
+**Full Changelog:** [`2025.12.24.0...2025.12.25.0`](https://github.com/juspay/hyperswitch/compare/2025.12.24.0...2025.12.25.0)
+
+- - -
+
 ## 2025.12.24.0
 
 ### Features
