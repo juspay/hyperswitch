@@ -1356,13 +1356,6 @@ pub struct RedsysOperationsResponse {
     ds_authorisation_code: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
-pub enum RedsysOperationResponse {
-    RedsysOperationResponse(RedsysTransaction),
-    RedsysOperationsErrorResponse(RedsysErrorResponse),
-}
-
 impl TryFrom<&RedsysRouterData<&PaymentsCaptureRouterData>> for RedsysTransaction {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &RedsysRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
