@@ -301,6 +301,7 @@ describe("Bank Redirect tests", () => {
     });
   });
 
+  context("OpenBankingUk Create and Confirm flow test", () => {
   context("OnlineBankingFpx Create and Confirm flow test", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -308,6 +309,15 @@ describe("Bank Redirect tests", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
       });
+    });
+
+    before("ensure connector supports OpenBankingUk", () => {
+      const connectorId = (globalState.get("connectorId") || "").toLowerCase();
+      if (connectorId !== "volt") {
+        return;
+      }
+
+      cy.enableVoltBankRedirectPaymentMethods(globalState);
     });
 
     beforeEach(function () {
@@ -319,6 +329,7 @@ describe("Bank Redirect tests", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
+      ]["PaymentIntent"]("OpenBankingUk");
       ]["PaymentIntent"]("OnlineBankingFpx");
 
       cy.createPaymentIntentTest(
@@ -338,6 +349,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
+      ]["OpenBankingUk"];
       ]["OnlineBankingFpx"];
 
       cy.confirmBankRedirectCallTest(
@@ -363,6 +375,7 @@ describe("Bank Redirect tests", () => {
     it("Sync payment status", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
+      ]["OpenBankingUk"];
       ]["OnlineBankingFpx"];
 
       cy.retrievePaymentCallTest(globalState, data);

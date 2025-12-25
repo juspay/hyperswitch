@@ -222,6 +222,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking_uk",
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -590,6 +591,15 @@ export const connectorDetails = {
         },
       },
     }),
+    OpenBankingUk: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "citi",
+              country: "GB",
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
