@@ -980,6 +980,15 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { auth_type, .. } => {
+                *auth_type == common_enums::AuthenticationType::ThreeDs
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&REDSYS_CONNECTOR_INFO)
     }

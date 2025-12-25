@@ -5,7 +5,7 @@ use common_enums as enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_utils::types::MinorUnit;
-use common_utils::{errors, id_type, ucs_types};
+use common_utils::{errors, ext_traits::ValueExt, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -372,9 +372,26 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     authorize_request_data,
                     pre_authenticate_response,
                 );
-            // After doing pre_authentication, step, we should not proceed with authorize call.
-            // control must be returned to SDK.
-            Ok((authorize_router_data, false))
+            let should_continue_after_preauthenticate = match connector.connector_name {
+                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    }) => {
+                        let three_ds_invoke_data: Option<
+                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
+                        > = connector_metadata.clone().and_then(|metadata| {
+                            metadata
+                                .parse_value("PaymentsConnectorThreeDsInvokeData")
+                                .ok()
+                        });
+                        three_ds_invoke_data.is_none()
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+            Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
             Ok((self, true))
         }
