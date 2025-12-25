@@ -143,6 +143,7 @@ impl
             frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,

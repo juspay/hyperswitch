@@ -1476,6 +1476,7 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
+    let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
@@ -1547,6 +1548,7 @@ where
         external_latency,
         refund_id,
         dispute_id,
+        payout_id,
         status_code,
     );
 
@@ -1613,6 +1615,7 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
+    let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
@@ -1684,6 +1687,7 @@ where
         external_latency,
         refund_id,
         dispute_id,
+        payout_id,
         status_code,
     );
 

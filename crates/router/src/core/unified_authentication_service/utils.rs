@@ -132,6 +132,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payout_id: None,
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
