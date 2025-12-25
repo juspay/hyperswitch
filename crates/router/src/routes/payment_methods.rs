@@ -1,3 +1,6 @@
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+use std::collections::HashMap;
+
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -16,7 +19,10 @@ use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-use crate::core::{customers, payment_methods::tokenize};
+use crate::core::{
+    customers,
+    payment_methods::{batch_retrieve, tokenize},
+};
 use crate::{
     core::{
         api_locking,
@@ -347,7 +353,7 @@ pub async fn migrate_payment_methods(
                     None,
                 );
 
-                let mut mca_cache = std::collections::HashMap::new();
+                let mut mca_cache = HashMap::new();
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
@@ -440,6 +446,74 @@ pub async fn update_payment_methods(
                     &platform,
                 ))
                 .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchRetrieve))]
+pub async fn payment_methods_batch_retrieve_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<batch_retrieve::PaymentMethodsBatchRetrieveForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchRetrieve;
+    let (merchant_id, records) = match batch_retrieve::get_payment_method_batch_records(form) {
+        Ok(result) => result,
+        Err(error) => return api::log_and_return_error_response(error.into()),
+    };
+
+    if records.is_empty() {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "No payment_method_ids provided".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    if records.len() > 200 {
+        return api::log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "A maximum of 200 payment_method_ids are allowed per request".to_string(),
+            }
+            .into(),
+        );
+    }
+
+    let payload_records = records.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload_records,
+        |state, _, _, _| {
+            let merchant_id = merchant_id.clone();
+            let records = records.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                );
+
+                let responses = batch_retrieve::retrieve_payment_method_data(
+                    &state,
+                    &merchant_id,
+                    &platform,
+                    records,
+                )
+                .await?;
+
+                Ok(services::ApplicationResponse::Json(responses))
             }
         },
         &auth::AdminApiAuth,

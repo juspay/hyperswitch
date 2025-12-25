@@ -66,9 +66,10 @@ use hyperswitch_domain_models::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostAuthenticateData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -2090,6 +2091,24 @@ impl CustomerData for ConnectorCustomerData {
     }
 }
 
+pub trait PaymentsPostAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostAuthenticateRequestData for PaymentsPostAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -2810,6 +2829,41 @@ impl AddressData for Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_last_name())
+    }
+}
+
+pub trait PaymentsPreAuthenticateRequestData {
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+}
+impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        Ok(self.payment_method_data.clone())
+    }
+    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
+        Ok(self.minor_amount)
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 pub trait PaymentsPreProcessingRequestData {

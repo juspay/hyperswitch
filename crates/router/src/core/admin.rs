@@ -213,7 +213,7 @@ pub async fn create_merchant_account(
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: identifier.clone(),
-                    key: BASE64_ENGINE.encode(key),
+                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
                 },
             )
             .await
@@ -227,7 +227,7 @@ pub async fn create_merchant_account(
         key: domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantKeyStore),
-            domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+            domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
             identifier.clone(),
             master_key,
         )

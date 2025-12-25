@@ -6,7 +6,7 @@ use common_enums::CardNetwork;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
-    pii::Email,
+    pii::{Email, SecretSerdeValue},
     request::RequestContent,
 };
 use error_stack::ResultExt;
@@ -111,6 +111,8 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
+    /// Additional metadata containing PAR, UPT, and other tokens   
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
