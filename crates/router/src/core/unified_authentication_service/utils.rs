@@ -25,6 +25,7 @@ use masking::{ExposeInterface, PeekInterface};
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
     IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
+    IRRELEVANT_MERCHANT_ORDER_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
 };
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
@@ -145,6 +146,9 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: Some(
+            IRRELEVANT_MERCHANT_ORDER_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_string(),
+        ),
     })
 }
 

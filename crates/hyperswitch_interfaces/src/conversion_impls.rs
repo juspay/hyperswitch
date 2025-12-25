@@ -93,6 +93,10 @@ fn get_default_router_data<F, Req, Resp>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        merchant_order_reference_id: Some(get_irrelevant_id_string(
+            "merchant_order_reference_id",
+            flow_name,
+        )),
     }
 }
 
