@@ -27,7 +27,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{
             self, access_token, gateway::context as gateway_context, helpers,
-            helpers::MerchantConnectorAccountType,
+            helpers::MerchantConnectorAccountType, PaymentIntentStateMetadataExt,
         },
         refunds::transformers::SplitRefundInput,
         unified_connector_service,
@@ -86,6 +86,14 @@ pub async fn refund_create_core(
             .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
+
+    payment_intent
+        .validate_against_intent_state_metadata(req.amount)
+        .map_err(|err| {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Refund amount exceeds captured amount".to_string(),
+            })
+        })?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
@@ -1017,6 +1025,16 @@ pub async fn sync_refund_with_gateway(
         },
     };
 
+    if let diesel_models::refund::RefundUpdate::StatusUpdate { refund_status, .. } = refund_update {
+        if refund_status.is_success() && !refund.refund_status.is_success() {
+            PaymentIntentStateMetadataExt::from(
+                payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
+            .await?;
+        }
+    }
+
     let response = state
         .store
         .update_refund(
@@ -1337,7 +1355,7 @@ pub async fn validate_and_create_refund(
         .await
     {
         Ok(refund) => {
-            Box::pin(schedule_refund_execution(
+            let (updated_refund, raw_response) = Box::pin(schedule_refund_execution(
                 state,
                 refund.clone(),
                 refund_type,
@@ -1348,7 +1366,14 @@ pub async fn validate_and_create_refund(
                 split_refunds,
                 req.all_keys_required,
             ))
-            .await?
+            .await?;
+
+            PaymentIntentStateMetadataExt::from(
+                payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
+            .await?;
+            (updated_refund, raw_response)
         }
         Err(err) => {
             if err.current_context().is_db_unique_violation() {

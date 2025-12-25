@@ -2837,6 +2837,12 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
+impl RefundStatus {
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Success)
+    }
+}
+
 #[derive(
     Clone,
     Copy,
