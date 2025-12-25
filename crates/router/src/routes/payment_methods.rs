@@ -503,6 +503,7 @@ pub async fn payment_methods_batch_retrieve_api(
                     key_store.clone(),
                     merchant_account,
                     key_store,
+                    None,
                 );
 
                 let responses = batch_retrieve::retrieve_payment_method_data(
