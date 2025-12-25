@@ -207,37 +207,6 @@ impl AuthenticationType {
             | Self::NoAuth => None,
         }
     }
-
-    /// Converts AuthenticationType to CreatedBy for tracking who initiated the operation
-    pub fn get_initiator(&self) -> Option<common_utils::types::CreatedBy> {
-        match self {
-            Self::ApiKey { merchant_id, .. }
-            | Self::PublishableKey { merchant_id }
-            | Self::InternalMerchantIdProfileId { merchant_id, .. }
-            | Self::MerchantId { merchant_id, .. }
-            | Self::WebhookAuth { merchant_id } => Some(common_utils::types::CreatedBy::Api {
-                merchant_id: merchant_id.get_string_repr().to_string(),
-            }),
-            Self::MerchantJwt {
-                user_id: Some(user_id),
-                ..
-            }
-            | Self::MerchantJwtWithProfileId { user_id, .. }
-            | Self::OrganizationJwt { user_id, .. }
-            | Self::UserJwt { user_id }
-            | Self::SinglePurposeJwt { user_id, .. }
-            | Self::SinglePurposeOrLoginJwt { user_id, .. } => {
-                Some(common_utils::types::CreatedBy::Jwt {
-                    user_id: user_id.clone(),
-                })
-            }
-            Self::MerchantJwt { user_id: None, .. }
-            | Self::AdminApiKey
-            | Self::AdminApiAuthWithMerchantId { .. }
-            | Self::BasicAuth { .. }
-            | Self::NoAuth => None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
@@ -597,22 +566,22 @@ where
             self.is_platform_allowed,
         )?;
 
-        let auth_type = AuthenticationType::ApiKey {
-            merchant_id: initiator_merchant.get_id().clone(),
-            key_id: stored_api_key.key_id,
-        };
-
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
         )
         .await?;
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -692,17 +661,11 @@ where
             self.is_platform_allowed,
         )?;
 
-        let auth_type = AuthenticationType::ApiKey {
-            merchant_id: initiator_merchant.get_id().clone(),
-            key_id: stored_api_key.key_id,
-        };
-
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store.clone(),
-            auth_type.get_initiator(),
         )
         .await?;
 
@@ -722,7 +685,13 @@ where
         };
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -954,17 +923,17 @@ where
             },
         )?;
 
-        let auth_type = AuthenticationType::ApiKey {
+        let initiator = Some(domain::Initiator::Api {
             merchant_id: initiator_merchant_account.get_id().clone(),
-            key_id: stored_api_key.key_id,
-        };
+            merchant_account_type: initiator_merchant_account.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             initiator_merchant_account.clone(),
             key_store.clone(),
             initiator_merchant_account.clone(),
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
@@ -972,7 +941,13 @@ where
             profile: None,
         };
 
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: initiator_merchant_account.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -1086,17 +1061,17 @@ where
                 .attach_printable("Route merchant not under same org as platform merchant");
         }
 
-        let auth_type = AuthenticationType::ApiKey {
+        let initiator = Some(domain::Initiator::Api {
             merchant_id: platform_merchant.get_id().clone(),
-            key_id: stored_api_key.key_id,
-        };
+            merchant_account_type: platform_merchant.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             platform_merchant.clone(),
             platform_key_store.clone(),
             route_merchant,
             route_key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
@@ -1104,7 +1079,13 @@ where
             profile: None,
         };
 
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: platform_merchant.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -1192,7 +1173,6 @@ where
                         profile_id,
                         self.0.get_is_connected_allowed(),
                         self.0.get_is_platform_allowed(),
-                        auth_type.get_initiator(),
                     )
                     .await?;
                     Ok((auth, auth_type))
@@ -1213,7 +1193,6 @@ where
                         profile_id,
                         self.0.get_is_connected_allowed(),
                         self.0.get_is_platform_allowed(),
-                        auth_type.get_initiator(),
                     )
                     .await?;
                     Ok((auth, auth_type))
@@ -1286,7 +1265,6 @@ async fn construct_authentication_data<A>(
     profile_id: Option<id_type::ProfileId>,
     is_connected_allowed: bool,
     is_platform_allowed: bool,
-    initiator: Option<common_utils::types::CreatedBy>,
 ) -> RouterResult<AuthenticationData>
 where
     A: SessionStateInfo + Sync,
@@ -1320,7 +1298,6 @@ where
         request_headers,
         initiator_merchant,
         key_store.clone(),
-        initiator,
     )
     .await?;
 
@@ -1620,14 +1597,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::AdminApiAuthWithMerchantId { merchant_id };
+        let initiator = Some(domain::Initiator::Admin);
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
@@ -1635,7 +1612,10 @@ where
             profile: None,
         };
 
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
@@ -1681,18 +1661,21 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::AdminApiAuthWithMerchantId { merchant_id };
+        let initiator = Some(domain::Initiator::Admin);
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
@@ -1899,24 +1882,28 @@ where
             let (key_store, merchant) =
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
 
-            let auth_type = AuthenticationType::AdminApiAuthWithMerchantId {
-                merchant_id: merchant_id_from_route.clone(),
-            };
+            let initiator = Some(domain::Initiator::Admin);
 
             let platform = domain::Platform::new(
                 merchant.clone(),
                 key_store.clone(),
                 merchant,
                 key_store,
-                auth_type.get_initiator(),
+                initiator,
             );
 
             let auth = AuthenticationData {
                 platform,
                 profile: None,
             };
-            return Ok((auth, auth_type));
+            return Ok((
+                auth,
+                AuthenticationType::AdminApiAuthWithMerchantId {
+                    merchant_id: merchant_id_from_route.clone(),
+                },
+            ));
         }
+
         let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
             return Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
                 "Api Key Authentication Failure: fallback merchant set not configured",
@@ -1955,23 +1942,29 @@ where
             let (route_key_store, route_merchant) =
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
             if api_key_merchant.get_org_id() == route_merchant.get_org_id() {
-                let auth_type = AuthenticationType::MerchantId {
-                    merchant_id: stored_api_key.merchant_id.clone(),
-                };
+                let initiator = Some(domain::Initiator::Api {
+                    merchant_id: api_key_merchant.get_id().clone(),
+                    merchant_account_type: api_key_merchant.merchant_account_type,
+                });
 
                 let platform = domain::Platform::new(
                     api_key_merchant.clone(),
                     api_key_store.clone(),
                     route_merchant,
                     route_key_store,
-                    auth_type.get_initiator(),
+                    initiator,
                 );
 
                 let auth = AuthenticationData {
                     platform,
                     profile: None,
                 };
-                return Ok((auth.clone(), auth_type));
+                return Ok((
+                    auth,
+                    AuthenticationType::MerchantId {
+                        merchant_id: api_key_merchant.get_id().clone(),
+                    },
+                ));
             }
         }
 
@@ -2123,21 +2116,24 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::AdminApiAuthWithMerchantId { merchant_id };
+        let initiator = Some(domain::Initiator::Admin);
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: None,
         };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
@@ -2185,18 +2181,21 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::AdminApiAuthWithMerchantId { merchant_id };
+        let initiator = Some(domain::Initiator::Admin);
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
@@ -2311,23 +2310,29 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantId {
-            merchant_id: self.0.clone(),
-        };
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: merchant.get_id().clone(),
+            merchant_account_type: merchant.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: None,
         };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: self.0.clone(),
+            },
+        ))
     }
 }
 
@@ -2375,20 +2380,26 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantId {
-            merchant_id: merchant_id.clone(),
-        };
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: merchant.get_id().clone(),
+            merchant_account_type: merchant.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2460,24 +2471,30 @@ where
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-            let auth_type = AuthenticationType::InternalMerchantIdProfileId {
-                merchant_id: merchant_id.clone(),
-                profile_id: Some(profile_id),
-            };
+            let initiator = Some(domain::Initiator::Api {
+                merchant_id: merchant.get_id().clone(),
+                merchant_account_type: merchant.merchant_account_type,
+            });
 
             let platform = domain::Platform::new(
                 merchant.clone(),
                 key_store.clone(),
                 merchant,
                 key_store,
-                auth_type.get_initiator(),
+                initiator,
             );
 
             let auth = AuthenticationData {
                 platform,
                 profile: Some(profile),
             };
-            Ok((auth.clone(), auth_type))
+            Ok((
+                auth.clone(),
+                AuthenticationType::InternalMerchantIdProfileId {
+                    merchant_id: merchant_id.clone(),
+                    profile_id: Some(profile_id),
+                },
+            ))
         } else {
             Ok(self
                 .0
@@ -2533,20 +2550,26 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantId {
+        let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant.get_id().clone(),
-        };
+            merchant_account_type: merchant.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2588,19 +2611,25 @@ where
                 id: self.profile_id.get_string_repr().to_owned(),
             })?;
 
-        let auth_type = AuthenticationType::PublishableKey {
+        let initiator = Some(domain::Initiator::Api {
             merchant_id: merchant_account.get_id().clone(),
-        };
+            merchant_account_type: merchant_account.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
             merchant_account.clone(),
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
-        Ok((AuthenticationData { platform, profile }, auth_type))
+        Ok((
+            AuthenticationData { platform, profile },
+            AuthenticationType::PublishableKey {
+                merchant_id: merchant_account.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2695,22 +2724,22 @@ where
             self.is_platform_allowed,
         )?;
 
-        let auth_type = AuthenticationType::ApiKey {
-            merchant_id: initiator_merchant.get_id().clone(),
-            key_id: stored_api_key.key_id,
-        };
-
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
         )
         .await?;
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -2808,21 +2837,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::PublishableKey {
-            merchant_id: merchant_id.clone(),
-        };
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: merchant_account.get_id().clone(),
+            merchant_account_type: merchant_account.merchant_account_type,
+        });
 
         let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
             merchant_account.clone(),
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
 
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::PublishableKey {
+                merchant_id: merchant_id.clone(),
+            },
+        ))
     }
 }
 
@@ -2917,17 +2952,11 @@ where
             self.is_platform_allowed,
         )?;
 
-        // Resolve merchant relationships using existing function
-        let auth_type = AuthenticationType::PublishableKey {
-            merchant_id: initiator_merchant.get_id().clone(),
-        };
-
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
         )
         .await?;
 
@@ -2935,7 +2964,12 @@ where
             platform,
             profile: None,
         };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -2971,17 +3005,11 @@ where
             self.is_platform_allowed,
         )?;
 
-        // Resolve merchant relationships using existing function
-        let auth_type = AuthenticationType::PublishableKey {
-            merchant_id: initiator_merchant.get_id().clone(),
-        };
-
         let platform = resolve_platform(
             state,
             request_headers,
             initiator_merchant.clone(),
             key_store,
-            auth_type.get_initiator(),
         )
         .await?;
 
@@ -2997,7 +3025,12 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::PublishableKey {
+                merchant_id: initiator_merchant.get_id().clone(),
+            },
+        ))
     }
 }
 
@@ -3318,17 +3351,16 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
@@ -3336,7 +3368,13 @@ where
             profile: Some(profile),
         };
 
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -3440,22 +3478,27 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
 
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -3608,24 +3651,29 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -3680,21 +3728,26 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -3817,25 +3870,30 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwtWithProfileId {
-            merchant_id: payload.merchant_id,
-            profile_id: Some(payload.profile_id),
-            user_id: payload.user_id,
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwtWithProfileId {
+                merchant_id: payload.merchant_id,
+                profile_id: Some(payload.profile_id),
+                user_id: payload.user_id,
+            },
+        ))
     }
 }
 
@@ -3899,10 +3957,9 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         // If both of them are same then proceed with the profile id present in the request
         let platform = domain::Platform::new(
@@ -3910,14 +3967,20 @@ where
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -3969,21 +4032,26 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth.clone(), auth_type))
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -4066,23 +4134,28 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -4138,21 +4211,26 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData { platform, profile };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -4207,23 +4285,28 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id.clone()),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok(((auth.clone(), payload.user_id.clone()), auth_type))
+        Ok((
+            (auth.clone(), payload.user_id.clone()),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id.clone()),
+            },
+        ))
     }
 }
 
@@ -4355,24 +4438,29 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: payload.merchant_id,
-            user_id: Some(payload.user_id),
-        };
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
 
         let platform = domain::Platform::new(
             merchant.clone(),
             key_store.clone(),
             merchant,
             key_store,
-            auth_type.get_initiator(),
+            initiator,
         );
 
         let auth = AuthenticationData {
             platform,
             profile: Some(profile),
         };
-        Ok((auth, auth_type))
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 
@@ -4980,7 +5068,6 @@ async fn resolve_platform<A>(
     request_headers: &HeaderMap,
     initiator_merchant_account: domain::MerchantAccount,
     merchant_key_store: domain::MerchantKeyStore,
-    initiator: Option<common_utils::types::CreatedBy>,
 ) -> RouterResult<domain::Platform>
 where
     A: SessionStateInfo + Sync,
@@ -5017,7 +5104,7 @@ where
                     processor_merchant_account,
                     processor_key_store,
                     Some(PlatformAccountWithKeyStore {
-                        account: initiator_merchant_account,
+                        account: initiator_merchant_account.clone(),
                         key_store: merchant_key_store,
                     }),
                 )
@@ -5041,7 +5128,7 @@ where
                     get_platform_account_and_key_store(state, &initiator_merchant_account).await?;
 
                 (
-                    initiator_merchant_account,
+                    initiator_merchant_account.clone(),
                     merchant_key_store,
                     Some(PlatformAccountWithKeyStore {
                         account: platform_account,
@@ -5064,9 +5151,14 @@ where
                     },
                 )?;
 
-                (initiator_merchant_account, merchant_key_store, None)
+                (initiator_merchant_account.clone(), merchant_key_store, None)
             }
         };
+
+    let initiator = Some(domain::Initiator::Api {
+        merchant_id: initiator_merchant_account.get_id().clone(),
+        merchant_account_type: initiator_merchant_account.merchant_account_type,
+    });
 
     let platform = match platform_account_with_key_store {
         Some(platform_account) => domain::Platform::new(

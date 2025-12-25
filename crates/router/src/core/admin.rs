@@ -2634,9 +2634,9 @@ pub async fn retrieve_connector(
 
     let mca = store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &processor.get_account().get_id(),
+            processor.get_account().get_id(),
             &merchant_connector_id,
-            &processor.get_key_store(),
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2691,7 +2691,7 @@ pub async fn list_connectors_for_a_profile(
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let merchant_connector_accounts = store
-        .list_connector_account_by_profile_id(&profile_id, &processor.get_key_store())
+        .list_connector_account_by_profile_id(&profile_id, processor.get_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];

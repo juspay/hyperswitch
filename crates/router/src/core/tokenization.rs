@@ -66,7 +66,7 @@ pub async fn create_vault_token_core(
     // Create new tokenization record
     let tokenization_new = hyperswitch_domain_models::tokenization::Tokenization {
         id: id_type::GlobalTokenId::generate(&state.conf.cell_information.id),
-        merchant_id: merchant_account.get_id().clone(),
+        merchant_id: provider.get_account().get_id().clone(),
         customer_id: customer_id.clone(),
         locker_id: stored_resp.vault_id.get_string_repr().to_string(),
         created_at: common_utils::date_time::now(),
@@ -77,7 +77,7 @@ pub async fn create_vault_token_core(
 
     // Insert into database
     let tokenization = db
-        .insert_tokenization(tokenization_new, &(merchant_key_store.clone()))
+        .insert_tokenization(tokenization_new, provider.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert tokenization record")?;

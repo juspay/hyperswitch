@@ -1661,7 +1661,11 @@ pub mod routes {
                     QueryType::Refund { payment_id, .. } => payment_id,
                     QueryType::Dispute { payment_id, .. } => payment_id,
                 };
+                #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                #[cfg(feature = "v2")]
+                let profile_id = Some(auth.profile.get_id().clone());
+
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     payment_id,
                     &state,
@@ -1700,7 +1704,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                #[cfg(feature = "v2")]
+                let profile_id = Some(auth.profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
@@ -2626,7 +2633,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                #[cfg(feature = "v2")]
+                let profile_id = Some(auth.profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,
@@ -2663,7 +2673,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                #[cfg(feature = "v2")]
+                let profile_id = Some(auth.profile.get_id().clone());
                 utils::check_if_profile_id_is_present_in_payment_intent(
                     req.payment_id.clone(),
                     &state,

@@ -49,6 +49,21 @@ impl Processor {
     }
 }
 
+/// Initiator = The entity that initiated the operation.
+#[derive(Clone, Debug)]
+pub enum Initiator {
+    /// API Key initiated the operation.
+    Api {
+        merchant_id: common_utils::id_type::MerchantId,
+        merchant_account_type: common_enums::MerchantAccountType,
+    },
+    /// JWT User initiated the operation.
+    Jwt {
+        user_id: String,
+    },
+    Admin,
+}
+
 /// Platform holds both Provider and Processor together.
 /// This struct makes it possible to distinguish the business owner for the org versus whose processor credentials are used for execution.
 /// For a standard merchant flow, provider == processor.
@@ -56,7 +71,7 @@ impl Processor {
 pub struct Platform {
     provider: Box<Provider>,
     processor: Box<Processor>,
-    initiator: Option<common_utils::types::CreatedBy>,
+    initiator: Option<Initiator>,
 }
 
 impl Platform {
@@ -69,7 +84,7 @@ impl Platform {
         provider_key_store: MerchantKeyStore,
         processor_account: MerchantAccount,
         processor_key_store: MerchantKeyStore,
-        initiator: Option<common_utils::types::CreatedBy>,
+        initiator: Option<Initiator>,
     ) -> Self {
         let provider = Provider::new(provider_account, provider_key_store);
         let processor = Processor::new(processor_account, processor_key_store);
@@ -92,7 +107,7 @@ impl Platform {
 
     /// Returns a reference to the initiator.
     /// Returns None if the initiator is not known or not applicable.
-    pub fn get_initiator(&self) -> Option<&common_utils::types::CreatedBy> {
+    pub fn get_initiator(&self) -> Option<&Initiator> {
         self.initiator.as_ref()
     }
 }
