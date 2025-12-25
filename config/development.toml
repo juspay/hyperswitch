@@ -1061,6 +1061,9 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 
+[preprocessing_flow_config]
+authentication_bloated_connectors = "redsys"
+
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }

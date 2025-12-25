@@ -909,6 +909,9 @@ globalpay = { long_lived_token = false, payment_method = "card", flow = "mandate
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 
+[preprocessing_flow_config]
+authentication_bloated_connectors = "redsys"
+
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
