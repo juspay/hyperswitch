@@ -102,6 +102,27 @@ where
                 )
                 .switch()?;
         }
+        QueryType::Payout { payout_id } => {
+            query_builder
+                .add_filter_clause("payout_id", &payout_id)
+                .switch()?;
+
+            query_builder
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::PayoutsCreate,
+                        Flow::PayoutsConfirm,
+                        Flow::PayoutsFulfill,
+                        Flow::PayoutsCancel,
+                        Flow::PayoutsRetrieve,
+                        Flow::PayoutLinkInitiate,
+                        Flow::PayoutsUpdate,
+                        Flow::PayoutsCancel,
+                    ],
+                )
+                .switch()?;
+        }
     }
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder
