@@ -288,6 +288,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
+    /// Update customer information at provider level
+    /// This handles connector_customer_id updates in the Customer table
+    async fn update_customer<'a>(
+        &'a self,
+        _db: &'a SessionState,
+        _provider: &domain::Provider,
+        _customer: Option<domain::Customer>,
+        _updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
     #[cfg(feature = "v2")]
     /// This will run the decision manager for the payment
     async fn run_decision_manager<'a>(
@@ -454,8 +466,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        Ok(())
+    ) {
     }
 
     /// Get connector tokenization action
@@ -500,11 +511,9 @@ pub trait UpdateTracker<F, D, Req>: Send {
         &'b self,
         db: &'b SessionState,
         req_state: ReqState,
+        processor: &domain::Processor,
         payment_data: D,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        updated_customer: Option<storage::CustomerUpdate>,
-        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>

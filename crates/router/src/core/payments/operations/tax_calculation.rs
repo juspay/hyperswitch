@@ -387,17 +387,17 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         // For Google Pay and Apple Pay, we don’t need to call the connector again; we can directly confirm the payment after tax_calculation. So, we update the required fields in the database during the update_tracker call.
         if payment_data.should_update_in_update_tracker() {
             let shipping_address = payment_data

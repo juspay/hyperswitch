@@ -213,7 +213,7 @@ pub async fn create_merchant_account(
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: identifier.clone(),
-                    key: BASE64_ENGINE.encode(key),
+                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
                 },
             )
             .await
@@ -227,7 +227,7 @@ pub async fn create_merchant_account(
         key: domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantKeyStore),
-            domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+            domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
             identifier.clone(),
             master_key,
         )
@@ -4619,15 +4619,10 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::add_card_to_hs_locker(
-        state,
-        &payload,
-        &cust_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt merchant bank account data")?;
+    let store_resp = cards::add_card_to_vault(state, &payload, &cust_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
 }
