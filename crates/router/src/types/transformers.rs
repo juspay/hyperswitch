@@ -977,7 +977,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_capabilities =
+        let webhook_setup_details =
             api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
                 .get_api_webhook_config();
 
@@ -1036,7 +1036,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities,
+            webhook_setup_capabilities: Some(webhook_setup_details),
         };
         Ok(response)
     }
