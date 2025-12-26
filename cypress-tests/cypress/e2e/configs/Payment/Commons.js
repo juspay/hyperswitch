@@ -222,7 +222,28 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
+        payment_method_type: "open_banking",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "open_banking_uk",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "online_banking_fpx",
         payment_experience: null,
         card_networks: null,
@@ -564,6 +585,19 @@ export const connectorDetails = {
         },
       },
     }),
+    OpenBanking: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking: {
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
     OpenBankingUk: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -573,6 +607,12 @@ export const connectorDetails = {
             open_banking_uk: {
               issuer: "citi",
               country: "GB",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",

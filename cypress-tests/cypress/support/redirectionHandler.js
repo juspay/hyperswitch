@@ -625,10 +625,8 @@ function bankRedirectRedirection(
           case "volt":
             if (paymentMethodType === "open_banking_uk") {
               cy.log("Handling Volt OpenBankingUk redirect flow");
-
               const clickableSelector =
                 "button, [role='button'], div[role='option'], li, span, label";
-
               const selectBank = () =>
                 cy
                   .contains(clickableSelector, /Barclays Sandbox/i, {
@@ -644,9 +642,81 @@ function bankRedirectRedirection(
                       cy.wrap($el).click();
                     }
                   });
-
               selectBank();
               cy.contains("button, a", /Continue on Desktop/i, {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
+            } else if (paymentMethodType === "open_banking") {
+              cy.log("Handling Volt OpenBanking redirect flow");
+              const initialOrigin = cy.state("window").location.origin;
+              const interactiveSelector =
+                "button, [role='button'], div[role='option'], li[role='option'], li, span, label, a";
+              const clickInteractive = (pattern) =>
+                cy
+                  .contains(interactiveSelector, pattern, {
+                    timeout: constants.TIMEOUT,
+                  })
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .click({ force: true });
+
+              clickInteractive(/Change country/i);
+              clickInteractive(/Germany/i);
+              clickInteractive(/OBIE Mock Bank/i);
+              clickInteractive(/Continue on Desktop/i);
+
+              const completeObieFlow = (origin) => {
+                if (!origin) {
+                  throw new Error("Unable to determine OBIE mock bank origin");
+                }
+
+                cy.origin(
+                  origin,
+                  { args: { constants } },
+                  ({ constants }) => {
+                    cy.contains("button, a", /Complete and Receive/i, {
+                      timeout: constants.TIMEOUT,
+                    })
+                      .should("be.visible")
+                      .click();
+                  }
+                );
+              };
+
+              cy.window({ timeout: constants.TIMEOUT }).then((win) => {
+                const iframe = win.document.querySelector("iframe");
+                if (iframe?.src) {
+                  cy.log("OBIE mock bank surfaced via iframe");
+                  completeObieFlow(new URL(iframe.src).origin);
+                  return;
+                }
+
+                cy.url({ timeout: constants.TIMEOUT }).then((currentUrl) => {
+                  const currentOrigin = new URL(currentUrl).origin;
+                  if (currentOrigin === initialOrigin) {
+                    cy.contains("button, a", /Complete and Receive/i, {
+                      timeout: constants.TIMEOUT,
+                    })
+                      .should("be.visible")
+                      .click();
+                  } else {
+                    cy.log("Redirected to OBIE mock bank domain");
+                    completeObieFlow(currentOrigin);
+                  }
+                });
+              });
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Volt payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           case "fiuu":
             if (paymentMethodType === "online_banking_fpx") {
               cy.log("Handling FIUU OnlineBankingFpx redirect flow");
@@ -700,7 +770,6 @@ function bankRedirectRedirection(
               verifyUrl = true;
             } else {
               throw new Error(
-                `Unsupported Volt payment method type: ${paymentMethodType}`
                 `Unsupported FIUU payment method type: ${paymentMethodType}`
               );
             }
