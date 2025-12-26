@@ -1394,6 +1394,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let cloned_state = state.clone();

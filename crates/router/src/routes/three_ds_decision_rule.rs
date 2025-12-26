@@ -22,8 +22,7 @@ pub async fn execute_decision_rule(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            three_ds_decision_rule_core::execute_three_ds_decision_rule(state, platform, req)
+            three_ds_decision_rule_core::execute_three_ds_decision_rule(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

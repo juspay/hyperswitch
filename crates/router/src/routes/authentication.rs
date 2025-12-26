@@ -29,8 +29,7 @@ pub async fn authentication_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            unified_authentication_service::authentication_create_core(state, platform, req)
+            unified_authentication_service::authentication_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -67,10 +66,9 @@ pub async fn authentication_eligibility(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             unified_authentication_service::authentication_eligibility_core(
                 state,
-                platform,
+                auth.platform,
                 req,
                 authentication_id.clone(),
             )
@@ -109,9 +107,11 @@ pub async fn authentication_authenticate(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             unified_authentication_service::authentication_authenticate_core(
-                state, platform, req, auth_flow,
+                state,
+                auth.platform,
+                req,
+                auth_flow,
             )
         },
         &*auth,
@@ -148,9 +148,11 @@ pub async fn authentication_eligibility_check(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             unified_authentication_service::authentication_eligibility_check_core(
-                state, platform, req, auth_flow,
+                state,
+                auth.platform,
+                req,
+                auth_flow,
             )
         },
         &*auth,
@@ -176,9 +178,10 @@ pub async fn authentication_retrieve_eligibility_check(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             unified_authentication_service::authentication_retrieve_eligibility_check_core(
-                state, platform, req,
+                state,
+                auth.platform,
+                req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -220,9 +223,11 @@ pub async fn authentication_sync(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
             unified_authentication_service::authentication_sync_core(
-                state, platform, auth_flow, req,
+                state,
+                auth.platform,
+                auth_flow,
+                req,
             )
         },
         &*auth,
@@ -251,8 +256,7 @@ pub async fn authentication_sync_post_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            unified_authentication_service::authentication_post_sync_core(state, platform, req)
+            unified_authentication_service::authentication_post_sync_core(state, auth.platform, req)
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
@@ -289,8 +293,7 @@ pub async fn authentication_session_token(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            unified_authentication_service::authentication_session_core(state, platform, req)
+            unified_authentication_service::authentication_session_core(state, auth.platform, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

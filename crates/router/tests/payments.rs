@@ -316,6 +316,7 @@ async fn payments_create_core() {
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
@@ -612,6 +613,7 @@ async fn payments_create_core_adyen_no_redirect() {
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let req = api::PaymentsRequest {

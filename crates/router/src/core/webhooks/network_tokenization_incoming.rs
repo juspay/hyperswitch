@@ -436,6 +436,7 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         key_store.clone(),
         merchant_account,
         key_store,
+        None,
     );
 
     Ok(platform)

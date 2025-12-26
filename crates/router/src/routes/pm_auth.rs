@@ -42,10 +42,9 @@ pub async fn link_token_create(
         &req,
         payload,
         |state, auth, payload, _| {
-            let platform = auth.into();
             crate::core::pm_auth::create_link_token(
                 state,
-                platform,
+                auth.platform,
                 payload,
                 Some(header_payload.clone()),
             )
@@ -80,8 +79,7 @@ pub async fn exchange_token(
         &req,
         payload,
         |state, auth, payload, _| {
-            let platform = auth.into();
-            crate::core::pm_auth::exchange_token_core(state, platform, payload)
+            crate::core::pm_auth::exchange_token_core(state, auth.platform, payload)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

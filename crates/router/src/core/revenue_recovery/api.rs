@@ -45,6 +45,7 @@ pub async fn call_psync_api(
         revenue_recovery_data.key_store.clone(),
         revenue_recovery_data.merchant_account.clone(),
         revenue_recovery_data.key_store.clone(),
+        None,
     );
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
@@ -111,6 +112,7 @@ pub async fn call_proxy_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
@@ -162,6 +164,7 @@ pub async fn update_payment_intent_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
     let (payment_data, _req, _) = payments::payments_intent_operation_core::<
         api_types::PaymentUpdateIntent,
@@ -224,6 +227,7 @@ pub async fn record_internal_attempt_api(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
 
     let attempt_response = Box::pin(payments::record_attempt_core(

@@ -39,10 +39,7 @@ pub async fn retrieve_poll_status(
         state,
         &req,
         poll_id,
-        |state, auth, req, _| {
-            let platform = auth.into();
-            poll::retrieve_poll_status(state, req, platform)
-        },
+        |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.platform),
         &auth::HeaderAuth(auth::PublishableKeyAuth {
             is_connected_allowed: false,
             is_platform_allowed: false,

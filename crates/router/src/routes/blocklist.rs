@@ -33,8 +33,7 @@ pub async fn add_entry_to_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let platform = auth.into();
-            blocklist::add_entry_to_blocklist(state, platform, body)
+            blocklist::add_entry_to_blocklist(state, auth.platform, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -75,8 +74,7 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let platform = auth.into();
-            blocklist::remove_entry_from_blocklist(state, platform, body)
+            blocklist::remove_entry_from_blocklist(state, auth.platform, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -132,8 +130,7 @@ pub async fn list_blocked_payment_methods(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            blocklist::list_blocklist_entries(state, platform, query)
+            blocklist::list_blocklist_entries(state, auth.platform, query)
         },
         auth::auth_type(
             &*auth_type,
@@ -173,8 +170,7 @@ pub async fn toggle_blocklist_guard(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            blocklist::toggle_blocklist_guard(state, platform, query)
+            blocklist::toggle_blocklist_guard(state, auth.platform, query)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

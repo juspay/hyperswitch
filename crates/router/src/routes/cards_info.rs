@@ -52,10 +52,7 @@ pub async fn card_iin_info(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
-            let platform = auth.into();
-            cards_info::retrieve_card_info(state, platform, req)
-        },
+        |state, auth, req, _| cards_info::retrieve_card_info(state, auth.platform, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))

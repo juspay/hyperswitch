@@ -60,10 +60,9 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             initiate_payment_link_flow(
                 state,
-                platform,
+                auth.platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -95,10 +94,9 @@ pub async fn initiate_secure_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             initiate_secure_payment_link_flow(
                 state,
-                platform,
+                auth.platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
                 headers,
@@ -127,7 +125,11 @@ pub async fn payments_link_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            list_payment_link(state, auth.merchant_account, payload)
+            list_payment_link(
+                state,
+                auth.platform.get_processor().get_account().clone(),
+                payload,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
@@ -159,10 +161,9 @@ pub async fn payment_link_status(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             get_payment_link_status(
                 state,
-                platform,
+                auth.platform,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )

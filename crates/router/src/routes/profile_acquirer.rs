@@ -24,8 +24,7 @@ pub async fn create_profile_acquirer(
         &req,
         payload,
         |state: super::SessionState, auth_data, req, _| {
-            let platform = auth_data.into();
-            crate::core::profile_acquirer::create_profile_acquirer(state, req, platform)
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, auth_data.platform)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -63,13 +62,12 @@ pub async fn profile_acquirer_update(
         &req,
         payload,
         |state: super::SessionState, auth_data, req, _| {
-            let platform = auth_data.into();
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,
                 profile_id.clone(),
                 profile_acquirer_id.clone(),
                 req,
-                platform,
+                auth_data.platform,
             )
         },
         auth::auth_type(

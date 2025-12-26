@@ -3888,12 +3888,13 @@ pub async fn clone_connector(
         destination_key_store.clone(),
         destination_merchant_account.clone(),
         destination_key_store.clone(),
+        None,
     );
 
     admin::create_connector(
         state,
         merchant_connector_create,
-        destination_context,
+        destination_context.get_processor().clone(),
         Some(request.destination.profile_id),
     )
     .await

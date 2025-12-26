@@ -72,7 +72,6 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -84,7 +83,7 @@ pub async fn payment_intents_create(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentCreate,
                 req,
@@ -153,7 +152,6 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            let platform = auth.into();
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -164,7 +162,7 @@ pub async fn payment_intents_retrieve(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentStatus,
                 payload,
@@ -238,7 +236,6 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -249,7 +246,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentStatus,
                 req,
@@ -319,7 +316,6 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -331,7 +327,7 @@ pub async fn payment_intents_update(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentUpdate,
                 req,
@@ -410,7 +406,6 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
             let eligible_connectors = req.connector.clone();
             payments::payments_core::<
                 api_types::Authorize,
@@ -422,7 +417,7 @@ pub async fn payment_intents_confirm(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentConfirm,
                 req,
@@ -483,7 +478,6 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, req_state| {
-            let platform = auth.into();
             payments::payments_core::<
                 api_types::Capture,
                 api_types::PaymentsResponse,
@@ -494,7 +488,7 @@ pub async fn payment_intents_capture(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentCapture,
                 payload,
@@ -567,7 +561,6 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let platform = auth.into();
             payments::payments_core::<
                 api_types::Void,
                 api_types::PaymentsResponse,
@@ -578,7 +571,7 @@ pub async fn payment_intents_cancel(
             >(
                 state,
                 req_state,
-                platform,
+                auth.platform,
                 None,
                 payments::PaymentCancel,
                 req,
@@ -622,8 +615,7 @@ pub async fn payment_intent_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            payments::list_payments(state, platform, None, req)
+            payments::list_payments(state, auth.platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
