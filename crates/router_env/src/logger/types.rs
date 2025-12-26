@@ -585,6 +585,8 @@ pub enum Flow {
     ListAllThemesInLineage,
     /// Get user theme using lineage
     GetUserThemeUsingLineage,
+    /// Get user theme version
+    GetUserThemeConfigVersion,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
