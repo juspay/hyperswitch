@@ -839,7 +839,45 @@ pub struct UpiCollectData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UpiIntentData {}
+#[serde(rename_all = "snake_case")]
+pub struct UpiIntentData {
+    /// VPA identifier for UPI payments
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// UPI app name (e.g., "PhonePe", "GooglePay", "Paytm")
+    pub upi_app: Option<String>,
+    /// Structured UPI payment source information
+    pub payment_source: Option<UpiPaymentSource>,
+    /// Transaction reference ID (for mandate registration)
+    pub mandate_reg_ref_id: Option<String>,
+    /// Authentication parameters for gateway
+    pub auth_params: Option<GatewayAuthParams>,
+}
+
+/// Structured representation of UPI payment source
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde:: Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiPaymentSource {
+    /// UPI identifier
+    pub upi_identifier: String,
+    /// UPI application name
+    pub upi_app: Option<String>,
+    /// Payer VPA
+    pub payer_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+}
+
+/// Gateway-specific authentication parameters
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde:: Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GatewayAuthParams {
+    /// Version (e.g., "v2")
+    pub version: Option<String>,
+    /// Transaction reference
+    pub tr: Option<String>,
+    /// Collection by date
+    pub collect_by_date: Option<String>,
+    /// Additional gateway-specific parameters
+    pub additional_params: Option<serde_json::Value>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UpiQrData {}
