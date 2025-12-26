@@ -1161,11 +1161,6 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth_type = AuthenticationType::ApiKey {
-                        merchant_id: merchant_id.clone(),
-                        key_id,
-                    };
-
                     let auth = construct_authentication_data(
                         state,
                         &merchant_id,
@@ -1175,17 +1170,19 @@ where
                         self.0.get_is_platform_allowed(),
                     )
                     .await?;
-                    Ok((auth, auth_type))
+                    Ok((
+                        auth,
+                        AuthenticationType::ApiKey {
+                            merchant_id: merchant_id.clone(),
+                            key_id,
+                        },
+                    ))
                 }
                 ExtractedPayload {
                     payload_type: detached::PayloadType::PublishableKey,
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth_type = AuthenticationType::PublishableKey {
-                        merchant_id: merchant_id.clone(),
-                    };
-
                     let auth = construct_authentication_data(
                         state,
                         &merchant_id,
@@ -1195,7 +1192,12 @@ where
                         self.0.get_is_platform_allowed(),
                     )
                     .await?;
-                    Ok((auth, auth_type))
+                    Ok((
+                        auth,
+                        AuthenticationType::PublishableKey {
+                            merchant_id: merchant_id.clone(),
+                        },
+                    ))
                 }
                 _ => {
                     report_failure();
@@ -1293,13 +1295,7 @@ where
         is_platform_allowed,
     )?;
 
-    let platform = resolve_platform(
-        state,
-        request_headers,
-        initiator_merchant,
-        key_store.clone(),
-    )
-    .await?;
+    let platform = resolve_platform(state, request_headers, initiator_merchant, key_store).await?;
 
     let profile = match profile_id {
         Some(profile_id) => {
@@ -1745,7 +1741,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
-        let request_api_key: &str =
+        let request_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
         let conf = state.conf();
@@ -4304,7 +4300,7 @@ where
             (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
-                user_id: Some(payload.user_id.clone()),
+                user_id: None,
             },
         ))
     }
