@@ -649,6 +649,8 @@ pub enum Flow {
     PaymentMethodSessionDeleteSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
+    /// Get token details using temporary token
+    PaymentMethodSessionGetTokenDetails,
     /// Create Cards Info flow
     CardsInfoCreate,
     /// Update Cards Info flow

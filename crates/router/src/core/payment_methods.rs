@@ -4436,3 +4436,17 @@ pub async fn check_network_token_status(
         network_token_status_check_response,
     ))
 }
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_session_get_token(
+    state: SessionState,
+    provider: domain::Provider,
+    req: web::Query<serde_json::Value>,
+) -> RouterResponse<serde_json::Value> {
+    let token_id = &req.token_id;
+    println!("Temp token: {}", token_id);
+
+    let response = serde_json::Value::Null;
+
+    Ok(services::ApplicationResponse::Json(response))
+}

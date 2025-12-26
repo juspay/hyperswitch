@@ -1726,7 +1726,11 @@ impl PaymentMethodSession {
                         web::put().to(
                             payment_methods::payment_method_session_update_saved_payment_method,
                         ),
-                    )),
+                    ))
+                    .service(
+                        web::resource("/details/{temporary_token}")
+                            .route(web::get().to(payment_methods::payment_method_session_get_token_details_api)),
+                    ),
             );
 
         route

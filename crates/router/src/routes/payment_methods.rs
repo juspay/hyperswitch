@@ -1672,3 +1672,36 @@ pub async fn network_token_status_check_api(
     ))
     .await
 }
+
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSessionGetTokenDetails))]
+pub async fn payment_method_session_get_token_details_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodSessionGetTokenDetails;
+    let temporary_token = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        temporary_token,
+        |state, auth: auth::AuthenticationData, temporary_token, _| {
+            let platform = auth.into();
+            payment_methods_routes::payment_method_session_get_token(
+                state,
+                platform.get_provider().clone(),
+                temporary_token,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
