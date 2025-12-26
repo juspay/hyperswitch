@@ -22164,6 +22164,14 @@
               }
             ],
             "nullable": true
+          },
+          "webhook_setup_capabilities": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSetupCapabilities"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -38793,6 +38801,34 @@
       "WeChatPayRedirection": {
         "type": "object"
       },
+      "WebhookConfigType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Standard webhook configuration supporting all events hyperswitch provides",
+            "enum": [
+              "Standard"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "CustomEvents"
+            ],
+            "properties": {
+              "CustomEvents": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/EventType"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Enum to represent the type of webhook configuration"
+      },
       "WebhookDeliveryAttempt": {
         "type": "string",
         "enum": [
@@ -38891,6 +38927,32 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookSetupCapabilities": {
+        "type": "object",
+        "description": "Connector details for webhook configuration via hyperswitch API",
+        "required": [
+          "is_webhook_auto_configuration_supported"
+        ],
+        "properties": {
+          "is_webhook_auto_configuration_supported": {
+            "type": "boolean",
+            "description": "Indicates if the connector supports webhooks configuration via API"
+          },
+          "requires_webhook_secret": {
+            "type": "boolean",
+            "description": "Indicates whether a webhook secret must be collected from the merchant for verification",
+            "nullable": true
+          },
+          "config_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookConfigType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "XenditChargeResponseData": {
         "oneOf": [

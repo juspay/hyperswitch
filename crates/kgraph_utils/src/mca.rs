@@ -1195,6 +1195,7 @@ mod tests {
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
             connector_wallets_details: None,
+            webhook_setup_capabilities: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {
