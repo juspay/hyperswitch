@@ -172,7 +172,20 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         },
                     )
                 }
-                UpiData::UpiIntent(_) | UpiData::UpiQr(_) => {
+                UpiData::UpiIntent(upi_intent_data) => {
+                    let vpa_secret = upi_intent_data
+                        .vpa_id
+                        .clone()
+                        .ok_or_else(missing_field_err("payment_method_data.upi.intent.vpa_id"))?;
+                    (
+                        RazorpayPaymentMethod::Upi,
+                        UpiDetails {
+                            flow: UpiFlow::Intent,
+                            vpa: vpa_secret,
+                        },
+                    )
+                }
+                UpiData::UpiQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("razorpay"),
                     ))?

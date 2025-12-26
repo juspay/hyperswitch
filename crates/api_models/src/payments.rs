@@ -4630,13 +4630,70 @@ pub struct UpiCollectData {
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiIntentData {
+    /// VPA identifier for UPI payments
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// UPI app name (e.g., "PhonePe", "GooglePay", "Paytm")
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub upi_app: Option<String>,
+    /// Transaction reference ID (for mandate registration)
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub mandate_reg_ref_id: Option<String>,
+}
+
+/// Structured representation of UPI payment source
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct UpiPaymentSource {
+    /// UPI identifier
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub upi_identifier: String,
+    /// UPI application name
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub upi_app: Option<String>,
+    /// Payer VPA
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_vpa: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+}
+
+/// Gateway-specific authentication parameters
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct GatewayAuthParams {
+    /// Version (e.g., "v2")
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub version: Option<String>,
+    /// Transaction reference
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub tr: Option<String>,
+    /// Collection by date
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub collect_by_date: Option<String>,
+    /// Additional gateway-specific parameters
+    #[schema(value_type = Option<serde_json::Value>)]
+    #[smithy(value_type = "Option<serde_json::Value>")]
+    pub additional_params: Option<serde_json::Value>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiQrData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
