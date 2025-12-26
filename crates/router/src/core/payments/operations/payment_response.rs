@@ -2146,8 +2146,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .transpose()?
         .unwrap_or(payment_attempt);
 
-    let cloned_key_store = processor.get_key_store().clone();
-    let cloned_storage_scheme = processor.get_account().storage_scheme;
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -2157,8 +2155,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .update_payment_attempt_with_attempt_id(
                                 m_payment_attempt,
                                 payment_attempt_update,
-                                cloned_storage_scheme,
-                                &cloned_key_store,
+                                processor.get_account().storage_scheme,
+                                processor.get_key_store(),
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
@@ -2266,7 +2264,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
-    let mandate_storage_scheme = processor.get_account().storage_scheme;
+    let m_storage_scheme = processor.get_account().storage_scheme;
     let mandate_update_fut = tokio::spawn(
         async move {
             mandate::update_connector_mandate_id(
@@ -2275,7 +2273,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 m_payment_data_mandate_id,
                 m_payment_method_id,
                 m_router_data_response,
-                mandate_storage_scheme,
+                m_storage_scheme,
             )
             .await
         }
