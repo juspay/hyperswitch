@@ -508,6 +508,8 @@ jobs:
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
     runs-on: hyperswitch-runners
+    permissions:
+      contents: read
     env:
       CODECOV_FILE: "lcov.info"
       # Use `sccache` for caching compilation artifacts
