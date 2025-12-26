@@ -1778,49 +1778,48 @@ pub struct TemporaryVaultCvc {
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
     payment_token: &String,
-    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
+    card_cvc: masking::Secret<String>,
     payment_method: common_enums::PaymentMethod,
     fulfillment_time: i64,
     encryption_key: &masking::Secret<Vec<u8>>,
-) -> RouterResult<()> {
-    let card_cvc = domain::PaymentMethodVaultingData::try_from(payment_method_data)?
-        .get_card()
-        .and_then(|card| card.card_cvc.clone());
+) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
 
-    if let Some(card_cvc) = card_cvc {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
 
-        let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
+    let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+    let payload = payload_to_be_encrypted
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let payload = payload_to_be_encrypted
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    // Encrypt the CVC and store it in Redis
+    let encrypted_payload = GcmAes256
+        .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
 
-        // Encrypt the CVC and store it in Redis
-        let encrypted_payload = GcmAes256
-            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+    redis_conn
+        .set_key_if_not_exists_with_expiry(
+            &key.as_str().into(),
+            bytes::Bytes::from(encrypted_payload),
+            Some(fulfillment_time),
+        )
+        .await
+        .change_context(errors::StorageError::KVError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add token in redis")?;
 
-        redis_conn
-            .set_key_if_not_exists_with_expiry(
-                &key.as_str().into(),
-                bytes::Bytes::from(encrypted_payload),
-                Some(fulfillment_time),
-            )
-            .await
-            .change_context(errors::StorageError::KVError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add token in redis")?;
-    };
+    let card_token_cvc_storage =
+        api_models::payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
+            fulfillment_time,
+        );
 
-    Ok(())
+    Ok(card_token_cvc_storage)
 }
 
 #[cfg(feature = "v2")]

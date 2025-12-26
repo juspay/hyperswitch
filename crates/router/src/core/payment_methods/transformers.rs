@@ -540,6 +540,7 @@ pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -602,6 +603,7 @@ pub fn generate_payment_method_response(
         connector_tokens,
         network_token,
         storage_type,
+        card_cvc_token_storage,
     };
 
     Ok(resp)
@@ -958,6 +960,7 @@ pub fn generate_payment_method_session_response(
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -993,6 +996,7 @@ pub fn generate_payment_method_session_response(
         authentication_details,
         associated_token_id: token_id,
         storage_type,
+        card_cvc_token_storage,
     }
 }
 

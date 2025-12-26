@@ -871,6 +871,10 @@ pub struct CardDetailUpdate {
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>,  example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1117,6 +1121,33 @@ pub struct PaymentMethodResponse {
     /// The storage type for the payment method
     #[schema(value_type = Option<StorageType>)]
     pub storage_type: Option<common_enums::StorageType>,
+
+    /// Card CVC token storage details
+    pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardCVCTokenStorageDetails {
+    /// Indicates whether the card cvc is stored or not
+    pub is_stored: bool,
+
+    /// A timestamp (ISO 8601 code) that determines expiry for stored card cvc token
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expires_at: Option<time::PrimitiveDateTime>,
+}
+
+#[cfg(feature = "v2")]
+impl CardCVCTokenStorageDetails {
+    pub fn generate_expiry_timestamp(duration_in_secs: i64) -> Self {
+        let current_time = common_utils::date_time::now();
+        let expiry_time = current_time + time::Duration::seconds(duration_in_secs);
+        Self {
+            is_stored: true,
+            expires_at: Some(expiry_time),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -3479,6 +3510,9 @@ pub struct PaymentMethodSessionResponse {
     /// The storage type for the payment method
     #[schema(value_type = Option<StorageType>)]
     pub storage_type: Option<common_enums::StorageType>,
+
+    /// Card CVC token storage details
+    pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
 }
 
 #[cfg(feature = "v2")]
