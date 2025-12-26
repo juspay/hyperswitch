@@ -327,12 +327,11 @@ where
                     provider,
                 )
                 .await?
-                .map(|cust| {
+                .inspect(|cust| {
                     payment_data.email = payment_data
                         .email
                         .clone()
                         .or_else(|| cust.email.clone().map(Into::into));
-                    cust
                 });
 
                 Ok((Box::new(self), customer))
