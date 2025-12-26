@@ -4,7 +4,6 @@ on:
   merge_group:
     types:
       - checks_requested
-  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,8 +12,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS: "cybersource fiuu noon stripe"
-  # NON_MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "adyen braintree cybersource_stripe google_pay klarna mollie payu_payments worldline"
+  PAYMENTS_CONNECTORS: "cybersource stripe noon payu"
+  MANDATORY_PAYMENTS_CONNECTORS: "cybersource stripe"
   V2_PAYMENT_CONNECTORS: "cybersource stripe"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
@@ -137,7 +136,7 @@ jobs:
           overwrite: true
           path: target/debug/router
           retention-days: 1
-
+  
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
@@ -306,10 +305,9 @@ jobs:
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 8
-          PAYMENTS_CONNECTORS: ${{ env.MANDATORY_PAYMENTS_CONNECTORS }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 4
+          scripts/execute_cypress_1.sh --parallel 4
 
           kill "${{ env.PID }}"
 
