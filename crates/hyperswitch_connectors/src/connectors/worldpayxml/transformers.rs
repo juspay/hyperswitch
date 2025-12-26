@@ -3,8 +3,6 @@ use api_models::payouts::{ApplePayDecrypt, CardPayout};
 use base64::Engine;
 use common_enums::enums;
 #[cfg(feature = "payouts")]
-use common_enums::CardNetwork;
-#[cfg(feature = "payouts")]
 use common_utils::pii;
 use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
@@ -256,6 +254,7 @@ pub struct Payment {
     issuer_name: Option<String>,
     balance: Option<Vec<Balance>>,
     card_holder_name: Option<String>,
+    fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
 }
@@ -322,6 +321,11 @@ pub enum LastEvent {
     QueryRequired,
     CancelReceived,
     RefundReceived,
+    PushApproved,
+    PushPending,
+    PushRequested,
+    PushRefused,
+    SettledByMerchant,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -497,17 +501,45 @@ enum PaymentMethod {
     #[serde(rename = "CARD-SSL")]
     CardSSL(CardSSL),
 
-    #[serde(rename = "VISA-SSL")]
-    VisaSSL(CardSSL),
-
-    #[serde(rename = "ECMC-SSL")]
-    EcmcSSL(CardSSL),
+    #[serde(rename = "FF_DISBURSE-SSL")]
+    FastAccessSSL(FastAccessData),
 
     #[serde(rename = "PAYWITHGOOGLE-SSL")]
     PayWithGoogleSSL(GooglePayData),
 
     #[serde(rename = "APPLEPAY-SSL")]
     PayWithAppleSSL(ApplePayData),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FastAccessData {
+    recipient: Recipient,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purpose_of_payment: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Recipient {
+    payment_instrument: PaymentInstrument,
+    address: Option<WorldpayxmlAddressData>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentInstrument {
+    card_details: CardDetails,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+struct CardDetails {
+    #[serde(flatten)]
+    card_ssl: CardSSL,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -518,32 +550,6 @@ struct CardSSL {
     card_holder_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cvc: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "CardAddress::is_empty_option")]
-    card_address: Option<CardAddress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    purpose_of_payment_code: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CardAddress {
-    #[serde(skip_serializing_if = "WorldpayxmlAddress::is_empty_option")]
-    address: Option<WorldpayxmlAddress>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct WorldpayxmlAddress {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    address1: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    postal_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -590,11 +596,11 @@ impl TryFrom<LastEvent> for enums::PayoutStatus {
     type Error = errors::ConnectorError;
     fn try_from(item: LastEvent) -> Result<Self, Self::Error> {
         match item {
-            LastEvent::SentForRefund | LastEvent::RefundReceived => Ok(Self::Initiated),
-            LastEvent::Error | LastEvent::Refused => Ok(Self::Failed),
-            LastEvent::QueryRequired => Ok(Self::Pending),
+            LastEvent::PushRequested => Ok(Self::Initiated),
+            LastEvent::PushPending => Ok(Self::Pending),
+            LastEvent::Error | LastEvent::PushRefused => Ok(Self::Failed),
+            LastEvent::PushApproved | LastEvent::SettledByMerchant => Ok(Self::Success),
             LastEvent::CancelReceived => Ok(Self::Cancelled),
-            LastEvent::RefundedByMerchant => Ok(Self::Success),
             _ => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from("Invalid LastEvent".to_string()),
             )),
@@ -655,8 +661,6 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
                 },
                 card_holder_name: card_data.card_holder_name.to_owned(),
                 cvc: Some(card_data.card_cvc.to_owned()),
-                card_address: None,
-                purpose_of_payment_code: None,
             }),
             session,
         })
@@ -1174,7 +1178,9 @@ fn get_attempt_status(
         }
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
         LastEvent::Cancelled => Ok(common_enums::AttemptStatus::Voided),
-        LastEvent::Captured | LastEvent::Settled => Ok(common_enums::AttemptStatus::Charged),
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
+            Ok(common_enums::AttemptStatus::Charged)
+        }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
@@ -2030,15 +2036,9 @@ impl TryFrom<&RefundSyncRouterData> for PaymentService {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for PaymentDetails {
+impl TryFrom<ApplePayDecrypt> for PaymentInstrument {
     type Error = errors::ConnectorError;
-    fn try_from(
-        (apple_pay_decrypted_data, address, purpose_of_payment): (
-            ApplePayDecrypt,
-            Option<CardAddress>,
-            Option<String>,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(apple_pay_decrypted_data: ApplePayDecrypt) -> Result<Self, Self::Error> {
         let card_data = CardSSL {
             card_number: apple_pay_decrypted_data.dpan.clone(),
             expiry_date: ExpiryDate {
@@ -2049,43 +2049,20 @@ impl TryFrom<(ApplePayDecrypt, Option<CardAddress>, Option<String>)> for Payment
             },
             card_holder_name: apple_pay_decrypted_data.card_holder_name.clone(),
             cvc: None,
-            card_address: address,
-            purpose_of_payment_code: purpose_of_payment,
-        };
-
-        let card_network = apple_pay_decrypted_data.card_network.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "card_network",
-            },
-        )?;
-
-        let payment_method = match card_network {
-            CardNetwork::Visa => PaymentMethod::VisaSSL(CardSSL { ..card_data }),
-            CardNetwork::Mastercard => PaymentMethod::EcmcSSL(CardSSL { ..card_data }),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} card network is not supported", card_network).to_string(),
-                connector: "WorldpayWPG Payout",
-            })?,
         };
 
         Ok(Self {
-            action: Some(Action::Refund),
-            payment_method,
-            session: None,
+            card_details: CardDetails {
+                card_ssl: card_data,
+            },
         })
     }
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetails {
+impl TryFrom<CardPayout> for PaymentInstrument {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (card_payout, address, purpose_of_payment): (
-            CardPayout,
-            Option<CardAddress>,
-            Option<String>,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(card_payout: CardPayout) -> Result<Self, Self::Error> {
         let card_data = CardSSL {
             card_number: card_payout.card_number.clone(),
             expiry_date: ExpiryDate {
@@ -2096,30 +2073,12 @@ impl TryFrom<(CardPayout, Option<CardAddress>, Option<String>)> for PaymentDetai
             },
             card_holder_name: card_payout.card_holder_name.to_owned(),
             cvc: None,
-            card_address: address,
-            purpose_of_payment_code: purpose_of_payment,
-        };
-
-        let card_network =
-            card_payout
-                .card_network
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_network",
-                })?;
-
-        let payment_method = match card_network {
-            CardNetwork::Visa => PaymentMethod::VisaSSL(CardSSL { ..card_data }),
-            CardNetwork::Mastercard => PaymentMethod::EcmcSSL(CardSSL { ..card_data }),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} card network is not supported", card_network).to_string(),
-                connector: "WorldpayWPG Payout",
-            })?,
         };
 
         Ok(Self {
-            action: Some(Action::Refund),
-            payment_method,
-            session: None,
+            card_details: CardDetails {
+                card_ssl: card_data,
+            },
         })
     }
 }
@@ -2155,15 +2114,11 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
     fn try_from(
         item: &WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
-        let billing_details = Some(CardAddress {
-            address: Some(WorldpayxmlAddress {
-                last_name: item.router_data.get_optional_billing_last_name(),
-                address1: item.router_data.get_optional_billing_line1(),
-                postal_code: item.router_data.get_optional_billing_zip(),
-                city: item.router_data.get_optional_billing_city(),
-                country_code: item.router_data.get_optional_billing_country(),
-            }),
-        });
+        let billing_details = item
+            .router_data
+            .get_optional_billing()
+            .and_then(get_address_details);
+        let address = billing_details.map(|details| details.address);
 
         let purpose_of_payment: Option<WorldpayxmlPayoutConnectorMetadataObject> =
             match item.router_data.connector_meta_data {
@@ -2179,16 +2134,12 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
         };
 
         let payout_method_data = item.router_data.get_payout_method_data()?;
-        let payment_details = match payout_method_data {
+        let payment_instrument = match payout_method_data {
             api_models::payouts::PayoutMethodData::Wallet(
                 api_models::payouts::Wallet::ApplePayDecrypt(apple_pay_decrypted_data),
-            ) => PaymentDetails::try_from((
-                apple_pay_decrypted_data,
-                billing_details,
-                purpose_of_payment_code,
-            ))?,
+            ) => PaymentInstrument::try_from(apple_pay_decrypted_data)?,
             api_models::payouts::PayoutMethodData::Card(card_payout) => {
-                PaymentDetails::try_from((card_payout, billing_details, purpose_of_payment_code))?
+                PaymentInstrument::try_from(card_payout)?
             }
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
@@ -2200,13 +2151,19 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             }
         };
 
-        let reference_id = item.router_data.connector_request_reference_id.to_owned();
-
-        let order_code = if reference_id.starts_with("payout_") {
-            reference_id
-        } else {
-            format!("payout_{}", reference_id)
+        let payment_details = PaymentDetails {
+            action: None,
+            payment_method: PaymentMethod::FastAccessSSL(FastAccessData {
+                recipient: Recipient {
+                    payment_instrument,
+                    address,
+                },
+                purpose_of_payment: purpose_of_payment_code,
+            }),
+            session: None,
         };
+
+        let order_code = item.router_data.connector_request_reference_id.to_owned();
 
         let description = item.router_data.description.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
@@ -2267,8 +2224,8 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
     ) -> Result<Self, Self::Error> {
         let reply = item.response.reply;
 
-        match (reply.error, reply.order_status, reply.ok) {
-            (Some(error), None, None) => Ok(Self {
+        match (reply.error, reply.order_status) {
+            (Some(error), None) => Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
                 response: Err(ErrorResponse {
                     code: error.code,
@@ -2284,7 +2241,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                 }),
                 ..item.data
             }),
-            (None, Some(order_status), None) => {
+            (None, Some(order_status)) => {
                 match (order_status.payment, order_status.error) {
                     (Some(payment), None) => Ok(Self {
                         response: Ok(PayoutsResponseData {
@@ -2319,26 +2276,6 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                     ),
                 }
             },
-            (None, None, Some(ok_response)) => {
-                let response = ok_response.refund_received.ok_or(
-                    errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
-                        "ok.refund_received must be present in the response",
-                    )),
-                )?;
-
-                Ok(Self {
-                    response: Ok(PayoutsResponseData {
-                        status: Some(enums::PayoutStatus::try_from(LastEvent::RefundReceived)?),
-                        connector_payout_id: Some(response.order_code),
-                        payout_eligible: None,
-                        should_add_next_step_to_process_tracker: false,
-                        error_code: None,
-                        error_message: None,
-                        payout_connector_metadata: None,
-                    }),
-                    ..item.data
-                })
-            }
             _ => Err(
                 errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
                     "Either reply.error or reply.order_status must be present in the response",
@@ -2613,52 +2550,89 @@ fn process_payment_response(
 #[cfg(feature = "payouts")]
 pub fn map_purpose_code(value: Option<String>) -> Option<String> {
     let code = match value?.as_str() {
-        "Family Support" => "00",
-        "Regular Labour Transfers" => "01",
-        "Travel and Tourism" => "02",
-        "Education" => "03",
-        "Hospitalisation and Medical Treatment" => "04",
-        "Emergency Need" => "05",
-        "Savings" => "06",
-        "Gifts" => "07",
-        "Other" => "08",
-        "Salary" => "09",
-        "Crowd Lending" => "10",
-        "Crypto Currency" => "11",
-        "Gaming Repayment" => "12",
-        "Stock Market Proceeds" => "13",
-        "Refund to a original card" => "M1",
-        "Refund to a new card" => "M2",
+        "Account management" => "ISACCT",
+        "Transaction is the payment of allowance" => "ISALLW",
+        "Settlement of annuity" => "ISANNI",
+        "Unemployment disability benefit" => "ISBENE",
+        "Business expenses" => "ISBEXP",
+        "Bonus payment" => "ISBONU",
+        "Bus transport related business" =>	"ISBUSB",
+        "Cash management transfer" => "ISCASH",
+        "Payment of cable TV bill" => "ISCBTV",
+        "Government institute issued related to cash compensation, helplessness, and disability" => "ISCCHD",
+        "Credit card payment" => "ISCCRD",
+        "Payment of credit card bill" => "ISCDBL",
+        "Payment for charity reasons" => "ISCHAR",
+        "Collection payment" => "ISCOLL",
+        "Commercial payment" => "ISCOMC",
+        "Commission" => "ISCOMM",
+        "Compensation relating to interest loss/value date adjustment and can include fees" => "ISCOMP",
+        "Payment of copyright" => "ISCPYR",
+        "Related to a debit card payment" => "ISDCRD",
+        "Payment of a deposit" => "ISDEPT",
+        "Payment of dividend" => "ISDIVD",
+        "Payment of study/tuition fees" => "ISEDUC",
+        "Payment of electricity bill" => "ISELEC",
+        "Energies" => "ISENRG",
+        "General fees" => "ISFEES",
+        "Payment for ferry related business" => "ISFERB",
+        "Foreign exchange" => "ISFREX",
+        "Payment of gas bill" => "ISGASB",
+        "Compensation to unemployed persons during insolvency procedures" => "ISGFRP",
+        "Government payment" => "ISGOVT",
+        "Health insurance" => "ISHLTI",
+        "Reimbursement of credit card payment" => "ISICCP",
+        "Reimbursement of debit card payment" => "ISIDCP",
+        "Payment of car insurance premium" => "ISINPC",
+        "Transaction is related to the payment of an insurance claim" => "ISINSC",
+        "Installment" => "ISINSM",
+        "Insurance premium" => "ISINSU",
+        "Payment of mutual funds, investment products and shares" => "ISINVS",
+        "Intra company payment" => "ISINTC",
+        "Interest" => "ISINTE",
+        "Income tax" => "ISINTX",
+        "Investment" => "ISINVS",
+        "Labor insurance" => "ISLBRI",
+        "License fee" => "ISLICF",
+        "Life insurance" =>  "ISLIFI",
+        "Loan" => "ISLOAN",
+        "Medical services" => "ISMDCS",
+        "Mobile P2B payment" => "ISMP2B",
+        "Mobile P2P payment" => "ISMP2P",
+        "Mobile top up" => "ISMTUP",
+        "Not otherwise specified" => "ISNOWS",
+        "Transaction is related to a payment of other telecom related bill" => "ISOTLC",
+        "Payroll" => "ISPAYR",
+        "Contribution to pension fund" => "ISPEFC",
+        "Pension payment" => "ISPENS",
+        "Payment of telephone bill" => "ISPHON",
+        "Property insurance" => "ISPPTI",
+        "Transaction is for general rental/lease" => "ISRELG",
+        "The payment of rent" => "ISRENT",
+        "Payment for railway transport related business" => "ISRLWY",
+        "Royalties" => "ISROYA",
+        "Salary payment" => "ISSALA",
+        "Payment to savings/retirement account" => "ISSAVG",
+        "Securities" => "ISSECU",
+        "Social security benefit" => "ISSSBE",
+        "Study" => "ISSTDY",
+        "Subscription" => "ISSUBS",
+        "Supplier payment" => "ISSUPP",
+        "Refund of a tax payment or obligation" => "ISTAXR",
+        "Tax payment" => "ISTAXS",
+        "Transaction is related to a payment of telecommunications related bill" => "ISTBIL",
+        "Trade services operation" => "ISTRAD",
+        "Treasury payment" => "ISTREA",
+        "Payment for travel" => "ISTRPT",
+        "Utility bill payment" => "ISUBIL",
+        "Value added tax payment" => "ISVATX",
+        "With holding" => "ISWHLD",
+        "Payment of water bill" => "ISWTER",
+        "Other" => "ISOTHR",
         _ => return None,
     };
 
     Some(code.to_string())
-}
-
-impl WorldpayxmlAddress {
-    fn is_empty(&self) -> bool {
-        self.last_name.is_none()
-            || self.address1.is_none()
-            || self.postal_code.is_none()
-            || self.city.is_none()
-            || self.country_code.is_none()
-    }
-
-    fn is_empty_option(addr: &Option<Self>) -> bool {
-        match addr {
-            Some(a) => a.is_empty(),
-            None => true,
-        }
-    }
-}
-
-impl CardAddress {
-    fn is_empty_option(addr: &Option<Self>) -> bool {
-        match addr {
-            Some(a) => WorldpayxmlAddress::is_empty_option(&a.address),
-            None => true,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2687,15 +2661,14 @@ pub struct OrderStatusEvent {
 
 pub fn get_payout_webhook_event(status: LastEvent) -> api_models::webhooks::IncomingWebhookEvent {
     match status {
-        LastEvent::SentForRefund
-        | LastEvent::RefundedByMerchant
-        | LastEvent::SentForFastRefund
-        | LastEvent::RefundRequested => {
+        LastEvent::PushRequested | LastEvent::PushPending => {
             api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
         }
-        LastEvent::Refunded => api_models::webhooks::IncomingWebhookEvent::PayoutSuccess,
+        LastEvent::SettledByMerchant | LastEvent::PushApproved => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess
+        }
         LastEvent::Cancelled => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
-        LastEvent::Refused | LastEvent::RefundFailed => {
+        LastEvent::PushRefused | LastEvent::Error => {
             api_models::webhooks::IncomingWebhookEvent::PayoutFailure
         }
         _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
@@ -2707,7 +2680,7 @@ pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::Inc
         LastEvent::Authorised | LastEvent::SentForAuthorisation => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
         }
-        LastEvent::Captured | LastEvent::Settled => {
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
         }
         LastEvent::Refunded | LastEvent::RefundedByMerchant => {
@@ -2718,6 +2691,17 @@ pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::Inc
         LastEvent::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
         _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
     }
+}
+
+pub fn is_payout_event(event_code: LastEvent) -> bool {
+    matches!(
+        event_code,
+        LastEvent::PushApproved
+            | LastEvent::PushPending
+            | LastEvent::PushRequested
+            | LastEvent::SettledByMerchant
+            | LastEvent::PushRefused
+    )
 }
 
 pub fn is_refund_event(event_code: LastEvent) -> bool {
