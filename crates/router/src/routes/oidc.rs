@@ -38,3 +38,50 @@ pub async fn jwks_endpoint(state: web::Data<AppState>, req: HttpRequest) -> Http
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::OidcAuthorize))]
+pub async fn oidc_authorize(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<api_models::oidc::OidcAuthorizeQuery>,
+) -> HttpResponse {
+    let flow = Flow::OidcAuthorize;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params.into_inner(),
+        |state,
+         user: Option<auth::UserFromToken>,
+         req_payload: api_models::oidc::OidcAuthorizeQuery,
+         _| { oidc_provider::process_authorize_request(state, req_payload, user) },
+        auth::auth_type(
+            &auth::NoAuth,
+            &auth::DashboardNoPermissionAuth,
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::OidcToken))]
+pub async fn oidc_token(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    form_data: web::Form<api_models::oidc::OidcTokenRequest>,
+) -> HttpResponse {
+    let flow = Flow::OidcToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        form_data.into_inner(),
+        |state, client_id: String, req_body, _| {
+            oidc_provider::process_token_request(state, req_body, client_id)
+        },
+        &auth::OIDC_CLIENT_AUTH,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
