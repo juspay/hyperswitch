@@ -204,7 +204,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        platform,
+                        platform.get_processor(),
                         business_profile,
                         payment_data,
                         customer,
