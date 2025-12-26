@@ -2,6 +2,7 @@ pub mod admin;
 pub mod api_keys;
 pub mod authentication;
 pub mod configs;
+pub mod configure_connector_webhook;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod customers;
@@ -27,6 +28,7 @@ pub mod webhook_events;
 pub mod webhooks;
 
 pub mod authentication_v2;
+pub mod configure_connector_webhook_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
 pub mod feature_matrix;
@@ -59,6 +61,8 @@ pub use hyperswitch_interfaces::{
             ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
+        configure_connector_webhook::WebhookRegister,
+        configure_connector_webhook_v2::WebhookRegisterV2,
         fraud_check::FraudCheck,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
@@ -80,9 +84,9 @@ pub use self::fraud_check::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
 pub use self::{
-    admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
-    disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*,
+    admin::*, api_keys::*, authentication::*, configs::*, configure_connector_webhook::*,
+    connector_mapping::*, customers::*, disputes::*, files::*, payment_link::*, payment_methods::*,
+    payments::*, poll::*, refunds::*, refunds_v2::*, webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

@@ -4,6 +4,8 @@
 pub mod authentication;
 /// authentication_v2 module
 pub mod authentication_v2;
+pub mod configure_connector_webhook;
+pub mod configure_connector_webhook_v2;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -50,15 +52,20 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        flow_common_types::{
+            AuthenticationTokenFlowData, ConnectorWebhookConfigurationFlowData,
+            WebhookSourceVerifyData,
+        },
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        AuthenticationConfirmation, ConnectorWebhookRegister, PostAuthenticate, PreAuthenticate,
+        VerifyWebhookSource,
     },
     router_request_types::{
         self,
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -68,8 +75,9 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
+        self, configure_connector_webhook::ConnectorWebhookRegisterResponse, ConnectorInfo,
+        MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -85,8 +93,11 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
-    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::{configure_connector_webhook::WebhookRegister, subscriptions::Subscriptions},
+    connector_integration_v2::ConnectorIntegrationV2,
+    consts, errors,
+    events::connector_api_logs::ConnectorEvent,
+    metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -111,6 +122,7 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
+    + WebhookRegister
 {
 }
 
@@ -120,6 +132,7 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + WebhookRegister
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -574,6 +587,17 @@ pub trait ConnectorSpecifications {
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
     }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+            is_webhook_auto_configuration_supported: false,
+            requires_webhook_secret: None,
+            config_type: None,
+        }
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type
@@ -657,6 +681,17 @@ pub trait ConnectorVerifyWebhookSourceV2:
     WebhookSourceVerifyData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait ConnectorVerifyWebhookSource
+pub trait WebhookRegisterV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookRegister,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
 >
 {
 }

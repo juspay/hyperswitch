@@ -4,6 +4,7 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
+        configure_connector_webhook::ConnectorWebhookRegister,
         mandate_revoke::MandateRevoke,
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
@@ -19,6 +20,7 @@ use crate::{
         RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -46,6 +48,7 @@ use crate::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -141,6 +144,12 @@ pub type VerifyWebhookSourceRouterData = RouterData<
     VerifyWebhookSource,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
+>;
+
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
 >;
 
 #[cfg(feature = "payouts")]

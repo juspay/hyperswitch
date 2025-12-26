@@ -15,6 +15,7 @@ pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod connector_validation;
+pub mod connector_webhook_configuration;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
 pub mod customers;

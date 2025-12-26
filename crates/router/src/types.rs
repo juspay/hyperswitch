@@ -32,6 +32,7 @@ pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
     self,
     access_token_auth::AccessTokenAuth,
+    configure_connector_webhook::ConnectorWebhookRegister,
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
@@ -59,6 +60,7 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterData,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -86,6 +88,7 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        configure_connector_webhook::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -110,14 +113,15 @@ pub use hyperswitch_interfaces::types::{
 pub use hyperswitch_interfaces::{
     disputes::DisputePayload,
     types::{
-        AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
-        IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
+        AcceptDisputeType, ConnectorCustomerType, ConnectorWebhookRegisterType, DefendDisputeType,
+        FetchDisputesType, IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
         PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
         PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
         PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
         RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
         SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
+        WebhookRegisterType,
     },
 };
 
@@ -254,6 +258,12 @@ pub type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncR
 
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterResponse,
+>;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;

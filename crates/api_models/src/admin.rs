@@ -1483,6 +1483,11 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Details about the connector’s webhook configuration
+    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    pub webhook_setup_capabilities:
+        Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
 
 #[cfg(feature = "v1")]
@@ -3572,4 +3577,40 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+/// Register a webhook at the connector
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookRegisterRequest {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    pub event_type: common_enums::ConnectorWebhookEventType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RegisterConnectorWebhookResponse {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    pub event_type: common_enums::ConnectorWebhookEventType,
+    pub connector_webhook_id: Option<String>,
+    #[schema(value_type = Option<WebhookRegistrationStatus>)]
+    pub webhook_registration_status: common_enums::WebhookRegistrationStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookListResponse {
+    pub connector: String,
+    pub webhooks: Vec<ConnectorWebhookResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookResponse {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    pub event_type: common_enums::ConnectorWebhookEventType,
+    pub connector_webhook_id: String,
 }
