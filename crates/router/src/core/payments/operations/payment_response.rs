@@ -2117,6 +2117,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_db = state.clone().store;
     let m_payment_attempt_update = payment_attempt_update.clone();
     let m_payment_attempt = payment_attempt.clone();
+    let m_storage_scheme = processor.get_account().storage_scheme;
+    let m_key_store = processor.get_key_store().clone();
 
     let diesel_payment_attempt = payment_attempt
         .clone()
@@ -2155,8 +2157,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .update_payment_attempt_with_attempt_id(
                                 m_payment_attempt,
                                 payment_attempt_update,
-                                processor.get_account().storage_scheme,
-                                processor.get_key_store(),
+                                m_storage_scheme,
+                                &m_key_store,
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
