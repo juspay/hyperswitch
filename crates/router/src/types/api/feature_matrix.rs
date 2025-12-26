@@ -276,6 +276,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Payjustnow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payjustnow::new())))
                 }
+                enums::Connector::Payjustnowinstore => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Payjustnowinstore::new(),
+                ))),
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }

@@ -285,6 +285,14 @@ impl PaymentMethod {
             .and_then(|record| record.connector_customer_id.clone()))
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_metadata(
+        &self,
+        optional_metadata: Option<pii::SecretSerdeValue>,
+    ) -> Option<pii::SecretSerdeValue> {
+        common_utils::merge_json_values(self.metadata.clone(), optional_metadata)
+    }
+
     #[cfg(feature = "v2")]
     pub fn get_payout_connector_customer_id(
         &self,
@@ -873,6 +881,15 @@ pub trait PaymentMethodInterface {
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
