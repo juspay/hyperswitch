@@ -319,13 +319,23 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentData<F>,
+        _request: Option<&CustomerDetails>,
+        _processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<
