@@ -5,6 +5,9 @@ on:
     types:
       - checks_requested
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
