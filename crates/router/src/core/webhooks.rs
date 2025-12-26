@@ -11,6 +11,7 @@ mod outgoing_v2;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub mod recovery_incoming;
 pub mod types;
+pub mod upi_webhook;
 pub mod utils;
 #[cfg(feature = "olap")]
 pub mod webhook_events;
