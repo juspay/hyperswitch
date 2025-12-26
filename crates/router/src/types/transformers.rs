@@ -1088,10 +1088,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             api_models::admin::MerchantConnectorAccountFeatureMetadata::foreign_from(metadata)
         });
 
-        let webhook_setup_capabilities =
-            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
-                .get_api_webhook_config();
-
         let response = Self {
             id: item.get_id(),
             connector_type: item.connector_type,
@@ -1143,7 +1139,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
             feature_metadata,
-            webhook_setup_capabilities,
         };
         Ok(response)
     }
