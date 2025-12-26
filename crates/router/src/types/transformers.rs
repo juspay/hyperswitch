@@ -15,6 +15,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -975,6 +976,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
         };
+
+        let webhook_setup_capabilities =
+            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
+                .get_api_webhook_config();
+
         #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
@@ -1030,6 +1036,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            webhook_setup_capabilities,
         };
         Ok(response)
     }
@@ -1080,6 +1087,10 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
         let feature_metadata = item.feature_metadata.as_ref().map(|metadata| {
             api_models::admin::MerchantConnectorAccountFeatureMetadata::foreign_from(metadata)
         });
+
+        let webhook_setup_capabilities =
+            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
+                .get_api_webhook_config();
 
         let response = Self {
             id: item.get_id(),
@@ -1132,6 +1143,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
             feature_metadata,
+            webhook_setup_capabilities,
         };
         Ok(response)
     }

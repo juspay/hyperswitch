@@ -1360,6 +1360,11 @@ pub struct MerchantConnectorResponse {
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<MerchantConnectorAccountFeatureMetadata>)]
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
+
+    /// Details about the connector’s webhook configuration
+    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    pub webhook_setup_capabilities:
+        Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
 
 #[cfg(feature = "v2")]
@@ -1483,6 +1488,11 @@ pub struct MerchantConnectorResponse {
     /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
     #[schema(value_type = Option<ConnectorWalletDetails>)]
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
+
+    /// Details about the connector’s webhook configuration
+    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    pub webhook_setup_capabilities:
+        Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
 
 #[cfg(feature = "v1")]

@@ -266,6 +266,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::ApplePayDecryptAdditionalData,
         common_utils::payout_method_utils::PassthroughAddtionalData,
         common_types::payments::SplitPaymentsRequest,
+        common_types::connector_webhook_configuration::WebhookSetupCapabilities,
+        common_types::connector_webhook_configuration::WebhookConfigType,
         common_types::payments::GpayTokenizationData,
         common_types::payments::GPayPredecryptData,
         common_types::payments::GpayEcryptedTokenizationData,
