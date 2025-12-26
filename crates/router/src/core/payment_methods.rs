@@ -4441,10 +4441,75 @@ pub async fn check_network_token_status(
 pub async fn payment_method_session_get_token(
     state: SessionState,
     provider: domain::Provider,
-    req: web::Query<serde_json::Value>,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    temporary_token: String,
 ) -> RouterResponse<serde_json::Value> {
-    let token_id = &req.token_id;
-    println!("Temp token: {}", token_id);
+    println!("Payment method session ID: {}", payment_method_session_id.get_redis_key());
+
+    println!("Temporary token: {}", temporary_token);
+
+    let payment_method_session = state
+        .store
+        .get_payment_methods_session(provider.get_key_store(), &payment_method_session_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get payment method session")?;
+
+    // Extract tokenization data to get parent_pm_token and payment_method
+    let (parent_pm_token, payment_method) = if let Some(tokenization_data) = &payment_method_session.tokenization_data {
+        let token_data: payment_methods::TokenizeDataRequest = tokenization_data
+            .clone()
+            .into_inner()
+            .parse_value("TokenizeDataRequest")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse tokenization data")?;
+
+        match token_data {
+            payment_methods::TokenizeDataRequest::ExistingPaymentMethod(req) => {
+                // Extract parent_pm_token from payment_method_id (format: parent_pm_token_payment_method)
+                let payment_method_id = req.payment_method_id;
+                let parts: Vec<&str> = payment_method_id.split('_').collect();
+                if parts.len() >= 2 {
+                    let parent_pm_token = parts[0..parts.len()-1].join("_");
+                    let payment_method = parts.last().unwrap();
+                    (parent_pm_token, payment_method.to_string())
+                } else {
+                    return Err(errors::ApiErrorResponse::BadRequest(
+                        "Invalid payment method ID format".to_string()
+                    ).into_report());
+                }
+            },
+            _ => return Err(errors::ApiErrorResponse::BadRequest(
+                "Only ExistingPaymentMethod tokenization is supported".to_string()
+            ).into_report()),
+        }
+    } else {
+        return Err(errors::ApiErrorResponse::BadRequest(
+            "No tokenization data found in payment method session".to_string()
+        ).into_report());
+    };
+
+    // Create Redis key using ParentPaymentMethodToken
+    let redis_key = pm_routes::ParentPaymentMethodToken::return_key_for_token(
+        (&parent_pm_token, &payment_method.parse().map_err(|_| 
+            errors::ApiErrorResponse::BadRequest("Invalid payment method type".to_string())
+        )?)
+    );
+
+    // Get Redis connection and retrieve the data
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let token_data: storage::PaymentTokenData = redis_conn
+        .get_and_deserialize_key(&redis_key.into(), "PaymentTokenData")
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get token data from Redis")?;
+
+    logger::debug!(?token_data, "Retrieved token data from Redis");
 
     let response = serde_json::Value::Null;
 

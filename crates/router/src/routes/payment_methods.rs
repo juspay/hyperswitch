@@ -1679,28 +1679,42 @@ pub async fn network_token_status_check_api(
 pub async fn payment_method_session_get_token_details_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(id_type::GlobalPaymentMethodSessionId, String)>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodSessionGetTokenDetails;
-    let temporary_token = path.into_inner();
+    let (payment_method_session_id, temporary_token) = path.into_inner();
+    let payment_method_session_id_clone = payment_method_session_id.clone();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        temporary_token,
-        |state, auth: auth::AuthenticationData, temporary_token, _| {
-            let platform = auth.into();
-            payment_methods_routes::payment_method_session_get_token(
-                state,
-                platform.get_provider().clone(),
-                temporary_token,
-            )
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let payment_method_session_id = payment_method_session_id_clone.clone();
+            let temporary_token = temporary_token.clone();
+            async move {
+                let platform: domain::Platform = auth.into();
+                payment_methods_routes::payment_method_session_get_token(
+                    state,
+                    platform.get_provider().clone(),
+                    payment_method_session_id,
+                    temporary_token,
+                ).await
+            }
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                    payment_method_session_id,
+                ),
+            ),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
