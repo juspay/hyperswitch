@@ -545,7 +545,7 @@ pub enum CustomerUpdate {
         connector_customer: Box<Option<pii::SecretSerdeValue>>,
         address_id: Option<String>,
         tax_registration_id: crypto::OptionalEncryptableSecretString,
-        customer_document_number: crypto::OptionalEncryptableSecretString,
+        customer_document_number: Box<crypto::OptionalEncryptableSecretString>,
         last_modified_by: Option<String>,
     },
     ConnectorCustomer {

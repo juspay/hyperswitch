@@ -1846,7 +1846,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
-                            customer_document_number: encryptable_customer.customer_document_number,
+                            customer_document_number: Box::new(encryptable_customer.customer_document_number),
                             last_modified_by: None,
                         };
 
