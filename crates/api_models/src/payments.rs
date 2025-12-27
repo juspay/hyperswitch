@@ -1191,7 +1191,8 @@ pub struct PaymentsRequest {
     pub customer: Option<CustomerDetails>,
 
     /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    /// This field will be deprecated soon, use the customer object instead
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
