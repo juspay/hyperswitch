@@ -366,6 +366,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .tax_registration_id
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
+                    customer_document_number: customer
+                        .customer_document_number
+                        .clone()
+                        .map(|customer_document_number| customer_document_number.into_inner()),
                 }))
             },
         )
@@ -396,6 +400,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .map(|email| email.expose().switch_strategy()),
                     phone: self.customer.phone.clone(),
                     tax_registration_id: self.customer.tax_registration_id.clone(),
+                    customer_document_number: self.customer.customer_document_number.clone(),
                 },
             )),
             Identifier::Merchant(self.merchant_account.get_id().clone()),
@@ -435,6 +440,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            customer_document_number: encryptable_customer.customer_document_number,
             // TODO: Populate created_by from authentication context once it is integrated in auth data
             created_by: None,
             last_modified_by: None, // Same as created_by on creation
@@ -463,6 +469,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
+            customer_document_number: self.customer.customer_document_number.clone(),
         })
     }
 
@@ -603,6 +610,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
+            None,
         )
         .await
     }

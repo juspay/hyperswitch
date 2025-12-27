@@ -203,6 +203,7 @@ where
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
     Ok(router_data)
 }
@@ -553,6 +554,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -901,6 +903,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1034,6 +1037,7 @@ pub async fn construct_router_data_for_psync<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1400,6 +1404,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1631,6 +1636,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: None,
     };
 
     Ok(router_data)
@@ -1849,6 +1855,29 @@ where
         });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
+    let payment_method_customer_details: Option<
+        common_types::payment_methods::PaymentMethodCustomerDetails,
+    > = payment_data
+        .payment_method_info
+        .as_ref()
+        .and_then(|info| info.payment_method_customer_details.as_ref())
+        .map(|data| {
+            data.clone().deserialize_inner_value(|value| {
+                value.parse_value::<common_types::payment_methods::PaymentMethodCustomerDetails>(
+                    "PaymentMethodCustomerDetails",
+                )
+            })
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to decode payment method customer details")?
+        .map(|encryptable| encryptable.into_inner());
+
+    // check for customer_document_number in payment_methods, if not present then check in payment intent
+    let customer_document_number = payment_method_customer_details
+        .and_then(|d| d.customer_document_number)
+        .or(payment_data.payment_intent.get_customer_document_number());
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().clone(),
@@ -1936,6 +1965,7 @@ where
         l2_l3_data,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number,
     };
 
     Ok(router_data)
@@ -2134,6 +2164,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_number: payment_data.payment_intent.get_customer_document_number(),
     };
 
     Ok(router_data)
@@ -6249,6 +6280,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            customer_document_number: customer.customer_document_number,
         }
     }
 }

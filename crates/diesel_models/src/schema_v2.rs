@@ -424,6 +424,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        customer_document_number -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
@@ -1280,6 +1281,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
+        payment_method_customer_details -> Nullable<Bytea>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]

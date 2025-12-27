@@ -10495,6 +10495,13 @@
             "description": "The tax registration identifier of the customer.",
             "nullable": true,
             "maxLength": 255
+          },
+          "customer_document_number": {
+            "type": "string",
+            "description": "Document number of the customer",
+            "example": "doc_123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -10714,6 +10721,13 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "customer_document_number": {
+            "type": "string",
+            "description": "Document number of the customer",
+            "example": "doc_123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -10820,6 +10834,13 @@
             "example": "123456789",
             "nullable": true,
             "maxLength": 255
+          },
+          "customer_document_number": {
+            "type": "string",
+            "description": "Document number of the customer",
+            "example": "doc_123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -10894,6 +10915,13 @@
             "type": "string",
             "description": "The customer's tax registration number.",
             "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "customer_document_number": {
+            "type": "string",
+            "description": "Document number of the customer",
+            "example": "doc_123456789",
             "nullable": true,
             "maxLength": 255
           }
