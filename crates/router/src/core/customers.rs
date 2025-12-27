@@ -1277,7 +1277,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     }),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    customer_document_number: Box::new(encryptable_customer.customer_document_number),
+                    customer_document_number: Box::new(
+                        encryptable_customer.customer_document_number,
+                    ),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
