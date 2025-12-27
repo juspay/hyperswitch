@@ -1,126 +1,296 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
-use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+pub mod request;
+pub mod response;
+use base64::Engine;
+use common_enums::{enums, Currency};
+use common_utils::{
+    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, types::MinorUnit,
 };
-use hyperswitch_interfaces::errors;
-use masking::Secret;
-use serde::{Deserialize, Serialize};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    address::Address,
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::*,
+    router_request_types::*,
+    router_response_types::*,
+    types::*,
+};
+use hyperswitch_interfaces::{api::*, errors::ConnectorError};
+use masking::{PeekInterface, Secret};
+pub use request::*;
+pub use response::*;
+use serde::Serialize;
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::PaymentsResponseRouterData,
+    utils::{get_unimplemented_payment_method_error_message, ApplePay, RouterData as _},
+};
 
-//TODO: Fill the struct with respective fields
+#[derive(Debug, Serialize)]
 pub struct WorldpaymodularRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
+    amount: MinorUnit,
+    router_data: T,
 }
-
-impl<T> From<(StringMinorUnit, T)> for WorldpaymodularRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Self {
-            amount,
+impl<T> TryFrom<(&CurrencyUnit, Currency, MinorUnit, T)> for WorldpaymodularRouterData<T> {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, minor_amount, item): (&CurrencyUnit, Currency, MinorUnit, T),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: minor_amount,
             router_data: item,
-        }
+        })
     }
 }
+fn fetch_payment_instrument(
+    payment_method: PaymentMethodData,
+    billing_address: Option<&Address>,
+) -> CustomResult<PaymentInstrument, ConnectorError> {
+    let billing_address =
+        if let Some(address) = billing_address.and_then(|addr| addr.address.clone()) {
+            Some(BillingAddress {
+                address1: address.line1,
+                address2: address.line2,
+                address3: address.line3,
+                city: address.city,
+                state: address.state,
+                postal_code: address
+                    .zip
+                    .get_required_value("zip")
+                    .change_context(ConnectorError::MissingRequiredField { field_name: "zip" })?,
+                country_code: address
+                    .country
+                    .get_required_value("country_code")
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "country_code",
+                    })?,
+            })
+        } else {
+            None
+        };
+    match payment_method {
+        PaymentMethodData::Wallet(wallet) => match wallet {
+            WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
+                payment_type: PaymentType::Googlepay,
+                wallet_token: data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                    })?
+                    .into(),
+                billing_address,
+            })),
+            WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
+                payment_type: PaymentType::Applepay,
+                wallet_token: data.get_applepay_decoded_payment_data()?,
+                billing_address,
+            })),
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct WorldpaymodularPaymentsRequest {
-    amount: StringMinorUnit,
-    card: WorldpaymodularCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct WorldpaymodularCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&WorldpaymodularRouterData<&PaymentsAuthorizeRouterData>>
-    for WorldpaymodularPaymentsRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &WorldpaymodularRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
+            WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect {}
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect {}
+            | WalletData::VippsRedirect {}
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::AmazonPay(_)
+            | WalletData::AmazonPayRedirect(_)
+            | WalletData::BluecodeRedirect {}
+            | WalletData::Paysera(_)
+            | WalletData::Skrill(_)
+            | WalletData::RevolutPay(_)
+            | WalletData::Mifinity(_) => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("worldpaymodular"),
             )
             .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
+        },
+        PaymentMethodData::PayLater(_)
+        | PaymentMethodData::BankRedirect(_)
+        | PaymentMethodData::BankDebit(_)
+        | PaymentMethodData::BankTransfer(_)
+        | PaymentMethodData::Crypto(_)
+        | PaymentMethodData::MandatePayment
+        | PaymentMethodData::Reward
+        | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::Upi(_)
+        | PaymentMethodData::Voucher(_)
+        | PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::OpenBanking(_)
+        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::Card(_)
+        | PaymentMethodData::MobilePayment(_) => Err(ConnectorError::NotImplemented(
+            get_unimplemented_payment_method_error_message("worldpaymodular"),
+        )
+        .into()),
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
+impl
+    TryFrom<(
+        &WorldpaymodularRouterData<
+            &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        >,
+        &Secret<String>,
+    )> for WorldpaymodularPaymentsRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        req: (
+            &WorldpaymodularRouterData<
+                &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+            >,
+            &Secret<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, entity_id) = req;
+        Ok(Self {
+            instruction: Instruction {
+                request_auto_settlement: RequestAutoSettlement {
+                    enabled: item.router_data.request.capture_method
+                        == Some(enums::CaptureMethod::Automatic),
+                },
+                value: PaymentValue {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                },
+                narrative: InstructionNarrative {
+                    line1: item
+                        .router_data
+                        .merchant_id
+                        .get_string_repr()
+                        .replace('_', "-"),
+                    ..Default::default()
+                },
+                payment_instrument: fetch_payment_instrument(
+                    item.router_data.request.payment_method_data.clone(),
+                    item.router_data.get_optional_billing(),
+                )?,
+                debt_repayment: None,
+            },
+            merchant: Merchant {
+                entity: entity_id.clone(),
+                ..Default::default()
+            },
+            transaction_reference: item.router_data.connector_request_reference_id.clone(),
+            channel: Channel::Ecom,
+            customer: None,
+        })
+    }
+}
+
 pub struct WorldpaymodularAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) entity_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for WorldpaymodularAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => {
+                let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
+                let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
+                Ok(Self {
+                    api_key: Secret::new(auth_header),
+                    entity_id: api_secret.clone(),
+                })
+            }
+            _ => Err(ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum WorldpaymodularPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
-impl From<WorldpaymodularPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: WorldpaymodularPaymentStatus) -> Self {
+impl From<PaymentOutcome> for enums::AttemptStatus {
+    fn from(item: PaymentOutcome) -> Self {
         match item {
-            WorldpaymodularPaymentStatus::Succeeded => Self::Charged,
-            WorldpaymodularPaymentStatus::Failed => Self::Failure,
-            WorldpaymodularPaymentStatus::Processing => Self::Authorizing,
+            PaymentOutcome::Authorized => Self::Authorized,
+            PaymentOutcome::Refused => Self::Failure,
+            PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
+            PaymentOutcome::SentForRefund => Self::AutoRefunded,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WorldpaymodularPaymentsResponse {
-    status: WorldpaymodularPaymentStatus,
-    id: String,
+impl From<&EventType> for enums::AttemptStatus {
+    fn from(value: &EventType) -> Self {
+        match value {
+            EventType::SentForAuthorization => Self::Authorizing,
+            EventType::SentForSettlement => Self::CaptureInitiated,
+            EventType::Settled => Self::Charged,
+            EventType::Authorized => Self::Authorized,
+            EventType::Refused | EventType::SettlementFailed => Self::Failure,
+            EventType::Cancelled
+            | EventType::SentForRefund
+            | EventType::RefundFailed
+            | EventType::Refunded
+            | EventType::Error
+            | EventType::Expired
+            | EventType::Unknown => Self::Pending,
+        }
+    }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, WorldpaymodularPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl From<EventType> for enums::RefundStatus {
+    fn from(value: EventType) -> Self {
+        match value {
+            EventType::Refunded | EventType::SentForRefund => Self::Success,
+            EventType::RefundFailed => Self::Failure,
+            EventType::Authorized
+            | EventType::Cancelled
+            | EventType::Settled
+            | EventType::Refused
+            | EventType::Error
+            | EventType::SentForSettlement
+            | EventType::SentForAuthorization
+            | EventType::SettlementFailed
+            | EventType::Expired
+            | EventType::Unknown => Self::Pending,
+        }
+    }
+}
+
+impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
+    for PaymentsAuthorizeRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, WorldpaymodularPaymentsResponse, T, PaymentsResponseData>,
+        item: PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let mandate = item.response.links.get_mandate_id();
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.outcome),
+            description: item.response.description,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: item.response.links.get_resource_id()?,
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(mandate),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -132,94 +302,40 @@ impl<F, T> TryFrom<ResponseRouterData<F, WorldpaymodularPaymentsResponse, T, Pay
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct WorldpaymodularRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
-impl<F> TryFrom<&WorldpaymodularRouterData<&RefundsRouterData<F>>>
-    for WorldpaymodularRefundRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &WorldpaymodularRouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+impl TryFrom<(&PaymentsCaptureRouterData, MinorUnit)> for WorldpaymodularPartialRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(req: (&PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
+        let (item, amount) = req;
         Ok(Self {
-            amount: item.amount.to_owned(),
+            reference: item.payment_id.clone().replace("_", "-"),
+            value: PaymentValue {
+                amount: amount,
+                currency: item.request.currency,
+            },
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
+impl<F> TryFrom<(&RefundsRouterData<F>, MinorUnit)> for WorldpaymodularPartialRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(req: (&RefundsRouterData<F>, MinorUnit)) -> Result<Self, Self::Error> {
+        let (item, amount) = req;
         Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
+            reference: item.request.refund_id.clone().replace("_", "-"),
+            value: PaymentValue {
+                amount: amount,
+                currency: item.request.currency,
+            },
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
+impl TryFrom<WorldpaymodularWebhookEventType> for WorldpaymodularEventResponse {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(event: WorldpaymodularWebhookEventType) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
+            last_event: event.event_details.event_type,
+            links: None,
         })
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct WorldpaymodularErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
 }

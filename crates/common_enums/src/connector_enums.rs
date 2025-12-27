@@ -188,6 +188,7 @@ pub enum Connector {
     Worldpay,
     Worldpayvantiv,
     Worldpayxml,
+    Worldpaymodular,
     Signifyd,
     Plaid,
     Riskified,
@@ -384,6 +385,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            | Self::Worldpaymodular
             | Self::Worldpayvantiv
             | Self::Worldpayxml
             | Self::Xendit
