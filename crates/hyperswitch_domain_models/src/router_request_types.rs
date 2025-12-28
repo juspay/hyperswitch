@@ -542,6 +542,7 @@ pub struct CreateOrderRequestData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub webhook_url: Option<String>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -565,6 +566,7 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
             currency: data.currency,
             payment_method_data: Some(data.payment_method_data),
@@ -582,6 +584,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
 
     fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
             currency: data.currency,
             payment_method_data: None,
