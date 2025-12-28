@@ -1,7 +1,7 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
 use common_utils::{
-    encryption::Encryption,
     crypto::{DecodeMessage, GcmAes256},
+    encryption::Encryption,
     ext_traits::{BytesExt, Encode, OptionExt},
     id_type,
 };
@@ -19,7 +19,7 @@ use x509_parser::nom::{
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::{vault, cards},
+        payment_methods::{cards, vault},
     },
     routes::SessionState,
     types::{domain, payment_methods as pm_types},
@@ -92,13 +92,10 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = match response {
                     Ok(resp) => {
-
                         let payment_method = bytes::Bytes::from(resp)
                             .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Error getting PaymentMethod from redis",
-                            )?;
+                            .attach_printable("Error getting PaymentMethod from redis")?;
 
                         let keymanager_state = &state.into();
 
@@ -246,7 +243,10 @@ impl ProxyRecord {
                     .attach_printable("Failed to get redis connection")?;
 
                 let response = redis_conn
-                    .get_and_deserialize_key::<Encryption>(&vault_id.get_string_repr().into(), "Vec<u8>")
+                    .get_and_deserialize_key::<Encryption>(
+                        &vault_id.get_string_repr().into(),
+                        "Vec<u8>",
+                    )
                     .await;
 
                 match response {
