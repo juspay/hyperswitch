@@ -860,6 +860,7 @@ pub fn build_unified_connector_service_payment_method(
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
 
+            #[cfg(feature = "v1")]
             let network_token = payments_grpc::NetworkTokenData {
                 token_number: Some(
                     NetworkToken::from_str(&network_token_data.token_number.get_card_no()).change_context(
@@ -875,6 +876,27 @@ pub fn build_unified_connector_service_payment_method(
                 card_network: card_network.map(|card_network| card_network.into()),
                 card_type: network_token_data.card_type.clone(),
                 card_issuing_country: network_token_data.card_issuing_country.clone(),
+                bank_code: network_token_data.bank_code.clone(),
+                nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
+                eci: network_token_data.eci,
+            };
+
+            #[cfg(feature = "v2")]
+            let network_token = payments_grpc::NetworkTokenData {
+                token_number: Some(
+                    NetworkToken::from_str(&network_token_data.network_token.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse token number".to_string(),
+                        ),
+                    )?,
+                ),
+                token_exp_month: Some(network_token_data.network_token_exp_month.expose().into()),
+                token_exp_year: Some(network_token_data.network_token_exp_year.expose().into()),
+                token_cryptogram: network_token_data.cryptogram.map(|cryptogram| cryptogram.expose().into()),
+                card_issuer: network_token_data.card_issuer.clone(),
+                card_network: card_network.map(|card_network| card_network.into()),
+                card_type: network_token_data.card_type.clone().map(|ct| ct.to_string()),
+                card_issuing_country: network_token_data.card_issuing_country.map(|cic| cic.to_string()),
                 bank_code: network_token_data.bank_code.clone(),
                 nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
                 eci: network_token_data.eci,
