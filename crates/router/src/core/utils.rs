@@ -208,6 +208,7 @@ pub async fn construct_payout_router_data<'a, F>(
             webhook_url: Some(webhook_url),
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
+            additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

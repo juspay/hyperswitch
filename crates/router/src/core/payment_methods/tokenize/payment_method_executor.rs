@@ -149,6 +149,9 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
+            card_issuing_country_code: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.country_code.clone()),
             co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
