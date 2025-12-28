@@ -92,7 +92,6 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = match response {
                     Ok(resp) => {
-
                         let payment_method = resp
                             .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
