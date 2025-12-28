@@ -88,8 +88,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "b978b0eac62ca98f291f70d4168e0ba1d62711cb", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "b978b0eac62ca98f291f70d4168e0ba1d62711cb", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "a910df283e18aa625070dc9aea6cd31d83f7167e", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "a910df283e18aa625070dc9aea6cd31d83f7167e", package = "ucs_cards" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
