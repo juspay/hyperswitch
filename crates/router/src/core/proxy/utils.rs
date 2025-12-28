@@ -1,5 +1,6 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
 use common_utils::{
+    encryption::Encryption,
     crypto::{DecodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode, OptionExt},
     id_type,
@@ -18,7 +19,7 @@ use x509_parser::nom::{
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::vault,
+        payment_methods::{vault, cards},
     },
     routes::SessionState,
     types::{domain, payment_methods as pm_types},
@@ -91,19 +92,12 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = match response {
                     Ok(resp) => {
-                        let decrypted_payload = GcmAes256
-                            .decode_message(
-                                encryption_key.peek().as_ref(),
-                                masking::Secret::new(resp.into()),
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to decode redis temp locker data")?;
 
-                        let payment_method = bytes::Bytes::from(decrypted_payload)
+                        let payment_method = bytes::Bytes::from(resp)
                             .parse_struct::<diesel_models::PaymentMethod>("PaymentMethod")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable(
-                                "Error getting PaymentMethod from tokenize response",
+                                "Error getting PaymentMethod from redis",
                             )?;
 
                         let keymanager_state = &state.into();
@@ -252,29 +246,19 @@ impl ProxyRecord {
                     .attach_printable("Failed to get redis connection")?;
 
                 let response = redis_conn
-                    .get_key::<bytes::Bytes>(&vault_id.get_string_repr().into())
+                    .get_and_deserialize_key::<Encryption>(&vault_id.get_string_repr().into(), "Vec<u8>")
                     .await;
 
                 match response {
                     Ok(resp) => {
-                        let decrypted_payload = GcmAes256
-                            .decode_message(
-                                encryption_key.peek().as_ref(),
-                                masking::Secret::new(resp.into()),
-                            )
+                        let decrypted_payload: domain::PaymentMethodVaultingData = cards::decrypt_generic_data(state, Some(resp), key_store)
+                            .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to decode redis temp locker data")?;
-
-                        let vault_data = bytes::Bytes::from(decrypted_payload)
-                            .parse_struct::<domain::PaymentMethodVaultingData>(
-                                "PaymentMethodVaultingData",
-                            )
+                            .attach_printable("Failed to decrypt volatile payment method vault data")?.get_required_value("PaymentMethodVaultingData")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Error getting PaymentMethodVaultingData from tokenize response",
-                            )?;
+                            .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
 
-                        Ok(vault_data
+                        Ok(decrypted_payload
                             .encode_to_value()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize vault data")?)

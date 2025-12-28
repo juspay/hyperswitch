@@ -538,6 +538,7 @@ pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
     storage_type: Option<common_enums::StorageType>,
+    customer_id: Option<id_type::GlobalCustomerId>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -589,7 +590,7 @@ pub fn generate_payment_method_response(
 
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
-        customer_id: payment_method.customer_id.to_owned(),
+        customer_id,
         id: payment_method.id.to_owned(),
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
