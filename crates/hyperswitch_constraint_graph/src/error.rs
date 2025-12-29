@@ -21,13 +21,13 @@ pub enum AnalysisTrace<V: ValueNode> {
     },
 
     AllAggregation {
-        unsatisfied: Vec<Weak<Self<V>>>,
+        unsatisfied: Vec<Weak<Self>>,
         info: Option<&'static str>,
         metadata: Option<Arc<dyn Metadata>>,
     },
 
     AnyAggregation {
-        unsatisfied: Vec<Weak<Self<V>>>,
+        unsatisfied: Vec<Weak<Self>>,
         info: Option<&'static str>,
         metadata: Option<Arc<dyn Metadata>>,
     },

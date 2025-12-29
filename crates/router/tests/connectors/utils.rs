@@ -1150,6 +1150,8 @@ impl Default for TokenType {
             customer_acceptance: None,
             setup_mandate_details: None,
             payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }
