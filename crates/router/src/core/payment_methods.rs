@@ -2232,6 +2232,7 @@ pub async fn construct_payment_method_object(
         vault_type: None,
         created_by: None,
         last_modified_by: None,
+        payment_method_customer_details: None,
     })
 }
 
