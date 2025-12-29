@@ -5,8 +5,7 @@ use masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
-use crate::payments::UpiSource;
+use crate::{enums as api_enums, payments::UpiSource};
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
