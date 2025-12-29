@@ -15,6 +15,7 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -1446,6 +1447,18 @@ static TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Trustpay {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => match &request_data.payment_method_data {
+                payment_method_data::PaymentMethodData::Wallet(_) => true,
+                _ => false,
+            },
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&TRUSTPAY_CONNECTOR_INFO)
     }
