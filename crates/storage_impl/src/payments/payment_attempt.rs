@@ -430,8 +430,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         use hyperswitch_domain_models::behaviour::Conversion;
 
         let conn = pg_connection_read(self).await?;
-        let intents = try_join_all(pi.iter().cloned().map(|pi| async {
-            Conversion::convert(pi)
+        let intents = try_join_all(pi.iter().map(|pi| async {
+            Conversion::convert(pi.clone())
                 .await
                 .change_context(errors::StorageError::EncryptionError)
         }))

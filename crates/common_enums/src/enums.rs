@@ -3195,7 +3195,7 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",

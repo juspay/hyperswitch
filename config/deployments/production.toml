@@ -117,6 +117,7 @@ paybox.base_url = "https://ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://tpeweb.paybox.com/"
 payeezy.base_url = "https://api.payeezy.com/"
 payjustnow.base_url = "https://checkout.payjustnow.io/v2"
+payjustnowinstore.base_url = "https://api.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
@@ -170,7 +171,7 @@ worldpayvantiv.base_url = "https://transact.vantivcnp.com/vap/communicator/onlin
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivcnp.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com" # pre-live environment
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://secure.worldpay.com/shopper/3ds/challenge.html"
+worldpayxml.secondary_base_url = "https://centinelapi.cardinalcommerce.com/V2/Cruise/StepUp"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://secure.zift.io/"
 zen.base_url = "https://api.zen.com/"
@@ -863,6 +864,9 @@ apple_pay = {country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD
 [pm_filters.payjustnow]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
+[pm_filters.payjustnowinstore]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
 [payout_method_filters.adyenplatform]
 sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF,CAD,JPY" }
 credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP,CAD,JPY" }
@@ -899,7 +903,7 @@ redsys = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
-braintree = { long_lived_token = false, payment_method = "card" }
+braintree = { long_lived_token = false, payment_method = "card,wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 hipay = { long_lived_token = false, payment_method = "card" }

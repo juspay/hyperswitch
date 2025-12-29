@@ -364,11 +364,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
@@ -376,6 +374,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         F: 'b + Send,
     {
         let db = &*state.store;
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;

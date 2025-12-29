@@ -106,6 +106,7 @@ impl
                     .change_context(errors::ConnectorError::ParsingFailed)?,
                     connector_metadata: Some(connector_metadata),
                     directory_server_id: None,
+                    scheme_id: pre_authn_response.scheme,
                 })
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
