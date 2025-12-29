@@ -798,6 +798,42 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
     }
 }
 
+#[cfg(feature = "v1")]
+impl ForeignFrom<diesel_models::payment_attempt::ErrorDetails> for payments::PaymentErrorDetails {
+    fn foreign_from(details: diesel_models::payment_attempt::ErrorDetails) -> Self {
+        Self {
+            unified_details: details
+                .unified_details
+                .map(|u| payments::ApiUnifiedErrorDetails {
+                    category: u.category,
+                    message: u.message,
+                    standardised_code: u.standardised_code,
+                    description: u.description,
+                    user_guidance_message: u.user_guidance_message,
+                    recommended_action: u.recommended_action,
+                }),
+            issuer_details: details
+                .issuer_details
+                .map(|i| payments::ApiIssuerErrorDetails {
+                    code: i.code,
+                    message: i.message,
+                    network_details: i.network_details.map(|n| payments::ApiNetworkErrorDetails {
+                        name: n.name,
+                        advice_code: n.advice_code,
+                        advice_message: n.advice_message,
+                    }),
+                }),
+            connector_details: details.connector_details.map(|c| {
+                payments::ApiConnectorErrorDetails {
+                    code: c.code,
+                    message: c.message,
+                    reason: c.reason,
+                }
+            }),
+        }
+    }
+}
+
 impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorListResponse
 {

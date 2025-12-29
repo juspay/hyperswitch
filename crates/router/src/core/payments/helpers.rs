@@ -4908,6 +4908,7 @@ impl AttemptType {
             issuer_error_message: None,
             debit_routing_savings: None,
             is_overcapture_enabled: None,
+            error_details: None,
         }
     }
 

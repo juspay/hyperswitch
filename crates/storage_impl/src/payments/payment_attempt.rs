@@ -813,6 +813,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     extended_authorization_applied: payment_attempt.extended_authorization_applied,
                     extended_authorization_last_applied_at: payment_attempt
                         .extended_authorization_last_applied_at,
+                    error_details: payment_attempt.error_details.clone(),
                     capture_before: payment_attempt.capture_before,
                     card_discovery: payment_attempt.card_discovery,
                     charges: None,
