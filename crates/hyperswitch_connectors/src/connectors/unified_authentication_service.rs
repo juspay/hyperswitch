@@ -37,7 +37,6 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -144,8 +143,8 @@ impl ConnectorCommon for UnifiedAuthenticationService {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: NO_ERROR_CODE.to_owned(),
-            message: NO_ERROR_MESSAGE.to_owned(),
+            code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+            message: response.error.to_owned(),
             reason: Some(response.error),
             attempt_status: None,
             connector_transaction_id: None,

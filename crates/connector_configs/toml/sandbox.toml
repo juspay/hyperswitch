@@ -1411,6 +1411,86 @@ payment_method_type = "UnionPay"
 merchant_secret = "Source verification key"
 
 
+[braintree.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[braintree.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[braintree.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
+
+
+[[braintree.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+
+[[braintree.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+
+[[braintree.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+
+[[braintree.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
+
+
 [braintree.connector_auth.SignatureKey]
 api_key = "Public Key"
 key1 = "Merchant Id"
@@ -2698,6 +2778,18 @@ payment_method_type = "Visa"
 [jpmorgan.connector_auth.BodyKey]
 api_key = "Access Token"
 key1 = "Client Secret"
+[jpmorgan.metadata.company_name]
+name = "company_name"
+label = "Company Name"
+placeholder = "Enter the company name. Example: JPMC, Hyperswitch"
+required = true
+type = "Text"
+[jpmorgan.metadata.product_name]
+name = "product_name"
+label = "Product Name"
+placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
 
 [klarna]
 [[klarna.pay_later]]
@@ -3193,7 +3285,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector","Hyperswitch"]
 
 [[nmi.metadata.google_pay]]
 name = "merchant_name"
@@ -6867,48 +6959,16 @@ type="Text"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.credit]]
-  payment_method_type = "Mastercard"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "Visa"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "Interac"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "AmericanExpress"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "JCB"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "DinersClub"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "Discover"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "CartesBancaires"
-[[worldpayxml_payout.credit]]
-  payment_method_type = "UnionPay"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "Mastercard"
-[[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
 [[worldpayxml_payout.debit]]
-  payment_method_type = "Interac"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "AmericanExpress"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "JCB"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "DinersClub"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "Discover"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "CartesBancaires"
-[[worldpayxml_payout.debit]]
-  payment_method_type = "UnionPay"
+  payment_method_type = "Visa"
 [worldpayxml_payout.metadata.purpose_of_payment]
 name="purpose_of_payment"
 label="Purpose of Payment"
 placeholder="Select the purpose of payment"
 required=false
 type="Select"
-options=["Family Support", "Regular Labour Transfers", "Travel and Tourism", "Education", "Hospitalisation and Medical Treatment", "Emergency Need", "Savings", "Gifts", "Other", "Salary", "Crowd Lending", "Crypto Currency","Gaming Repayment", "Stock Market Proceeds","Refund to a original card", "Refund to a new card"]
+options=["Account management", "Transaction is the payment of allowance", "Settlement of annuity", "Unemployment disability benefit", "Business expenses", "Bonus payment", "Bus transport related business", "Cash management transfer", "Payment of cable TV bill", "Government institute issued related to cash compensation, helplessness, and disability", "Credit card payment", "Payment of credit card bill", "Payment for charity reasons", "Collection payment", "Commercial payment", "Commission", "Compensation relating to interest loss/value date adjustment and can include fees", "Payment of copyright", "Related to a debit card payment", "Payment of a deposit", "Payment of dividend", "Payment of study/tuition fees", "Energies", "General fees", "Payment for ferry related business", "Foreign exchange", "Payment of gas bill", "Compensation to unemployed persons during insolvency procedures", "Government payment", "Health insurance", "Reimbursement of credit card payment", "Reimbursement of debit card payment", "Payment of car insurance premium", "Transaction is related to the payment of an insurance claim", "Installment", "Insurance premium", "Payment of mutual funds, investment products and shares", "Intra company payment", "Interest", "Income tax", "Investment", "Labor insurance", "License fee", "Life insurance", "Loan", "Medical services" ,"Mobile P2B payment", "Mobile P2P payment", "Mobile top up", "Not otherwise specified", "Other", "Transaction is related to a payment of other telecom related bill", "Payroll", "Contribution to pension fund", "Pension payment", "Payment of telephone bill", "Property insurance", "Transaction is for general rental/lease", "The payment of rent", "Payment for railway transport related business", "Royalties", "Salary payment", "Payment to savings/retirement account", "Securities", "Social security benefit", "Study", "Subscription", "Supplier payment", "Refund of a tax payment or obligation", "Tax payment", "Transaction is related to a payment of telecommunications related bill", "Trade services operation", "Treasury payment", "Payment for travel", "Utility bill payment", "Value added tax payment", "With holding", "Payment of water bill"]
 
 [worldpayxml_payout.connector_auth.SignatureKey]
 api_secret="Merchant Code"
@@ -7810,3 +7870,9 @@ api_key = "API Key"
 [worldpaymodular]
 [worldpaymodular.connector_auth.HeaderKey]
 api_key = "API Key"
+[payjustnowinstore]
+[payjustnowinstore.connector_auth.BodyKey]
+  api_key = "Merchant API Key"
+  key1 = "Merchant Terminal Id"
+[[payjustnowinstore.pay_later]]
+  payment_method_type = "payjustnow"

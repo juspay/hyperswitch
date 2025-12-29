@@ -9,7 +9,7 @@ use common_enums::AuthorizationStatus;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
-    types::{ConnectorTransactionId, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -1471,7 +1471,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let additional_payment_method_data_intermediate = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
-        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => {
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
         _ => {
@@ -1553,13 +1554,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     }
                     None => {
                         let connector_name = router_data.connector.to_string();
-                        let flow_name = core_utils::get_flow_name::<F>()?;
+                        let sub_flow = core_utils::get_flow_name::<F>()?;
                         let option_gsm = payments_helpers::get_gsm_record(
                             state,
                             Some(err.code.clone()),
                             Some(err.message.clone()),
                             connector_name,
-                            flow_name.clone(),
+                            consts::PAYMENT_FLOW_STR,
+                            sub_flow.as_str(),
                         )
                         .await;
 
@@ -1598,13 +1600,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             None =>
                             // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
                             {
-                                if flow_name == "PSync" || flow_name == "ExtendAuthorization" {
+                                if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
                                     match err.status_code {
                                         // marking failure for 2xx because this is genuine payment failure
                                         200..=299 => enums::AttemptStatus::Failure,
                                         _ => router_data.status,
                                     }
-                                } else if flow_name == "Capture" {
+                                } else if sub_flow == "Capture" {
                                     match err.status_code {
                                         500..=511 => enums::AttemptStatus::Pending,
                                         // don't update the status for 429 error status
@@ -2189,10 +2191,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
 
     payment_data.payment_attempt = payment_attempt;
-
+    let key_manager_state: KeyManagerState = state.into();
     payment_data.authentication = match payment_data.authentication {
         Some(mut authentication_store) => {
-            let authentication_update = storage::AuthenticationUpdate::PostAuthorizationUpdate {
+            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
             let updated_authentication = state
@@ -2200,6 +2202,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .update_authentication_by_merchant_id_authentication_id(
                     authentication_store.authentication,
                     authentication_update,
+                    key_store,
+                    &key_manager_state,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

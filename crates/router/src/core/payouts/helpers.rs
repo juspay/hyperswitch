@@ -146,7 +146,8 @@ pub async fn make_payout_method_data(
                     payout_token.as_ref(),
                 )
                 .await
-                .attach_printable("Payout method [card] could not be fetched from HS locker")?;
+                .attach_printable("Payout method [card] could not be fetched from HS locker")?
+                .get_card();
                 Ok(Some({
                     api::PayoutMethodData::Card(api::CardPayout {
                         card_number: resp.card_number,
@@ -290,6 +291,7 @@ pub async fn save_payout_data_to_locker(
                     card_cvc: None,
                     nick_name: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     card_network: None,
                     card_issuer: None,
                     card_type: None,
@@ -526,6 +528,7 @@ pub async fn save_payout_data_to_locker(
                         api::payment_methods::CardDetailsPaymentMethod {
                             last4_digits: card_details.as_ref().map(|c| c.card_number.get_last4()),
                             issuer_country: card_info.card_issuing_country,
+                            issuer_country_code: card_info.country_code,
                             expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
                             expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
                             nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
@@ -547,6 +550,7 @@ pub async fn save_payout_data_to_locker(
                         api::payment_methods::CardDetailsPaymentMethod {
                             last4_digits: card_details.as_ref().map(|c| c.card_number.get_last4()),
                             issuer_country: None,
+                            issuer_country_code: None,
                             expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
                             expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
                             nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
@@ -1108,13 +1112,14 @@ pub async fn get_gsm_record(
     error_message: Option<String>,
     connector_name: Option<String>,
     flow: &str,
+    sub_flow: &str,
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
                 connector_name.clone(),
                 flow.to_string(),
-                "sub_flow".to_string(),
+                sub_flow.to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
@@ -1122,9 +1127,10 @@ pub async fn get_gsm_record(
             .map_err(|err| {
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
-                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        "GSM miss for connector - {}, flow - {}, sub_flow - {}, error_code - {:?}, error_message - {:?}",
                         connector_name,
                         flow,
+                        sub_flow,
                         error_code,
                         error_message
                     );

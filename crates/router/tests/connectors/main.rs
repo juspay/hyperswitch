@@ -88,6 +88,7 @@ mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;
+mod payjustnowinstore;
 mod payload;
 mod payme;
 mod payone;

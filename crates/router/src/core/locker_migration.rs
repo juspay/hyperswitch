@@ -121,7 +121,7 @@ pub async fn call_to_locker(
         .await;
 
         let card = match card {
-            Ok(card) => card,
+            Ok(card) => card.get_card(),
             Err(err) => {
                 logger::error!("Failed to fetch card from Basilisk HS locker : {:?}", err);
                 continue;
@@ -136,6 +136,7 @@ pub async fn call_to_locker(
             nick_name: card.nick_name.map(masking::Secret::new),
             card_cvc: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: None,
             card_issuer: None,
             card_type: None,
