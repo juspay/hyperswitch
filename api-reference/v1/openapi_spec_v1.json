@@ -16532,6 +16532,13 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "customer_document_number": {
+            "type": "string",
+            "description": "Document number of the customer",
+            "example": "doc_123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
