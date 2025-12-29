@@ -28263,6 +28263,14 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
           "payment_experience": {
             "allOf": [
               {
@@ -29851,6 +29859,14 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentErrorDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_experience": {
