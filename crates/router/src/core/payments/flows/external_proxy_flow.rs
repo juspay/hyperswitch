@@ -336,6 +336,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             Ok(Some(types::CreateOrderResult {
                 create_order_result: create_order_resp,
+                should_continue_further: should_continue_payment,
             }))
         } else {
             // If the connector does not require order creation, return None
