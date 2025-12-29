@@ -513,9 +513,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         should_continue_payment: bool,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
-        if connector
+        if (connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
+            || connector.connector.is_order_create_flow_required(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: &self.auth_type,
+                    request_data: &self.request,
+                },
+            ))
             && should_continue_payment
         {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -536,7 +542,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     response_data,
                 );
 
-            let resp = gateway::execute_payment_gateway(
+            let order_create_response_router_data = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &createorder_router_data,
@@ -548,7 +554,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await
             .to_payment_failed_response()?;
 
-            let create_order_resp = match &resp.response {
+            let order_create_response = order_create_response_router_data.response.clone();
+
+            let create_order_resp = match &order_create_response {
                 Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
                     types::CreateOrderResult {
                         create_order_result: Ok(order_id.clone()),
@@ -556,8 +564,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }
                 }
                 // Some connector return PreProcessingResponse and TransactionResponse response type
-                // Rest of the match statements are temporary fixes.
-                // Create Order response must always be PaymentsCreateOrderResponse only
+                // Rest of the match statements are temporary fixes for satisfying current connector side response handling
+                // Create Order response must always be PaymentsResponseData::PaymentsCreateOrderResponse only
                 Ok(types::PaymentsResponseData::PreProcessingResponse {
                     pre_processing_id,
                     session_token,
@@ -607,9 +615,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             };
             // persist order create response
             *self = helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
-                resp,
+                order_create_response_router_data,
                 self.request.clone(),
-                self.response.clone(),
+                order_create_response,
             );
             Ok(Some(create_order_resp))
         } else {

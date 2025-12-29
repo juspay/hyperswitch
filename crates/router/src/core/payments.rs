@@ -4132,7 +4132,7 @@ where
             // Set the response in routerdata response to carry forward
             router_data
                 .update_router_data_with_create_order_response(create_order_response.clone());
-            create_order_response.create_order_result.ok().is_some()
+            create_order_response.should_continue_further
         }
         // If create order is not required, then we can proceed with further processing
         None => should_continue_further,
@@ -4223,6 +4223,21 @@ where
         } else {
             (router_data, false)
         };
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If order create flow is bloated up for the current connector
+            // order create call would have already happened in the previous step.
+            config
+                .order_create_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        // If order create flow is bloated up for the current connector
+        // So skip calling complete_preprocessing_steps_if_required function
         (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
