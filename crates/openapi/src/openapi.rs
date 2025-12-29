@@ -482,6 +482,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::UpiSource,
         api_models::payments::UpiCollectData,
         api_models::payments::UpiIntentData,
         api_models::payments::UpiQrData,

@@ -4618,25 +4618,45 @@ pub enum UpiData {
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum UpiSource {
+    UpiCc,      // UPI Credit Card
+    UpiCl,      // UPI Credit Line
+    UpiAccount, // UPI Bank Account (Savings)
+    UpiCcCl,    // UPI Credit Card + Credit Line
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiQrData {}
+pub struct UpiQrData {
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct UpiIntentData {}
+pub struct UpiIntentData {
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {

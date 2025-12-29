@@ -6,6 +6,7 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use crate::enums as api_enums;
+use crate::payments::UpiSource;
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
@@ -349,6 +350,8 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+    #[smithy(value_type = "Option<UpiSource>")]
+    pub upi_source: Option<UpiSource>,
 }
 
 #[derive(

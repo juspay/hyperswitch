@@ -668,15 +668,33 @@ pub fn build_unified_connector_service_payment_method(
                 ) => {
                     let upi_details = payments_grpc::UpiCollect {
                         vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                        upi_source: upi_collect_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { app_name: None };
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(upi_intent_data) => {
+                    let upi_details = payments_grpc::UpiIntent {
+                        app_name: None,
+                        upi_source: upi_intent_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
+                    };
                     PaymentMethod::UpiIntent(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
-                    let upi_details = payments_grpc::UpiQr {};
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(upi_qr_data) => {
+                    let upi_details = payments_grpc::UpiQr {
+                        upi_source: upi_qr_data
+                            .upi_source
+                            .map(payments_grpc::UpiSource::foreign_try_from)
+                            .transpose()?
+                            .map(|upi_source| upi_source.into()),
+                    };
                     PaymentMethod::UpiQr(upi_details)
                 }
             };
