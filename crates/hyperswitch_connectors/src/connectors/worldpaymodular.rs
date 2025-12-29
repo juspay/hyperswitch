@@ -83,7 +83,7 @@ where
 
 impl ConnectorCommon for Worldpaymodular {
     fn id(&self) -> &'static str {
-        "Worldpaymodular"
+        "worldpaymodular"
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
@@ -522,6 +522,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(ConnectorError::FailedToObtainAuthType)?;
         let connector_req =
             WorldpaymodularPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
+        println!(
+            "hjkhjklhjkljkl {:?} ",
+            serde_json::to_string_pretty(&connector_req)
+        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

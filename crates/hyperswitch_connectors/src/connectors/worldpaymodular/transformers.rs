@@ -140,6 +140,7 @@ fn fetch_payment_instrument(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::Card(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::MobilePayment(_) => Err(ConnectorError::NotImplemented(
             get_unimplemented_payment_method_error_message("worldpaymodular"),
         )
