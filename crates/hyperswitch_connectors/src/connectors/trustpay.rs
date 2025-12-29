@@ -1452,10 +1452,10 @@ impl ConnectorSpecifications for Trustpay {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
-            } => match &request_data.payment_method_data {
-                payment_method_data::PaymentMethodData::Wallet(_) => true,
-                _ => false,
-            },
+            } => matches!(
+                &request_data.payment_method_data,
+                payment_method_data::PaymentMethodData::Wallet(_)
+            ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
