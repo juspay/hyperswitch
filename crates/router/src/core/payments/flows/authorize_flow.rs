@@ -513,15 +513,25 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         should_continue_payment: bool,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
+        let is_order_create_bloated_connector = connector.connector.is_order_create_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) && state
+            .conf
+            .preprocessing_flow_config
+            .as_ref()
+            .is_some_and(|config| {
+                // check order create flow is bloated up for the current connector
+                config
+                    .order_create_bloated_connectors
+                    .contains(&connector.connector_name)
+            });
         if (connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
-            || connector.connector.is_order_create_flow_required(
-                api_interface::CurrentFlowInfo::Authorize {
-                    auth_type: &self.auth_type,
-                    request_data: &self.request,
-                },
-            ))
+            || is_order_create_bloated_connector)
             && should_continue_payment
         {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
