@@ -4,8 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use rand::Rng;
-
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
@@ -42,6 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+use rand::Rng;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;

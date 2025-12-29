@@ -1,11 +1,12 @@
+use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::oidc as oidc_types;
+use router_env::{instrument, tracing, Flow};
+
 use crate::{
     core::api_locking,
     routes::app::AppState,
     services::{api, authentication as auth, oidc_provider},
 };
-use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::oidc as oidc_types;
-use router_env::{instrument, tracing, Flow};
 
 /// OpenID Connect Discovery Document
 #[instrument(skip_all, fields(flow = ?Flow::OidcDiscovery))]
