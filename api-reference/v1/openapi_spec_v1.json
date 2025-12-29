@@ -9065,6 +9065,51 @@
           }
         }
       },
+      "ApiConnectorErrorDetails": {
+        "type": "object",
+        "description": "Error details from the payment connector",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Connector-specific error code",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Connector-specific error message",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "description": "Additional error reason/details",
+            "nullable": true
+          }
+        }
+      },
+      "ApiIssuerErrorDetails": {
+        "type": "object",
+        "description": "Error details from the card issuer",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code from the issuer",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message from the issuer",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiNetworkErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ApiKeyExpiration": {
         "oneOf": [
           {
@@ -9078,6 +9123,72 @@
             "format": "date-time"
           }
         ]
+      },
+      "ApiNetworkErrorDetails": {
+        "type": "object",
+        "description": "Network-specific error details (e.g., Visa, Mastercard)",
+        "properties": {
+          "name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "advice_code": {
+            "type": "string",
+            "description": "Network advice code",
+            "nullable": true
+          },
+          "advice_message": {
+            "type": "string",
+            "description": "Network advice message",
+            "nullable": true
+          }
+        }
+      },
+      "ApiUnifiedErrorDetails": {
+        "type": "object",
+        "description": "Unified error details standardized across all payment connectors",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Error category",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "nullable": true
+          },
+          "standardised_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the error",
+            "nullable": true
+          },
+          "user_guidance_message": {
+            "type": "string",
+            "description": "User-friendly guidance message",
+            "nullable": true
+          },
+          "recommended_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecommendedAction"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ApplePayAddressParameters": {
         "type": "string",
@@ -24715,6 +24826,36 @@
           }
         }
       },
+      "PaymentErrorDetails": {
+        "type": "object",
+        "description": "Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.",
+        "properties": {
+          "unified_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiUnifiedErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiIssuerErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiConnectorErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentExperience": {
         "type": "string",
         "description": "To indicate the type of payment experience that the customer would go through",
@@ -33967,6 +34108,23 @@
             "nullable": true
           }
         }
+      },
+      "RecommendedAction": {
+        "type": "string",
+        "enum": [
+          "do_not_retry",
+          "retry_after10_days",
+          "retry_after1_hour",
+          "retry_after24_hours",
+          "retry_after2_days",
+          "retry_after4_days",
+          "retry_after6_days",
+          "retry_after8_days",
+          "retry_after_instrument_update",
+          "retry_later",
+          "retry_with_different_payment_method_data",
+          "stop_recurring"
+        ]
       },
       "ReconStatus": {
         "type": "string",
