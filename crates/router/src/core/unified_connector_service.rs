@@ -10,7 +10,7 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::X_FLOW_NAME,
+    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
     errors::CustomResult,
     ext_traits::ValueExt,
     id_type,
@@ -42,7 +42,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -701,6 +701,10 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
+                    }),
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented bank redirect type: {bank_redirect_data:?}"
             ))
@@ -766,6 +770,39 @@ pub fn build_unified_connector_service_payment_method(
                         }),
                     })),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(
+                    google_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GooglePayThirdPartySdk(
+                            payments_grpc::GooglePayThirdPartySdkWallet {
+                                token: google_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePayThirdPartySdk(
+                    apple_pay_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::ApplePayThirdPartySdk(
+                            payments_grpc::ApplePayThirdPartySdkWallet {
+                                token: apple_pay_sdk_data.token.map(|t| t.expose().into()),
+                            }
+                        )),
+                    })
+                },
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(
+                    paypal_sdk_data,
+                ) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::PaypalSdk(
+                            payments_grpc::PaypalSdkWallet {
+                                token: Some(paypal_sdk_data.token.into()),
+                            }
+                        )),
+                    })
+                },
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
@@ -1694,6 +1731,9 @@ where
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
 
+    let connector_name = hyperswitch_router_data.connector.clone();
+    let sub_flow_name = get_flow_name::<F>().ok();
+
     let [hyperswitch_data, unified_connector_service_data] = [
         (hyperswitch_router_data, "hyperswitch"),
         (unified_connector_service_router_data, "ucs"),
@@ -1713,7 +1753,7 @@ where
         hyperswitch_data,
         unified_connector_service_data,
     };
-    let _ = send_comparison_data(state, comparison_data)
+    let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
         .await
         .map_err(|e| {
             logger::debug!("Failed to send comparison data: {:?}", e);
@@ -1725,6 +1765,8 @@ where
 pub async fn send_comparison_data(
     state: &SessionState,
     comparison_data: ComparisonData,
+    connector_name: String,
+    sub_flow_name: Option<String>,
 ) -> RouterResult<()> {
     // Check if comparison service is enabled
     let comparison_config = match state.conf.comparison_service.as_ref() {
@@ -1744,6 +1786,13 @@ pub async fn send_comparison_data(
         .header(X_FLOW_NAME, "router-data")
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
+
+    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
+
+    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
+        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
+    }
+
     if let Some(req_id) = &state.request_id {
         request.add_header(X_REQUEST_ID, masking::Maskable::Normal(req_id.to_string()));
     }

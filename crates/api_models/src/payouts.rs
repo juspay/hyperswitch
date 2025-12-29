@@ -1124,3 +1124,54 @@ pub struct PayoutsAggregateResponse {
     /// The list of intent status with their count
     pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateRequest {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = Option<PayoutStatus>)]
+    pub status: Option<api_enums::PayoutStatus>,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
+}
+
+impl PayoutsManualUpdateRequest {
+    pub fn is_update_parameter_present(&self) -> bool {
+        self.status.is_some()
+            || self.error_code.is_some()
+            || self.error_message.is_some()
+            || self.connector_payout_id.is_some()
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateResponse {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = PayoutStatus)]
+    pub attempt_status: api_enums::PayoutStatus,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
+}
