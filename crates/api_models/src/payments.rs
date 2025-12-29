@@ -197,6 +197,11 @@ pub struct CustomerDetailsResponse {
     #[schema(max_length = 2, example = "+1")]
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
+
+    /// Document number of the customer
+    #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
+    #[smithy(value_type = "Option<String>")]
+    pub customer_document_number: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

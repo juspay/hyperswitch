@@ -1815,7 +1815,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|e| e.clone().expose().switch_strategy()),
                             phone: request_customer_details.phone.clone(),
                             tax_registration_id: None,
-                            customer_document_number: None,
+                            customer_document_number: request_customer_details
+                                .customer_document_number
+                                .clone(),
                         },
                     ),
                 ),
@@ -1838,6 +1840,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         | request_customer_details.phone.is_some()
                         | request_customer_details.phone_country_code.is_some()
                         | request_customer_details.tax_registration_id.is_some()
+                        | request_customer_details.customer_document_number.is_some()
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,

@@ -1873,10 +1873,19 @@ where
         .attach_printable("Unable to decode payment method customer details")?
         .map(|encryptable| encryptable.into_inner());
 
-    // check for customer_document_number in payment_methods, if not present then check in payment intent
+    // check for customer_document_number in payment_methods, if not present then check in payment intent and finally in customer table
+
+    let document_number = customer.as_ref().and_then(|customer_data| {
+        customer_data
+            .customer_document_number
+            .as_ref()
+            .map(|document_number| document_number.clone().into_inner())
+    });
+
     let customer_document_number = payment_method_customer_details
         .and_then(|d| d.customer_document_number)
-        .or(payment_data.payment_intent.get_customer_document_number());
+        .or(payment_data.payment_intent.get_customer_document_number())
+        .or(document_number.clone());
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -3609,6 +3618,17 @@ where
                             .or(customer
                                 .as_ref()
                                 .and_then(|customer| customer.phone_country_code.clone()))),
+                    customer_document_number: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.customer_document_number.clone())
+                        .or(customer_details_encrypted_data
+                            .customer_document_number
+                            .or(customer.as_ref().and_then(|customer| {
+                                customer
+                                    .customer_document_number
+                                    .as_ref()
+                                    .map(|doc_num| doc_num.clone().into_inner())
+                            }))),
                 })
             } else {
                 customer_table_response
@@ -4244,7 +4264,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                             name: parsed_data.name,
                             phone: parsed_data.phone,
                             email: parsed_data.email,
-                            phone_country_code:parsed_data.phone_country_code
+                            phone_country_code:parsed_data.phone_country_code,
+                            customer_document_number: parsed_data.customer_document_number
                     }),
                     Err(e) => {
                         router_env::logger::error!("Failed to parse 'CustomerDetailsResponse' from payment method data. Error: {e:?}");
