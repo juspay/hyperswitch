@@ -1,18 +1,17 @@
-use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
-
 use crate::{
     core::api_locking,
     routes::app::AppState,
     services::{api, authentication as auth, oidc_provider},
 };
+use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::oidc as oidc_types;
+use router_env::{instrument, tracing, Flow};
 
 /// OpenID Connect Discovery Document
 #[instrument(skip_all, fields(flow = ?Flow::OidcDiscovery))]
 pub async fn oidc_discovery(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::OidcDiscovery;
     Box::pin(api::server_wrap(
-        flow,
+        Flow::OidcDiscovery,
         state,
         &req,
         (),
@@ -26,9 +25,8 @@ pub async fn oidc_discovery(state: web::Data<AppState>, req: HttpRequest) -> Htt
 /// JWKS Endpoint - Exposes public keys for ID token verification
 #[instrument(skip_all, fields(flow = ?Flow::OidcJwks))]
 pub async fn jwks_endpoint(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::OidcJwks;
     Box::pin(api::server_wrap(
-        flow,
+        Flow::OidcJwks,
         state,
         &req,
         (),
@@ -43,18 +41,17 @@ pub async fn jwks_endpoint(state: web::Data<AppState>, req: HttpRequest) -> Http
 pub async fn oidc_authorize(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query_params: web::Query<api_models::oidc::OidcAuthorizeQuery>,
+    query_params: web::Query<oidc_types::OidcAuthorizeQuery>,
 ) -> HttpResponse {
-    let flow = Flow::OidcAuthorize;
     Box::pin(api::server_wrap(
-        flow,
+        Flow::OidcAuthorize,
         state,
         &req,
         query_params.into_inner(),
         |state,
          user: Option<auth::UserFromToken>,
-         req_payload: api_models::oidc::OidcAuthorizeQuery,
-         _| { oidc_provider::process_authorize_request(state, req_payload, user) },
+         req_payload: oidc_types::OidcAuthorizeQuery,
+         _| oidc_provider::process_authorize_request(state, req_payload, user),
         auth::auth_type(
             &auth::NoAuth,
             &auth::DashboardNoPermissionAuth,
@@ -69,11 +66,10 @@ pub async fn oidc_authorize(
 pub async fn oidc_token(
     state: web::Data<AppState>,
     req: HttpRequest,
-    form_data: web::Form<api_models::oidc::OidcTokenRequest>,
+    form_data: web::Form<oidc_types::OidcTokenRequest>,
 ) -> HttpResponse {
-    let flow = Flow::OidcToken;
     Box::pin(api::server_wrap(
-        flow,
+        Flow::OidcToken,
         state,
         &req,
         form_data.into_inner(),

@@ -749,11 +749,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
-            Self::OidcAuthorizationError { error, description } => {
-                AER::BadRequest(ApiError::new("IR", 52, format!("{error}: {description}"), None))
+            Self::OidcAuthorizationError { error, .. } => {
+                AER::BadRequest(ApiError::new("IR", 52, format!("{error}: {}", error.description()), None))
             }
-            Self::OidcTokenError { error, description } => {
-                AER::BadRequest(ApiError::new("IR", 53, format!("{error}: {description}"), None))
+            Self::OidcTokenError { error, .. } => {
+                AER::BadRequest(ApiError::new("IR", 53, format!("{error}: {}", error.description()), None))
             }
         }
     }

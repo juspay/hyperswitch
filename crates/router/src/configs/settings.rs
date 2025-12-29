@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use rand::Rng;
+
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
@@ -728,7 +730,13 @@ impl OidcSettings {
     }
 
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        self.key.values().next()
+        let len = self.key.len();
+        if len == 0 {
+            return None;
+        }
+        let mut rng = rand::thread_rng();
+        let random_index = rng.gen_range(0..len);
+        self.key.values().nth(random_index)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {

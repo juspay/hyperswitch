@@ -120,6 +120,20 @@ pub enum OidcAuthorizationError {
     TemporarilyUnavailable,
 }
 
+impl OidcAuthorizationError {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
+            Self::UnauthorizedClient => "The client is not authorized to request an authorization code using this method",
+            Self::AccessDenied => "The resource owner or authorization server denied the request",
+            Self::UnsupportedResponseType => "The authorization server does not support obtaining an authorization code using this method",
+            Self::InvalidScope => "The requested scope is invalid, unknown, or malformed",
+            Self::ServerError => "The authorization server encountered an unexpected condition that prevented it from fulfilling the request",
+            Self::TemporarilyUnavailable => "The authorization server is currently unable to handle the request due to a temporary overloading or maintenance of the server",
+        }
+    }
+}
+
 /// OIDC Token Error as per RFC 6749
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
@@ -131,6 +145,19 @@ pub enum OidcTokenError {
     UnauthorizedClient,
     UnsupportedGrantType,
     InvalidScope,
+}
+
+impl OidcTokenError {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
+            Self::InvalidClient => "Client authentication failed",
+            Self::InvalidGrant => "The provided authorization grant is invalid, expired, revoked, or does not match the redirection URI used in the authorization request",
+            Self::UnauthorizedClient => "The authenticated client is not authorized to use this authorization grant type",
+            Self::UnsupportedGrantType => "The authorization grant type is not supported by the authorization server",
+            Self::InvalidScope => "The requested scope is invalid, unknown, or malformed",
+        }
+    }
 }
 
 /// OpenID Connect Discovery Response

@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use api_models::{
     oidc::{
         Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
@@ -10,6 +12,7 @@ use common_utils::pii;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
+use router_env::logger;
 
 use crate::{
     consts::oidc::{
@@ -17,7 +20,7 @@ use crate::{
     },
     core::errors::{ApiErrorResponse, RouterResponse},
     routes::app::SessionState,
-    services::{api::ApplicationResponse, authentication::UserFromToken},
+    services::{api::ApplicationResponse, authentication::UserFromToken, jwt},
     types::domain::user::oidc::{AccessTokenClaims, AuthCodeData, IdTokenClaims},
     utils::{oidc as oidc_utils, user as user_utils},
 };
@@ -65,14 +68,15 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<&'static JwksRespon
         .map(ApplicationResponse::Json)
 }
 
-pub fn validate_authorize_params(
+fn validate_authorize_params(
     payload: &OidcAuthorizeQuery,
     state: &SessionState,
 ) -> error_stack::Result<(), ApiErrorResponse> {
     if !payload.scope.contains(&Scope::Openid) {
+        let error = OidcAuthorizationError::InvalidScope;
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            error: OidcAuthorizationError::InvalidScope,
-            description: "Missing required 'openid' scope".into(),
+            error,
+            description: error.description().into(),
         }));
     }
     let client = state
@@ -81,23 +85,25 @@ pub fn validate_authorize_params(
         .get_inner()
         .get_client(&payload.client_id)
         .ok_or_else(|| {
+            let error = OidcAuthorizationError::UnauthorizedClient;
             report!(ApiErrorResponse::OidcAuthorizationError {
-                error: OidcAuthorizationError::UnauthorizedClient,
-                description: "Unknown client_id".into(),
+                error,
+                description: error.description().into(),
             })
         })?;
 
     if !oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
+        let error = OidcAuthorizationError::InvalidRequest;
         return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            error: OidcAuthorizationError::InvalidRequest,
-            description: "redirect_uri mismatch".into(),
+            error,
+            description: error.description().into(),
         }));
     }
 
     Ok(())
 }
 
-pub async fn generate_and_store_authorization_code(
+async fn generate_and_store_authorization_code(
     state: &SessionState,
     user_id: &str,
     payload: &OidcAuthorizeQuery,
@@ -139,15 +145,13 @@ pub async fn process_authorize_request(
     // Validate all parameters
     validate_authorize_params(&payload, &state)?;
     // TODO: Handle users who are not already logged in
-    let user = match user {
-        None => {
-            return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-                error: OidcAuthorizationError::AccessDenied,
-                description: "User not authenticated".into(),
-            }));
-        }
-        Some(user) => user,
-    };
+    let user = user.ok_or_else(|| {
+        let error = OidcAuthorizationError::AccessDenied;
+        report!(ApiErrorResponse::OidcAuthorizationError {
+            error,
+            description: error.description().into(),
+        })
+    })?;
 
     let auth_code = generate_and_store_authorization_code(&state, &user.user_id, &payload).await?;
 
@@ -158,10 +162,10 @@ pub async fn process_authorize_request(
     {
         Ok(ApplicationResponse::JsonForRedirection(
             RedirectionResponse {
-                headers: Vec::with_capacity(0),
+                headers: Vec::new(),
                 return_url: String::new(),
                 http_method: String::new(),
-                params: Vec::with_capacity(0),
+                params: Vec::new(),
                 return_url_with_query_params: redirect_url,
             },
         ))
@@ -177,15 +181,16 @@ pub async fn process_authorize_request(
     }
 }
 
-pub fn validate_token_request(
+fn validate_token_request(
     state: &SessionState,
     client_id: &str,
     redirect_uri: &str,
 ) -> error_stack::Result<(), ApiErrorResponse> {
     if redirect_uri.trim().is_empty() {
+        let error = OidcTokenError::InvalidRequest;
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            error: OidcTokenError::InvalidRequest,
-            description: "redirect_uri is required".into(),
+            error,
+            description: error.description().into(),
         }));
     }
 
@@ -195,23 +200,25 @@ pub fn validate_token_request(
         .get_inner()
         .get_client(client_id)
         .ok_or_else(|| {
+            let error = OidcTokenError::InvalidClient;
             report!(ApiErrorResponse::OidcTokenError {
-                error: OidcTokenError::InvalidClient,
-                description: "Unknown client_id".into(),
+                error,
+                description: error.description().into(),
             })
         })?;
 
     if !oidc_utils::validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
+        let error = OidcTokenError::InvalidRequest;
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            error: OidcTokenError::InvalidRequest,
-            description: "redirect_uri mismatch".into(),
+            error,
+            description: error.description().into(),
         }));
     }
 
     Ok(())
 }
 
-pub async fn validate_and_consume_authorization_code(
+async fn validate_and_consume_authorization_code(
     state: &SessionState,
     code: &str,
     client_id: &str,
@@ -220,29 +227,43 @@ pub async fn validate_and_consume_authorization_code(
     let auth_code_data = oidc_utils::get_auth_code_from_redis(state, code).await?;
 
     if !oidc_utils::validate_client_id_match(&auth_code_data.client_id, client_id) {
+        let error = OidcTokenError::InvalidGrant;
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            error: OidcTokenError::InvalidGrant,
-            description: "client_id mismatch".into(),
+            error,
+            description: error.description().into(),
         }));
     }
 
     if !oidc_utils::validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
+        let error = OidcTokenError::InvalidGrant;
         return Err(report!(ApiErrorResponse::OidcTokenError {
-            error: OidcTokenError::InvalidGrant,
-            description: "redirect_uri mismatch".into(),
+            error,
+            description: error.description().into(),
         }));
     }
 
-    oidc_utils::delete_auth_code_from_redis(state, code).await?;
+    if let Err(err) = oidc_utils::delete_auth_code_from_redis(state, code).await {
+        logger::warn!(
+            error = ?err,
+            "Failed to delete authorization code from Redis after consumption"
+        );
+    }
 
     Ok(auth_code_data)
 }
 
-pub async fn generate_id_token(
+async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let (now, exp) = oidc_utils::generate_oidc_now_and_exp(ID_TOKEN_TTL_IN_SECS)?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .change_context(ApiErrorResponse::InternalServerError)?
+        .as_secs();
+    let exp_duration = Duration::from_secs(ID_TOKEN_TTL_IN_SECS);
+    let exp = jwt::generate_exp(exp_duration)
+        .change_context(ApiErrorResponse::InternalServerError)?
+        .as_secs();
 
     let include_email_claims = auth_code_data.scope.contains(&Scope::Email);
     let include_profile_claims = auth_code_data.scope.contains(&Scope::Profile);
@@ -263,11 +284,18 @@ pub async fn generate_id_token(
     oidc_utils::sign_oidc_token(state, claims, "ID token").await
 }
 
-pub async fn generate_access_token(
+async fn generate_access_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
 ) -> error_stack::Result<String, ApiErrorResponse> {
-    let (now, exp) = oidc_utils::generate_oidc_now_and_exp(ACCESS_TOKEN_TTL_IN_SECS)?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .change_context(ApiErrorResponse::InternalServerError)?
+        .as_secs();
+    let exp_duration = Duration::from_secs(ACCESS_TOKEN_TTL_IN_SECS);
+    let exp = jwt::generate_exp(exp_duration)
+        .change_context(ApiErrorResponse::InternalServerError)?
+        .as_secs();
 
     let include_profile_claims = auth_code_data.scope.contains(&Scope::Profile);
 
