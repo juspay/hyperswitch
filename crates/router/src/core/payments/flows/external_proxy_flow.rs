@@ -351,12 +351,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         match create_order_result.create_order_result {
             Ok(order_id) => {
                 self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-            Err(err) => {
-                self.response = Err(err.clone());
-            }
+            Err(_err) => (),
         }
     }
 
