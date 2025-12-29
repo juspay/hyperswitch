@@ -4228,6 +4228,10 @@ where
     {
         // If order create flow is bloated up for the current connector
         // So skip calling complete_preprocessing_steps_if_required function
+        logger::info!(
+            "skipping preprocessing steps for connector: {}",
+            connector.connector_name
+        );
         (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
