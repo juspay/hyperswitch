@@ -1,5 +1,4 @@
-use hyperswitch_domain_models::router_request_types::*;
-use hyperswitch_domain_models::router_response_types::*;
+use hyperswitch_domain_models::{router_request_types::*, router_response_types::*};
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};

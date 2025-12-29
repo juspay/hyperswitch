@@ -2,45 +2,43 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::payments::PaymentIdType;
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
 use common_enums::enums;
-use common_utils::request::{Method, Request, RequestContent};
 use common_utils::{
     crypto,
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    request::RequestBuilder,
+    request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use hyperswitch_domain_models::router_data::{
-    AccessToken, ConnectorAuthType, ErrorResponse, RouterData,
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::*,
+    router_request_types::*,
+    router_response_types::*,
+    types::*,
 };
-use hyperswitch_domain_models::router_flow_types::*;
-use hyperswitch_domain_models::{router_request_types::*, router_response_types::*, types::*};
-use hyperswitch_interfaces::api::*;
-use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
 use hyperswitch_interfaces::{
-    api::{ConnectorCommonExt, ConnectorIntegration},
+    api::{ConnectorCommonExt, ConnectorIntegration, *},
     configs::Connectors,
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::*,
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-
-use error_stack::ResultExt;
 use masking::{Mask, Maskable};
-
 use transformers::*;
 
-use crate::connectors::worldpaymodular::transformers::request::{
-    WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
-};
-use crate::types::ResponseRouterData;
-use crate::utils::RefundsRequestData as _;
 use crate::{
+    connectors::worldpaymodular::transformers::request::{
+        WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
+    },
     constants::headers,
-    utils::{self},
+    types::ResponseRouterData,
+    utils::{
+        RefundsRequestData as _, {self},
+    },
 };
 
 #[derive(Clone)]
