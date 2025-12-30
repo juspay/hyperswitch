@@ -1868,6 +1868,37 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+pub async fn retrieve_key_and_ttl_for_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_token: String,
+    payment_method: common_enums::PaymentMethod,
+) -> RouterResult<i64> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc",);
+
+    // check if key exists and get ttl
+    redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?;
+
+    let ttl = redis_conn
+        .get_ttl(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token ttl from redis")?;
+
+    Ok(ttl)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
 pub async fn delete_payment_token(
     state: &routes::SessionState,
     key_for_token: &str,

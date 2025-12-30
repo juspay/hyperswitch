@@ -3501,7 +3501,8 @@ pub struct PaymentMethodSessionResponse {
 
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
 
     /// The token-id created if there is tokenization_data present
     #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]

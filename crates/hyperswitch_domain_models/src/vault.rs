@@ -102,7 +102,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
     fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
         match item {
-            payment_methods::PaymentMethodCreateData::Card(card) => Ok(Self::Card(card)),
+            payment_methods::PaymentMethodCreateData::Card(card) => {
+                Ok(Self::Card(payment_methods::CardDetail {
+                    card_cvc: None,
+                    ..card
+                }))
+            }
             payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "Proxy Card for PaymentMethodCreateData".to_string(),
