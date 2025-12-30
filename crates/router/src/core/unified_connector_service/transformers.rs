@@ -1787,6 +1787,7 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
+            // TODO: pass mandate_reference_id by replacing mandate_reference
             mandate_reference_id: None,
             amount: router_data.request.amount,
             currency: currency.into(),
