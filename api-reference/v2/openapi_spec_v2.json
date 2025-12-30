@@ -27722,6 +27722,7 @@
         "properties": {
           "vpa_id": {
             "type": "string",
+            "description": "The Virtual Payment Address (VPA) for UPI collect payment",
             "example": "successtest@iata",
             "nullable": true
           },
