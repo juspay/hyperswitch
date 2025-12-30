@@ -1210,7 +1210,7 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                 }),
                 metadata: None,
                 tax_registration_id: None,
-                customer_document_number: None,
+                document_number: None,
             },
             connector_customer_details,
         })

@@ -57,7 +57,7 @@ pub struct CustomerRequest {
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
-    pub customer_document_number: Option<Secret<String>>,
+    pub document_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
@@ -145,7 +145,7 @@ pub struct CustomerRequest {
     pub tax_registration_id: Option<Secret<String>>,
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
-    pub customer_document_number: Option<Secret<String>>,
+    pub document_number: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -221,7 +221,7 @@ pub struct CustomerResponse {
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
-    pub customer_document_number: crypto::OptionalEncryptableSecretString,
+    pub document_number: crypto::OptionalEncryptableSecretString,
 }
 
 #[cfg(feature = "v1")]
@@ -286,7 +286,7 @@ pub struct CustomerResponse {
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
-    pub customer_document_number: crypto::OptionalEncryptableSecretString,
+    pub document_number: crypto::OptionalEncryptableSecretString,
 }
 
 #[cfg(feature = "v2")]
@@ -389,7 +389,7 @@ pub struct CustomerUpdateRequest {
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
-    pub customer_document_number: Option<Secret<String>>,
+    pub document_number: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -437,7 +437,7 @@ pub struct CustomerUpdateRequest {
     pub tax_registration_id: Option<Secret<String>>,
     /// Document number of the customer
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
-    pub customer_document_number: Option<Secret<String>>,
+    pub document_number: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

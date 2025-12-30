@@ -1636,7 +1636,7 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let customer_document_number = request
+    let document_number = request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.customer_document_number.clone());
@@ -1648,7 +1648,7 @@ pub fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
-        customer_document_number,
+        document_number,
     }
 }
 
@@ -1727,7 +1727,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             phone: request_customer_details.phone.clone(),
             phone_country_code: request_customer_details.phone_country_code.clone(),
             tax_registration_id: request_customer_details.tax_registration_id.clone(),
-            customer_document_number: request_customer_details.customer_document_number.clone(),
+            customer_document_number: request_customer_details.document_number.clone(),
         })
     } else {
         None
@@ -1770,7 +1770,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 .clone()
                 .or(parsed_customer_data.tax_registration_id.clone()),
             customer_document_number: request_customer_details
-                .customer_document_number
+                .document_number
                 .clone()
                 .or(parsed_customer_data.customer_document_number.clone()),
         })
@@ -1815,9 +1815,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|e| e.clone().expose().switch_strategy()),
                             phone: request_customer_details.phone.clone(),
                             tax_registration_id: None,
-                            customer_document_number: request_customer_details
-                                .customer_document_number
-                                .clone(),
+                            document_number: request_customer_details.document_number.clone(),
                         },
                     ),
                 ),
@@ -1840,7 +1838,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         | request_customer_details.phone.is_some()
                         | request_customer_details.phone_country_code.is_some()
                         | request_customer_details.tax_registration_id.is_some()
-                        | request_customer_details.customer_document_number.is_some()
+                        | request_customer_details.document_number.is_some()
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
@@ -1860,9 +1858,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
-                            customer_document_number: Box::new(
-                                encryptable_customer.customer_document_number,
-                            ),
+                            document_number: Box::new(encryptable_customer.document_number),
                             last_modified_by: None,
                         };
 
@@ -1905,7 +1901,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
-                        customer_document_number: encryptable_customer.customer_document_number,
+                        document_number: encryptable_customer.document_number,
                         // TODO: Populate created_by from authentication context once it is integrated in auth data
                         created_by: None,
                         last_modified_by: None, // Same as created_by on creation

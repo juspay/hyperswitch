@@ -50,7 +50,7 @@ pub struct Customer {
     #[encrypt]
     pub tax_registration_id: Option<Encryptable<Secret<String>>>,
     #[encrypt]
-    pub customer_document_number: Option<Encryptable<Secret<String>>>,
+    pub document_number: Option<Encryptable<Secret<String>>>,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
 }
@@ -82,7 +82,7 @@ pub struct Customer {
     #[encrypt]
     pub tax_registration_id: Option<Encryptable<Secret<String>>>,
     #[encrypt]
-    pub customer_document_number: Option<Encryptable<Secret<String>>>,
+    pub document_number: Option<Encryptable<Secret<String>>>,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
 }
@@ -172,7 +172,7 @@ impl behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            customer_document_number: self.customer_document_number.map(Encryption::from),
+            document_number: self.document_number.map(Encryption::from),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             last_modified_by: self
                 .last_modified_by
@@ -198,7 +198,7 @@ impl behaviour::Conversion for Customer {
                     phone: item.phone.clone(),
                     email: item.email.clone(),
                     tax_registration_id: item.tax_registration_id.clone(),
-                    customer_document_number: item.customer_document_number.clone(),
+                    document_number: item.document_number.clone(),
                 },
             )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
@@ -238,7 +238,7 @@ impl behaviour::Conversion for Customer {
             updated_by: item.updated_by,
             version: item.version,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            customer_document_number: encryptable_customer.customer_document_number,
+            document_number: encryptable_customer.document_number,
             created_by: item
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
@@ -266,7 +266,7 @@ impl behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            customer_document_number: self.customer_document_number.map(Encryption::from),
+            document_number: self.document_number.map(Encryption::from),
             created_by: self
                 .created_by
                 .as_ref()
@@ -302,7 +302,7 @@ impl behaviour::Conversion for Customer {
             version: self.version,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            customer_document_number: self.customer_document_number.map(Encryption::from),
+            document_number: self.document_number.map(Encryption::from),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             last_modified_by: self
                 .last_modified_by
@@ -328,7 +328,7 @@ impl behaviour::Conversion for Customer {
                     phone: item.phone.clone(),
                     email: item.email.clone(),
                     tax_registration_id: item.tax_registration_id.clone(),
-                    customer_document_number: item.customer_document_number.clone(),
+                    document_number: item.document_number.clone(),
                 },
             )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
@@ -371,7 +371,7 @@ impl behaviour::Conversion for Customer {
             version: item.version,
             status: item.status,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            customer_document_number: encryptable_customer.customer_document_number,
+            document_number: encryptable_customer.document_number,
             created_by: item
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
@@ -403,7 +403,7 @@ impl behaviour::Conversion for Customer {
             version: common_types::consts::API_VERSION,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
-            customer_document_number: self.customer_document_number.map(Encryption::from),
+            document_number: self.document_number.map(Encryption::from),
             created_by: self
                 .created_by
                 .as_ref()
@@ -428,7 +428,7 @@ pub struct CustomerGeneralUpdate {
     pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
     pub status: Option<DeleteStatus>,
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
-    pub customer_document_number: crypto::OptionalEncryptableSecretString,
+    pub document_number: crypto::OptionalEncryptableSecretString,
     pub last_modified_by: Option<String>,
 }
 
@@ -464,7 +464,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                     default_payment_method_id,
                     status,
                     tax_registration_id,
-                    customer_document_number,
+                    document_number,
                     last_modified_by,
                 } = *update;
                 Self {
@@ -482,7 +482,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                     updated_by: None,
                     status,
                     tax_registration_id: tax_registration_id.map(Encryption::from),
-                    customer_document_number: customer_document_number.map(Encryption::from),
+                    document_number: document_number.map(Encryption::from),
                     last_modified_by,
                 }
             }
@@ -504,7 +504,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_shipping_address: None,
                 status: None,
                 tax_registration_id: None,
-                customer_document_number: None,
+                document_number: None,
                 last_modified_by,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
@@ -525,7 +525,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_shipping_address: None,
                 status: None,
                 tax_registration_id: None,
-                customer_document_number: None,
+                document_number: None,
                 last_modified_by,
             },
         }
@@ -545,7 +545,7 @@ pub enum CustomerUpdate {
         connector_customer: Box<Option<pii::SecretSerdeValue>>,
         address_id: Option<String>,
         tax_registration_id: crypto::OptionalEncryptableSecretString,
-        customer_document_number: Box<crypto::OptionalEncryptableSecretString>,
+        document_number: Box<crypto::OptionalEncryptableSecretString>,
         last_modified_by: Option<String>,
     },
     ConnectorCustomer {
@@ -572,7 +572,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 connector_customer,
                 address_id,
                 tax_registration_id,
-                customer_document_number,
+                document_number,
                 last_modified_by,
             } => Self {
                 name: name.map(Encryption::from),
@@ -587,7 +587,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_payment_method_id: None,
                 updated_by: None,
                 tax_registration_id: tax_registration_id.map(Encryption::from),
-                customer_document_number: customer_document_number.map(Encryption::from),
+                document_number: document_number.map(Encryption::from),
                 last_modified_by,
             },
             CustomerUpdate::ConnectorCustomer {
@@ -606,7 +606,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 updated_by: None,
                 address_id: None,
                 tax_registration_id: None,
-                customer_document_number: None,
+                document_number: None,
                 last_modified_by,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
@@ -625,7 +625,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 updated_by: None,
                 address_id: None,
                 tax_registration_id: None,
-                customer_document_number: None,
+                document_number: None,
                 last_modified_by,
             },
         }

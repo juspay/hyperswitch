@@ -1883,7 +1883,7 @@ where
 
     let document_number = customer.as_ref().and_then(|customer_data| {
         customer_data
-            .customer_document_number
+            .document_number
             .as_ref()
             .map(|document_number| document_number.clone().into_inner())
     });
@@ -3633,7 +3633,7 @@ where
                             .customer_document_number
                             .or(customer.as_ref().and_then(|customer| {
                                 customer
-                                    .customer_document_number
+                                    .document_number
                                     .as_ref()
                                     .map(|doc_num| doc_num.clone().into_inner())
                             }))),
@@ -6309,7 +6309,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
-            customer_document_number: customer.customer_document_number,
+            document_number: customer.customer_document_number,
         }
     }
 }

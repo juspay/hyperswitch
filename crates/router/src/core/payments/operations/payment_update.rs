@@ -1004,7 +1004,7 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                 .tax_registration_id
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
             customer_document_number: value
-                .customer_document_number
+                .document_number
                 .map(|customer_document_number| customer_document_number.into_inner()),
         })
     }

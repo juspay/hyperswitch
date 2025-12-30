@@ -822,9 +822,7 @@ pub(super) async fn get_or_create_customer_details(
                                     .map(|a| a.expose().switch_strategy()),
                                 phone: customer_details.phone.clone(),
                                 tax_registration_id: customer_details.tax_registration_id.clone(),
-                                customer_document_number: customer_details
-                                    .customer_document_number
-                                    .clone(),
+                                document_number: customer_details.document_number.clone(),
                             },
                         ),
                     ),
@@ -866,7 +864,7 @@ pub(super) async fn get_or_create_customer_details(
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    customer_document_number: encryptable_customer.customer_document_number,
+                    document_number: encryptable_customer.document_number,
                     // TODO: Populate created_by from authentication context once it is integrated in auth data
                     created_by: None,
                     last_modified_by: None, // Same as created_by on creation
@@ -1429,7 +1427,7 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
-        customer_document_number,
+        document_number: customer_document_number,
     }
 }
 
