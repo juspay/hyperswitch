@@ -13,8 +13,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS: "cybersource stripe nexixpay fiuu novalnet worldpay redsys cashtocode nuvei"
-  # NON_MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "adyen braintree cybersource_stripe google_pay klarna mollie payu_payments worldline"
+  # MANDATORY_PAYMENTS_CONNECTORS: "cybersource stripe nexixpay fiuu novalnet worldpay redsys cashtocode nuvei"
+  MANDATORY_PAYMENTS_CONNECTORS: "adyen nmi noon braintree trustpay paypal"
   V2_PAYMENT_CONNECTORS: "cybersource stripe"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
