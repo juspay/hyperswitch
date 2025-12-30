@@ -4630,6 +4630,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         frm_metadata: router_data.frm_metadata,
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
+        payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
         connector_wallets_details: router_data.connector_wallets_details,
