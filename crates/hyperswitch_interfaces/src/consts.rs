@@ -39,11 +39,11 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Header name for request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
 
-/// Default webhook setup capabilities for connectors 
-pub static WEBHOOK_SETUP_CAPABILITIES: common_types::connector_webhook_configuration::WebhookSetupCapabilities =
+/// Default webhook setup capabilities for connectors
+pub static WEBHOOK_SETUP_CAPABILITIES:
+    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
     common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         is_webhook_auto_configuration_supported: false,
         requires_webhook_secret: None,
         config_type: None,
     };
-
