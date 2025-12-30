@@ -8761,6 +8761,7 @@ dependencies = [
  "bb8",
  "bytes 1.10.1",
  "common_enums",
+ "common_types",
  "common_utils",
  "config",
  "crc32fast",

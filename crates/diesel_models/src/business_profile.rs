@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
-use common_types::primitive_wrappers;
+use common_types::{database::JsonbMerge, primitive_wrappers};
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use time::Duration;
 
 #[cfg(feature = "v1")]
@@ -30,7 +30,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -99,7 +99,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -159,7 +159,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -388,7 +388,7 @@ pub struct Profile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -475,7 +475,7 @@ pub struct ProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -539,7 +539,7 @@ pub struct ProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<JsonbMerge>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]

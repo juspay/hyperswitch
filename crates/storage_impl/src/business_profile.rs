@@ -14,6 +14,7 @@ use crate::{
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
+use common_types::{database::JsonbMerge, primitive_wrappers};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
@@ -343,13 +344,37 @@ impl ProfileInterface for MockDb {
             .iter_mut()
             .find(|business_profile| business_profile.get_id() == current_state.get_id())
             .async_map(|business_profile| async {
-                let profile_updated = ProfileUpdateInternal::from(profile_update).apply_changeset(
-                    Conversion::convert(current_state)
-                        .await
-                        .change_context(StorageError::EncryptionError)?,
-                );
+                let current_internal = Conversion::convert(current_state.clone())
+                    .await
+                    .change_context(StorageError::EncryptionError)?;
+            
+                let mut update_internal = ProfileUpdateInternal::from(profile_update);
+            
+                update_internal.webhook_details = match (
+                    current_state.webhook_details.clone(),
+                    update_internal.webhook_details,
+                ) {
+                    (Some(existing), Some(mut update)) => {
+                        let existing_json = serde_json::to_value(existing)
+                            .unwrap_or_else(|_| serde_json::Value::Object(Default::default()));
+                        update.merge(existing_json);
+                        Some(update)
+                    }
+            
+                    (None, Some(update)) => Some(update),
+                    (Some(existing), None) => {
+                        Some(JsonbMerge::new(
+                            serde_json::to_value(existing)
+                                .unwrap_or_else(|_| serde_json::Value::Object(Default::default())),
+                        ))
+                    }
+                    (None, None) => None,
+                };
+            
+                let profile_updated = update_internal.apply_changeset(current_internal);
+            
                 *business_profile = profile_updated.clone();
-
+            
                 profile_updated
                     .convert(
                         self.get_keymanager_state()
@@ -359,7 +384,7 @@ impl ProfileInterface for MockDb {
                     )
                     .await
                     .change_context(StorageError::DecryptionError)
-            })
+            })            
             .await
             .transpose()?
             .ok_or(

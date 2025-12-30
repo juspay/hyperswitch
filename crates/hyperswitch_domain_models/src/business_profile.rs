@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
+use common_types::database::JsonbMerge;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -494,7 +495,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details,
+                    webhook_details: webhook_details
+                        .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
@@ -986,7 +988,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self
+                .webhook_details
+                .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -1112,7 +1116,17 @@ impl Conversion for Profile {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details,
+            webhook_details: item
+                .webhook_details
+                .map(|s| {
+                    s.into_inner()
+                        .expose()
+                        .parse_value("WebhookDetails")
+                        .change_context(ValidationError::InvalidValue {
+                            message: "invalid webhook_details".to_string(),
+                        })
+                })
+                .transpose()?,
             metadata: item.metadata,
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
@@ -1185,7 +1199,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self
+                .webhook_details
+                .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -1742,7 +1758,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details,
+                    webhook_details: webhook_details
+                        .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
                     metadata,
                     is_recon_enabled: None,
                     applepay_verified_domains,
@@ -2328,7 +2345,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self
+                .webhook_details
+                .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
@@ -2413,7 +2432,17 @@ impl Conversion for Profile {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                webhook_details: item.webhook_details,
+                webhook_details: item
+                    .webhook_details
+                    .map(|s| {
+                        s.into_inner()
+                            .expose()
+                            .parse_value("WebhookDetails")
+                            .change_context(ValidationError::InvalidValue {
+                                message: "invalid webhook_details".to_string(),
+                            })
+                    })
+                    .transpose()?,
                 metadata: item.metadata,
                 is_recon_enabled: item.is_recon_enabled,
                 applepay_verified_domains: item.applepay_verified_domains,
@@ -2506,7 +2535,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self
+                .webhook_details
+                .map(|s| JsonbMerge::new(serde_json::to_value(s).unwrap_or_default())),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
