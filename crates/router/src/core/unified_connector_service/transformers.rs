@@ -679,14 +679,7 @@ impl
                 e
             })
             .ok();
-        let connector_order_reference_id =
-            router_data
-                .request
-                .connector_reference_id
-                .clone()
-                .map(|id| Identifier {
-                    id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-                });
+        let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
         let request_ref_id = Some(Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -734,7 +727,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
-            connector_order_reference_id: connector_order_reference_id,
+            connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
