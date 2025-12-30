@@ -1036,7 +1036,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities: Some(webhook_setup_details),
+            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
         };
         Ok(response)
     }

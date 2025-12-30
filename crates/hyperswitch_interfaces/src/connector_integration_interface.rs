@@ -725,7 +725,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_api_webhook_config(
         &self,
-    ) -> common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         match self {
             Self::Old(connector) => connector.get_api_webhook_config(),
             Self::New(connector) => connector.get_api_webhook_config(),
