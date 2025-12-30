@@ -682,6 +682,10 @@ impl StringMajorUnit {
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+    /// forms a new default 2-decimal major unit
+    pub fn zero_decimal() -> Self {
+        Self("0.00".to_string())
+    }
 }
 
 #[derive(
@@ -1441,6 +1445,13 @@ impl_enum_str!(
         },
     }
 );
+
+/// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
+/// This trait allows generic functions to check if a parsed enum value is invalid.
+pub trait HasInvalidVariant {
+    /// Returns true if this instance is the `Invalid` variant
+    fn is_invalid(&self) -> bool;
+}
 
 #[allow(missing_docs)]
 pub trait TenantConfig: Send + Sync {

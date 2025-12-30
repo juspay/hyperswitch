@@ -134,6 +134,7 @@ impl From<StripeCard> for payments::Card {
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: None,
         }
@@ -424,7 +425,8 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
                 Self::Succeeded
             }
             api_enums::IntentStatus::Failed | api_enums::IntentStatus::Expired => Self::Canceled,
-            api_enums::IntentStatus::Processing => Self::Processing,
+            api_enums::IntentStatus::Processing
+            | api_enums::IntentStatus::PartiallyCapturedAndProcessing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
             | api_enums::IntentStatus::RequiresMerchantAction
             | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
@@ -851,7 +853,10 @@ pub enum StripeNextAction {
     InvokeHiddenIframe {
         iframe_data: payments::IframeData,
     },
-    SdkUpiIntentInformation {
+    InvokeUpiIntentSdk {
+        sdk_uri: url::Url,
+    },
+    InvokeUpiQrFlow {
         sdk_uri: url::Url,
     },
 }
@@ -931,8 +936,13 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
             StripeNextAction::InvokeHiddenIframe { iframe_data }
         }
-        payments::NextActionData::SdkUpiIntentInformation { sdk_uri } => {
-            StripeNextAction::SdkUpiIntentInformation { sdk_uri }
+        payments::NextActionData::InvokeUpiIntentSdk { sdk_uri, .. } => {
+            StripeNextAction::InvokeUpiIntentSdk { sdk_uri }
+        }
+        payments::NextActionData::InvokeUpiQrFlow { qr_code_url, .. } => {
+            StripeNextAction::InvokeUpiQrFlow {
+                sdk_uri: qr_code_url,
+            }
         }
     })
 }

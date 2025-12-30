@@ -185,7 +185,7 @@ pub async fn update_mca(
         feature_metadata: None,
     };
     let mca_response =
-        admin::update_connector(state.clone(), &merchant_id, None, &connector_id, request).await?;
+        admin::update_connector(state.clone(), merchant_id, None, &connector_id, request).await?;
 
     match mca_response {
         ApplicationResponse::Json(mca_data) => Ok(mca_data),

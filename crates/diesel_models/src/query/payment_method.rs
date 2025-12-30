@@ -58,22 +58,6 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn find_by_locker_id_customer_id_merchant_id(
-        conn: &PgPooledConn,
-        locker_id: &str,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::locker_id
-                .eq(locker_id.to_owned())
-                .and(dsl::customer_id.eq(customer_id.to_owned()))
-                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-        )
-        .await
-    }
-
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,
@@ -118,6 +102,27 @@ impl PaymentMethod {
             limit,
             None,
             Some(dsl::last_used_at.desc()),
+        )
+        .await
+    }
+
+    pub async fn find_by_merchant_id_payment_method_ids(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_method_ids: &[String],
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        if payment_method_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_method_id.eq_any(payment_method_ids.to_owned())),
+            limit,
+            None,
+            Some(dsl::payment_method_id.asc()),
         )
         .await
     }

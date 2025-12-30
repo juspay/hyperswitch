@@ -70,6 +70,8 @@ impl VerifyConnectorData {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         }
     }
 
@@ -126,6 +128,7 @@ impl VerifyConnectorData {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,

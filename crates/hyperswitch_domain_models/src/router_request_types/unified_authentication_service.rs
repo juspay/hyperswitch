@@ -86,6 +86,8 @@ pub struct TransactionDetails {
     pub currency: Option<common_enums::Currency>,
     pub device_channel: Option<DeviceChannel>,
     pub message_category: Option<super::authentication::MessageCategory>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug)]
@@ -117,6 +119,7 @@ pub struct PreAuthenticationDetails {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub connector_metadata: Option<serde_json::Value>,
     pub directory_server_id: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -141,11 +144,21 @@ pub struct PostAuthenticationDetails {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
+    pub raw_card_details: Option<RawCardDetails>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TokenDetails {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: cards::NetworkToken,
     pub payment_account_reference: String,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
@@ -186,4 +199,29 @@ pub struct ThreeDsMetaData {
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PostAuthenticationDetails>
+    for Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>
+{
+    fn from(item: PostAuthenticationDetails) -> Self {
+        match (item.raw_card_details, item.token_details) {
+            (Some(card_data), _) => Some(
+                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
+                    card_expiry_year: Some(card_data.expiration_year),
+                    card_expiry_month: Some(card_data.expiration_month),
+                },
+            ),
+            (None, Some(network_token_data)) => {
+                Some(
+                    api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
+                        network_token_expiry_year: Some(network_token_data.token_expiration_year),
+                        network_token_expiry_month: Some(network_token_data.token_expiration_month),
+                    },
+                )
+            }
+            (None, None) => None,
+        }
+    }
 }

@@ -480,6 +480,7 @@ pub trait ConnectorActions: Connector {
                 webhook_url: None,
                 browser_info: None,
                 payout_connector_metadata: None,
+                additional_payout_method_data: None,
             },
             payment_info,
         )
@@ -553,6 +554,7 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -954,6 +956,7 @@ impl Default for CCardType {
             card_network: None,
             card_type: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
@@ -1012,6 +1015,8 @@ impl Default for PaymentAuthorizeType {
             is_stored_credential: None,
             mit_category: None,
             billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
         };
         Self(data)
     }
@@ -1145,6 +1150,9 @@ impl Default for TokenType {
             setup_future_usage: None,
             customer_acceptance: None,
             setup_mandate_details: None,
+            payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }

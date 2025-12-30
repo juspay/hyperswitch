@@ -1,0 +1,14 @@
+response-property-max-length-increased
+response-property-min-length-decreased
+response-property-max-increased
+response-property-min-decreased
+request-parameter-max-length-increased
+request-parameter-min-length-decreased
+request-parameter-max-increased
+request-parameter-min-decreased
+api-tag-added
+response-property-enum-value-added
+request-property-enum-value-added
+request-parameter-enum-value-added
+response-media-type-added
+request-body-media-type-added
