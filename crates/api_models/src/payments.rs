@@ -7271,7 +7271,7 @@ pub struct PaymentsResponse {
 
     /// Complete error details containing unified, issuer, and connector-level error information.
     #[schema(value_type = Option<PaymentErrorDetails>)]
-    #[smithy(value_type = "Option<PaymentErrorDetails")]
+    #[smithy(value_type = "Option<PaymentErrorDetails>")]
     pub error_details: Option<PaymentErrorDetails>,
 
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
