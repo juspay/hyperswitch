@@ -311,7 +311,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 8
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress_1.sh --parallel 2
+          scripts/execute_cypress.sh --parallel 2
 
           kill "${{ env.PID }}"
 
@@ -495,7 +495,7 @@ jobs:
           PAYMENTS_CONNECTORS: ${{ env.OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1 }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress_1.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
@@ -679,7 +679,7 @@ jobs:
           PAYMENTS_CONNECTORS: ${{ env.OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2 }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress_1.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
