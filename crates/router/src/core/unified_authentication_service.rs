@@ -61,6 +61,7 @@ use crate::{
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
+        metrics
     },
     db::domain,
     routes::SessionState,
@@ -1812,7 +1813,7 @@ pub async fn authentication_sync_core(
     let (updated_authentication, payment_method_data, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
-                ClickToPay::post_authentication(
+                let response = ClickToPay::post_authentication(
                     &state,
                     &business_profile,
                     None,
@@ -1823,7 +1824,9 @@ pub async fn authentication_sync_core(
                     merchant_id,
                     None,
                 )
-                .await?
+                .await?;
+                metrics::CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
+                response
             } else {
                 ExternalAuthentication::post_authentication(
                     &state,
@@ -1857,13 +1860,15 @@ pub async fn authentication_sync_core(
                 // Do not tokenize if the disable flag is present in the config
                 None
             } else {
-                Box::pin(utils::get_auth_multi_token_from_external_vault(
+                let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &platform,
                     &business_profile,
                     &post_auth_response,
                 ))
-                .await?
+                .await?;
+                metrics::TOKEN_PUSHED_TO_VGS.add(1, &[]);
+                response
             };
 
             let payment_method_data =
