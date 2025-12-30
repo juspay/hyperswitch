@@ -802,25 +802,27 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
 impl ForeignFrom<diesel_models::payment_attempt::ErrorDetails> for payments::PaymentErrorDetails {
     fn foreign_from(details: diesel_models::payment_attempt::ErrorDetails) -> Self {
         Self {
-            unified_details: details
-                .unified_details
-                .map(|unified| payments::ApiUnifiedErrorDetails {
+            unified_details: details.unified_details.map(|unified| {
+                payments::ApiUnifiedErrorDetails {
                     category: unified.category,
                     message: unified.message,
                     standardised_code: unified.standardised_code,
                     description: unified.description,
                     user_guidance_message: unified.user_guidance_message,
                     recommended_action: unified.recommended_action,
-                }),
+                }
+            }),
             issuer_details: details
                 .issuer_details
                 .map(|issuer| payments::ApiIssuerErrorDetails {
                     code: issuer.code,
                     message: issuer.message,
-                    network_details: issuer.network_details.map(|network| payments::ApiNetworkErrorDetails {
-                        name: network.name,
-                        advice_code: network.advice_code,
-                        advice_message: network.advice_message,
+                    network_details: issuer.network_details.map(|network| {
+                        payments::ApiNetworkErrorDetails {
+                            name: network.name,
+                            advice_code: network.advice_code,
+                            advice_message: network.advice_message,
+                        }
                     }),
                 }),
             connector_details: details.connector_details.map(|connector| {
