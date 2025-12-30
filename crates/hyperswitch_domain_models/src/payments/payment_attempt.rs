@@ -2329,7 +2329,6 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
-            error_details: None,
         })
     }
 
