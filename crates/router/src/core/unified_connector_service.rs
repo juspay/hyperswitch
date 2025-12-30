@@ -668,15 +668,16 @@ pub fn build_unified_connector_service_payment_method(
                 ) => {
                     let upi_details = payments_grpc::UpiCollect {
                         vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                        upi_source: None
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { app_name: None };
+                    let upi_details = payments_grpc::UpiIntent { app_name: None, upi_source: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
-                    let upi_details = payments_grpc::UpiQr {};
+                    let upi_details = payments_grpc::UpiQr {upi_source: None};
                     PaymentMethod::UpiQr(upi_details)
                 }
             };
