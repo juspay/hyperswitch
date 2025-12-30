@@ -210,7 +210,8 @@ CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
     `latency` UInt128,
     `method` LowCardinality(String),
     `refund_id` Nullable(String),
-    `dispute_id` Nullable(String)
+    `dispute_id` Nullable(String),
+    `payout_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -228,7 +229,8 @@ SELECT
     latency,
     method,
     refund_id,
-    dispute_id
+    dispute_id,
+    payout_id
 FROM
     connector_events_queue
 WHERE
