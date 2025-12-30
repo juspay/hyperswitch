@@ -2577,19 +2577,30 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let header_map_struct = HeaderMapStruct::new(request_headers);
-        let auth_string = header_map_struct.get_auth_string_from_header()?;
 
-        let api_key = auth_string
-            .split(',')
-            .find_map(|part| part.trim().strip_prefix("api-key="))
+        let api_key = header_map_struct
+            .get_header_value_by_key("api-key")
+            .or_else(|| {
+                header_map_struct
+                    .get_auth_string_from_header()
+                    .ok()
+                    .and_then(|auth_string| {
+                        auth_string
+                            .split(',')
+                            .find_map(|part| part.trim().strip_prefix("api-key="))
+                    })
+            })
             .ok_or_else(|| {
-                report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Unable to parse api_key")
+                report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Missing required param: api-key. Please provide either 'api-key' header or 'Authorization: api-key=<your_key>' header".to_string(),
+                })
             })?;
+
         if api_key.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("API key is empty");
         }
+
 
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
@@ -5106,5 +5117,125 @@ impl ExternalToken {
                 })
             },
         )?)
+    }
+}
+
+// Unit tests for V2 API key header parsing
+#[cfg(all(test, feature = "v2"))]
+mod v2_api_key_tests {
+    use super::*;
+    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
+
+    /// Helper function to create a HeaderMap with api-key header
+    fn create_headers_with_api_key_header(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("api-key"),
+            HeaderValue::from_str(api_key).unwrap(),
+        );
+        headers
+    }
+
+    /// Helper function to create a HeaderMap with Authorization header
+    fn create_headers_with_authorization_header(auth_value: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("authorization"),
+            HeaderValue::from_str(auth_value).unwrap(),
+        );
+        headers
+    }
+
+    #[test]
+    fn test_api_key_from_api_key_header() {
+        // Test: api-key header format (OpenAPI spec)
+        let headers = create_headers_with_api_key_header("snd_test_key_123");
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        let api_key = header_map_struct.get_header_value_by_key("api-key");
+
+        assert!(api_key.is_some());
+        assert_eq!(api_key.unwrap(), "snd_test_key_123");
+    }
+
+    #[test]
+    fn test_api_key_from_authorization_header() {
+        // Test: Authorization: api-key=<key> format (legacy)
+        let headers = create_headers_with_authorization_header("api-key=snd_test_key_456");
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        let auth_string = header_map_struct.get_auth_string_from_header();
+        assert!(auth_string.is_ok());
+
+        let api_key = auth_string
+            .unwrap()
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("api-key="));
+
+        assert!(api_key.is_some());
+        assert_eq!(api_key.unwrap(), "snd_test_key_456");
+    }
+
+    #[test]
+    fn test_api_key_missing_both_headers() {
+        // Test: Neither header present
+        let headers = HeaderMap::new();
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        let api_key = header_map_struct.get_header_value_by_key("api-key");
+        assert!(api_key.is_none());
+
+        let auth_string = header_map_struct.get_auth_string_from_header();
+        assert!(auth_string.is_err());
+    }
+
+    #[test]
+    fn test_api_key_preference_when_both_present() {
+        // Test: Both headers present - should prefer api-key header
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("api-key"),
+            HeaderValue::from_str("snd_preferred_key").unwrap(),
+        );
+        headers.insert(
+            HeaderName::from_static("authorization"),
+            HeaderValue::from_str("api-key=snd_fallback_key").unwrap(),
+        );
+
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        // The api-key header should be preferred
+        let api_key = header_map_struct.get_header_value_by_key("api-key");
+        assert!(api_key.is_some());
+        assert_eq!(api_key.unwrap(), "snd_preferred_key");
+    }
+
+    #[test]
+    fn test_empty_api_key_header() {
+        // Test: Empty api-key header
+        let headers = create_headers_with_api_key_header("");
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        let api_key = header_map_struct.get_header_value_by_key("api-key");
+        assert!(api_key.is_some());
+        assert_eq!(api_key.unwrap(), "");
+    }
+
+    #[test]
+    fn test_authorization_header_with_multiple_parts() {
+        // Test: Authorization header with multiple comma-separated parts
+        let headers = create_headers_with_authorization_header("bearer=token123,api-key=snd_multi_part");
+        let header_map_struct = HeaderMapStruct::new(&headers);
+
+        let auth_string = header_map_struct.get_auth_string_from_header();
+        assert!(auth_string.is_ok());
+
+        let api_key = auth_string
+            .unwrap()
+            .split(',')
+            .find_map(|part| part.trim().strip_prefix("api-key="));
+
+        assert!(api_key.is_some());
+        assert_eq!(api_key.unwrap(), "snd_multi_part");
     }
 }

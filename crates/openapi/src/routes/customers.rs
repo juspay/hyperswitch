@@ -112,6 +112,9 @@ pub async fn customers_list() {}
 ///
 /// Creates a customer object and stores the customer details to be reused for future payments.
 /// Incase the customer already exists in the system, this API will respond with the customer details.
+/// 
+/// Authentication: Provide your API key using either 'api-key: <your_key>' header (recommended) 
+/// or 'Authorization: api-key=<your_key>' header (legacy format).
 #[utoipa::path(
     post,
     path = "/v2/customers",

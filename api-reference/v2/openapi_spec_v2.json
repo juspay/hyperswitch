@@ -29023,7 +29023,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
+        "description": "Use the API key created under your merchant account from the HyperSwitch dashboard. You can provide the API key in either of two formats: (1) 'api-key: <your_key>' header (recommended), or (2) 'Authorization: api-key=<your_key>' header (legacy format). API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
       },
       "ephemeral_key": {
         "type": "apiKey",
