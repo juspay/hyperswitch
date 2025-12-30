@@ -1238,6 +1238,23 @@ impl ConnectorSpecifications for Nexixpay {
         Some(&*NEXIXPAY_CONNECTOR_INFO)
     }
 
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method,
+            } => {
+                payment_method == Some(enums::PaymentMethod::Card)
+                    && request_data
+                        .redirect_response
+                        .as_ref()
+                        .and_then(|redirect_response| redirect_response.payload.as_ref())
+                        .is_some()
+            }
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*NEXIXPAY_SUPPORTED_PAYMENT_METHODS)
     }

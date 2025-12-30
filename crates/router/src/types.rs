@@ -722,6 +722,7 @@ pub struct PaymentMethodTokenResult {
 #[derive(Clone)]
 pub struct CreateOrderResult {
     pub create_order_result: Result<String, ErrorResponse>,
+    pub should_continue_further: bool,
 }
 
 pub struct PspTokenResult {
@@ -1384,6 +1385,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             frm_metadata: data.frm_metadata.clone(),
             dispute_id: data.dispute_id.clone(),
             refund_id: data.refund_id.clone(),
+            payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
             additional_merchant_data: data.additional_merchant_data.clone(),
@@ -1458,6 +1460,7 @@ impl<F1, F2>
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
             header_payload: data.header_payload.clone(),
