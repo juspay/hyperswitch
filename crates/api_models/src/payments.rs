@@ -4633,9 +4633,11 @@ pub enum UpiSource {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiCollectData {
+    /// The Virtual Payment Address (VPA) for UPI collect payment
     #[schema(value_type = Option<String>, example = "successtest@iata")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }
@@ -4645,6 +4647,7 @@ pub struct UpiCollectData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiQrData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }
@@ -4654,6 +4657,7 @@ pub struct UpiQrData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiIntentData {
+    /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }
