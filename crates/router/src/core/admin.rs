@@ -213,7 +213,7 @@ pub async fn create_merchant_account(
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: identifier.clone(),
-                    key: BASE64_ENGINE.encode(key),
+                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
                 },
             )
             .await
@@ -227,7 +227,7 @@ pub async fn create_merchant_account(
         key: domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantKeyStore),
-            domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+            domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
             identifier.clone(),
             master_key,
         )
@@ -975,12 +975,23 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         // This supports changing the business profile by passing in the profile_id
         let business_profile_id_update = if let Some(ref profile_id) = self.default_profile {
+            let merchant_account = db
+                .find_merchant_account_by_merchant_id(merchant_id, key_store)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store.clone(),
+            );
+
             // Validate whether profile_id passed in request is valid and is linked to the merchant
             core_utils::validate_and_get_business_profile(
                 state.store.as_ref(),
-                key_store,
+                platform.get_processor(),
                 Some(profile_id),
-                merchant_id,
             )
             .await?
             .map(|business_profile| Some(business_profile.get_id().to_owned()))
@@ -2169,9 +2180,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
-            platform.get_processor().get_key_store(),
+            platform.get_processor(),
             Some(&profile_id),
-            platform.get_processor().get_account().get_id(),
         )
         .await?
         .get_required_value("Profile")
@@ -2380,9 +2390,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
                 let business_profile = core_utils::validate_and_get_business_profile(
                     db,
-                    platform.get_processor().get_key_store(),
+                    platform.get_processor(),
                     Some(&profile_id),
-                    platform.get_processor().get_account().get_id(),
                 )
                 .await?
                 .get_required_value("Profile")
@@ -2447,7 +2456,7 @@ pub async fn create_connector(
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        &platform,
+        platform.get_processor(),
     )?;
 
     let business_profile = req
@@ -2817,7 +2826,7 @@ pub async fn update_connector(
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2887,7 +2896,7 @@ pub async fn delete_connector(
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 }
@@ -2963,7 +2972,7 @@ pub async fn delete_connector(
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
-            common_enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
+            euclid::enums::RoutableConnectors::from_str(&mca.connector_name.to_string()).map_err(
                 |_| errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "connector_name",
                 },
@@ -4610,15 +4619,10 @@ async fn locker_recipient_create_call(
         ttl: state.conf.locker.ttl_for_storage_in_secs,
     });
 
-    let store_resp = cards::add_card_to_hs_locker(
-        state,
-        &payload,
-        &cust_id,
-        api_enums::LockerChoice::HyperswitchCardVault,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt merchant bank account data")?;
+    let store_resp = cards::add_card_to_vault(state, &payload, &cust_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
 }

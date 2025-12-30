@@ -12,8 +12,13 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, errors::RouterResult, payouts::*},
+    core::{
+        api_locking::{self, GetLockingInput},
+        errors::RouterResult,
+        payouts::*,
+    },
     logger,
+    routes::lock_utils,
     services::{
         api,
         authentication::{self as auth},
@@ -562,4 +567,108 @@ pub fn populate_browser_info_for_payouts(
     payload.browser_info = Some(browser_info);
 
     Ok(())
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payouts_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
+            get_aggregates_for_payouts(state, platform, None, req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAggregate))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn get_payouts_aggregates_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<common_utils::types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PayoutsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.clone().into();
+            get_aggregates_for_payouts(
+                state,
+                platform,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePayoutRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "payouts"))]
+impl GetLockingInput for payout_types::PayoutsManualUpdateRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payout_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "payouts"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsManualUpdate))]
+pub async fn payouts_manual_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutsManualUpdateRequest>,
+    path: web::Path<id_type::PayoutId>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsManualUpdate;
+    let mut payload = json_payload.into_inner();
+    let payout_id = path.into_inner();
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    tracing::Span::current().record("payout_id", payout_id.get_string_repr());
+
+    payload.payout_id = payout_id;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth, req, _req_state| payouts_manual_update_core(state, req),
+        &auth::AdminApiAuth,
+        locking_action,
+    ))
+    .await
 }

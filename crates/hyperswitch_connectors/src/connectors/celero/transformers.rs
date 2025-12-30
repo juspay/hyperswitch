@@ -190,6 +190,7 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
                 Ok(Self::Card(card))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)

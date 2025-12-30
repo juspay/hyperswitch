@@ -454,6 +454,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::InvalidBasicAuth
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
@@ -864,8 +865,6 @@ impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
         self.clone().into()
     }
 }
-
-impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
 
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {

@@ -56,13 +56,15 @@ use url::Url;
 use crate::{types::PayoutsResponseRouterData, utils::PayoutsData as _};
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsPreAuthenticateRequestData, PaymentsPreProcessingRequestData,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -98,6 +100,70 @@ pub struct NuveiThreeDSInitPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CardPaymentOption {
     pub card: Card,
+}
+
+impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
+    for NuveiThreeDSInitPaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, session_token): (&types::PaymentsPreAuthenticateRouterData, String),
+    ) -> Result<Self, Self::Error> {
+        let currency = item.request.get_currency()?;
+        let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+        let amount = item.request.get_minor_amount()?.to_nuvei_amount(currency)?;
+        let payment_method_data = item.request.get_payment_method_data()?.clone();
+        let card = match payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nuvei"),
+            ))?,
+        };
+
+        let browser_info = item
+            .request
+            .browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))?;
+
+        let return_url = item
+            .request
+            .router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))?;
+
+        let billing_address = item.get_billing().ok().map(|billing| billing.into());
+
+        Ok(Self {
+            session_token: session_token.into(),
+            merchant_id: connector_auth.merchant_id,
+            merchant_site_id: connector_auth.merchant_site_id,
+            client_request_id: item.connector_request_reference_id.clone().into(),
+            client_unique_id: item.connector_request_reference_id.clone(),
+            amount,
+            currency,
+            payment_option: CardPaymentOption {
+                card: Card {
+                    card_number: Some(card.card_number),
+                    card_holder_name: item.get_optional_billing_full_name(),
+                    expiration_month: Some(card.card_exp_month),
+                    expiration_year: Some(card.card_exp_year),
+                    cvv: Some(card.card_cvc),
+                    ..Default::default()
+                },
+            },
+            device_details: DeviceDetails {
+                ip_address: browser_info.get_ip_address()?,
+            },
+            user_token_id: item.customer_id.clone(),
+            billing_address,
+            url_details: UrlDetails {
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url,
+            },
+        })
+    }
 }
 
 impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDSInitPaymentRequest {
@@ -1451,8 +1517,17 @@ pub struct NuveiPayoutRequest {
     pub user_token_id: CustomerId,
     pub time_stamp: String,
     pub checksum: Secret<String>,
-    pub card_data: NuveiPayoutCardData,
     pub url_details: NuveiPayoutUrlDetails,
+    #[serde(flatten)]
+    pub payout_method_data: NuveiPayoutMethodData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutMethodData {
+    pub card_data: Option<NuveiPayoutCardData>,
+    pub user_payment_option: Option<PaymentOption>,
 }
 
 #[cfg(feature = "payouts")]
@@ -1500,26 +1575,43 @@ pub struct NuveiPayoutErrorResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
+impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         payout_method_data: api_models::payouts::PayoutMethodData,
     ) -> Result<Self, Self::Error> {
         match payout_method_data {
-            api_models::payouts::PayoutMethodData::Card(card_data) => Ok(Self {
-                card_number: card_data.card_number,
-                card_holder_name: card_data.card_holder_name.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "customer_id",
-                    },
-                )?,
-                expiration_month: card_data.expiry_month,
-                expiration_year: card_data.expiry_year,
-            }),
+            api_models::payouts::PayoutMethodData::Card(card_data) => {
+                let card_data = Some(NuveiPayoutCardData {
+                    card_number: card_data.card_number,
+                    card_holder_name: card_data.card_holder_name.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_holder_name",
+                        },
+                    )?,
+                    expiration_month: card_data.expiry_month,
+                    expiration_year: card_data.expiry_year,
+                });
+
+                Ok(Self {
+                    card_data,
+                    user_payment_option: None,
+                })
+            }
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough_data) => {
+                let user_payment_option = Some(PaymentOption {
+                    user_payment_option_id: Some(passthrough_data.psp_token.expose()),
+                    ..Default::default()
+                });
+
+                Ok(Self {
+                    card_data: None,
+                    user_payment_option,
+                })
+            }
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
-            | api_models::payouts::PayoutMethodData::BankRedirect(_)
-            | api_models::payouts::PayoutMethodData::Passthrough(_) => {
+            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )
@@ -1556,7 +1648,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
 
         let payout_method_data = item.get_payout_method_data()?;
 
-        let card_data = NuveiPayoutCardData::try_from(payout_method_data)?;
+        let payout_method_data: NuveiPayoutMethodData = payout_method_data.try_into()?;
 
         let customer_details = item.request.get_customer_details()?;
 
@@ -1578,7 +1670,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
             )?,
             time_stamp,
             checksum: Secret::new(checksum),
-            card_data,
+            payout_method_data,
             url_details,
         })
     }
@@ -2409,6 +2501,39 @@ where
             amount_captured,
             minor_amount_capturable,
             connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
+    for types::PaymentsPreAuthenticateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let is_enrolled_for_3ds = response
+            .clone()
+            .payment_option
+            .and_then(|po| po.card)
+            .and_then(|c| c.three_d)
+            .and_then(|t| t.v2supported)
+            .map(to_boolean)
+            .unwrap_or_default();
+        Ok(Self {
+            status: get_payment_status(
+                Some(item.data.request.amount),
+                false,
+                response.transaction_type,
+                response.transaction_status,
+                response.status,
+            ),
+            response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2: is_enrolled_for_3ds,
+                related_transaction_id: response.transaction_id,
+            }),
             ..item.data
         })
     }
@@ -3415,13 +3540,9 @@ impl NuveiAmountExt for MinorUnit {
 pub enum NuveiCardType {
     Visa,
     MasterCard,
-    AmericanExpress,
+    Amex,
     Discover,
-    DinersClub,
-    Interac,
-    JCB,
-    UnionPay,
-    CartesBancaires,
+    Diners,
 }
 
 impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
@@ -3430,13 +3551,9 @@ impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
         match card_network {
             common_enums::CardNetwork::Visa => Ok(Self::Visa),
             common_enums::CardNetwork::Mastercard => Ok(Self::MasterCard),
-            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
             common_enums::CardNetwork::Discover => Ok(Self::Discover),
-            common_enums::CardNetwork::DinersClub => Ok(Self::DinersClub),
-            common_enums::CardNetwork::JCB => Ok(Self::JCB),
-            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
-            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
-            common_enums::CardNetwork::Interac => Ok(Self::Interac),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "nuvei",
@@ -3452,12 +3569,9 @@ impl TryFrom<&utils::CardIssuer> for NuveiCardType {
         match card_issuer {
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::Master => Ok(Self::MasterCard),
-            utils::CardIssuer::AmericanExpress => Ok(Self::AmericanExpress),
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Discover => Ok(Self::Discover),
-            utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
-            utils::CardIssuer::JCB => Ok(Self::JCB),
-            utils::CardIssuer::CartesBancaires => Ok(Self::CartesBancaires),
-            &utils::CardIssuer::UnionPay => Ok(Self::UnionPay),
+            utils::CardIssuer::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "nuvei",

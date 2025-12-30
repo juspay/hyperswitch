@@ -34,6 +34,7 @@ use time::PrimitiveDateTime;
 
 use super::errors::StorageErrorExt;
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation, transformers::GenerateResponse},
@@ -790,6 +791,7 @@ impl Action {
                     payment_attempt.id.clone(),
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
+                    state.conf.application_source,
                 )
                 .await
                 .change_context(errors::RecoveryError::ProcessTrackerFailure)
@@ -1222,7 +1224,8 @@ impl Action {
             error_code,
             error_message,
             connector_name,
-            REVENUE_RECOVERY.to_string(),
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
         )
         .await;
         let is_hard_decline = gsm_record
@@ -1407,6 +1410,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 Some(new_retry_count),
                 schedule_time,
                 common_types::consts::API_VERSION,
+                state.conf.application_source,
             )
             .change_context(errors::RecoveryError::ProcessTrackerFailure)
             .attach_printable("Failed to construct calculate workflow process tracker entry")?;

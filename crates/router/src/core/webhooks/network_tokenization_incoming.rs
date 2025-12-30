@@ -266,7 +266,8 @@ pub async fn handle_metadata_update(
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch token information from the locker")?;
+                .attach_printable("Failed to fetch token information from the locker")?
+                .get_card();
 
             card.card_exp_year = metadata.expiry_year.clone();
             card.card_exp_month = metadata.expiry_month.clone();
@@ -287,7 +288,10 @@ pub async fn handle_metadata_update(
             let payment_method_request: api::payment_methods::PaymentMethodCreate =
                 PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
-            let pm_cards = cards::PmCards { state, platform };
+            let pm_cards = cards::PmCards {
+                state,
+                provider: platform.get_provider(),
+            };
 
             pm_cards
                 .delete_card_from_locker(customer_id, merchant_id, &locker_id)

@@ -1411,6 +1411,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Elavon,
             fields(vec![], [card_basic(), billing_email()].concat(), vec![]),
         ),
+        (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (
             Connector::Fiuu,
@@ -1730,6 +1731,13 @@ fn get_bank_redirect_required_fields(
                     fields(vec![], vec![RequiredField::OpenBankingUkIssuer], vec![]),
                 ),
             ]),
+        ),
+        (
+            enums::PaymentMethodType::OpenBanking,
+            connectors(vec![(
+                Connector::Volt,
+                fields(vec![], billing_name(), vec![]),
+            )]),
         ),
         (
             enums::PaymentMethodType::Trustly,
@@ -3476,6 +3484,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             )
                             .to_tuple(),
                             RequiredField::SepaBankDebitIban.to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
                         ]),
                     },
                 ),
