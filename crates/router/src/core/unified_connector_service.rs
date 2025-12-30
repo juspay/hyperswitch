@@ -668,15 +668,16 @@ pub fn build_unified_connector_service_payment_method(
                 ) => {
                     let upi_details = payments_grpc::UpiCollect {
                         vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                        upi_source: None,
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { app_name: None };
+                    let upi_details = payments_grpc::UpiIntent { app_name: None, upi_source: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
-                    let upi_details = payments_grpc::UpiQr {};
+                    let upi_details = payments_grpc::UpiQr { upi_source: None };
                     PaymentMethod::UpiQr(upi_details)
                 }
             };
@@ -705,6 +706,21 @@ pub fn build_unified_connector_service_payment_method(
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
                     }),
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Interac {
+                country,
+                email,
+            } => {
+                let interac = payments_grpc::Interac {
+                    country: country
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|c| c.into()),
+                    email: email.map(|e| e.expose().expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Interac(interac)),
+                })
+            }
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented bank redirect type: {bank_redirect_data:?}"
             ))
