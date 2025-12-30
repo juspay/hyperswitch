@@ -804,30 +804,30 @@ impl ForeignFrom<diesel_models::payment_attempt::ErrorDetails> for payments::Pay
         Self {
             unified_details: details
                 .unified_details
-                .map(|u| payments::ApiUnifiedErrorDetails {
-                    category: u.category,
-                    message: u.message,
-                    standardised_code: u.standardised_code,
-                    description: u.description,
-                    user_guidance_message: u.user_guidance_message,
-                    recommended_action: u.recommended_action,
+                .map(|unified| payments::ApiUnifiedErrorDetails {
+                    category: unified.category,
+                    message: unified.message,
+                    standardised_code: unified.standardised_code,
+                    description: unified.description,
+                    user_guidance_message: unified.user_guidance_message,
+                    recommended_action: unified.recommended_action,
                 }),
             issuer_details: details
                 .issuer_details
-                .map(|i| payments::ApiIssuerErrorDetails {
-                    code: i.code,
-                    message: i.message,
-                    network_details: i.network_details.map(|n| payments::ApiNetworkErrorDetails {
-                        name: n.name,
-                        advice_code: n.advice_code,
-                        advice_message: n.advice_message,
+                .map(|issuer| payments::ApiIssuerErrorDetails {
+                    code: issuer.code,
+                    message: issuer.message,
+                    network_details: issuer.network_details.map(|network| payments::ApiNetworkErrorDetails {
+                        name: network.name,
+                        advice_code: network.advice_code,
+                        advice_message: network.advice_message,
                     }),
                 }),
-            connector_details: details.connector_details.map(|c| {
+            connector_details: details.connector_details.map(|connector| {
                 payments::ApiConnectorErrorDetails {
-                    code: c.code,
-                    message: c.message,
-                    reason: c.reason,
+                    code: connector.code,
+                    message: connector.message,
+                    reason: connector.reason,
                 }
             }),
         }
