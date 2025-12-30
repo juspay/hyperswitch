@@ -20259,6 +20259,14 @@
           }
         }
       },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
