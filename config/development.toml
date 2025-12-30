@@ -37,6 +37,10 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 
+[preprocessing_flow_config]
+authentication_bloated_connectors = "paypal,nmi,cybersource"
+order_create_bloated_connectors = "trustpay,payme"
+
 [redis]
 host = "127.0.0.1"
 port = 6379
