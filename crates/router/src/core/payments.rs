@@ -4180,13 +4180,24 @@ where
             // If authentication flow is bloated up for the current connector
             // and external 3ds was not attempted,
             // continue with authentication flows.
+            let external_three_ds_authentication = {
+                #[cfg(feature = "v1")]
+                {
+                    payment_data
+                        .get_payment_intent()
+                        .request_external_three_ds_authentication
+                }
+                #[cfg(feature = "v2")]
+                {
+                    payment_data
+                        .get_payment_intent()
+                        .request_external_three_ds_authentication
+                }
+            };
             config
                 .authentication_bloated_connectors
                 .contains(&connector.connector_name)
-                && payment_data
-                    .get_payment_attempt()
-                    .external_three_ds_authentication_attempted
-                    != Some(true)
+                && external_three_ds_authentication != Some(true)
         }) {
         logger::info!(
             "Using granular authentication steps for connector: {}",
