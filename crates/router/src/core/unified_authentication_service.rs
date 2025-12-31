@@ -54,14 +54,13 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
-        payment_methods,
+        metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
-        metrics
     },
     db::domain,
     routes::SessionState,
@@ -1825,7 +1824,7 @@ pub async fn authentication_sync_core(
                     None,
                 )
                 .await?;
-                metrics::CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
+                metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
                 response
             } else {
                 ExternalAuthentication::post_authentication(
@@ -1867,7 +1866,7 @@ pub async fn authentication_sync_core(
                     &post_auth_response,
                 ))
                 .await?;
-                metrics::TOKEN_PUSHED_TO_VGS.add(1, &[]);
+                metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
                 response
             };
 
