@@ -247,6 +247,7 @@ pub struct PaymentIntentUpdateFields {
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -259,6 +260,8 @@ pub enum PaymentIntentUpdate {
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         feature_metadata: Option<Secret<serde_json::Value>>,
+        shipping_cost: Option<MinorUnit>,
+        tax_details: Option<diesel_models::TaxDetails>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -459,6 +462,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1078,6 +1082,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
+                shipping_cost,
+                tax_details,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -1089,6 +1095,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
+                shipping_cost,
+                tax_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1211,6 +1219,8 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
+                shipping_cost,
+                tax_details,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
@@ -1218,6 +1228,8 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
+                shipping_cost,
+                tax_details,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
@@ -1267,6 +1279,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
+                    shipping_cost: value.shipping_cost,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1436,6 +1449,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
         } = value;
         Self {
             amount,
@@ -1486,6 +1500,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            shipping_cost,
         }
     }
 }

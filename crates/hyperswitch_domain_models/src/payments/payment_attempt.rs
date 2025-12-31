@@ -1465,6 +1465,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        shipping_cost: Option<MinorUnit>,
+        order_tax_amount: Option<MinorUnit>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -1577,6 +1579,7 @@ pub enum PaymentAttemptUpdate {
         debit_routing_savings: Option<MinorUnit>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
+        net_amount: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1687,6 +1690,8 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 payment_method_billing_address_id,
                 updated_by,
+                order_tax_amount,
+                shipping_cost,
             } => DieselPaymentAttemptUpdate::Update {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1706,6 +1711,9 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
+                net_amount: Some(net_amount.get_total_amount()),
+                order_tax_amount,
+                shipping_cost,
             },
             Self::UpdateTrackers {
                 payment_token,
@@ -1854,6 +1862,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 is_stored_credential,
                 request_extended_authorization,
+                net_amount: Some(net_amount.get_total_amount()),
             },
             Self::VoidUpdate {
                 status,
@@ -1896,6 +1905,7 @@ impl PaymentAttemptUpdate {
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
+                net_amount,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1928,6 +1938,7 @@ impl PaymentAttemptUpdate {
                 authorized_amount,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
                 error_details: Box::new(None),
+                net_amount,
             },
             Self::UnresolvedResponseUpdate {
                 status,

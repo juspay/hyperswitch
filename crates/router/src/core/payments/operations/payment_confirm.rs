@@ -2214,6 +2214,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .enable_partial_authorization,
                         enable_overcapture: payment_data.payment_intent.enable_overcapture,
+                        shipping_cost: payment_data.payment_intent.shipping_cost,
                     })),
                     &m_key_store,
                     storage_scheme,
