@@ -21,8 +21,8 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -34,8 +34,9 @@ use crate::{
     constants,
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     unimplemented_payment_method,
     utils::{
@@ -443,6 +444,16 @@ impl
             commerce_indicator,
             cavv_algorithm,
         })
+    }
+}
+
+impl From<&BarclaycardRouterData<&PaymentsPreAuthenticateRouterData>>
+    for ClientReferenceInformation
+{
+    fn from(item: &BarclaycardRouterData<&PaymentsPreAuthenticateRouterData>) -> Self {
+        Self {
+            code: Some(item.router_data.connector_request_reference_id.clone()),
+        }
     }
 }
 
@@ -899,6 +910,125 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
     }
 }
 
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingResponse>>
+    for PaymentsPreAuthenticateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingResponse>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BarclaycardPreProcessingResponse::ClientAuthCheckInfo(info_response) => {
+                let status = enums::AttemptStatus::from(info_response.status);
+                let risk_info: Option<ClientRiskInformation> = None;
+                if utils::is_payment_failure(status) {
+                    let response = Err(get_error_response(
+                        &info_response.error_information,
+                        &None,
+                        &risk_info,
+                        Some(status),
+                        item.http_code,
+                        info_response.id.clone(),
+                    ));
+
+                    Ok(Self {
+                        status,
+                        response,
+                        ..item.data
+                    })
+                } else {
+                    let connector_response_reference_id = Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    );
+
+                    let redirection_data = match (
+                        info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        info_response
+                            .consumer_authentication_information
+                            .step_up_url,
+                    ) {
+                        (Some(token), Some(step_up_url)) => {
+                            Some(RedirectForm::BarclaycardConsumerAuth {
+                                access_token: token.expose(),
+                                step_up_url,
+                            })
+                        }
+                        _ => None,
+                    };
+                    let three_ds_data = serde_json::to_value(
+                        info_response
+                            .consumer_authentication_information
+                            .validate_response,
+                    )
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::NoResponseId,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: Some(serde_json::json!({
+                                "three_ds_data": three_ds_data
+                            })),
+                            network_txn_id: None,
+                            connector_response_reference_id,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            BarclaycardPreProcessingResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason.to_owned();
+                let response = Err(ErrorResponse {
+                    code: error_message
+                        .clone()
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: error_message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(error_response.id.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+                Ok(Self {
+                    response,
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
 impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingResponse>>
     for PaymentsPreProcessingRouterData
 {
@@ -1044,6 +1174,69 @@ fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<
             })
             .flatten()
     })
+}
+
+impl TryFrom<&BarclaycardRouterData<&PaymentsPreAuthenticateRouterData>>
+    for BarclaycardAuthSetupRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &BarclaycardRouterData<&PaymentsPreAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ccard) => {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_barclaycard_card_type)
+                {
+                    Some(card_network) => Some(card_network.to_string()),
+                    None => ccard.get_card_issuer().ok().map(String::from),
+                };
+
+                let payment_information =
+                    PaymentInformation::Cards(Box::new(CardPaymentInformation {
+                        card: Card {
+                            number: ccard.card_number,
+                            expiration_month: ccard.card_exp_month,
+                            expiration_year: ccard.card_exp_year,
+                            security_code: ccard.card_cvc,
+                            card_type,
+                            type_selection_indicator: Some("1".to_owned()),
+                        },
+                    }));
+                let client_reference_information = ClientReferenceInformation::from(item);
+                Ok(Self {
+                    payment_information,
+                    client_reference_information,
+                })
+            }
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Barclaycard"),
+                )
+                .into())
+            }
+        }
+    }
 }
 
 impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for BarclaycardAuthSetupRequest {
@@ -1578,6 +1771,88 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
                 .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupResponse>>
+    for PaymentsPreAuthenticateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupResponse>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BarclaycardAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(Some(RedirectForm::BarclaycardAuthSetup {
+                        access_token: info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        ddc_url: info_response
+                            .consumer_authentication_information
+                            .device_data_collection_url,
+                        reference_id: info_response
+                            .consumer_authentication_information
+                            .reference_id,
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    ),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
+            BarclaycardAuthSetupResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason;
+                Ok(Self {
+                    response: Err(ErrorResponse {
+                        code: error_message
+                            .clone()
+                            .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                        message: error_message.unwrap_or(
+                            hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                        ),
+                        reason,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    }),
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
             }
         }
     }
