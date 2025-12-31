@@ -3404,38 +3404,11 @@ pub async fn update_payment_method_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
-    let mut card_cvc_token = None;
-
-    if let Some(api::PaymentMethodUpdateData::Card(card_data)) = request.payment_method_data {
-        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-        let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-        let payment_method_type = payment_method
-            .payment_method_type
-            .get_required_value("payment_method_type")?;
-
-        let token = card_data
-            .card_cvc
-            .async_map(|cvc| {
-                vault::insert_cvc_using_payment_token(
-                    state,
-                    &parent_payment_method_token,
-                    cvc,
-                    payment_method_type,
-                    intent_fulfillment_time,
-                    platform.get_provider().get_key_store().key.get_inner(),
-                )
-            })
-            .await
-            .transpose()?;
-
-        card_cvc_token = token;
-    }
-
     let response = pm_transforms::generate_payment_method_response(
         &payment_method,
         &None,
         Some(common_enums::StorageType::Persistent),
-        card_cvc_token,
+        None,
         payment_method.customer_id.clone(),
     )?;
 
@@ -3861,19 +3834,20 @@ pub async fn payment_methods_session_update_payment_method(
     let db = state.store.as_ref();
 
     // Validate if the session still exists
-    db.get_payment_methods_session(
-        platform.get_provider().get_key_store(),
-        &payment_method_session_id,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "payment methods session does not exist or has expired".to_string(),
-    })
-    .attach_printable("Failed to retrieve payment methods session from db")?;
+    let payment_method_session = db
+        .get_payment_methods_session(
+            platform.get_provider().get_key_store(),
+            &payment_method_session_id,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let payment_method_update_request = request.payment_method_update_request;
+    let payment_method_update_request = request.payment_method_update_request.clone();
 
-    let updated_payment_method = Box::pin(update_payment_method_core(
+    let mut updated_payment_method = Box::pin(update_payment_method_core(
         &state,
         &platform,
         &profile,
@@ -3882,6 +3856,45 @@ pub async fn payment_methods_session_update_payment_method(
     ))
     .await
     .attach_printable("Failed to update saved payment method")?;
+
+    let mut card_cvc_token = None;
+
+    if let Some(api::PaymentMethodUpdateData::Card(ref card_data)) =
+        request.payment_method_update_request.payment_method_data
+    {
+        let associated_pm_token_details = payment_method_session
+        .associated_payment_methods
+        .as_ref()
+        .and_then(|payment_methods| {
+            payment_methods.iter().find_map(|pm| match &pm.token {
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => Some((pm, token.clone())),
+            })
+        });
+
+        let token = if let Some(((pm_token, token_string), cvc)) =
+            associated_pm_token_details.zip(card_data.card_cvc.clone())
+        {
+            Some(
+                vault::insert_cvc_using_payment_token(
+                    &state,
+                    &token_string,
+                    cvc,
+                    pm_token.payment_method_type,
+                    common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+                    platform.get_provider().get_key_store().key.get_inner(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to insert cvc into vault")?,
+            )
+        } else {
+            None
+        };
+
+        card_cvc_token = token;
+    }
+
+    updated_payment_method.card_cvc_token_storage = card_cvc_token;
 
     Ok(services::ApplicationResponse::Json(updated_payment_method))
 }
