@@ -802,13 +802,14 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             router_data.request.to_owned(),
             resp.response.clone(),
         );
-        if let Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
-            enrolled_v2,
-            related_transaction_id,
-        }) = &authorize_router_data.response
-        {
-            let (enrolled_for_3ds, related_transaction_id) =
-                (*enrolled_v2, related_transaction_id.clone());
+        if connector.connector_name == api_models::enums::Connector::Nuvei {
+            let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
+                Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                }) => (*enrolled_v2, related_transaction_id.clone()),
+                _ => (false, None),
+            };
             authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
             authorize_router_data.request.related_transaction_id = related_transaction_id;
         } else if connector.connector_name == api_models::enums::Connector::Shift4 {
