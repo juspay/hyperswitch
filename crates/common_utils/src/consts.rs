@@ -166,6 +166,9 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
+/// Sub-flow name
+pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
+
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
 

@@ -149,7 +149,7 @@ impl JWTFlow {
                 let tenant_id = ctx.tenant_id.clone();
                 let user_role_match_v2 = state
                     .global_store
-                    .find_user_role_by_user_id_and_lineage(
+                    .find_user_role_by_user_id_and_lineage_with_entity_type(
                         &ctx.user_id,
                         &tenant_id,
                         &ctx.org_id,
@@ -169,7 +169,7 @@ impl JWTFlow {
                 } else {
                     let user_role_match_v1 = state
                         .global_store
-                        .find_user_role_by_user_id_and_lineage(
+                        .find_user_role_by_user_id_and_lineage_with_entity_type(
                             &ctx.user_id,
                             &tenant_id,
                             &ctx.org_id,

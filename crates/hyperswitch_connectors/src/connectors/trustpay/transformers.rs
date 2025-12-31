@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
 use api_models::payments::SessionToken;
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
+    ext_traits::OptionExt,
     pii::{self, Email},
     request::Method,
     types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
@@ -18,8 +19,8 @@ use hyperswitch_domain_models::{
         PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefreshTokenRouterData,
-        RefundsRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -29,7 +30,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        CreateOrderResponseRouterData, PaymentsPreprocessingResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
@@ -238,7 +240,7 @@ pub enum TrustpayPaymentsRequest {
 pub struct PaymentRequestNetworkToken {
     pub amount: StringMajorUnit,
     pub currency: enums::Currency,
-    pub pan: NetworkTokenNumber,
+    pub pan: NetworkToken,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
     #[serde(rename = "RedirectUrl")]
@@ -603,7 +605,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
@@ -1207,6 +1210,36 @@ pub struct TrustpayCreateIntentRequest {
     pub reference: String,
 }
 
+impl TryFrom<&TrustpayRouterData<&CreateOrderRouterData>> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &TrustpayRouterData<&CreateOrderRouterData>) -> Result<Self, Self::Error> {
+        let is_apple_pay = item
+            .router_data
+            .request
+            .payment_method_type
+            .as_ref()
+            .map(|pmt| matches!(pmt, enums::PaymentMethodType::ApplePay));
+
+        let is_google_pay = item
+            .router_data
+            .request
+            .payment_method_type
+            .as_ref()
+            .map(|pmt| matches!(pmt, enums::PaymentMethodType::GooglePay));
+
+        let currency = item.router_data.request.currency;
+        let amount = item.amount.to_owned();
+
+        Ok(Self {
+            amount,
+            currency: currency.to_string(),
+            init_apple_pay: is_apple_pay,
+            init_google_pay: is_google_pay,
+            reference: item.router_data.connector_request_reference_id.clone(),
+        })
+    }
+}
+
 impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
     for TrustpayCreateIntentRequest
 {
@@ -1338,6 +1371,39 @@ pub struct TrustpayApplePayResponse {
 pub struct ApplePayTotalInfo {
     pub label: String,
     pub amount: StringMajorUnit,
+}
+
+impl TryFrom<CreateOrderResponseRouterData<TrustpayCreateIntentResponse>>
+    for CreateOrderRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: CreateOrderResponseRouterData<TrustpayCreateIntentResponse>,
+    ) -> Result<Self, Self::Error> {
+        let create_intent_response = item.response.init_result_data.to_owned();
+        let secrets = item.response.secrets.to_owned();
+        let instance_id = item.response.instance_id.to_owned();
+        let pmt = item
+            .data
+            .request
+            .payment_method_type
+            .get_required_value("payment_method_type")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type",
+            })?;
+
+        match (pmt, create_intent_response) {
+            (
+                enums::PaymentMethodType::ApplePay,
+                InitResultData::AppleInitResultData(apple_pay_response),
+            ) => get_apple_pay_session(instance_id, &secrets, apple_pay_response, item),
+            (
+                enums::PaymentMethodType::GooglePay,
+                InitResultData::GoogleInitResultData(google_pay_response),
+            ) => get_google_pay_session(instance_id, &secrets, google_pay_response, item),
+            _ => Err(report!(errors::ConnectorError::InvalidWallet)),
+        }
+    }
 }
 
 impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>>
