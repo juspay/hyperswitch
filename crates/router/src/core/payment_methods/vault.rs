@@ -1804,10 +1804,10 @@ pub async fn insert_cvc_using_payment_token(
         .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
 
     redis_conn
-        .set_key_if_not_exists_with_expiry(
+        .set_key_with_expiry(
             &key.as_str().into(),
             bytes::Bytes::from(encrypted_payload),
-            Some(fulfillment_time),
+            fulfillment_time,
         )
         .await
         .change_context(errors::StorageError::KVError)
