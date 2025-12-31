@@ -579,7 +579,7 @@ pub trait ConnectorSpecifications {
     fn get_api_webhook_config(
         &self,
     ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &consts::WEBHOOK_SETUP_CAPABILITIES
+        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
     }
 }
 
