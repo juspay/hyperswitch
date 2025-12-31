@@ -12,12 +12,13 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
-use hyperswitch_domain_models::router_data::{
-    AccessToken, ConnectorAuthType, ErrorResponse, RouterData,
-};
 use hyperswitch_domain_models::{
-    router_flow_types::*, router_request_types::*, router_response_types::*, types::*,
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::*,
+    router_request_types::*,
+    router_response_types::*,
+    types::*,
 };
 use hyperswitch_interfaces::{
     api::{ConnectorCommonExt, ConnectorIntegration, *},
@@ -30,15 +31,14 @@ use hyperswitch_interfaces::{
 use masking::{Mask, Maskable};
 use transformers::*;
 
-use crate::connectors::worldpaymodular::transformers::request::{
-    WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
-};
-use crate::types::ResponseRouterData;
-use crate::utils::{PaymentsAuthorizeRequestData, RefundsRequestData as _};
 use crate::{
+    connectors::worldpaymodular::transformers::request::{
+        WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
+    },
     constants::headers,
+    types::ResponseRouterData,
     utils::{
-        RefundsRequestData as _, {self},
+        PaymentsAuthorizeRequestData, RefundsRequestData as _, {self},
     },
 };
 
