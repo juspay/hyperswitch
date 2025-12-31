@@ -1,5 +1,9 @@
 pub mod request;
 pub mod response;
+use api_models::{
+    mandates::MandateId,
+    payments::{MandateIds, MandateReferenceId},
+};
 use base64::Engine;
 use common_enums::{enums, Currency};
 use common_utils::{
@@ -45,6 +49,8 @@ impl<T> TryFrom<(&CurrencyUnit, Currency, MinorUnit, T)> for WorldpaymodularRout
 fn fetch_payment_instrument(
     payment_method: PaymentMethodData,
     billing_address: Option<&Address>,
+    connector_mandate_id: Option<MandateIds>,
+    base_url: &str,
 ) -> CustomResult<PaymentInstrument, ConnectorError> {
     let billing_address =
         if let Some(address) = billing_address.and_then(|addr| addr.address.clone()) {
@@ -69,6 +75,26 @@ fn fetch_payment_instrument(
             None
         };
     match payment_method {
+        PaymentMethodData::MandatePayment => {
+            let mandate_id = connector_mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| {
+                    mandate_ids
+                        .mandate_reference_id
+                        .as_ref()
+                        .and_then(|mandate_ref_id| match mandate_ref_id {
+                            MandateReferenceId::ConnectorMandateId(id) => {
+                                id.get_connector_mandate_id()
+                            }
+                            _ => None,
+                        })
+                })
+                .ok_or(ConnectorError::MissingConnectorMandateID)?;
+            Ok(PaymentInstrument::CardToken(CardToken {
+                payment_type: PaymentType::CardToken,
+                href: format!("{base_url}/tokens/{mandate_id}"),
+            }))
+        }
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Googlepay,
@@ -86,7 +112,6 @@ fn fetch_payment_instrument(
                 wallet_token: data.get_applepay_decoded_payment_data()?,
                 billing_address,
             })),
-
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -123,12 +148,12 @@ fn fetch_payment_instrument(
             )
             .into()),
         },
+
         PaymentMethodData::PayLater(_)
         | PaymentMethodData::BankRedirect(_)
         | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
-        | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::Upi(_)
@@ -154,6 +179,7 @@ impl
             &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         >,
         &Secret<String>,
+        &str,
     )> for WorldpaymodularPaymentsRequest
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -164,9 +190,11 @@ impl
                 &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
             >,
             &Secret<String>,
+            &str,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, entity_id) = req;
+        let (item, entity_id, base_url) = req;
+
         Ok(Self {
             instruction: Instruction {
                 request_auto_settlement: RequestAutoSettlement {
@@ -188,6 +216,8 @@ impl
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
+                    item.router_data.request.mandate_id.clone(),
+                    base_url,
                 )?,
                 debt_repayment: None,
             },
@@ -246,7 +276,9 @@ impl From<&EventType> for enums::AttemptStatus {
             EventType::SentForSettlement => Self::CaptureInitiated,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
-            EventType::Refused | EventType::SettlementFailed => Self::Failure,
+            EventType::SettlementRejected | EventType::Refused | EventType::SettlementFailed => {
+                Self::Failure
+            }
             EventType::Cancelled
             | EventType::SentForRefund
             | EventType::RefundFailed
@@ -272,6 +304,7 @@ impl From<EventType> for enums::RefundStatus {
             | EventType::SentForAuthorization
             | EventType::SettlementFailed
             | EventType::Expired
+            | EventType::SettlementRejected
             | EventType::Unknown => Self::Pending,
         }
     }

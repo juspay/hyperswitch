@@ -12,12 +12,12 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+use hyperswitch_domain_models::router_data::{
+    AccessToken, ConnectorAuthType, ErrorResponse, RouterData,
+};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::*,
-    router_request_types::*,
-    router_response_types::*,
-    types::*,
+    router_flow_types::*, router_request_types::*, router_response_types::*, types::*,
 };
 use hyperswitch_interfaces::{
     api::{ConnectorCommonExt, ConnectorIntegration, *},
@@ -30,27 +30,24 @@ use hyperswitch_interfaces::{
 use masking::{Mask, Maskable};
 use transformers::*;
 
+use crate::connectors::worldpaymodular::transformers::request::{
+    WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
+};
+use crate::types::ResponseRouterData;
+use crate::utils::{PaymentsAuthorizeRequestData, RefundsRequestData as _};
 use crate::{
-    connectors::worldpaymodular::transformers::request::{
-        WorldpaymodularPartialRequest, WorldpaymodularPaymentsRequest,
-    },
     constants::headers,
-    types::ResponseRouterData,
     utils::{
         RefundsRequestData as _, {self},
     },
 };
 
 #[derive(Clone)]
-pub struct Worldpaymodular {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
-}
+pub struct Worldpaymodular {}
 
 impl Worldpaymodular {
     pub const fn new() -> &'static Self {
-        &Self {
-            amount_converter: &MinorUnitForConnector,
-        }
+        &Self {}
     }
 }
 
@@ -140,19 +137,17 @@ impl ConnectorCommon for Worldpaymodular {
 }
 
 impl ConnectorValidation for Worldpaymodular {
-    // fn validate_capture_method(
-    //     &self,
-    //     capture_method: Option<enums::CaptureMethod>,
-    //     _pmt: Option<enums::PaymentMethodType>,
-    // ) -> CustomResult<(), ConnectorError> {
-    //     let capture_method = capture_method.unwrap_or_default();
-    //     match capture_method {
-    //         enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-    //         enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-    //             construct_not_implemented_error_report(capture_method, self.id()),
-    //         ),
-    //     }
-    // }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            utils::PaymentMethodDataType::GooglePay,
+            utils::PaymentMethodDataType::ApplePay,
+        ]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl Payment for Worldpaymodular {}
@@ -496,19 +491,33 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!(
-            "{}cardPayments/customerInitiatedTransactions",
-            self.base_url(connectors)
-        ))
+        let is_mit_flow = req.request.off_session.unwrap_or(false);
+        let is_connector_mandate_id_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.get_connector_mandate_id().is_some())
+            .unwrap_or(false);
+        if is_mit_flow && is_connector_mandate_id_flow {
+            Ok(format!(
+                "{}cardPayments/merchantInitiatedTransactions",
+                self.base_url(connectors)
+            ))
+        } else {
+            Ok(format!(
+                "{}cardPayments/customerInitiatedTransactions",
+                self.base_url(connectors)
+            ))
+        }
     }
 
     fn get_request_body(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
         let connector_router_data = WorldpaymodularRouterData::try_from((
             &self.get_currency_unit(),
@@ -518,12 +527,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         ))?;
         let auth = WorldpaymodularAuthType::try_from(&req.connector_auth_type)
             .change_context(ConnectorError::FailedToObtainAuthType)?;
-        let connector_req =
-            WorldpaymodularPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
-        println!(
-            "hjkhjklhjkljkl {:?} ",
-            serde_json::to_string_pretty(&connector_req)
-        );
+        let connector_req = WorldpaymodularPaymentsRequest::try_from((
+            &connector_router_data,
+            &auth.entity_id,
+            self.base_url(connectors),
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -803,13 +811,15 @@ impl IncomingWebhook for Worldpaymodular {
         match body.event_details.event_type {
             EventType::Authorized => Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
             EventType::SentForSettlement => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
-            EventType::Settled => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
-            EventType::Error | EventType::Expired | EventType::SettlementFailed => {
+            EventType::Settled => Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess),
+            EventType::Cancelled | EventType::Error | EventType::Expired => {
                 Ok(IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            EventType::SettlementFailed | EventType::SettlementRejected => {
+                Ok(IncomingWebhookEvent::PaymentIntentCaptureFailure)
             }
             EventType::Unknown
             | EventType::SentForAuthorization
-            | EventType::Cancelled
             | EventType::Refused
             | EventType::Refunded
             | EventType::SentForRefund

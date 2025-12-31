@@ -54,17 +54,20 @@ pub struct WorldpaymodularEventResponse {
 #[serde(rename_all = "camelCase")]
 pub enum EventType {
     SentForAuthorization,
-    #[serde(alias = "Authorized")]
+    #[serde(alias = "Authorized", alias = "authorized")]
     Authorized,
-    #[serde(alias = "Sent for Settlement")]
+    #[serde(alias = "Sent for Settlement", alias = "sentForSettlement")]
     SentForSettlement,
     Settled,
+    #[serde(alias = "Settlement Failed", alias = "settlementFailed")]
     SettlementFailed,
+    #[serde(alias = "Settlement Rejected", alias = "settlementRejected")]
+    SettlementRejected,
     Cancelled,
     Error,
     Expired,
     Refused,
-    #[serde(alias = "Sent for Refund")]
+    #[serde(alias = "Sent for Refund", alias = "sentForRefund")]
     SentForRefund,
     Refunded,
     RefundFailed,
