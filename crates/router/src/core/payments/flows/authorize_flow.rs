@@ -5,7 +5,7 @@ use common_enums as enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_utils::types::MinorUnit;
-use common_utils::{errors, id_type, ucs_types};
+use common_utils::{errors, ext_traits::ValueExt, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -372,9 +372,26 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     authorize_request_data,
                     pre_authenticate_response,
                 );
-            // After doing pre_authentication, step, we should not proceed with authorize call.
-            // control must be returned to SDK.
-            Ok((authorize_router_data, false))
+            let should_continue_after_preauthenticate = match connector.connector_name {
+                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    }) => {
+                        let three_ds_invoke_data: Option<
+                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
+                        > = connector_metadata.clone().and_then(|metadata| {
+                            metadata
+                                .parse_value("PaymentsConnectorThreeDsInvokeData")
+                                .ok()
+                        });
+                        three_ds_invoke_data.is_none()
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+            Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
             Ok((self, true))
         }
@@ -513,9 +530,25 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         should_continue_payment: bool,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<types::CreateOrderResult>> {
-        if connector
+        let is_order_create_bloated_connector = connector.connector.is_order_create_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) && state
+            .conf
+            .preprocessing_flow_config
+            .as_ref()
+            .is_some_and(|config| {
+                // check order create flow is bloated up for the current connector
+                config
+                    .order_create_bloated_connectors
+                    .contains(&connector.connector_name)
+            });
+        if (connector
             .connector_name
             .requires_order_creation_before_payment(self.payment_method)
+            || is_order_create_bloated_connector)
             && should_continue_payment
         {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -536,7 +569,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     response_data,
                 );
 
-            let resp = gateway::execute_payment_gateway(
+            let order_create_response_router_data = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &createorder_router_data,
@@ -548,25 +581,72 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await
             .to_payment_failed_response()?;
 
-            let create_order_resp = match resp.response {
-                Ok(res) => {
-                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
-                        res
-                    {
-                        Ok(order_id)
-                    } else {
-                        Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                            .attach_printable(format!(
-                                "Unexpected response format from connector: {res:?}",
-                            )))?
+            let order_create_response = order_create_response_router_data.response.clone();
+
+            let create_order_resp = match &order_create_response {
+                Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id.clone()),
+                        should_continue_further: should_continue_payment,
                     }
                 }
-                Err(error) => Err(error),
+                // Some connector return PreProcessingResponse and TransactionResponse response type
+                // Rest of the match statements are temporary fixes for satisfying current connector side response handling
+                // Create Order response must always be PaymentsResponseData::PaymentsCreateOrderResponse only
+                Ok(types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    session_token,
+                    ..
+                }) => {
+                    let should_continue_further = if session_token.is_some() {
+                        // if SDK session token is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+                        should_continue_further,
+                    }
+                }
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    ..
+                }) => {
+                    let order_id = resource_id
+                        .get_connector_transaction_id()
+                        .change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "unable to get connector_transaction_id during order create",
+                        )?;
+                    let should_continue_further = if redirection_data.is_some() {
+                        // if redirection_data is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id),
+                        should_continue_further,
+                    }
+                }
+                Ok(res) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "Unexpected response format from connector: {res:?}",
+                    )))?,
+                Err(error) => types::CreateOrderResult {
+                    create_order_result: Err(error.clone()),
+                    should_continue_further: false,
+                },
             };
-
-            Ok(Some(types::CreateOrderResult {
-                create_order_result: create_order_resp,
-            }))
+            // persist order create response
+            *self = helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                order_create_response_router_data,
+                self.request.clone(),
+                order_create_response,
+            );
+            Ok(Some(create_order_resp))
         } else {
             // If the connector does not require order creation, return None
             Ok(None)
@@ -580,12 +660,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         match create_order_result.create_order_result {
             Ok(order_id) => {
                 self.request.order_id = Some(order_id.clone()); // ? why this is assigned here and ucs also wants this to populate data
-                self.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
             }
-            Err(err) => {
-                self.response = Err(err.clone());
-            }
+            Err(_err) => (),
         }
     }
 }
