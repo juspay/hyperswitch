@@ -714,6 +714,9 @@ pub(crate) fn get_payment_method_create_request(
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(card) => {
+
+            payments_core::helpers::validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+
             let card_detail = payment_methods::CardDetail {
                 card_number: card.card_number.clone(),
                 card_exp_month: card.card_exp_month.clone(),
