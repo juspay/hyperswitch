@@ -696,6 +696,18 @@ pub fn get_http_status_code_type(
     Ok(status_code_type.to_string())
 }
 
+// Trims whitespace from a Secret string and returns None if empty
+pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+    let trimmed = secret.expose().trim().to_string();
+    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+}
+
+// Trims whitespace from a regular string and returns None if empty
+pub fn trim_string(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    (!trimmed.is_empty()).then_some(trimmed)
+}
+
 pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
