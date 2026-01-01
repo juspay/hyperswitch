@@ -167,7 +167,11 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
-            customer_document_number: self.payment_intent.get_customer_document_number(),
+            customer_document_number: self
+                .payment_intent
+                .get_customer_document_number()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("customer_document_number not found in payment_intent")?,
         };
 
         Ok(router_data)

@@ -270,6 +270,6 @@ pub struct PspTokenization {
 /// Customer details associated with the payment method
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodCustomerDetails {
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     pub customer_document_number: Option<Secret<String>>,
 }

@@ -54,7 +54,7 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
     pub document_number: Option<Secret<String>>,
@@ -143,7 +143,7 @@ pub struct CustomerRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     pub document_number: Option<Secret<String>>,
 }
@@ -218,7 +218,7 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
     pub document_number: crypto::OptionalEncryptableSecretString,
@@ -284,7 +284,7 @@ pub struct CustomerResponse {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     pub document_number: crypto::OptionalEncryptableSecretString,
 }
@@ -386,7 +386,7 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
     pub document_number: Option<Secret<String>>,
@@ -435,7 +435,7 @@ pub struct CustomerUpdateRequest {
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
     pub tax_registration_id: Option<Secret<String>>,
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     pub document_number: Option<Secret<String>>,
 }

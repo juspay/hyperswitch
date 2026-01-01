@@ -337,18 +337,22 @@ impl PaymentIntent {
             })
     }
 
-    pub fn get_customer_document_number(&self) -> Option<Secret<String>> {
-        self.customer_details
-            .as_ref()
-            .and_then(|details| {
+    pub fn get_customer_document_number(
+        &self,
+    ) -> Result<Option<Secret<String>>, common_utils::errors::ParsingError> {
+        match &self.customer_details {
+            Some(details) => {
                 let decrypted_value = details.clone().into_inner().expose();
 
-                let customer_data: serde_json::Result<CustomerData> =
-                    serde_json::from_value(decrypted_value);
+                let customer_data: CustomerData =
+                    serde_json::from_value(decrypted_value).map_err(|_| {
+                        common_utils::errors::ParsingError::StructParseFailure("CustomerData")
+                    })?;
 
-                customer_data.ok()
-            })
-            .and_then(|cd| cd.customer_document_number)
+                Ok(customer_data.customer_document_number)
+            }
+            None => Ok(None),
+        }
     }
 }
 

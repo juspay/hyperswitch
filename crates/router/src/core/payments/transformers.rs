@@ -1888,9 +1888,15 @@ where
             .map(|document_number| document_number.clone().into_inner())
     });
 
+    let intent_document_number = payment_data
+        .payment_intent
+        .get_customer_document_number()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("customer_document_number not found in payment_intent")?;
+
     let customer_document_number = payment_method_customer_details
         .and_then(|d| d.customer_document_number)
-        .or(payment_data.payment_intent.get_customer_document_number())
+        .or(intent_document_number)
         .or(document_number.clone());
 
     let router_data = types::RouterData {
@@ -2181,7 +2187,11 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        customer_document_number: payment_data.payment_intent.get_customer_document_number(),
+        customer_document_number: payment_data
+            .payment_intent
+            .get_customer_document_number()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("customer_document_number not found in payment_intent")?,
     };
 
     Ok(router_data)

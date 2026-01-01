@@ -306,6 +306,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     merchant_connector_details.creds_identifier.to_owned()
                 });
 
+        let customer_document_number = payment_intent
+            .get_customer_document_number()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("customer_document_number not found in payment_intent")?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -372,7 +377,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             phone: request.phone.clone(),
             phone_country_code: request.phone_country_code.clone(),
             tax_registration_id: None,
-            document_number: None,
+            document_number: customer_document_number,
         });
 
         let get_trackers_response = operations::GetTrackerResponse {

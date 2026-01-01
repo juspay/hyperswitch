@@ -152,7 +152,7 @@ pub struct CustomerDetails {
     #[smithy(value_type = "Option<String>")]
     pub tax_registration_id: Option<Secret<String>>,
 
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
     pub customer_document_number: Option<Secret<String>>,
@@ -198,7 +198,7 @@ pub struct CustomerDetailsResponse {
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
 
-    /// Document number of the customer
+    /// Customer’s country-specific identification number used for regulatory or tax purposes
     #[schema(value_type = Option<String>, max_length = 255, example = "doc_123456789")]
     #[smithy(value_type = "Option<String>")]
     pub customer_document_number: Option<Secret<String>>,

@@ -195,11 +195,15 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .connector_mandate_detail
             .as_ref()
             .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
-        let payment_method_customer_details = Some(
-            common_types::payment_methods::PaymentMethodCustomerDetails {
-                customer_document_number: resp.customer_document_number.clone(),
-            },
-        );
+        let payment_method_customer_details =
+            resp.customer_document_number
+                .clone()
+                .map(|document_number| {
+                    common_types::payment_methods::PaymentMethodCustomerDetails {
+                        customer_document_number: Some(document_number),
+                    }
+                });
+
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
