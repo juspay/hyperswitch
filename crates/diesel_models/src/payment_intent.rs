@@ -525,8 +525,6 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
         feature_metadata: Option<masking::Secret<serde_json::Value>>,
-        shipping_cost: Option<MinorUnit>,
-        tax_details: Option<TaxDetails>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -1320,8 +1318,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
-                shipping_cost,
-                tax_details,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -1361,7 +1357,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
-                tax_details,
+                tax_details: None,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
@@ -1374,7 +1370,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                shipping_cost,
+                shipping_cost: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,

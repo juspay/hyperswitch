@@ -2022,12 +2022,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .clone()
                                             .get_tokenization_strategy(),
-                                        net_amount: Some(
-                                            payment_data
-                                                .payment_attempt
-                                                .net_amount
-                                                .get_total_amount(),
-                                        ),
                                     }),
                                 ),
                             };
@@ -2255,8 +2249,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .feature_metadata
                 .clone()
                 .map(masking::Secret::new),
-            shipping_cost: payment_data.payment_intent.shipping_cost,
-            tax_details: payment_data.payment_intent.tax_details.clone(),
         },
     };
 

@@ -568,7 +568,6 @@ where
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
-                net_amount: None,
             };
 
             #[cfg(feature = "v1")]

@@ -1579,7 +1579,6 @@ pub enum PaymentAttemptUpdate {
         debit_routing_savings: Option<MinorUnit>,
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
-        net_amount: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1905,7 +1904,6 @@ impl PaymentAttemptUpdate {
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
-                net_amount,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1938,7 +1936,6 @@ impl PaymentAttemptUpdate {
                 authorized_amount,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
                 error_details: Box::new(None),
-                net_amount,
             },
             Self::UnresolvedResponseUpdate {
                 status,

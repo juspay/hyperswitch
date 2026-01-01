@@ -677,9 +677,6 @@ pub enum PaymentAttemptUpdate {
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
         error_details: Box<Option<ErrorDetails>>,
-        net_amount: Option<MinorUnit>,
-        // order_tax_amount: Option<MinorUnit>,
-        // shipping_cost: Option<MinorUnit>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -3443,7 +3440,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 is_overcapture_enabled,
                 authorized_amount,
                 error_details: boxed_error_details,
-                net_amount,
             } => {
                 let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
@@ -3476,7 +3472,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     connector_mandate_detail,
                     charges,
                     amount: None,
-                    net_amount,
+                    net_amount: None,
                     currency: None,
                     amount_to_capture: None,
                     payment_method: None,

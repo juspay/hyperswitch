@@ -260,8 +260,6 @@ pub enum PaymentIntentUpdate {
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         feature_metadata: Option<Secret<serde_json::Value>>,
-        shipping_cost: Option<MinorUnit>,
-        tax_details: Option<diesel_models::TaxDetails>,
     },
     MetadataUpdate {
         metadata: serde_json::Value,
@@ -1082,8 +1080,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
-                shipping_cost,
-                tax_details,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -1095,8 +1091,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
-                shipping_cost,
-                tax_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1219,8 +1213,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
-                shipping_cost,
-                tax_details,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
@@ -1228,8 +1220,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 incremental_authorization_allowed,
                 feature_metadata,
-                shipping_cost,
-                tax_details,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
