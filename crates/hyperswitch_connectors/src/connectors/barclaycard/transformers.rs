@@ -888,7 +888,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "complete_authorize_url",
             })?;
-        Ok(BarclaycardAuthEnrollmentRequest {
+        Ok(Self {
             payment_information,
             client_reference_information,
             consumer_authentication_information: BarclaycardConsumerAuthInformationRequest {
@@ -988,7 +988,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPostAuthenticateRouterData>>
             .parse_value("BarclaycardRedirectionAuthResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let order_information = OrderInformation { amount_details };
-        Ok(BarclaycardAuthValidateRequest {
+        Ok(Self {
             payment_information,
             client_reference_information,
             consumer_authentication_information:
