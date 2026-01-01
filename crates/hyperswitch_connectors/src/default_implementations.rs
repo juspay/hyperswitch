@@ -2250,7 +2250,6 @@ default_imp_for_post_authenticate_steps!(
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
-    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
