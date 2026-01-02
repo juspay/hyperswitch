@@ -222,12 +222,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 auth_type: &self.auth_type,
             },
         ) {
-            if self.request.amount.is_none() || self.request.minor_amount.is_none() {
-                logger::info!(
-                    "Skipping pre-authentication for setup mandate due to missing amount data"
-                );
-                return Ok((self, true));
-            }
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",
                 connector.connector_name
