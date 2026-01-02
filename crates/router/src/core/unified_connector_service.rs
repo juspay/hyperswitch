@@ -795,7 +795,7 @@ pub fn build_unified_connector_service_payment_method(
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingFpx { issuer }  => {
                 let online_banking_fpx = payments_grpc::OnlineBankingFpx {
-                    issuer: payments_grpc::BankNames::foreign_try_from(&issuer)?.into(),
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
