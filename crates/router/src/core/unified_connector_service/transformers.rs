@@ -43,7 +43,7 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
-use unified_connector_service_cards::CardNumber;
+use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, Identifier,
     PaymentServiceTransformRequest, PaymentServiceTransformResponse,
@@ -2802,6 +2802,118 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
                 .into(),
             ),
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::NetworkTokenData>
+    for payments_grpc::NetworkTokenData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
+    ) -> Result<Self, Self::Error> {
+        let card_network = network_token_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_try_from)
+            .transpose()?;
+
+        #[cfg(feature = "v1")]
+        let network_token = payments_grpc::NetworkTokenData {
+            token_number: Some(
+                NetworkToken::from_str(&network_token_data.token_number.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(network_token_data.token_exp_month.expose().into()),
+            token_exp_year: Some(network_token_data.token_exp_year.expose().into()),
+            token_cryptogram: network_token_data
+                .token_cryptogram
+                .map(|cryptogram| cryptogram.expose().into()),
+            card_issuer: network_token_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: network_token_data.card_type.clone(),
+            card_issuing_country: network_token_data.card_issuing_country.clone(),
+            bank_code: network_token_data.bank_code.clone(),
+            nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
+            eci: network_token_data.eci,
+        };
+
+        #[cfg(feature = "v2")]
+        let network_token = payments_grpc::NetworkTokenData {
+            token_number: Some(
+                NetworkToken::from_str(&network_token_data.network_token.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse network token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(network_token_data.network_token_exp_month.expose().into()),
+            token_exp_year: Some(network_token_data.network_token_exp_year.expose().into()),
+            token_cryptogram: network_token_data
+                .cryptogram
+                .map(|cryptogram| cryptogram.expose().into()),
+            card_issuer: network_token_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: network_token_data
+                .card_type
+                .clone()
+                .map(|ct| ct.to_string()),
+            card_issuing_country: network_token_data
+                .card_issuing_country
+                .map(|cic| cic.to_string()),
+            bank_code: network_token_data.bank_code.clone(),
+            nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
+            eci: network_token_data.eci,
+        };
+
+        Ok(network_token)
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    > for payments_grpc::CardDetailsForNetworkTransactionId
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        card_nti_data: hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        let card_network = card_nti_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_try_from)
+            .transpose()?;
+
+        let card_details_for_nti = payments_grpc::CardDetailsForNetworkTransactionId {
+            card_number: Some(
+                CardNumber::from_str(&card_nti_data.card_number.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?,
+            ),
+            card_exp_month: Some(card_nti_data.card_exp_month.expose().into()),
+            card_exp_year: Some(card_nti_data.card_exp_year.expose().into()),
+            card_issuer: card_nti_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: card_nti_data.card_type.clone(),
+            card_issuing_country: card_nti_data.card_issuing_country.clone(),
+            bank_code: card_nti_data.bank_code.clone(),
+            nick_name: card_nti_data.nick_name.map(|n| n.expose().into()),
+            card_holder_name: card_nti_data
+                .card_holder_name
+                .map(|name| name.expose().into()),
+        };
+
+        Ok(card_details_for_nti)
     }
 }
 
