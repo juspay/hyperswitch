@@ -1,5 +1,13 @@
 import { standardBillingAddress } from "./Commons";
 
+const successfulNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "John Doe",
+  card_cvc: "737",
+};
+
 export const connectorDetails = {
   crypto_pm: {
     PaymentIntent: {
@@ -63,10 +71,10 @@ export const connectorDetails = {
     ZeroAuthMandate: {
       Response: {
         status: 501,
-        body: {
+        body: {        
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow Cryptopay is not implemented",
+            message: "Setup Mandate flow for Cryptopay is not implemented",
             code: "IR_00",
           },
         },
