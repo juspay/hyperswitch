@@ -211,7 +211,7 @@ outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [merchant_id_auth]
-merchant_id_auth_enabled = true
+merchant_id_auth_enabled = false
 
 [eph_key]
 validity = 1
@@ -1449,7 +1449,7 @@ hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
 [proxy_status_mapping]
-proxy_connector_http_status_code = true    # If enabled, the http status code of the connector will be proxied in the response
+proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
 
