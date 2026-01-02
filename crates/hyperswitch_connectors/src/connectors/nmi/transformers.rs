@@ -310,7 +310,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
     ) -> Result<Self, Self::Error> {
         let (response, status) = process_nmi_vault_response(
             &item.data.connector_auth_type,
-            Some(item.data.request.amount),
+            item.data.request.amount,
             item.data.request.currency,
             &item.response,
             item.http_code,

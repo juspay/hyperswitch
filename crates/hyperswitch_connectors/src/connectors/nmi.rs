@@ -1191,6 +1191,7 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
             } => *auth_type == enums::AuthenticationType::ThreeDs,
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

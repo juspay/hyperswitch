@@ -158,9 +158,9 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             user_token_id: item.customer_id.clone(),
             billing_address,
             url_details: UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
+                success_url: "https://google.com/".to_string(),
+                failure_url: "https://google.com/".to_string(),
+                pending_url: "https://google.com/".to_string(),
             },
         })
     }
@@ -220,9 +220,9 @@ impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDS
             user_token_id: item.customer_id.clone(),
             billing_address,
             url_details: UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
+                success_url: "https://google.com/".to_string(), 
+                failure_url: "https://google.com/".to_string(), 
+                pending_url: "https://google.com/".to_string(),
             },
         })
     }
@@ -1155,9 +1155,9 @@ where
             device_details,
             external_scheme_details: request_data.external_scheme_details,
             url_details: Some(UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
+                success_url: "https://google.com/".to_string(), 
+                failure_url: "https://google.com/".to_string(), 
+                pending_url: "https://google.com/".to_string(), 
             }),
             ..request_data
         })
@@ -2524,7 +2524,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
             .unwrap_or_default();
         Ok(Self {
             status: get_payment_status(
-                Some(item.data.request.amount),
+                item.data.request.amount,
                 false,
                 response.transaction_type,
                 response.transaction_status,

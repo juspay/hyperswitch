@@ -1479,6 +1479,10 @@ impl ConnectorRedirectResponse for Nuvei {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
+                    router_env::logger::info!(
+                        "Nuvei Redirect Response: {:?}",
+                        redirect_response.cres.clone().expose()
+                    );
                     let acs_response: nuvei::NuveiACSResponse =
                         utils::safe_base64_decode(redirect_response.cres.expose())?
                             .as_slice()
@@ -1676,6 +1680,9 @@ impl ConnectorSpecifications for Nuvei {
                 request_data: _,
             } => *auth_type == enums::AuthenticationType::ThreeDs,
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type } => {
+                *auth_type == enums::AuthenticationType::ThreeDs
+            }
         }
     }
 

@@ -669,7 +669,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: PaymentMethodData,
-    pub amount: i64,
+    pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub currency: Option<storage_enums::Currency>,
@@ -681,7 +681,7 @@ pub struct PaymentsPreAuthenticateData {
     pub customer_name: Option<Secret<String>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
-    pub minor_amount: MinorUnit,
+    pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
 }
 
@@ -693,6 +693,29 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             payment_method_data: data.payment_method_data,
             customer_name: data.customer_name,
             metadata: data.metadata.map(Secret::new),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            capture_method: data.capture_method,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+            webhook_url: data.webhook_url,
+        })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            customer_name: data.customer_name,
+            metadata: data.metadata,
             amount: data.amount,
             minor_amount: data.minor_amount,
             email: data.email,

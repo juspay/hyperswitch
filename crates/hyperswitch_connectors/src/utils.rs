@@ -2860,7 +2860,7 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
         Ok(self.payment_method_data.clone())
     }
     fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        Ok(self.minor_amount)
+        self.minor_amount.ok_or_else(missing_field_err("amount"))
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))

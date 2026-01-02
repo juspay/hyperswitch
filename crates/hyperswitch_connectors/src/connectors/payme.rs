@@ -1465,6 +1465,7 @@ impl ConnectorSpecifications for Payme {
                 PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
