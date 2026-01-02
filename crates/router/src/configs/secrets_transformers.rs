@@ -638,5 +638,6 @@ pub(crate) async fn fetch_raw_secrets(
         internal_services: conf.internal_services,
         superposition,
         comparison_service: conf.comparison_service,
+        on_session: conf.on_session,
     }
 }

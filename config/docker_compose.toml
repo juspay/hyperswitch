@@ -397,6 +397,9 @@ cards = [
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[on_session]
+on_session_not_supported_payment_methods = "klarna,affirm"
+
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 

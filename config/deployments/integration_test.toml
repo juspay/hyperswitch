@@ -214,6 +214,9 @@ payout_connector_list = "nomupay,stripe,wise"
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response
 
+[on_session]
+on_session_not_supported_payment_methods = "klarna,affirm"
+
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
