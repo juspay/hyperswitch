@@ -542,8 +542,10 @@ pub enum PaymentMethodCreateData {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetail {
-    ACH {
+    Ach {
+        #[schema(value_type = String)]
         account_number: masking::Secret<String>,
+        #[schema(value_type = String)]
         routing_number: masking::Secret<String>,
     },
 }

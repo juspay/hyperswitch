@@ -11280,6 +11280,33 @@
           }
         ]
       },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitResponse": {
         "allOf": [
           {
@@ -25643,6 +25670,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
           }
