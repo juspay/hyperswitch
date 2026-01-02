@@ -2820,7 +2820,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
             .transpose()?;
 
         #[cfg(feature = "v1")]
-        let network_token = payments_grpc::NetworkTokenData {
+        let network_token = Self {
             token_number: Some(
                 NetworkToken::from_str(&network_token_data.token_number.get_card_no())
                     .change_context(
@@ -2844,7 +2844,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
         };
 
         #[cfg(feature = "v2")]
-        let network_token = payments_grpc::NetworkTokenData {
+        let network_token = Self {
             token_number: Some(
                 NetworkToken::from_str(&network_token_data.network_token.get_card_no())
                     .change_context(
@@ -2892,7 +2892,7 @@ impl
             .map(payments_grpc::CardNetwork::foreign_try_from)
             .transpose()?;
 
-        let card_details_for_nti = payments_grpc::CardDetailsForNetworkTransactionId {
+        let card_details_for_nti = Self {
             card_number: Some(
                 CardNumber::from_str(&card_nti_data.card_number.get_card_no()).change_context(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
