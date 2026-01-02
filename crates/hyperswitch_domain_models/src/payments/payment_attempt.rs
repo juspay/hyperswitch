@@ -1710,7 +1710,6 @@ impl PaymentAttemptUpdate {
                 payment_method_billing_address_id,
                 network_transaction_id,
                 updated_by,
-                net_amount: Some(net_amount.get_total_amount()),
                 order_tax_amount,
                 shipping_cost,
             },
@@ -1861,7 +1860,6 @@ impl PaymentAttemptUpdate {
                 network_transaction_id,
                 is_stored_credential,
                 request_extended_authorization,
-                net_amount: Some(net_amount.get_total_amount()),
             },
             Self::VoidUpdate {
                 status,
