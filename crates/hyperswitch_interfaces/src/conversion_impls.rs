@@ -78,6 +78,7 @@ fn get_default_router_data<F, Req, Resp>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payout_id: None,
         connector_response: None,
         payment_method_status: None,
         minor_amount_captured: None,

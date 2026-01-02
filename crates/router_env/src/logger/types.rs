@@ -603,6 +603,9 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    #[cfg(feature = "payouts")]
+    /// Manually update the payout details like status, error code, error message etc.
+    PayoutsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
     ProxyConfirmIntent,

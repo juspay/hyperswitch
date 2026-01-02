@@ -4,6 +4,68 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.01.0
+
+### Features
+
+- **UCS:** Added CardDetailsForNetworkTransactionId & NetworkToken payments support for Hyperswitch<>UCS tunnel ([#10796](https://github.com/juspay/hyperswitch/pull/10796)) ([`39b43a4`](https://github.com/juspay/hyperswitch/commit/39b43a428cb99fc4973152e6b81f732515772e19))
+
+**Full Changelog:** [`2025.12.31.0...2026.01.01.0`](https://github.com/juspay/hyperswitch/compare/2025.12.31.0...2026.01.01.0)
+
+- - -
+
+## 2025.12.31.0
+
+### Features
+
+- **payment-methods:** Add volatile payment method id support in proxy v2 ([#10597](https://github.com/juspay/hyperswitch/pull/10597)) ([`48fbc4e`](https://github.com/juspay/hyperswitch/commit/48fbc4e4154996cc7be45d6c0238c62e3b6fe2e8))
+- **payments:** Add structured error details to payment attempts ([#10646](https://github.com/juspay/hyperswitch/pull/10646)) ([`fff565e`](https://github.com/juspay/hyperswitch/commit/fff565e8fbcf03a0fa87976b8745062606ec8d3b))
+- **payouts:** Propagate payout_id in connector events ([#10518](https://github.com/juspay/hyperswitch/pull/10518)) ([`56260f9`](https://github.com/juspay/hyperswitch/commit/56260f90fcff004cb3fa56933dffc71c0b23fd4b))
+
+### Bug Fixes
+
+- **wasm:** [finix] add merchant source verification key ([#10792](https://github.com/juspay/hyperswitch/pull/10792)) ([`1956b02`](https://github.com/juspay/hyperswitch/commit/1956b0266ebb1098aa274c556b945a37ebfa1efc))
+
+### Refactors
+
+- Refactor create order interface to support redirection and SDK session tokens for Trustpay and Payme ([#10779](https://github.com/juspay/hyperswitch/pull/10779)) ([`01461cf`](https://github.com/juspay/hyperswitch/commit/01461cfc46fdfc4108cf7d237c781f25f44c5190))
+
+**Full Changelog:** [`2025.12.30.0...2025.12.31.0`](https://github.com/juspay/hyperswitch/compare/2025.12.30.0...2025.12.31.0)
+
+- - -
+
+## 2025.12.30.0
+
+### Refactors
+
+- Invoking Granular flow instead of Preprocessing ([#10778](https://github.com/juspay/hyperswitch/pull/10778)) ([`c084b77`](https://github.com/juspay/hyperswitch/commit/c084b7705a8d404bc09959cd4a552bea44103b50))
+
+**Full Changelog:** [`2025.12.25.0...2025.12.30.0`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0...2025.12.30.0)
+
+- - -
+
+## 2025.12.25.0
+
+### Features
+
+- **connector:**
+  - [Zift] use Ecommerce transaction_industry_type instead of card present/not present ([#10775](https://github.com/juspay/hyperswitch/pull/10775)) ([`8279f8c`](https://github.com/juspay/hyperswitch/commit/8279f8c89ea2826b575829a4da024d29acde5cd4))
+  - [FINIX] webhook + statement descriptor ([#10758](https://github.com/juspay/hyperswitch/pull/10758)) ([`761183b`](https://github.com/juspay/hyperswitch/commit/761183bb198a65a53703a7e817d2ba63fef445ec))
+- **payouts:** Add manual update api for payouts ([#10539](https://github.com/juspay/hyperswitch/pull/10539)) ([`0e85d50`](https://github.com/juspay/hyperswitch/commit/0e85d50e65b8ef1f07606858b14e16ed5479fca8))
+- **platform:** Support update tracker for platform in payments ([#10691](https://github.com/juspay/hyperswitch/pull/10691)) ([`0ae8592`](https://github.com/juspay/hyperswitch/commit/0ae859227e0aa26e3dc7a97db3b6460ef86bc181))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fixed 3DS challenge endpoint ([#10772](https://github.com/juspay/hyperswitch/pull/10772)) ([`e5e3691`](https://github.com/juspay/hyperswitch/commit/e5e369181109fdd6dfe22e8fd231d72b9e91f643))
+
+### Refactors
+
+- Simplify payment processing flow and unify gateway context handling v2 ([#10774](https://github.com/juspay/hyperswitch/pull/10774)) ([`45b7d28`](https://github.com/juspay/hyperswitch/commit/45b7d287163e8db3ac8ef93f554038c97c02fc2b))
+
+**Full Changelog:** [`2025.12.24.0...2025.12.25.0`](https://github.com/juspay/hyperswitch/compare/2025.12.24.0...2025.12.25.0)
+
+- - -
+
 ## 2025.12.24.0
 
 ### Features

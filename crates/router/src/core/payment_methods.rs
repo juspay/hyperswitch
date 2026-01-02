@@ -28,6 +28,7 @@ use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::{EncodeMessage, Encryptable, GcmAes256},
+    encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
@@ -42,6 +43,8 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -1175,6 +1178,7 @@ pub async fn create_payment_method_card_core(
                 &payment_method,
                 &None,
                 req.storage_type,
+                req.customer_id,
             )?;
 
             Ok((resp, payment_method))
@@ -1218,6 +1222,8 @@ pub async fn create_volatile_payment_method_card_core(
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     let db = &*state.store;
+    let keymanager_state = &(state).into();
+    let merchant_key_store = platform.get_provider().get_key_store();
 
     let payment_method_data = domain::PaymentMethodVaultingData::try_from(req.payment_method_data)?
         .populate_bin_details_for_payment_method(state)
@@ -1259,7 +1265,12 @@ pub async fn create_volatile_payment_method_card_core(
                 external_vault_source,
             )
             .await
-            .attach_printable("failed to construct payment method")?;
+            .attach_printable("failed to construct payment method")?
+            .convert()
+            .await
+            .change_context(errors::StorageError::EncryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment method")?; //Convert to storage model payment method to store in redis
 
             let redis_connection = state
                 .store
@@ -1281,13 +1292,25 @@ pub async fn create_volatile_payment_method_card_core(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to insert payment method id in redis")?;
 
+            let domain_payment_method = domain::PaymentMethod::convert_back(
+                keymanager_state,
+                payment_method,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to convert payment method")?;
+
             let resp = pm_transforms::generate_payment_method_response(
-                &payment_method,
+                &domain_payment_method,
                 &None,
                 req.storage_type,
+                req.customer_id,
             )?;
 
-            Ok((resp, payment_method))
+            Ok((resp, domain_payment_method))
         }
         Err(e) => Err(e),
     }?;
@@ -1389,8 +1412,12 @@ pub async fn create_payment_method_proxy_card_core(
     )
     .await?;
 
-    let payment_method_response =
-        pm_transforms::generate_payment_method_response(&payment_method, &None, req.storage_type)?;
+    let payment_method_response = pm_transforms::generate_payment_method_response(
+        &payment_method,
+        &None,
+        req.storage_type,
+        req.customer_id,
+    )?;
 
     Ok((payment_method_response, payment_method))
 }
@@ -1775,7 +1802,12 @@ pub async fn payment_method_intent_create(
     .await
     .attach_printable("Failed to add Payment method to DB")?;
 
-    let resp = pm_transforms::generate_payment_method_response(&payment_method, &None, None)?;
+    let resp = pm_transforms::generate_payment_method_response(
+        &payment_method,
+        &None,
+        None,
+        Some(customer_id),
+    )?;
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -2204,7 +2236,13 @@ pub async fn construct_payment_method_object(
         .attach_printable("Unable to parse Payment method data")?;
 
     Ok(domain::PaymentMethod {
-        customer_id: customer_id.clone(),
+        customer_id: Some(
+            customer_id
+                .clone()
+                .unwrap_or(id_type::GlobalCustomerId::generate(
+                    &state.conf.cell_information.id,
+                )),
+        ), //for guest checkout flow where customer id is not present, generated a temporary customer id to handle to conversion to diesel model.
         merchant_id: merchant_id.to_owned(),
         id: payment_method_id,
         locker_id,
@@ -2903,17 +2941,12 @@ pub async fn vault_payment_method_in_volatile_storage(
     let vault_id = domain::VaultId::generate(generate_id(consts::ID_LENGTH, "vault"));
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let payload = pmd
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let encrypted_payload = GcmAes256
-        .encode_message(
-            merchant_key_store.key.get_inner().peek().as_ref(),
-            payload.as_bytes(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encode redis temp locker data")?;
+    let encrypted_payload: Encryption =
+        cards::create_encrypted_data(&(state).into(), merchant_key_store, pmd.clone())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encrypt Payment method vaulting data")?
+            .into();
 
     let redis_connection = state
         .store
@@ -3201,6 +3234,7 @@ pub async fn retrieve_payment_method(
         &payment_method,
         &single_use_token_in_cache,
         Some(common_enums::StorageType::Persistent),
+        payment_method.customer_id.clone(),
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -3364,6 +3398,7 @@ pub async fn update_payment_method_core(
         &payment_method,
         &None,
         Some(common_enums::StorageType::Persistent),
+        payment_method.customer_id.clone(),
     )?;
 
     // Add a PT task to handle payment_method delete from vault
@@ -4244,6 +4279,7 @@ async fn create_single_use_tokenization_flow(
             frm_metadata: None,
             dispute_id: None,
             refund_id: None,
+            payout_id: None,
             connector_response: None,
             payment_method_status: None,
             minor_amount_captured: None,

@@ -4122,7 +4122,7 @@ where
             // Set the response in routerdata response to carry forward
             router_data
                 .update_router_data_with_create_order_response(create_order_response.clone());
-            create_order_response.create_order_result.ok().is_some()
+            create_order_response.should_continue_further
         }
         // If create order is not required, then we can proceed with further processing
         None => should_continue_further,
@@ -4213,6 +4213,25 @@ where
         } else {
             (router_data, false)
         };
+        (router_data, should_continue_further)
+    } else if state
+        .conf
+        .preprocessing_flow_config
+        .as_ref()
+        .is_some_and(|config| {
+            // If order create flow is bloated up for the current connector
+            // order create call would have already happened in the previous step.
+            config
+                .order_create_bloated_connectors
+                .contains(&connector.connector_name)
+        })
+    {
+        // If order create flow is bloated up for the current connector
+        // So skip calling complete_preprocessing_steps_if_required function
+        logger::info!(
+            "skipping preprocessing steps for connector: {}",
+            connector.connector_name
+        );
         (router_data, should_continue_further)
     } else {
         complete_preprocessing_steps_if_required(
@@ -5018,62 +5037,45 @@ where
     )
     .await?;
 
-    let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
-        merchant_connector_account_type_details.clone(),
-        payment_data.get_payment_intent().merchant_id.clone(),
-        profile_id,
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
     );
 
-    let (connector_request, should_continue_further) =
-        if matches!(execution_path, ExecutionPath::Direct) {
-            let mut should_continue_further = true;
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
 
-            let should_continue = match router_data
-                .create_order_at_connector(
-                    state,
-                    &connector,
-                    should_continue_further,
-                    &default_gateway_context,
-                )
-                .await?
-            {
-                Some(create_order_response) => {
-                    if let Ok(order_id) = create_order_response.clone().create_order_result {
-                        payment_data.set_connector_response_reference_id(Some(order_id))
-                    }
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account_type_details.clone(),
+        execution_path,
+        execution_mode,
+    };
 
-                    // Set the response in routerdata response to carry forward
-                    router_data.update_router_data_with_create_order_response(
-                        create_order_response.clone(),
-                    );
-                    create_order_response.create_order_result.ok().map(|_| ())
-                }
-                // If create order is not required, then we can proceed with further processing
-                None => Some(()),
-            };
+    let should_continue = match router_data
+        .create_order_at_connector(state, &connector, true, &gateway_context)
+        .await?
+    {
+        Some(create_order_response) => {
+            if let Ok(order_id) = create_order_response.clone().create_order_result {
+                payment_data.set_connector_response_reference_id(Some(order_id))
+            }
 
-            let should_continue: (Option<common_utils::request::Request>, bool) =
-                match should_continue {
-                    Some(_) => {
-                        router_data
-                            .build_flow_specific_connector_request(
-                                state,
-                                &connector,
-                                call_connector_action.clone(),
-                            )
-                            .await?
-                    }
-                    None => (None, false),
-                };
-            should_continue
-        } else {
-            // If unified connector service is called, these values are not used
-            // as the request is built in the unified connector service call
-            (None, false)
-        };
+            // Set the response in routerdata response to carry forward
+            router_data
+                .update_router_data_with_create_order_response(create_order_response.clone());
+            create_order_response.create_order_result.is_ok()
+        }
+        // If create order is not required, then we can proceed with further processing
+        None => true,
+    };
 
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -5088,45 +5090,27 @@ where
         )
         .await?;
 
-    record_time_taken_with(|| async {
-        if matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
-            router_env::logger::info!(
-                "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
-                payment_data.get_payment_intent().id.get_string_repr(),
-                payment_data.get_payment_attempt().id.get_string_repr()
-            );
-            let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
-
-            // Extract merchant_order_reference_id from payment data for UCS audit trail
-            let merchant_order_reference_id = payment_data.get_payment_intent().merchant_reference_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string());
-            let creds_identifier = payment_data.get_creds_identifier().map(str::to_owned);
-
-            router_data
-                .call_unified_connector_service(
-                    state,
-                    &header_payload,
-                    lineage_ids,
-                    merchant_connector_account_type_details.clone(),
-                    platform,
-                    &connector,
-                    ExecutionMode::Primary, // UCS is called in primary mode
-                    merchant_order_reference_id,
-                    call_connector_action,
-                    creds_identifier,
-                )
-                .await?;
-
-            Ok(router_data)
-        } else {
-            Err(
-                errors::ApiErrorResponse::InternalServerError
+    if should_continue {
+        // The status of payment_attempt and intent will be updated in the previous step
+        // update this in router_data.
+        // This is added because few connector integrations do not update the status,
+        // and rely on previous status set in router_data
+        router_data.status = payment_data.get_payment_attempt().status;
+        router_data
+            .decide_flows(
+                state,
+                &connector,
+                call_connector_action,
+                None,
+                business_profile,
+                header_payload.clone(),
+                return_raw_connector_response,
+                gateway_context,
             )
-            .attach_printable("Unified connector service is down and traditional connector service fallback is not implemented")
-        }
-    })
-    .await
+            .await
+    } else {
+        Ok(router_data)
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -5376,18 +5360,44 @@ where
         )
         .await?;
 
-    let gateway_context = gateway_context::RouterGatewayContext::new(
-        platform.clone(),
-        header_payload.clone(),
-        business_profile,
-        merchant_connector_account.clone(),
-        ExecutionPath::Direct,
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        platform,
+        &router_data,
         None,
+        call_connector_action.clone(),
+        None,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
     );
+
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+        platform: platform.clone(),
+        header_payload: header_payload.clone(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
+
+    // Update feature metadata to track Direct routing usage for stickiness
+    update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
 
     let add_access_token_result = router_data
         .add_access_token(
-            state,
+            &updated_state,
             &connector,
             platform,
             payment_data.get_creds_identifier(),
@@ -5396,7 +5406,7 @@ where
         .await?;
 
     router_data
-        .add_session_token(state, &connector, &gateway_context)
+        .add_session_token(&updated_state, &connector, &gateway_context)
         .await?;
 
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
@@ -5406,7 +5416,7 @@ where
     );
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
-        state,
+        &updated_state,
         &connector,
         payment_data,
         router_data,
@@ -5426,7 +5436,11 @@ where
     let (connector_request, should_continue_further) = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
         router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
+            .build_flow_specific_connector_request(
+                &updated_state,
+                &connector,
+                call_connector_action.clone(),
+            )
             .await?
     } else {
         (None, false)
@@ -5436,7 +5450,7 @@ where
         operation
             .to_domain()?
             .add_task_to_process_tracker(
-                state,
+                &updated_state,
                 payment_data.get_payment_attempt(),
                 validate_result.requeue,
                 schedule_time,
@@ -5451,7 +5465,7 @@ where
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
-            state,
+            &updated_state,
             req_state,
             platform.get_processor(),
             payment_data.clone(),
@@ -5469,7 +5483,7 @@ where
         router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
-                state,
+                &updated_state,
                 &connector,
                 call_connector_action,
                 connector_request,
