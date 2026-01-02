@@ -291,10 +291,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -492,10 +492,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(true),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -744,6 +744,7 @@ impl
             ),
             merchant_account_metadata: HashMap::new(),
             metadata: HashMap::new(),
+            connector_order_reference_id: None,
         })
     }
 }
@@ -1202,8 +1203,8 @@ impl
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: false,
-            request_incremental_authorization: false,
+            enrolled_for_3ds: Some(false),
+            request_incremental_authorization: Some(false),
             minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
@@ -1340,10 +1341,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1502,10 +1503,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request

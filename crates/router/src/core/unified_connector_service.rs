@@ -716,6 +716,30 @@ pub fn build_unified_connector_service_payment_method(
             ))
             .into()),
         },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(
+            bank_transfer_data,
+        ) => match bank_transfer_data.as_ref() {
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferFinland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferFinland(payments_grpc::InstantBankTransferFinland {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransferPoland {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::InstantBankTransferPoland(payments_grpc::InstantBankTransferPoland {})),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::SepaBankTransfer(payments_grpc::SepaBankTransfer {})),
+                    }),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented bank transfer type: {bank_transfer_data:?}"
+            ))
+            .into()),
+        },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
             match payment_method_type {
                 Some(PaymentMethodType::ClassicReward) => Ok(payments_grpc::PaymentMethod {
