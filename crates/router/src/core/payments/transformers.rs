@@ -5915,7 +5915,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
-            amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
+            amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: Some(amount),
             payment_method_data: (payment_data
                 .payment_method_data
@@ -6206,7 +6206,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
-            amount: Some(amount.get_amount_as_i64()), // need to change this once we move to connector module
+            amount: amount.get_amount_as_i64(), // need to change this once we move to connector module
             minor_amount: Some(amount),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,

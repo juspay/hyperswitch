@@ -2083,7 +2083,7 @@ impl
         let amount = item.data.request.amount;
         let response = &item.response;
         let (status, redirection_data, connector_response_data) = process_nuvei_payment_response(
-            NuveiPaymentResponseData::new(amount, false, item.data.payment_method, response),
+            NuveiPaymentResponseData::new(Some(amount), false, item.data.payment_method, response),
         )?;
 
         let (amount_captured, minor_amount_capturable) = get_amount_captured(
@@ -2524,7 +2524,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
             .unwrap_or_default();
         Ok(Self {
             status: get_payment_status(
-                item.data.request.amount,
+                Some(item.data.request.amount),
                 false,
                 response.transaction_type,
                 response.transaction_status,
@@ -2557,7 +2557,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
             .unwrap_or_default();
         Ok(Self {
             status: get_payment_status(
-                item.data.request.amount,
+                Some(item.data.request.amount),
                 false,
                 response.transaction_type,
                 response.transaction_status,

@@ -2871,7 +2871,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_amount(&self) -> i64;
     fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -2901,8 +2901,8 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework

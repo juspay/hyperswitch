@@ -420,7 +420,7 @@ pub struct PaymentMethodTokenizationData {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
-    pub amount: Option<i64>,
+    pub amount: i64,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -460,7 +460,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             payment_method_data: data.request.payment_method_data.clone(),
             browser_info: None,
             currency: data.request.currency,
-            amount: Some(data.request.amount),
+            amount: data.request.amount,
             split_payments: data.request.split_payments.clone(),
             customer_acceptance: data.request.customer_acceptance.clone(),
             setup_future_usage: data.request.setup_future_usage,
@@ -481,7 +481,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             payment_method_data: data.payment_method_data,
             browser_info: data.browser_info,
             currency: data.currency,
-            amount: Some(data.amount),
+            amount: data.amount,
             split_payments: data.split_payments.clone(),
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
@@ -507,7 +507,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
                 })?,
             browser_info: data.browser_info,
             currency: data.currency,
-            amount: Some(data.amount),
+            amount: data.amount,
             split_payments: None,
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
@@ -600,7 +600,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreProcessingData {
     pub payment_method_data: Option<PaymentMethodData>,
-    pub amount: Option<i64>,
+    pub amount: i64,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -639,7 +639,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
-            amount: Some(data.amount),
+            amount: data.amount,
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
@@ -669,7 +669,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: PaymentMethodData,
-    pub amount: Option<i64>,
+    pub amount: i64,
     pub email: Option<pii::Email>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub currency: Option<storage_enums::Currency>,
@@ -693,7 +693,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             payment_method_data: data.payment_method_data,
             customer_name: data.customer_name,
             metadata: data.metadata.map(Secret::new),
-            amount: Some(data.amount),
+            amount: data.amount,
             minor_amount: Some(data.minor_amount),
             email: data.email,
             capture_method: data.capture_method,
@@ -804,7 +804,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
     fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
-            amount: Some(data.amount),
+            amount: data.amount,
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
@@ -1515,7 +1515,7 @@ pub struct SdkPaymentsSessionUpdateData {
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: PaymentMethodData,
-    pub amount: Option<i64>,
+    pub amount: i64,
     pub confirm: bool,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,

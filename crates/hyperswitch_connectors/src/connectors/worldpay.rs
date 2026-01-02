@@ -294,7 +294,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 http_code: res.status_code,
             },
             optional_correlation_id,
-            data.request.amount.unwrap_or(0),
+            data.request.amount,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }

@@ -386,11 +386,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            },
-        )?);
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
         let amount = convert_amount(
             self.amount_converter,
             amount_in_minor_unit,
