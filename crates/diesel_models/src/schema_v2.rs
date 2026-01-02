@@ -145,6 +145,38 @@ diesel::table! {
         #[max_length = 255]
         challenge_request_key -> Nullable<Varchar>,
         customer_details -> Nullable<Bytea>,
+        earliest_supported_version -> Nullable<Jsonb>,
+        latest_supported_version -> Nullable<Jsonb>,
+        #[max_length = 8]
+        mcc -> Nullable<Varchar>,
+        #[max_length = 64]
+        platform -> Nullable<Varchar>,
+        #[max_length = 255]
+        device_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        device_brand -> Nullable<Varchar>,
+        #[max_length = 255]
+        device_os -> Nullable<Varchar>,
+        #[max_length = 255]
+        device_display -> Nullable<Varchar>,
+        #[max_length = 255]
+        browser_name -> Nullable<Varchar>,
+        #[max_length = 255]
+        browser_version -> Nullable<Varchar>,
+        #[max_length = 255]
+        scheme_name -> Nullable<Varchar>,
+        exemption_requested -> Nullable<Bool>,
+        exemption_accepted -> Nullable<Bool>,
+        #[max_length = 255]
+        issuer_id -> Nullable<Varchar>,
+        #[max_length = 16]
+        issuer_country -> Nullable<Varchar>,
+        #[max_length = 8]
+        merchant_country_code -> Nullable<Varchar>,
+        #[max_length = 16]
+        billing_country -> Nullable<Varchar>,
+        #[max_length = 16]
+        shipping_country -> Nullable<Varchar>,
     }
 }
 
@@ -631,6 +663,12 @@ diesel::table! {
         feature_data -> Nullable<Jsonb>,
         #[max_length = 64]
         feature -> Nullable<Varchar>,
+        #[max_length = 64]
+        standardised_code -> Nullable<Varchar>,
+        #[max_length = 1024]
+        description -> Nullable<Varchar>,
+        #[max_length = 1024]
+        user_guidance_message -> Nullable<Varchar>,
     }
 }
 
@@ -1039,6 +1077,7 @@ diesel::table! {
         #[max_length = 64]
         tokenization -> Nullable<Varchar>,
         encrypted_payment_method_data -> Nullable<Bytea>,
+        error_details -> Nullable<Jsonb>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1371,6 +1410,8 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         version -> ApiVersion,
+        #[max_length = 64]
+        application_source -> Nullable<Varchar>,
     }
 }
 

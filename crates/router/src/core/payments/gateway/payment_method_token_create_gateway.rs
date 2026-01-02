@@ -94,6 +94,7 @@ where
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
                 &platform,
+                router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
@@ -112,7 +113,7 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             pm_token_create_request,
@@ -137,13 +138,12 @@ where
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, pm_token_create_response))
+                Ok((router_data, (), pm_token_create_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .map(|(router_data, _)| router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 

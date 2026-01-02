@@ -135,7 +135,10 @@ where
     FData: mandate::MandateBehaviour + Clone,
 {
     let mut pm_status = None;
-    let cards = PmCards { state, platform };
+    let cards = PmCards {
+        state,
+        provider: platform.get_provider(),
+    };
     match save_payment_method_data.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -306,17 +309,9 @@ where
                     ) => Some(domain::PaymentMethodsData::WalletDetails(
                         get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
-                    (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => {
-                        Some(domain::PaymentMethodsData::BankDebit(
-                            domain::BankDebitDetailsPaymentMethod::try_from(bank_debit_data)
-                                .change_context(errors::ApiErrorResponse::NotImplemented {
-                                    message: errors::NotImplementedMessage::Reason(
-                                        "payment_method_data storage is only supported for ACH"
-                                            .to_string(),
-                                    ),
-                                })?,
-                        ))
-                    }
+                    (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
+                        .get_bank_debit_details()
+                        .map(domain::PaymentMethodsData::BankDebit),
                     _ => None,
                 };
 
@@ -632,7 +627,6 @@ where
                                         payment_method_create_request,
                                         &card,
                                         &customer_id,
-                                        api::enums::LockerChoice::HyperswitchCardVault,
                                         Some(
                                             existing_pm
                                                 .locker_id
@@ -677,6 +671,9 @@ where
                                     issuer_country: card
                                         .card_issuing_country
                                         .or(existing_pm_data.issuer_country),
+                                    issuer_country_code: card
+                                        .card_issuing_country_code
+                                        .or(existing_pm_data.issuer_country_code),
                                     card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
@@ -1033,6 +1030,7 @@ async fn skip_saving_card_in_locker(
             let card_detail = CardDetailFromLocker {
                 scheme: None,
                 issuer_country: card.card_issuing_country.clone(),
+                issuer_country_code: card.card_issuing_country_code.clone(),
                 last4_digits: last4_digits.clone(),
                 card_number: None,
                 expiry_month: Some(card.card_exp_month.clone()),
@@ -1318,12 +1316,18 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &nt_data,
-                &customer_id,
-                None,
-            ))
+            let (res, dc) = Box::pin(
+                PmCards {
+                    state,
+                    provider: platform.get_provider(),
+                }
+                .add_card_to_locker(
+                    payment_method_request,
+                    &nt_data,
+                    &customer_id,
+                    None,
+                ),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1356,17 +1360,24 @@ pub async fn save_network_token_in_locker(
                             card_holder_name: None,
                             nick_name: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             card_network: Some(token_response.card_brand.clone()),
                             card_issuer: None,
                             card_type: None,
                         };
 
-                        let (res, dc) = Box::pin(PmCards { state, platform }.add_card_to_locker(
-                            payment_method_request,
-                            &network_token_data,
-                            &customer_id,
-                            None,
-                        ))
+                        let (res, dc) = Box::pin(
+                            PmCards {
+                                state,
+                                provider: platform.get_provider(),
+                            }
+                            .add_card_to_locker(
+                                payment_method_request,
+                                &network_token_data,
+                                &customer_id,
+                                None,
+                            ),
+                        )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;

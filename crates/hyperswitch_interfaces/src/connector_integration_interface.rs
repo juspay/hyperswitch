@@ -532,23 +532,28 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match self {
-            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
-            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
+            Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
+            Self::New(connector) => connector.is_order_create_flow_required(current_flow),
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
     fn get_preprocessing_flow_if_needed(

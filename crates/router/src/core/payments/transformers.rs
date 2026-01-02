@@ -172,7 +172,7 @@ where
         recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -191,6 +191,7 @@ where
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -541,6 +542,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -889,6 +891,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -1022,6 +1025,7 @@ pub async fn construct_router_data_for_psync<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -1388,6 +1392,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -1619,6 +1624,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -1901,7 +1907,7 @@ where
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -1920,6 +1926,7 @@ where
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: merchant_recipient_data.map(|data| {
@@ -2099,7 +2106,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             &payment_data.payment_intent,
             &payment_data.payment_attempt,
             connector_id,
@@ -2118,6 +2125,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: merchant_recipient_data.map(|data| {
@@ -3946,9 +3954,6 @@ where
             business_label: payment_intent.business_label,
             business_sub_label: payment_attempt.business_sub_label,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
-            ephemeral_key: payment_data
-                .get_ephemeral_key()
-                .map(ForeignFrom::foreign_from),
             manual_retry_allowed,
             connector_transaction_id,
             frm_message,
@@ -4269,7 +4274,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_experience: None,
             connector_label: None,
             allowed_payment_method_types: None,
-            ephemeral_key: None,
             manual_retry_allowed: None,
             frm_message: None,
             connector_metadata: None,
@@ -4288,7 +4292,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
-            updated: None,
+            updated: Some(pi.modified_at),
             split_payments: None,
             frm_metadata: None,
             capture_before: pa.capture_before,
@@ -6086,6 +6090,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
+            request_incremental_authorization: matches!(
+                payment_data
+                    .payment_intent
+                    .request_incremental_authorization,
+                Some(RequestIncrementalAuthorization::True)
+            ),
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
@@ -6671,7 +6681,6 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
-            payment_test_mode: None,
         }
     }
 }

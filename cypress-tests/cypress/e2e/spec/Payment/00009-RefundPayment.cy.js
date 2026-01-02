@@ -135,12 +135,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.Response || data.ResponseCustom,
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -150,12 +145,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -165,12 +155,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["SyncRefund"];
 
-      const newData = {
-        ...data,
-        Response: data.ResponseCustom || data.Response,
-      };
-
-      cy.syncRefundCallTest(newData, globalState);
+      cy.syncRefundCallTest(data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -288,12 +273,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["PartialRefund"];
 
-        const newData = {
-          ...data,
-          Response: data.ResponseCustom || data.Response,
-        };
-
-        cy.refundCallTest(fixtures.refundBody, newData, globalState);
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -588,7 +568,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       const newData = {
         ...data,
-        Response: data.Response || data.ResponseCustom,
+        Response: data.ResponseCustom || data.Response,
       };
 
       cy.refundCallTest(fixtures.refundBody, newData, globalState);

@@ -108,7 +108,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor().get_account().get_id(),
+            platform.get_processor(),
             payment_intent,
             payment_attempt,
             &connector_id,
@@ -125,6 +125,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,

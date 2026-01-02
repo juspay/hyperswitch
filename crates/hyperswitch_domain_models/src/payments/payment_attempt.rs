@@ -866,6 +866,8 @@ impl PaymentAttempt {
             }),
         };
 
+        let group_id = payment_intent.active_attempts_group_id.clone();
+
         let payment_method_data = request
             .payment_method_data
             .as_ref()
@@ -898,7 +900,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
-            attempts_group_id: None,
+            attempts_group_id: group_id.clone(),
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector,
@@ -1925,6 +1927,7 @@ impl PaymentAttemptUpdate {
                 is_overcapture_enabled,
                 authorized_amount,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
+                error_details: Box::new(None),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1946,6 +1949,7 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                error_details: Box::new(None),
             },
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
@@ -1984,6 +1988,7 @@ impl PaymentAttemptUpdate {
                 issuer_error_message,
                 network_details,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
+                error_details: Box::new(None),
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -2321,6 +2326,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
+            error_details: None,
         })
     }
 
@@ -2544,6 +2550,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
+            error_details: None,
         })
     }
 }
@@ -2725,6 +2732,7 @@ impl behaviour::Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 
@@ -3015,6 +3023,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount,
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 }

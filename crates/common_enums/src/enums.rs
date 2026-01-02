@@ -24,7 +24,7 @@ use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
+pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -207,6 +207,39 @@ impl AttemptStatus {
         }
     }
 
+    pub fn is_payment_terminal_failure(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Failure
+            | Self::Expired
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::AuthenticationFailed
+            | Self::AuthorizationFailed => true,
+            Self::Started
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::Charged
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::AutoRefunded
+            | Self::PartialCharged
+            | Self::PartiallyAuthorized
+            | Self::PartialChargedAndChargeable
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
@@ -325,8 +358,100 @@ pub enum GsmDecision {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
+pub enum RecommendedAction {
+    DoNotRetry,
+    RetryAfter10Days,
+    RetryAfter1Hour,
+    RetryAfter24Hours,
+    RetryAfter2Days,
+    RetryAfter4Days,
+    RetryAfter6Days,
+    RetryAfter8Days,
+    RetryAfterInstrumentUpdate,
+    RetryLater,
+    RetryWithDifferentPaymentMethodData,
+    StopRecurring,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum GsmFeature {
     Retry,
+}
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum StandardisedCode {
+    AccountClosedOrInvalid,
+    AuthenticationFailed,
+    AuthenticationRequired,
+    AuthorizationMissingOrRevoked,
+    CardLostOrStolen,
+    CardNotSupportedRestricted,
+    CfgPmNotEnabledOrMisconfigured,
+    ComplianceOrSanctionsRestriction,
+    ConfigurationIssue,
+    CreditLimitExceeded,
+    CurrencyOrCorridorNotEnabled,
+    DoNotHonor,
+    DownstreamTechnicalIssue,
+    DuplicateRequest,
+    GenericUnknownError,
+    IncorrectAuthenticationCode,
+    InsufficientFunds,
+    IntegCryptographicIssue,
+    IntegrationIssue,
+    InvalidCardNumber,
+    InvalidCredentials,
+    InvalidCvv,
+    InvalidExpiryDate,
+    InvalidState,
+    IssuerUnavailable,
+    MerchantInactive,
+    MissingOrInvalidParam,
+    OperationNotAllowed,
+    PaymentCancelledByUser,
+    PaymentMethodIssue,
+    PaymentSessionTimeout,
+    PmAddressMismatch,
+    PspAcquirerError,
+    PspFraudEngineDecline,
+    RateLimit,
+    StoredCredentialOrMitNotEnabled,
+    SubscriptionPlanInactive,
+    SuspectedFraud,
+    ThreeDsAuthenticationServiceIssue,
+    ThreeDsConfigurationIssue,
+    ThreeDsDataOrProtocolInvalid,
+    TransactionNotPermitted,
+    TransactionTimedOut,
+    VelocityLimitExceeded,
+    WalletOrTokenConfigIssue,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
@@ -1886,6 +2011,9 @@ pub enum RecoveryStatus {
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
+    /// The payment has been partially recovered through retry mechanisms,
+    /// and the remaining amount is still being processed by the payment gateway.
+    PartiallyCapturedAndProcessing,
     /// The payment cannot be recovered due to terminal failure conditions.
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
@@ -2089,13 +2217,6 @@ pub enum SamsungPayCardBrand {
     Unknown,
 }
 
-/// Custom T&C Message to be shown per payment method type
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct CustomTermsByPaymentMethodTypes(
-    #[schema(value_type = HashMap<String, Option<String>>)]
-    pub  Option<std::collections::HashMap<PaymentMethodType, String>>,
-);
-
 /// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
@@ -2236,6 +2357,8 @@ pub enum PaymentMethodType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    OpenBanking,
+    NetworkToken,
 }
 
 impl PaymentMethodType {
@@ -2361,6 +2484,8 @@ impl PaymentMethodType {
             Self::DirectCarrierBilling => "Direct Carrier Billing",
             Self::RevolutPay => "RevolutPay",
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
+            Self::OpenBanking => "Open Banking",
+            Self::NetworkToken => "Network Token",
         };
         display_name.to_string()
     }
@@ -2409,6 +2534,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    NetworkToken,
 }
 
 impl PaymentMethod {
@@ -2428,7 +2554,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 
@@ -2448,7 +2575,8 @@ impl PaymentMethod {
             | Self::Upi
             | Self::Voucher
             | Self::OpenBanking
-            | Self::MobilePayment => false,
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
         }
     }
 }
@@ -2540,31 +2668,6 @@ impl ExecutionPath {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum ShadowRolloutAvailability {
-    IsAvailable,
-    NotAvailable,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum UcsAvailability {
     Enabled,
     Disabled,
@@ -2618,8 +2721,10 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
+    /// Represents only UCS Connector integration
     UcsConnector,
-    DirectConnector,
+    /// Represents Connector integration which may be on both Direct and UCS
+    DirectandUCSConnector,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -3090,7 +3195,7 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema)]
+#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",
@@ -9928,6 +10033,28 @@ pub enum ProcessTrackerRunner {
     InvoiceSyncflow,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplicationSource {
+    #[default]
+    Main,
+    Cug,
+}
+
 #[derive(Debug)]
 pub enum CryptoPadding {
     PKCS7,
@@ -10100,9 +10227,9 @@ impl From<IntentStatus> for InvoiceStatus {
             IntentStatus::RequiresCapture
             | IntentStatus::PartiallyCaptured
             | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Processing
-            | IntentStatus::PartiallyCapturedAndProcessing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
@@ -10249,4 +10376,27 @@ pub enum VaultTokenType {
     /// Token cryptogram
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum StorageType {
+    Volatile,
+    #[default]
+    Persistent,
 }
