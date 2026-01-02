@@ -4325,6 +4325,7 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
+            connector_response_reference_id: None,
             network_advice_code: response
                 .additional_data
                 .as_ref()
@@ -4425,6 +4426,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code,
             network_error_message,
@@ -4527,6 +4529,7 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code,
             network_error_message,
@@ -4609,6 +4612,7 @@ pub fn get_present_to_shopper_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -4679,6 +4683,7 @@ pub fn get_qr_code_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -4762,6 +4767,7 @@ pub fn get_redirection_error_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: response
                 .additional_data
                 .as_ref()
@@ -6459,6 +6465,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -6501,6 +6508,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -6545,6 +6553,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

@@ -3891,6 +3891,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -3928,6 +3929,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -4220,6 +4222,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -4877,6 +4880,7 @@ fn get_stripe_payments_response_data(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response_id),
+        connector_response_reference_id: None,
         network_advice_code: response
             .as_ref()
             .and_then(|res| res.network_advice_code.clone()),

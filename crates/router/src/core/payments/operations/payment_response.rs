@@ -1649,6 +1649,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 issuer_error_code: err.network_decline_code.clone(),
                                 issuer_error_message: err.network_error_message.clone(),
                                 network_details: Some(ForeignFrom::foreign_from(&err)),
+                                connector_response_reference_id: err
+                                    .connector_response_reference_id
+                                    .clone(),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1691,6 +1694,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             issuer_error_code: None,
                             issuer_error_message: None,
                             network_details: None,
+                            connector_response_reference_id: None,
                         }),
                         None,
                     )
