@@ -224,6 +224,23 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 Some(enums::FutureUsage::OffSession)
             );
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+         let is_on_session_payment = matches!(
+                resp.request.setup_future_usage,
+                Some(enums::FutureUsage::OnSession)
+            );
+
+            let is_on_session_not_supported_payment_method = payment_data
+                .payment_attempt
+                .payment_method_type
+                .is_some_and(|pm_type| {
+                    state
+                        .conf
+                        .on_session
+                        .on_session_not_supported_payment_methods
+                        .contains(&pm_type)
+                });
+
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
             let tokenization::SavePaymentMethodDataResponse {
@@ -303,33 +320,18 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 }
             }
             Ok(())
-        } else if should_avoid_saving {
+        } else if is_on_session_payment && is_on_session_not_supported_payment_method  {
+            logger::info!("On-session saving not supported for this payment method, skipping save_payment_method call");
+
+            Ok(())   
+         } 
+        else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
                 payment_data.payment_attempt.payment_method_id = Some(pm_info.get_id().clone());
             };
             Ok(())
         } else {
             // Save card flow
-            let is_on_session_payment = matches!(
-                resp.request.setup_future_usage,
-                Some(enums::FutureUsage::OnSession)
-            );
-
-            let is_on_session_not_supported_payment_method = payment_data
-                .payment_attempt
-                .payment_method_type
-                .is_some_and(|pm_type| {
-                    state
-                        .conf
-                        .on_session
-                        .on_session_not_supported_payment_methods
-                        .contains(&pm_type)
-                });
-
-            if is_on_session_payment && is_on_session_not_supported_payment_method {
-                logger::info!("On-session saving not supported for this payment method, skipping save_payment_method call");
-                Ok(())
-            } else {
                 let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
                 let state = state.clone();
                 let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -413,7 +415,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 Ok(())
             }
         }
-    }
 }
 
 #[cfg(feature = "v1")]
