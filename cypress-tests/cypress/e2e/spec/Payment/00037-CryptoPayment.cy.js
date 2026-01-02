@@ -14,6 +14,10 @@ describe("Crypto Payment", () => {
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
+  
+    afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
 
   context("Crypto Currency Payment flow", () => {
     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
