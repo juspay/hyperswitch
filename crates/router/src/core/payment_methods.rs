@@ -704,7 +704,7 @@ pub async fn retrieve_payment_method_with_token(
                 },
             )?;
 
-            let data = cards::get_bank_debit_from_hs_locker(
+            let bank_debit_detail = cards::get_bank_debit_from_hs_locker(
                 state,
                 merchant_key_store,
                 &customer.customer_id,
@@ -713,11 +713,51 @@ pub async fn retrieve_payment_method_with_token(
             )
             .await?;
 
-            let (account_number, routing_number) = match data {
-                payment_methods::BankDebitCreateData::ACH {
+            let (account_number, routing_number) = match bank_debit_detail {
+                payment_methods::BankDebitDetail::ACH {
                     account_number,
                     routing_number,
                 } => (account_number, routing_number),
+            };
+
+            let payment_method_data = payment_method_info
+                .get_required_value("PaymentMethod")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("PaymentMethod not found")?;
+
+            let (
+                card_holder_name,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            ) = if let Some(
+                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::BankDebit(
+                    bank_debit_data,
+                ),
+            ) = payment_method_data.get_payment_methods_data()
+            {
+                use hyperswitch_domain_models::payment_method_data::BankDebitDetailsPaymentMethod;
+
+                let BankDebitDetailsPaymentMethod::AchBankDebit {
+                    masked_account_number: _,
+                    masked_routing_number: _,
+                    card_holder_name,
+                    bank_account_holder_name,
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                } = bank_debit_data;
+                (
+                    card_holder_name.clone(),
+                    bank_account_holder_name.clone(),
+                    bank_name.clone(),
+                    bank_type.clone(),
+                    bank_holder_type.clone(),
+                )
+            } else {
+                return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method data is not bank debit"));
             };
 
             storage::PaymentMethodDataWithId {
@@ -727,11 +767,11 @@ pub async fn retrieve_payment_method_with_token(
                         BankDebitData::AchBankDebit {
                             account_number,
                             routing_number,
-                            card_holder_name: None,
-                            bank_account_holder_name: None,
-                            bank_name: None,
-                            bank_type: None,
-                            bank_holder_type: None,
+                            card_holder_name,
+                            bank_account_holder_name,
+                            bank_name,
+                            bank_type,
+                            bank_holder_type,
                         },
                     ),
                 ),
@@ -884,7 +924,7 @@ pub(crate) async fn get_payment_method_create_request(
                         client_secret: None,
                         payment_method_data: Some(
                             payment_methods::PaymentMethodCreateData::BankDebit(
-                                payment_methods::BankDebitCreateData::ACH {
+                                payment_methods::BankDebitDetail::ACH {
                                     account_number: account_number.to_owned(),
                                     routing_number: routing_number.to_owned(),
                                 },

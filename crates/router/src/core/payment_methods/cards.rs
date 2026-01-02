@@ -606,7 +606,7 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn add_bank_debit_to_locker(
         &self,
         req: api::PaymentMethodCreate,
-        bank_debit_data: api_models::payment_methods::BankDebitCreateData,
+        bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::CustomResult<
@@ -5004,17 +5004,17 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     token_ref: &str,
-) -> errors::RouterResult<api_models::payment_methods::BankDebitCreateData> {
+) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
     let payment_method =
         get_encrypted_data_from_vault(state, key_store, customer_id, merchant_id, token_ref)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting payment method from locker")?;
 
-    let bank_debit_create_data: api_models::payment_methods::BankDebitCreateData = payment_method
+    let bank_debit_create_data: api_models::payment_methods::BankDebitDetail = payment_method
         .peek()
         .to_string()
-        .parse_struct("BankDebitCreateData")
+        .parse_struct("BankDebitDetail")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(bank_debit_create_data)

@@ -534,14 +534,14 @@ pub enum PaymentMethodCreateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    BankDebit(BankDebitCreateData),
+    BankDebit(BankDebitDetail),
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-pub enum BankDebitCreateData {
+pub enum BankDebitDetail {
     ACH {
         account_number: masking::Secret<String>,
         routing_number: masking::Secret<String>,
