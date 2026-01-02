@@ -70,9 +70,66 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "crypto":
+      cryptoRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        connectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
+}
+
+function cryptoRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  // Crypto payments are async → never verify return URL
+  const verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+
+    // Ensure redirect happened
+    waitForRedirect(redirectionUrl.href);
+
+    cy.wait(CONSTANTS.WAIT_TIME / 5);
+
+    //  Verify QR is present 
+    cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
+      .should("exist")
+      .and("be.visible");
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ paymentMethodType }) => {
+        switch (paymentMethodType) {
+          case "crypto_currency":
+            cy.log("Handling crypto currency payment redirection");
+            break;
+
+          default:
+            throw new Error(
+              `Unsupported crypto payment method type: ${paymentMethodType}`
+            );
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping crypto redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
 }
 
 function bankTransferRedirection(
