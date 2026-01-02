@@ -602,6 +602,7 @@ impl PaymentMethodsController for PmCards<'_> {
         Ok((payment_method_resp, store_resp.duplication_check))
     }
 
+    #[cfg(feature = "v1")]
     async fn add_bank_debit_to_locker(
         &self,
         req: api::PaymentMethodCreate,
@@ -4996,6 +4997,7 @@ pub async fn get_bank_from_vault(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_bank_debit_from_hs_locker(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,

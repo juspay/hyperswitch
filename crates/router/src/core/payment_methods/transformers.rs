@@ -437,6 +437,7 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn mk_add_bank_debit_response_hs(
     bank_reference: String,
     req: api::PaymentMethodCreate,

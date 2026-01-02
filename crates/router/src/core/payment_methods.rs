@@ -691,12 +691,25 @@ pub async fn retrieve_payment_method_with_token(
             payment_method_id: None,
         },
         storage::PaymentTokenData::BankDebit(bank_debit) => {
+            let customer =
+                customer
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "customer",
+                    })?;
+
+            let locker_id = bank_debit.locker_id.as_ref().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "locker_id",
+                },
+            )?;
+
             let data = cards::get_bank_debit_from_hs_locker(
                 state,
                 merchant_key_store,
-                &customer.as_ref().unwrap().customer_id,
+                &customer.customer_id,
                 &merchant_key_store.merchant_id,
-                &bank_debit.locker_id.as_ref().unwrap(),
+                locker_id,
             )
             .await?;
 
