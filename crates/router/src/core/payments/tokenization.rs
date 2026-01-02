@@ -1121,17 +1121,16 @@ pub async fn save_in_locker_internal(
         card_detail,
         payment_method_request.payment_method_data.clone(),
     ) {
-        (_, Some(card), _) | (Some(card), _, _) => {
-            Box::pin(PmCards { state, platform }.add_card_to_locker(
-                payment_method_request,
-                &card,
-                &customer_id,
-                None,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")
-        }
+        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
 
         (
             None,
@@ -1139,12 +1138,18 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(PmCards { state, platform }.add_bank_debit_to_locker(
-            payment_method_request,
-            bank_debit_create_data,
-            platform.get_processor().get_key_store(),
-            &customer_id,
-        ))
+        ) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                platform.get_processor().get_key_store(),
+                &customer_id,
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
