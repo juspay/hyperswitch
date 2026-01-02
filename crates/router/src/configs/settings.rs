@@ -188,7 +188,7 @@ pub struct Settings<S: SecretState> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OnSessionConfig {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub on_session_not_supported_payment_methods: HashSet<enums::PaymentMethodType>,
+    pub save_payment_method_not_supported: HashSet<enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
