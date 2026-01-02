@@ -334,80 +334,83 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 let customer_id = payment_data.payment_intent.customer_id.clone();
                 let payment_attempt = payment_data.payment_attempt.clone();
 
-            let business_profile = business_profile.clone();
-            let payment_method_type = resp.request.payment_method_type;
-            let payment_method_billing_address = payment_method_billing_address.cloned();
-            let payment_method_token = payment_data.payment_method_token.clone();
+                let business_profile = business_profile.clone();
+                let payment_method_type = resp.request.payment_method_type;
+                let payment_method_billing_address = payment_method_billing_address.cloned();
+                let payment_method_token = payment_data.payment_method_token.clone();
 
-            let cloned_platform = platform.clone();
-            logger::info!("Call to save_payment_method in locker");
-            let _task_handle = tokio::spawn(
-                async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+                let cloned_platform = platform.clone();
+                logger::info!("Call to save_payment_method in locker");
+                let _task_handle = tokio::spawn(
+                    async move {
+                        logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        connector_name,
-                        save_payment_data,
-                        customer_id,
-                        &cloned_platform,
-                        payment_method_type,
-                        billing_name,
-                        payment_method_billing_address.as_ref(),
-                        &business_profile,
-                        connector_mandate_reference_id,
-                        merchant_connector_id.clone(),
-                        vault_operation.clone(),
-                        payment_method_info.clone(),
-                        payment_method_token.clone(),
-                    ))
-                    .await;
+                        let result = Box::pin(tokenization::save_payment_method(
+                            &state,
+                            connector_name,
+                            save_payment_data,
+                            customer_id,
+                            &cloned_platform,
+                            payment_method_type,
+                            billing_name,
+                            payment_method_billing_address.as_ref(),
+                            &business_profile,
+                            connector_mandate_reference_id,
+                            merchant_connector_id.clone(),
+                            vault_operation.clone(),
+                            payment_method_info.clone(),
+                            payment_method_token.clone(),
+                        ))
+                        .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
-                        payment_method_id,
-                        ..
-                    }) = result
-                    {
-                        let payment_attempt_update =
-                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                payment_method_id,
-                                updated_by: storage_scheme.clone().to_string(),
+                        if let Err(err) = result {
+                            logger::error!(
+                                "Asynchronously saving card in locker failed : {:?}",
+                                err
+                            );
+                        } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                            payment_method_id,
+                            ..
+                        }) = result
+                        {
+                            let payment_attempt_update =
+                                storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                                    payment_method_id,
+                                    updated_by: storage_scheme.clone().to_string(),
+                                };
+
+                            #[cfg(feature = "v1")]
+                            let respond = state
+                                .store
+                                .update_payment_attempt_with_attempt_id(
+                                    payment_attempt,
+                                    payment_attempt_update,
+                                    storage_scheme,
+                                    cloned_platform.get_processor().get_key_store(),
+                                )
+                                .await;
+
+                            #[cfg(feature = "v2")]
+                            let respond = state
+                                .store
+                                .update_payment_attempt_with_attempt_id(
+                                    &(&state).into(),
+                                    &key_store.clone(),
+                                    payment_attempt,
+                                    payment_attempt_update,
+                                    storage_scheme,
+                                )
+                                .await;
+
+                            if let Err(err) = respond {
+                                logger::error!("Error updating payment attempt: {:?}", err);
                             };
-
-                        #[cfg(feature = "v1")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt,
-                                payment_attempt_update,
-                                storage_scheme,
-                                cloned_platform.get_processor().get_key_store(),
-                            )
-                            .await;
-
-                        #[cfg(feature = "v2")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                &(&state).into(),
-                                &key_store.clone(),
-                                payment_attempt,
-                                payment_attempt_update,
-                                storage_scheme,
-                            )
-                            .await;
-
-                        if let Err(err) = respond {
-                            logger::error!("Error updating payment attempt: {:?}", err);
-                        };
+                        }
                     }
-                }
-                .in_current_span(),
-            );
-            Ok(())
-        }
+                    .in_current_span(),
+                );
+                Ok(())
+            }
         }
     }
 }
