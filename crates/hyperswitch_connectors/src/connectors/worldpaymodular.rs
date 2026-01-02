@@ -9,7 +9,6 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -126,7 +125,7 @@ impl ConnectorCommon for Worldpaymodular {
             code: response.error_name,
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
-            attempt_status: None,
+            attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -647,9 +646,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
     ) -> CustomResult<RefundsRouterData<Execute>, ConnectorError> {
         match res.status_code {
             202 => {
-                let response: WorldpaymodularPaymentsResponse = res
+                let response: WorldpayModularRefundResponse = res
                     .response
-                    .parse_struct("Worldpaymodular PaymentsResponse")
+                    .parse_struct("Worldpaymodular RefundResponse")
                     .change_context(ConnectorError::ResponseDeserializationFailed)?;
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);

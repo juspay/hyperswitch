@@ -1,11 +1,8 @@
 pub mod request;
 pub mod response;
-use api_models::{
-    mandates::MandateId,
-    payments::{MandateIds, MandateReferenceId},
-};
+use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
-use common_enums::{enums, Currency};
+use common_enums::{enums, Currency, PaymentChannel};
 use common_utils::{
     consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, types::MinorUnit,
 };
@@ -27,7 +24,10 @@ use serde::Serialize;
 
 use crate::{
     types::PaymentsResponseRouterData,
-    utils::{get_unimplemented_payment_method_error_message, ApplePay, RouterData as _},
+    utils::{
+        get_unimplemented_payment_method_error_message, ApplePay,
+        PaymentsAuthorizeRequestData as _, RouterData as _,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -92,11 +92,11 @@ fn fetch_payment_instrument(
                 .ok_or(ConnectorError::MissingConnectorMandateID)?;
             Ok(PaymentInstrument::CardToken(CardToken {
                 payment_type: PaymentType::CardToken,
-                href: format!("{base_url}/tokens/{mandate_id}"),
+                href: format!("{base_url}tokens/{mandate_id}"),
             }))
         }
-        PaymentMethodData::Wallet(wallet) => match wallet {
-            WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
+        PaymentMethodData::Wallet(WalletData::GooglePay(data)) => {
+            Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Googlepay,
                 wallet_token: data
                     .tokenization_data
@@ -106,70 +106,21 @@ fn fetch_payment_instrument(
                     })?
                     .into(),
                 billing_address,
-            })),
-            WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
+            }))
+        }
+        PaymentMethodData::Wallet(WalletData::ApplePay(data)) => {
+            Ok(PaymentInstrument::Applepay(WalletPayment {
                 payment_type: PaymentType::Applepay,
                 wallet_token: data.get_applepay_decoded_payment_data()?,
                 billing_address,
-            })),
-            WalletData::AliPayQr(_)
-            | WalletData::AliPayRedirect(_)
-            | WalletData::AliPayHkRedirect(_)
-            | WalletData::MomoRedirect(_)
-            | WalletData::KakaoPayRedirect(_)
-            | WalletData::GoPayRedirect(_)
-            | WalletData::GcashRedirect(_)
-            | WalletData::ApplePayRedirect(_)
-            | WalletData::ApplePayThirdPartySdk(_)
-            | WalletData::DanaRedirect {}
-            | WalletData::GooglePayRedirect(_)
-            | WalletData::GooglePayThirdPartySdk(_)
-            | WalletData::MbWayRedirect(_)
-            | WalletData::MobilePayRedirect(_)
-            | WalletData::PaypalRedirect(_)
-            | WalletData::PaypalSdk(_)
-            | WalletData::Paze(_)
-            | WalletData::SamsungPay(_)
-            | WalletData::TwintRedirect {}
-            | WalletData::VippsRedirect {}
-            | WalletData::TouchNGoRedirect(_)
-            | WalletData::WeChatPayRedirect(_)
-            | WalletData::CashappQr(_)
-            | WalletData::SwishQr(_)
-            | WalletData::WeChatPayQr(_)
-            | WalletData::AmazonPay(_)
-            | WalletData::AmazonPayRedirect(_)
-            | WalletData::BluecodeRedirect {}
-            | WalletData::Paysera(_)
-            | WalletData::Skrill(_)
-            | WalletData::RevolutPay(_)
-            | WalletData::Mifinity(_) => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("worldpaymodular"),
-            )
-            .into()),
-        },
-
-        PaymentMethodData::PayLater(_)
-        | PaymentMethodData::BankRedirect(_)
-        | PaymentMethodData::BankDebit(_)
-        | PaymentMethodData::BankTransfer(_)
-        | PaymentMethodData::Crypto(_)
-        | PaymentMethodData::Reward
-        | PaymentMethodData::RealTimePayment(_)
-        | PaymentMethodData::Upi(_)
-        | PaymentMethodData::Voucher(_)
-        | PaymentMethodData::CardRedirect(_)
-        | PaymentMethodData::GiftCard(_)
-        | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
-        | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::Card(_)
-        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::MobilePayment(_) => Err(ConnectorError::NotImplemented(
-            get_unimplemented_payment_method_error_message("worldpaymodular"),
-        )
-        .into()),
+            }))
+        }
+        _ => Err(
+            ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
+                "worldpaymodular",
+            ))
+            .into(),
+        ),
     }
 }
 
@@ -195,6 +146,23 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, entity_id, base_url) = req;
 
+        let customer_agreement = if item.router_data.request.is_cit_mandate_payment() {
+            Some(WMCustomerAcceptance::CardOnFile(WMCustomerAgreement {
+                stored_card_usage: WMStoredCardUsage::First,
+            }))
+        } else if item.router_data.request.is_mit_payment() {
+            Some(WMCustomerAcceptance::Subscription)
+        } else {
+            None
+        };
+        let channel = if item.router_data.request.is_mit_payment() {
+            None
+        } else {
+            match item.router_data.request.payment_channel {
+                Some(PaymentChannel::MailOrder) => Some(Channel::Moto),
+                _ => Some(Channel::Ecom),
+            }
+        };
         Ok(Self {
             instruction: Instruction {
                 request_auto_settlement: RequestAutoSettlement {
@@ -220,13 +188,14 @@ impl
                     base_url,
                 )?,
                 debt_repayment: None,
+                customer_agreement,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
                 ..Default::default()
             },
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
-            channel: Channel::Ecom,
+            channel: channel,
             customer: None,
         })
     }
@@ -293,7 +262,8 @@ impl From<&EventType> for enums::AttemptStatus {
 impl From<EventType> for enums::RefundStatus {
     fn from(value: EventType) -> Self {
         match value {
-            EventType::Refunded | EventType::SentForRefund => Self::Success,
+            EventType::SentForRefund => Self::Pending,
+            EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
             EventType::Authorized
             | EventType::Cancelled

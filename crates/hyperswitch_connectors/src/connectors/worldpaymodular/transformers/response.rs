@@ -26,6 +26,14 @@ pub struct WorldpaymodularPaymentsResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WorldpayModularRefundResponse {
+    pub payment_id: String,
+    #[serde(rename = "_links")]
+    pub links: PaymentLinks,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum PaymentOutcome {
     #[serde(alias = "authorized", alias = "Authorized")]
     Authorized,

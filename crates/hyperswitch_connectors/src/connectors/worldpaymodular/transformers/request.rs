@@ -24,7 +24,8 @@ pub struct WorldpaymodularPaymentsRequest {
     pub transaction_reference: String,
     pub merchant: Merchant,
     pub instruction: Instruction,
-    pub channel: Channel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<Channel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Customer>,
 }
@@ -108,6 +109,27 @@ pub struct Instruction {
     pub payment_instrument: PaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debt_repayment: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_agreement: Option<WMCustomerAcceptance>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+pub enum WMCustomerAcceptance {
+    CardOnFile(WMCustomerAgreement),
+    Subscription,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WMCustomerAgreement {
+    pub stored_card_usage: WMStoredCardUsage,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WMStoredCardUsage {
+    First,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
