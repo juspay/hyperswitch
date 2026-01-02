@@ -714,7 +714,7 @@ pub async fn retrieve_payment_method_with_token(
             .await?;
 
             let (account_number, routing_number) = match bank_debit_detail {
-                payment_methods::BankDebitDetail::ACH {
+                payment_methods::BankDebitDetail::Ach {
                     account_number,
                     routing_number,
                 } => (account_number, routing_number),
@@ -751,9 +751,9 @@ pub async fn retrieve_payment_method_with_token(
                 (
                     card_holder_name.clone(),
                     bank_account_holder_name.clone(),
-                    bank_name.clone(),
-                    bank_type.clone(),
-                    bank_holder_type.clone(),
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
                 )
             } else {
                 return Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -924,7 +924,7 @@ pub(crate) async fn get_payment_method_create_request(
                         client_secret: None,
                         payment_method_data: Some(
                             payment_methods::PaymentMethodCreateData::BankDebit(
-                                payment_methods::BankDebitDetail::ACH {
+                                payment_methods::BankDebitDetail::Ach {
                                     account_number: account_number.to_owned(),
                                     routing_number: routing_number.to_owned(),
                                 },
