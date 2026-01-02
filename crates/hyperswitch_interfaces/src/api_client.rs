@@ -295,6 +295,7 @@ where
                         external_latency,
                         req.refund_id.clone(),
                         req.dispute_id.clone(),
+                        req.payout_id.clone(),
                         status_code,
                     );
 

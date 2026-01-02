@@ -674,8 +674,7 @@ fn to_connector_response_data<T>(connector_response: &str) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
-    let decoded_bytes = BASE64_ENGINE
-        .decode(connector_response)
+    let decoded_bytes = connector_utils::safe_base64_decode(connector_response.to_string())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode Base64")?;
 
@@ -829,7 +828,7 @@ fn build_threeds_invoke_response(
     error_stack::Report<errors::ConnectorError>,
 > {
     let threeds_invoke_data = ThreedsInvokeRequest {
-        three_d_s_server_trans_i_d: three_d_s_method_u_r_l.clone(),
+        three_d_s_server_trans_i_d: three_d_s_server_trans_i_d.clone(),
         three_d_s_method_notification_u_r_l: webhook_url.to_string(),
     };
 
@@ -843,7 +842,7 @@ fn build_threeds_invoke_response(
         three_ds_method_url: three_d_s_method_u_r_l,
         three_ds_method_data,
         message_version: protocol_version.clone(),
-        directory_server_id: three_d_s_server_trans_i_d,
+        directory_server_id: three_d_s_server_trans_i_d.clone(),
         three_ds_method_data_submission: true,
     };
 
