@@ -327,6 +327,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 });
 
             if is_on_session_payment && is_on_session_not_supported_payment_method {
+                logger::info!("On-session saving not supported for this payment method, skipping save_payment_method call");
                 Ok(())
             } else {
                 let save_payment_data = tokenization::SavePaymentMethodData::from(resp);
