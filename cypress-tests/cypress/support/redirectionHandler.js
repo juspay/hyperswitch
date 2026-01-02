@@ -100,7 +100,7 @@ function cryptoRedirection(
 
     cy.wait(CONSTANTS.WAIT_TIME / 5);
 
-    //  Verify QR is present 
+    //  Verify QR is present
     cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
       .should("exist")
       .and("be.visible");

@@ -67,11 +67,11 @@ export const connectorDetails = {
       },
     },
   },
-   card_pm: {
+  card_pm: {
     ZeroAuthMandate: {
       Response: {
         status: 501,
-        body: {        
+        body: {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Cryptopay is not implemented",

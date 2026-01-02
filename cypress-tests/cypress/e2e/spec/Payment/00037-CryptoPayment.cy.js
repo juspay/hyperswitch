@@ -14,8 +14,8 @@ describe("Crypto Payment", () => {
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
-  
-    afterEach("flush global state", () => {
+
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
