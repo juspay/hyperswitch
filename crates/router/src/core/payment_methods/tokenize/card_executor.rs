@@ -580,6 +580,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             self.key_store.clone(),
             self.merchant_account.clone(),
             self.key_store.clone(),
+            None,
         );
         PmCards {
             state: self.state,
