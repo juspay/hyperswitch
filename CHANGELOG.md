@@ -4,6 +4,64 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix5
+
+### Features
+
+- **connector:** [Zift] use Ecommerce transaction_industry_type instead of card present/not present ([#10782](https://github.com/juspay/hyperswitch/pull/10782)) ([`c6944e8`](https://github.com/juspay/hyperswitch/commit/c6944e8ecaa1cf78f8a973761bd52f565e31cca7))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fixed 3DS challenge endpoint ([#10783](https://github.com/juspay/hyperswitch/pull/10783)) ([`9763533`](https://github.com/juspay/hyperswitch/commit/97635334e6aa68754eaf6063f7231f9c50bf95bc))
+
+**Full Changelog:** [`2025.12.17.0-hotfix4...2025.12.17.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix4...2025.12.17.0-hotfix5)
+
+- - -
+
+## 2025.12.17.0-hotfix4
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] Fix PSync deserialization error response ([#10766](https://github.com/juspay/hyperswitch/pull/10766)) ([`c85704a`](https://github.com/juspay/hyperswitch/commit/c85704a1e2e95b5bf07628858ad3a238eaed3225))
+
+### Refactors
+
+- **router:** Handle failures in `apply_three_ds_authentication_strategy` gracefully ([#10763](https://github.com/juspay/hyperswitch/pull/10763)) ([`a740609`](https://github.com/juspay/hyperswitch/commit/a74060942653f559664366ffa9696c9124fcc373))
+
+**Full Changelog:** [`2025.12.17.0-hotfix3...2025.12.17.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix3...2025.12.17.0-hotfix4)
+
+- - -
+
+## 2025.12.17.0-hotfix3
+
+### Bug Fixes
+
+- **payment-methods:** Remove hardcoded `inactive` status in payment method create and update api ([#10761](https://github.com/juspay/hyperswitch/pull/10761)) ([`cb2fef2`](https://github.com/juspay/hyperswitch/commit/cb2fef20ae80f0f7c37fefdc137ae79e133afe96))
+
+**Full Changelog:** [`2025.12.17.0-hotfix2...2025.12.17.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix2...2025.12.17.0-hotfix3)
+
+- - -
+
+## 2025.12.17.0-hotfix2
+
+### Bug Fixes
+
+- **docker:** Increase RUST_MIN_STACK size to handle stack overflow ([#10732](https://github.com/juspay/hyperswitch/pull/10732)) ([`1af7d0c`](https://github.com/juspay/hyperswitch/commit/1af7d0c9def6b75749280cc6c86292c8ab74f416))
+
+**Full Changelog:** [`2025.12.17.0-hotfix1...2025.12.17.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix1...2025.12.17.0-hotfix2)
+
+- - -
+
+## 2025.12.17.0-hotfix1
+
+### Features
+
+- **core:** [Network Token] Passing Network Token in payments request ([#10728](https://github.com/juspay/hyperswitch/pull/10728)) ([`cf99158`](https://github.com/juspay/hyperswitch/commit/cf991583a287ef2f66e6c5ff1c8338c8261502c1))
+
+**Full Changelog:** [`2025.12.17.0...2025.12.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0...2025.12.17.0-hotfix1)
+
+- - -
+
 ## 2025.12.17.0
 
 ### Features
