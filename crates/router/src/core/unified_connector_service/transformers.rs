@@ -291,10 +291,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -492,10 +492,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(true),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -679,14 +679,13 @@ impl
                 e
             })
             .ok();
+        let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
-        let connector_ref_id = router_data
-            .request
-            .connector_reference_id
-            .clone()
-            .map(|id| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-            });
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -724,10 +723,11 @@ impl
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
-            request_ref_id: connector_ref_id,
+            request_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
+            connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
@@ -1202,8 +1202,8 @@ impl
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: false,
-            request_incremental_authorization: false,
+            enrolled_for_3ds: Some(false),
+            request_incremental_authorization: Some(false),
             minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
@@ -1340,10 +1340,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1502,10 +1502,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
