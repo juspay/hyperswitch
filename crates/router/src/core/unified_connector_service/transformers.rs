@@ -291,10 +291,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -492,10 +492,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(true),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -679,14 +679,13 @@ impl
                 e
             })
             .ok();
+        let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
-        let connector_ref_id = router_data
-            .request
-            .connector_reference_id
-            .clone()
-            .map(|id| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-            });
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -724,19 +723,27 @@ impl
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
-            request_ref_id: connector_ref_id,
+            request_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
+            connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
-            connector_metadata: None,
-            merchant_account_metadata: HashMap::new(),
-            metadata: HashMap::new(),
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             sync_type: Some(
                 payments_grpc::SyncRequestType::foreign_from(&router_data.request.sync_type).into(),
             ),
+            merchant_account_metadata: HashMap::new(),
+            metadata: HashMap::new(),
         })
     }
 }
@@ -1195,8 +1202,8 @@ impl
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: false,
-            request_incremental_authorization: false,
+            enrolled_for_3ds: Some(false),
+            request_incremental_authorization: Some(false),
             minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
@@ -1333,10 +1340,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1495,10 +1502,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1751,15 +1758,52 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let mandate_reference = match &router_data.request.mandate_id {
+        let mandate_reference_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                     connector_mandate_id,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id: connector_mandate_id.get_connector_mandate_id(),
-                    payment_method_id: connector_mandate_id.get_payment_method_id(),
-                    connector_mandate_request_reference_id: connector_mandate_id
-                        .get_connector_mandate_request_reference_id(),
+                )) => Some(payments_grpc::MandateReferenceId {
+                    mandate_id_type: Some(
+                        payments_grpc::mandate_reference_id::MandateIdType::ConnectorMandateId(
+                            payments_grpc::ConnectorMandateReferenceId {
+                                connector_mandate_id: connector_mandate_id
+                                    .get_connector_mandate_id(),
+                                payment_method_id: connector_mandate_id.get_payment_method_id(),
+                                connector_mandate_request_reference_id: connector_mandate_id
+                                    .get_connector_mandate_request_reference_id(),
+                            },
+                        ),
+                    ),
+                }),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                    network_mandate_id,
+                )) => Some(payments_grpc::MandateReferenceId {
+                    mandate_id_type: Some(
+                        payments_grpc::mandate_reference_id::MandateIdType::NetworkMandateId(
+                            network_mandate_id.clone(),
+                        ),
+                    ),
+                }),
+                Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(
+                    network_token_with_nti,
+                )) => Some(payments_grpc::MandateReferenceId {
+                    mandate_id_type: Some(
+                        payments_grpc::mandate_reference_id::MandateIdType::NetworkTokenWithNti(
+                            payments_grpc::NetworkTokenWithNti {
+                                network_transaction_id: network_token_with_nti
+                                    .network_transaction_id
+                                    .clone(),
+                                token_exp_month: network_token_with_nti
+                                    .token_exp_month
+                                    .clone()
+                                    .map(|exp| exp.expose().into()),
+                                token_exp_year: network_token_with_nti
+                                    .token_exp_year
+                                    .clone()
+                                    .map(|exp| exp.expose().into()),
+                            },
+                        ),
+                    ),
                 }),
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
@@ -1781,13 +1825,33 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let payment_method = match router_data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => {
+                None
+            }
+            _ => Some(
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    router_data.request.payment_method_data.clone(),
+                    router_data.request.payment_method_type,
+                )?,
+            ),
+        };
+
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            mandate_reference,
+            payment_method,
+            mandate_reference_id,
             amount: router_data.request.amount,
             currency: currency.into(),
             minor_amount: router_data.request.amount,
@@ -1840,6 +1904,7 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            authentication_data,
             connector_metadata: HashMap::new(),
         })
     }
@@ -2511,7 +2576,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     connector_metadata,
                     network_txn_id: response.network_txn_id.clone(),
                     connector_response_reference_id,
-                    incremental_authorization_allowed: None,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
                     charges: None,
                 },
                 status,
@@ -4492,6 +4557,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             metadata: HashMap::new(),
             test_mode: router_data.test_mode,
             payment_method_type,
+            customer_id: None,
         })
     }
 }
@@ -4854,8 +4920,8 @@ impl
             merchant_account_metadata: HashMap::new(),
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
-            connector_metadata: HashMap::new(),
             metadata: HashMap::new(),
+            connector_metadata: HashMap::new(),
         })
     }
 }
