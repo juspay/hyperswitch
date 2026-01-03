@@ -182,13 +182,13 @@ pub struct Settings<S: SecretState> {
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
-    pub on_session: OnSessionConfig,
+    pub save_payment_method_on_session: OnSessionConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OnSessionConfig {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub save_payment_method_not_supported: HashSet<enums::PaymentMethodType>,
+    pub unsupported_payment_methods:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

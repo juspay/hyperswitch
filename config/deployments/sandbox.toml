@@ -183,8 +183,8 @@ netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netce
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which have delayed session response
 
-[on_session]
-save_payment_method_not_supported = "klarna,affirm"
+[save_payment_method_on_session.unsupported_payment_methods]
+pay_later = "klarna,affirm"
 
 [dummy_connector]
 enabled = true                                                          # Whether dummy connector is enabled or not
