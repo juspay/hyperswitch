@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.17.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** [stripe] support customer-initiated mandate payments and send setup_future_usage for tokenized cards ([#10817](https://github.com/juspay/hyperswitch/pull/10817)) ([`ba4758d`](https://github.com/juspay/hyperswitch/commit/ba4758d582656a804b889e625f4608cc71a0b502))
+
+**Full Changelog:** [`2025.12.17.0-hotfix5...2025.12.17.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.12.17.0-hotfix5...2025.12.17.0-hotfix6)
+
+- - -
+
 ## 2025.12.17.0-hotfix5
 
 ### Features
