@@ -33,7 +33,6 @@ export default defineConfig({
           return null;
         },
       });
-
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
@@ -61,7 +60,6 @@ export default defineConfig({
       });
       return config;
     },
-
     experimentalRunAllSpecs: true,
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",
@@ -77,7 +75,7 @@ export default defineConfig({
       saveJson: true,
     },
     defaultCommandTimeout: Math.round(30000 * timeoutMultiplier),
-    pageLoadTimeout: Math.round(90000 * timeoutMultiplier),
+    pageLoadTimeout: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
     responseTimeout: Math.round(60000 * timeoutMultiplier),
     requestTimeout: Math.round(45000 * timeoutMultiplier),
     taskTimeout: Math.round(120000 * timeoutMultiplier),
