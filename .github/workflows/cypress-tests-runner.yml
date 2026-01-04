@@ -303,7 +303,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
-          ROUTER__SERVER__WORKERS: 8
+          ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 2
@@ -318,7 +318,7 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
-          
+
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch

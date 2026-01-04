@@ -308,7 +308,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
-          ROUTER__SERVER__WORKERS: 8
+          ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel 2
