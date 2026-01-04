@@ -15,13 +15,6 @@ const timeoutMultiplier = getTimeoutMultiplier();
 
 export default defineConfig({
   e2e: {
-    // -----------------------------------------------------------
-    // FIX 1: Reduce Memory Usage
-    // -----------------------------------------------------------
-    // Disables DOM snapshots for passed tests.
-    // Saves huge amounts of RAM in parallel runs.
-    numTestsKeptInMemory: 0,
-
     setupNodeEvents(on, config) {
       mochawesome(on);
 
