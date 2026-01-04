@@ -321,9 +321,9 @@ jobs:
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-test-results
+          name: cypress-test-results-mandatory
           path: |
-            cypress-tests/cypress/reports/mandatory/
+            cypress-tests/cypress/reports/
           retention-days: 1
 
   runner2:
@@ -505,9 +505,9 @@ jobs:
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-test-results
+          name: cypress-test-results-batch-1
           path: |
-            cypress-tests/cypress/reports/batch1/
+            cypress-tests/cypress/reports/
           retention-days: 1
 
   runner3:
@@ -689,9 +689,9 @@ jobs:
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-test-results
+          name: cypress-test-results-batch-2
           path: |
-            cypress-tests/cypress/reports/batch2/
+            cypress-tests/cypress/reports/
           retention-days: 1
 
 
