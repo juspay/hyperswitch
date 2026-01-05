@@ -328,8 +328,6 @@ pub async fn connector_delete() {}
 )]
 pub async fn connector_delete() {}
 
-
-
 /// Configure Connector Webhook - Register
 ///
 /// Setup webhook configuration for an existing Merchant at the connector.

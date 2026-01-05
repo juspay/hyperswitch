@@ -10371,8 +10371,6 @@ pub enum StorageType {
     Persistent,
 }
 
-
-
 #[derive(
     Clone,
     Copy,

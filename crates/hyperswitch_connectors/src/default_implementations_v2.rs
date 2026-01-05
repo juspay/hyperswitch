@@ -3,9 +3,9 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
-            DisputesFlowData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
-            ConnectorWebhookConfigurationFlowData,
+            ConnectorWebhookConfigurationFlowData, DisputesFlowData, GiftCardBalanceCheckFlowData,
+            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            WebhookSourceVerifyData,
         },
         AccessTokenFlowData, AuthenticationTokenFlowData, ExternalAuthenticationFlowData,
         FilesFlowData, VaultConnectorFlowData,
@@ -14,10 +14,10 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
@@ -105,12 +105,14 @@ use hyperswitch_interfaces::{
             ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
-        merchant_connector_webhook_management_v2::{ConfigureConnectorWebhookV2, WebhookRegisterV2},
         disputes_v2::{
             AcceptDisputeV2, DefendDisputeV2, DisputeSyncV2, DisputeV2, FetchDisputesV2,
             SubmitEvidenceV2,
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
+        merchant_connector_webhook_management_v2::{
+            ConfigureConnectorWebhookV2, WebhookRegisterV2,
+        },
         payments_v2::{
             ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate, MandateSetupV2,
             PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,

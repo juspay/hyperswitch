@@ -1,6 +1,7 @@
- use serde::{Serialize, Deserialize};
- use utoipa::ToSchema;
- 
+
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
 /// Register a webhook at the connector
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]

@@ -19,8 +19,8 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
         access_token_auth::AccessTokenAuth,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
             Session, SetupMandate, Void,
@@ -29,24 +29,26 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        SyncRequestType, UploadFileRequestData, merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
         GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, UploadFileResponse, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData, ConnectorWebhookRegisterRouterData
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -72,10 +74,10 @@ use hyperswitch_interfaces::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
-        SubmitEvidenceType, ConnectorWebhookRegisterType,
+        AcceptDisputeType, ConnectorWebhookRegisterType, DefendDisputeType,
+        ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType,
+        PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -150,7 +152,7 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-         let message = response.invalid_fields.map(|fields| {
+        let message = response.invalid_fields.map(|fields| {
             fields
                 .iter()
                 .map(|f| format!("{}: {}", f.name, f.message))
@@ -2544,8 +2546,6 @@ impl FileUpload for Adyen {
     }
 }
 
-
-
 impl WebhookRegister for Adyen {}
 impl
     ConnectorIntegration<
@@ -2638,7 +2638,6 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
-
 
 static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods1 = vec![
@@ -3424,11 +3423,14 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     adyen_supported_payment_methods
 });
 
-static ADYEN_WEBHOOK_SETUP_CAPABILITIES: common_types::connector_webhook_configuration::WebhookSetupCapabilities =
+static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
+    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
     common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         is_webhook_auto_configuration_supported: true,
         requires_webhook_secret: Some(false),
-        config_type: Some(common_types::connector_webhook_configuration::WebhookConfigType::Standard),
+        config_type: Some(
+            common_types::connector_webhook_configuration::WebhookConfigType::Standard,
+        ),
     };
 
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {

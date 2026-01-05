@@ -28,7 +28,6 @@ use crate::tokenization;
 #[allow(unused_imports)]
 use crate::{
     admin::*,
-    merchant_connector_webhook_management::*,
     analytics::{
         api_event::*, auth_events::*, connector_events::ConnectorEventsRequest,
         outgoing_webhook_event::OutgoingWebhookLogsRequest, routing_events::RoutingEventsRequest,
@@ -39,6 +38,7 @@ use crate::{
     disputes::*,
     files::*,
     mandates::*,
+    merchant_connector_webhook_management::*,
     organization::{
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },

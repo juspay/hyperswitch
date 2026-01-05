@@ -52,13 +52,17 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
-        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,flow_common_types::ConnectorWebhookConfigurationFlowData,
+        flow_common_types::{
+            AuthenticationTokenFlowData, ConnectorWebhookConfigurationFlowData,
+            WebhookSourceVerifyData,
+        },
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
-        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
+        PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         self,
@@ -73,8 +77,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -88,7 +92,10 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*, vault::*, vault_v2::*, merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*};
+pub use self::{
+    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
+    payments::*, refunds::*, vault::*, vault_v2::*,
+};
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
     errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,

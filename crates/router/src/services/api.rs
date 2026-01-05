@@ -145,7 +145,7 @@ pub type BoxedConnectorWebhookConfigurationInterface<T, Req, Resp> =
         Req,
         Resp,
     >;
-    
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,

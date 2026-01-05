@@ -28,7 +28,9 @@ pub async fn register_connector_webhook(
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
-) -> RouterResponse<api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse> {
+) -> RouterResponse<
+    api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
+> {
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())

@@ -28,10 +28,10 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GiftCardBalanceCheck,
@@ -132,11 +132,11 @@ use hyperswitch_interfaces::{
             ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
             ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
         },
-        merchant_connector_webhook_management::WebhookRegister,
         disputes::{
             AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
         },
         files::{FileUpload, RetrieveFile, UploadFile},
+        merchant_connector_webhook_management::WebhookRegister,
         payments::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,

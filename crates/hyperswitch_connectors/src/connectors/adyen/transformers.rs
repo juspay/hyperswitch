@@ -27,21 +27,23 @@ use hyperswitch_domain_models::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_flow_types::{GiftCardBalanceCheck, merchant_connector_webhook_management::ConnectorWebhookRegister},
+    router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+    },
     router_request_types::{
-        GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
         merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData, ConnectorWebhookRegisterRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
+        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -5325,7 +5327,6 @@ pub struct AdyenErrorResponse {
     pub invalid_fields: Option<Vec<InvalidFieldErrorResponse>>,
 }
 
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InvalidFieldErrorResponse {
@@ -6851,7 +6852,6 @@ impl CardExpiry {
         Secret::new(format!("{:02}", self.year % 100))
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

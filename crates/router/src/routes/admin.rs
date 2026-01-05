@@ -1071,7 +1071,6 @@ pub async fn merchant_account_enable_platform_account(
     .await
 }
 
-
 /// Configure Connector Webhook - Register
 ///
 /// To setup webhook configuration for an existing Merchant at the connector.
@@ -1085,7 +1084,9 @@ pub async fn connector_webhook_register(
         common_utils::id_type::MerchantId,
         common_utils::id_type::MerchantConnectorAccountId,
     )>,
-    json_payload: web::Json<api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest>,
+    json_payload: web::Json<
+        api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+    >,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorWebhookRegister;
     let (merchant_id, merchant_connector_id) = path.into_inner();

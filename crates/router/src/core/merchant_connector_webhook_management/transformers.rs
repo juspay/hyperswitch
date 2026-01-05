@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use api_models::merchant_connector_webhook_management::{ConnectorWebhookRegisterRequest,RegisterConnectorWebhookResponse};
+use api_models::merchant_connector_webhook_management::{
+    ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse,
+};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::tracing::{self, instrument};
