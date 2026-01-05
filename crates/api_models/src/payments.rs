@@ -8205,7 +8205,8 @@ pub struct PaymentErrorDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 pub struct ApiUnifiedErrorDetails {
     /// Error category
-    pub category: Option<String>,
+    #[schema(value_type = Option<UnifiedCode>)]
+    pub category: Option<api_enums::UnifiedCode>,
     /// Human-readable error message
     pub message: Option<String>,
     /// Standardised error code

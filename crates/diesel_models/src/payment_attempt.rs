@@ -61,7 +61,7 @@ pub struct ErrorDetails {
 
 #[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
 pub struct UnifiedErrorDetails {
-    pub category: Option<String>,
+    pub category: Option<storage_enums::UnifiedCode>,
     pub message: Option<String>,
     pub standardised_code: Option<storage_enums::StandardisedCode>,
     pub description: Option<String>,
