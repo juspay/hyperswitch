@@ -117,34 +117,5 @@ export const connectorDetails = {
         },
       },
     }),
-    OpenBanking: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        amount: 6000,
-        currency: "EUR",
-        payment_method_type: "open_banking",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking: {},
-          },
-        },
-        billing: {
-          ...billingAddress,
-          address: {
-            ...billingAddress.address,
-            country: "DE",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          payment_method_type: "open_banking",
-          payment_method_type_display_name: "Open Banking",
-          connector: "volt",
-        },
-      },
-    }),
   },
 };
