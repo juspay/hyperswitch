@@ -139,7 +139,7 @@ jobs:
     needs: build-hyperswitch
     if: |
       github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -305,12 +305,12 @@ jobs:
             cypress-tests/cypress/reports/
           retention-days: 1
 
-      - name: Remove test-ready label on failure
+      - name: Remove S-test-ready label on failure
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "test-ready" --repo ${{ github.repository }}
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
@@ -501,7 +501,7 @@ jobs:
     name: Run Cypress tests on v2 and generate coverage report
     if: |
       github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
@@ -717,9 +717,9 @@ jobs:
           files: ${{ env.CODECOV_FILE }}
           disable_search: true
 
-      - name: Remove test-ready label on failure
+      - name: Remove S-test-ready label on failure
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "test-ready" --repo ${{ github.repository }}
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
