@@ -225,33 +225,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             );
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
-        // Check if the payment method type does not support saving during on-session payments
-        let save_payment_method_not_supported = payment_data
-            .payment_attempt
-            .payment_method_type
-            .is_some_and(|pm_type| {
-                payment_data
-                    .payment_attempt
-                    .payment_method
-                    .as_ref()
-                    .and_then(|payment_method| {
-                        state
-                            .conf
-                            .save_payment_method_on_session
-                            .unsupported_payment_methods
-                            .get(payment_method)
-                    })
-                    .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
-            });
-
-        // Skip payment method creation when on-session saving is not supported
+        // Skip payment method creation when on-session saving is not supported for the payment method
         should_avoid_saving = if resp
             .request
             .setup_future_usage
             .map(|usage| usage.is_on_session())
             .unwrap_or(false)
-            && save_payment_method_not_supported
-        {
+            && payment_data
+                .payment_attempt
+                .is_save_payment_method_not_supported_for_on_session(
+                    state
+                        .conf
+                        .save_payment_method_on_session
+                        .unsupported_payment_methods,
+                ) {
             true
         } else {
             should_avoid_saving

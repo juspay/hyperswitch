@@ -1433,6 +1433,22 @@ impl PaymentAttempt {
             self.payment_method_data.clone()
         }
     }
+
+    // Check if the payment method type does not support saving during on-session payments
+    pub fn is_save_payment_method_not_supported_for_on_session(
+        &self,
+        unsupported_payment_methods: &HashMap<
+            enums::PaymentMethod,
+            HashSet<enums::PaymentMethodType>,
+        >,
+    ) -> bool {
+        self.payment_method_type.is_some_and(|pm_type| {
+            self.payment_method
+                .as_ref()
+                .and_then(|method| unsupported_payment_methods.get(method))
+                .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
