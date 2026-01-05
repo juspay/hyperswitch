@@ -23,7 +23,7 @@ env:
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-  RUN_OPTIONAL_CONNECTORS_TESTS: ${{ github.event_name == 'merge_group' }}
+  RUN_OPTIONAL_CONNECTORS_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
 
@@ -497,7 +497,7 @@ jobs:
           PAYMENTS_CONNECTORS: ${{ env.OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1 }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 4
 
           kill "${{ env.PID }}"
 
@@ -681,7 +681,7 @@ jobs:
           PAYMENTS_CONNECTORS: ${{ env.OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2 }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 4
 
           kill "${{ env.PID }}"
 
