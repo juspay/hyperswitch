@@ -375,7 +375,7 @@ impl From<Flow> for ApiIdentifier {
             }
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
-            Flow::MerchantConnectorWebhookRegister => Self::MerchantConnectorWebhookManagement,
+            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => Self::MerchantConnectorWebhookManagement,
         }
     }
 }

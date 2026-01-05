@@ -20,3 +20,20 @@ pub struct RegisterConnectorWebhookResponse {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookListResponse {
+    pub connector: String,
+    pub webhooks: Vec<ConnectorWebhookResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorWebhookResponse {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    pub event_type: common_enums::ConnectorWebhookEventType,
+    pub connector_webhook_id: String,
+}
+

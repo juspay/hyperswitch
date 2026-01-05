@@ -127,3 +127,47 @@ pub async fn register_connector_webhook(
 
     Ok(service_api::ApplicationResponse::Json(response))
 }
+
+
+
+#[cfg(feature = "v1")]
+pub async fn fetch_connector_webhook(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    profile_id: Option<id_type::ProfileId>,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
+) -> RouterResponse<api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse> {
+    let store = state.store.as_ref();
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mca = store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })?;
+
+    let connector_webook_data =
+        configure_connector_webhook_flow::get_connector_webhook_list_response(
+            &mca.connector_webhook_registration_details,
+        )?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse {
+            connector: mca.connector_name.clone(),
+            webhooks: connector_webook_data,
+        },
+    ))
+}

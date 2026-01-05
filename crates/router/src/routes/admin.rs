@@ -1117,3 +1117,52 @@ pub async fn connector_webhook_register(
     ))
     .await
 }
+
+
+/// Configure Connector Webhook - Register
+///
+/// List webhooks configured with hyperswitch at the connector
+#[cfg(feature = "v1")]
+#[
+    instrument(skip_all, fields(flow = ?Flow::MerchantConnectorWebhookList))]
+pub async fn retrieve_connector_webhook(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorWebhookList;
+    let (merchant_id, merchant_connector_id) = path.into_inner();
+    let payload = web::Json(admin::MerchantConnectorId {
+        merchant_id: merchant_id.clone(),
+        merchant_connector_id,
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            fetch_connector_webhook(
+                state,
+                auth.merchant_account.get_id().clone(),
+                auth.profile_id,
+                req.merchant_connector_id,
+            )
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::ProfileConnectorWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

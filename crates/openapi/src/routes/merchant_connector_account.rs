@@ -369,3 +369,25 @@ pub async fn connector_delete() {}
    security(("api_key" = []))
 )]
 pub async fn connector_webhook_register() {}
+
+
+/// Configure Connector Webhook - Register
+///
+/// List webhooks configured with hyperswitch at the connector
+#[cfg(feature = "v1")]
+#[utoipa::path(
+    get,
+    path = "/account/{account_id}/webhooks/{merchant_connector_id}",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
+    ),
+      responses(
+        (status = 200, description = "List of webhooks configured with hyperswitch at the connector", body = ConnectorWebhookListResponse),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "List Connector Webhooks",
+    security(("api_key" = []))
+)]
+pub async fn retrieve_connector_webhook() {}
