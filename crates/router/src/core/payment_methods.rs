@@ -3789,9 +3789,9 @@ pub async fn payment_methods_session_retrieve(
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
-            payment_methods.iter().find_map(|pm| match &pm.token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => Some((pm, token.clone())),
-            })
+            payment_methods.iter().map(|pm| match &pm.token {
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => (pm, token.clone()),
+            }).next()
         });
 
     let expiry = associated_pm_token_details
@@ -3850,12 +3850,8 @@ pub async fn payment_methods_session_update_payment_method(
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
-            payment_methods.iter().find_map(|pm| match &pm.token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => if token == &request.payment_method_token {
-                    Some(pm)
-                } else {
-                    None
-                }
+            payment_methods.iter().find(|pm| match &pm.token {
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &request.payment_method_token       
             })
         })
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {

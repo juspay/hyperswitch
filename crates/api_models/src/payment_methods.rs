@@ -1130,6 +1130,7 @@ pub struct PaymentMethodResponse {
 #[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CardCVCTokenStorageDetails {
     /// Indicates whether the card cvc is stored or not
+    #[schema(example = true)]
     pub is_stored: bool,
 
     /// A timestamp (ISO 8601 code) that determines expiry for stored card cvc token
@@ -3512,6 +3513,7 @@ pub struct PaymentMethodSessionResponse {
     pub storage_type: Option<common_enums::StorageType>,
 
     /// Card CVC token storage details
+    #[schema(value_type = Option<CardCVCTokenStorageDetails>)]
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
 }
 
