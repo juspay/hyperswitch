@@ -974,7 +974,7 @@ pub struct PaymentIntentStateMetadata {
     pub total_disputed_amount: Option<MinorUnit>,
 }
 
-impl PaymentIntentStateMetadata {
+impl PaymentIntentStateMetadat {
     /// Builder method to set total_refunded_amount
     pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
         self.total_refunded_amount = Some(amount);
