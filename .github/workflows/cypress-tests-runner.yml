@@ -141,6 +141,8 @@ jobs:
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     services:
       redis:
@@ -302,6 +304,13 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
+
+      - name: Remove test-ready label on failure
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "test-ready" --repo ${{ github.repository }}
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
@@ -494,6 +503,8 @@ jobs:
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
     runs-on: hyperswitch-runners
+    permissions:
+      pull-requests: write
     env:
       CODECOV_FILE: "lcov.info"
       # Use `sccache` for caching compilation artifacts
@@ -705,3 +716,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
           disable_search: true
+
+      - name: Remove test-ready label on failure
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "test-ready" --repo ${{ github.repository }}
