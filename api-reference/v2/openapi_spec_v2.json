@@ -9103,6 +9103,7 @@
           "payu",
           "peachpayments",
           "payjustnow",
+          "payjustnowinstore",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -25449,6 +25450,7 @@
           "payu",
           "peachpayments",
           "payjustnow",
+          "payjustnowinstore",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -27409,7 +27411,8 @@
         "type": "string",
         "enum": [
           "tokenization_id",
-          "payment_method_id"
+          "payment_method_id",
+          "volatile_payment_method_id"
         ]
       },
       "Tokenization": {

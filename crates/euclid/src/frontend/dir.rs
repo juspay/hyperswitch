@@ -960,7 +960,7 @@ pub type DirIfCondition = Vec<DirComparison>;
 #[derive(Debug, Clone)]
 pub struct DirIfStatement {
     pub condition: DirIfCondition,
-    pub nested: Option<Vec<DirIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Debug, Clone)]

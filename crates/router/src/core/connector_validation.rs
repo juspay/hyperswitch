@@ -320,6 +320,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Jpmorgan => {
                 jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
+                jpmorgan::transformers::JpmorganConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Juspaythreedsserver => Ok(()),
@@ -407,6 +410,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payjustnow => {
                 payjustnow::transformers::PayjustnowAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Payjustnowinstore => {
+                payjustnowinstore::transformers::PayjustnowinstoreAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Payme => {

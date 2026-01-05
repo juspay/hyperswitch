@@ -86,6 +86,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub dispute_id: Option<String>,
     pub refund_id: Option<String>,
+    pub payout_id: Option<String>,
 
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
@@ -708,7 +709,7 @@ pub struct KlarnaSdkResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteracCustomerInfo {
-    pub customer_info: Option<common_utils::pii::SecretSerdeValue>,
+    pub customer_info: Option<common_payment_types::InteracCustomerInfoDetails>,
 }
 
 #[derive(Clone, Debug, Serialize)]
