@@ -36,18 +36,9 @@ where
     query_builder
         .add_filter_clause("merchant_id", publishable_key)
         .switch()?;
-
-    if let Some(payment_id) = request.payment_id {
-        query_builder
-            .add_filter_clause("payment_id", &payment_id)
-            .switch()?;
-    }
-
-    if let Some(payout_id) = request.payout_id {
-        query_builder
-            .add_filter_clause("payout_id", &payout_id)
-            .switch()?;
-    }
+    query_builder
+        .add_filter_clause("payment_id", &request.payment_id)
+        .switch()?;
 
     query_builder
         .add_custom_filter_clause("event_name", static_event_list, FilterTypes::In)

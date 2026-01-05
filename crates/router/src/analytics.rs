@@ -1666,9 +1666,9 @@ pub mod routes {
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     payment_id,
+                    payout_id,
                     &state,
                     auth.platform.get_processor(),
                     profile_id,
@@ -1709,8 +1709,9 @@ pub mod routes {
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     req.payment_id.clone(),
+                    req.payout_id.clone(),
                     &state,
                     auth.platform.get_processor(),
                     profile_id,
@@ -2638,8 +2639,9 @@ pub mod routes {
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     req.payment_id.clone(),
+                    req.payout_id.clone(),
                     &state,
                     auth.platform.get_processor(),
                     profile_id,

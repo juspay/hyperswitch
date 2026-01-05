@@ -29,17 +29,9 @@ where
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
-    if let Some(payment_id) = query_param.payment_id {
-        query_builder
-            .add_filter_clause("payment_id", &payment_id)
-            .switch()?;
-    }
-
-    if let Some(payout_id) = query_param.payout_id {
-        query_builder
-            .add_filter_clause("payout_id", &payout_id)
-            .switch()?;
-    }
+    query_builder
+        .add_filter_clause("payment_id", &query_param.payment_id)
+        .switch()?;
 
     if let Some(refund_id) = query_param.refund_id {
         query_builder
