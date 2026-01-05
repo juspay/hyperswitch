@@ -40,7 +40,7 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{transformers as pm_transforms, utils},
+        payment_methods::{cards as pm_cards, transformers as pm_transforms, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
     headers, settings,
@@ -1777,11 +1777,11 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_token: &String,
+    payment_method_token: &String,
     card_cvc: masking::Secret<String>,
     payment_method: common_enums::PaymentMethod,
     fulfillment_time: i64,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
     let redis_conn = state
         .store
@@ -1789,7 +1789,7 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
+    let key = format!("pm_token_{payment_method_token}_{payment_method}_hyperswitch_cvc");
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -1798,10 +1798,14 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Encrypt the CVC and store it in Redis
-    let encrypted_payload = GcmAes256
-        .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+    let encrypted_payload =
+        pm_cards::create_encrypted_data(&(state.into()), key_store, payload.as_bytes())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+            .encode_to_vec()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode TemporaryVaultCvc to bytes for vault")?;
 
     redis_conn
         .set_key_with_expiry(
@@ -1812,7 +1816,7 @@ pub async fn insert_cvc_using_payment_token(
         .await
         .change_context(errors::StorageError::KVError)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add token in redis")?;
+        .attach_printable("Failed to add encrypted cvc in redis")?;
 
     let card_token_cvc_storage =
         api_models::payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
@@ -1868,9 +1872,9 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_key_and_ttl_for_cvc_from_payment_token(
+pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_token(
     state: &routes::SessionState,
-    payment_token: String,
+    payment_method_token: String,
     payment_method: common_enums::PaymentMethod,
 ) -> RouterResult<i64> {
     let redis_conn = state
@@ -1879,20 +1883,20 @@ pub async fn retrieve_key_and_ttl_for_cvc_from_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc",);
+    let key = format!("pm_token_{payment_method_token}_{payment_method}_hyperswitch_cvc",);
 
     // check if key exists and get ttl
     redis_conn
         .get_key::<bytes::Bytes>(&key.clone().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch the token from redis")?;
+        .attach_printable("Failed to fetch the payment_method_token from redis")?;
 
     let ttl = redis_conn
         .get_ttl(&key.clone().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch the token ttl from redis")?;
+        .attach_printable("Failed to fetch the payment_method_token ttl from redis")?;
 
     Ok(ttl)
 }

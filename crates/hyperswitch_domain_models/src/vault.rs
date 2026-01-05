@@ -104,7 +104,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
         match item {
             payment_methods::PaymentMethodCreateData::Card(card) => {
                 Ok(Self::Card(payment_methods::CardDetail {
-                    card_cvc: None,
+                    card_cvc: None, // card cvc should not be used for vaulting
                     ..card
                 }))
             }

@@ -279,7 +279,7 @@ pub enum AssociatedPaymentMethodTokenType {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
-    pub token: AssociatedPaymentMethodTokenType,
+    pub payment_method_token: AssociatedPaymentMethodTokenType,
     /// payment method type for associated payment method
     pub payment_method_type: common_enums::PaymentMethod,
     /// payment method subtype for associated payment method

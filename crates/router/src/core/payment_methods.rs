@@ -2574,8 +2574,6 @@ pub async fn vault_payment_method_internal(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get fingerprint_id from vault")?;
 
-    logger::debug!("Fingerprint_id from vault: {}", fingerprint_id_from_vault);
-
     // throw back error if payment method is duplicated
     when(
         db.find_payment_method_by_fingerprint_id(
@@ -3789,14 +3787,14 @@ pub async fn payment_methods_session_retrieve(
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
-            payment_methods.iter().map(|pm| match &pm.token {
+            payment_methods.iter().map(|pm| match &pm.payment_method_token {
                 common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => (pm, token.clone()),
             }).next()
         });
 
     let expiry = associated_pm_token_details
         .async_map(|(pm_token, token_string)| {
-            vault::retrieve_key_and_ttl_for_cvc_from_payment_token(
+            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(
                 &state,
                 token_string,
                 pm_token.payment_method_type,
@@ -3805,7 +3803,7 @@ pub async fn payment_methods_session_retrieve(
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve cvc from vault")
+        .attach_printable("Failed to retrieve cvc from redis")
         .ok()
         .flatten();
 
@@ -3850,7 +3848,7 @@ pub async fn payment_methods_session_update_payment_method(
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
-            payment_methods.iter().find(|pm| match &pm.token {
+            payment_methods.iter().find(|pm| match &pm.payment_method_token {
                 common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &request.payment_method_token       
             })
         })
@@ -3864,7 +3862,7 @@ pub async fn payment_methods_session_update_payment_method(
         Some(&associated_pm_token_details.payment_method_type),
     )
     .await
-    .attach_printable("Failed to retrieve payment token data")?;
+    .attach_printable("Failed to retrieve payment method token data")?;
 
     let payment_method_id = match payment_token_data {
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
@@ -3872,8 +3870,8 @@ pub async fn payment_methods_session_update_payment_method(
         }
         _ => None,
     }
-    .get_required_value("payment_method_id from payment token data")
-    .attach_printable("Failed to get payment method id from payment token data")?;
+    .get_required_value("payment_method_id from payment method token data")
+    .attach_printable("Failed to get payment method id from payment method token data")?;
 
     let payment_method_update_request = request.payment_method_update_request.clone();
 
@@ -3900,11 +3898,11 @@ pub async fn payment_methods_session_update_payment_method(
                     cvc,
                     associated_pm_token_details.payment_method_type,
                     common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
-                    platform.get_provider().get_key_store().key.get_inner(),
+                    platform.get_provider().get_key_store(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to insert cvc into vault")?,
+                .attach_printable("Failed to insert encrypted cvc in redis")?,
             )
         } else {
             None
@@ -4113,7 +4111,7 @@ pub async fn payment_methods_session_confirm(
                 cvc,
                 request.payment_method_type,
                 intent_fulfillment_time,
-                platform.get_provider().get_key_store().key.get_inner(),
+                platform.get_provider().get_key_store(),
             )
         })
         .await
@@ -4130,7 +4128,7 @@ pub async fn payment_methods_session_confirm(
     };
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
         payment_method_type: request.payment_method_type,
         payment_method_subtype: Some(request.payment_method_subtype),
     };

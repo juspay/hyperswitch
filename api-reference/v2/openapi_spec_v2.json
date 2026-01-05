@@ -8324,6 +8324,12 @@
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
             "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19508,6 +19514,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19819,6 +19833,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19830,13 +19852,13 @@
           {
             "type": "object",
             "required": [
-              "payment_method_id"
+              "payment_method_token"
             ],
             "properties": {
-              "payment_method_id": {
+              "payment_method_token": {
                 "type": "string",
-                "description": "The payment method id of the payment method to be updated",
-                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+                "description": "The payment method token associated with the payment method session",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
               }
             }
           }
