@@ -39,7 +39,6 @@ where
     query_builder
         .add_filter_clause("payment_id", &request.payment_id)
         .switch()?;
-
     query_builder
         .add_custom_filter_clause("event_name", static_event_list, FilterTypes::In)
         .switch()?;
