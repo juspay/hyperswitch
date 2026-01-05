@@ -3550,3 +3550,14 @@ pub enum NetworkTokenStatusCheckResponse {
     /// Error response for network token status check
     FailureResponse(NetworkTokenStatusCheckFailureResponse),
 }
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodGetTokenDetailsResponse {
+    /// The payment method ID associated with the token
+    #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
+    pub id: id_type::GlobalPaymentMethodId,
+
+    /// The tokenization id associated with the payment method
+    #[schema(value_type = String, example = "token_CSum555d9YxDOpGwYq6q")]
+    pub tokenization_status: String,
+}

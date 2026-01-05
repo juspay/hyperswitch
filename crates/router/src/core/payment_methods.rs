@@ -4469,3 +4469,35 @@ pub async fn check_network_token_status(
         network_token_status_check_response,
     ))
 }
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_get_token(
+    state: SessionState,
+    provider: domain::Provider,
+    temporary_token: String,
+) -> RouterResponse<payment_methods::PaymentMethodGetTokenDetailsResponse> {
+
+    let token_data = pm_routes::ParentPaymentMethodToken::create_key_for_token(
+            &temporary_token,
+        )
+        .get_data_for_token(&state)
+        .await;
+
+    let payment_method_id = match token_data {
+        Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
+            card_token_data.payment_method_id
+        }
+        Ok(_) => {
+            return Err(errors::ApiErrorResponse::PaymentMethodNotFound.into())
+        }
+        Err(e) => {
+            return Err(e)
+        }
+    };
+    let response = payment_methods::PaymentMethodGetTokenDetailsResponse {
+        id: payment_method_id,
+        tokenization_status: temporary_token,
+    };
+
+    Ok(services::ApplicationResponse::Json(response))
+}
