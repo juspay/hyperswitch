@@ -3849,7 +3849,7 @@ pub async fn payment_methods_session_update_payment_method(
         .as_ref()
         .and_then(|payment_methods| {
             payment_methods.iter().find(|pm| match &pm.payment_method_token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &request.payment_method_token       
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &request.payment_method_token
             })
         })
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
