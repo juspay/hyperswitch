@@ -1143,7 +1143,7 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
-            amount: Some(100),
+            amount: 100,
             currency: enums::Currency::USD,
             split_payments: None,
             mandate_id: None,

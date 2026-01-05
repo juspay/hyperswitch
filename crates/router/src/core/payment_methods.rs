@@ -4214,7 +4214,7 @@ async fn create_single_use_tokenization_flow(
         )?,
         browser_info: None,
         currency: api_models::enums::Currency::default(),
-        amount: None,
+        amount: 0,
         split_payments: None,
         mandate_id: None,
         setup_future_usage: None,
