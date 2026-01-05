@@ -133,6 +133,10 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router --jobs 3
 
+      - name: Make server executable
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: chmod +x target/debug/router
+
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/upload-artifact@v4
@@ -141,7 +145,6 @@ jobs:
           overwrite: true
           path: target/debug/router
           retention-days: 1
-  
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
@@ -176,7 +179,7 @@ jobs:
 
     steps:
       - name: Skip tests for PRs from forks
-        if: ${{ env.RUN_TESTS == 'false' }} 
+        if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
@@ -189,7 +192,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -260,7 +262,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
@@ -358,22 +359,20 @@ jobs:
           - 5432:5432
 
     steps:
-
-      - name: Skip tests for PRs
+      - name: Skip tests on PR level
         if: ${{ (env.RUN_OPTIONAL_CONNECTORS_TESTS == 'false')  }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
@@ -388,10 +387,6 @@ jobs:
         with:
           name: hyperswitch-server
           path: target/debug
-
-      - name: Make server executable
-        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
-        run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
@@ -543,21 +538,20 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Skip tests for PRs
+      - name: Skip Optional Connector tests on PR level
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
 
       - name: Checkout repository
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
@@ -572,10 +566,6 @@ jobs:
         with:
           name: hyperswitch-server
           path: target/debug
-
-      - name: Make server executable
-        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
-        run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
