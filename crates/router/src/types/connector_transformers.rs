@@ -115,6 +115,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
             api_enums::Connector::Payjustnow => Self::Payjustnow,
+            api_enums::Connector::Payjustnowinstore => Self::Payjustnowinstore,
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,

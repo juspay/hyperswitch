@@ -1035,7 +1035,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         Identifier::Merchant(merchant_id.to_owned()),
@@ -1148,7 +1148,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(
+                        domain::types::CryptoOperation::EncryptLocally(
                             services::generate_aes256_key().unwrap().to_vec().into(),
                         ),
                         Identifier::Merchant(merchant_id.to_owned()),
@@ -1260,7 +1260,7 @@ mod tests {
                     key: domain::types::crypto_operation(
                         key_manager_state,
                         type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::Encrypt(aes_key.to_vec().into()),
+                        domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
                         Identifier::Merchant(merchant_id.to_owned()),
                         master_key,
                     )
@@ -1329,6 +1329,7 @@ mod tests {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 
