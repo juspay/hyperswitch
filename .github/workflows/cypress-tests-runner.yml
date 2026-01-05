@@ -84,6 +84,9 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: ubuntu-latest
     steps:
       - name: Skip tests for PRs from forks
@@ -315,6 +318,9 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: ubuntu-latest
 
     services:
