@@ -1131,6 +1131,8 @@ pub struct ParentPaymentMethodToken {
 }
 
 impl ParentPaymentMethodToken {
+    
+    #[cfg(feature = "v1")]
     pub fn create_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> Self {
@@ -1140,10 +1142,15 @@ impl ParentPaymentMethodToken {
     }
 
     #[cfg(feature = "v2")]
-    pub fn return_key_for_token(
-        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
-    ) -> String {
-        format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch")
+    pub fn create_key_for_token(parent_pm_token: &String) -> Self {
+        Self {
+            key_for_token: format!("pm_token_{parent_pm_token}_hyperswitch"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn return_key_for_token(parent_pm_token: &String) -> String {
+        format!("pm_token_{parent_pm_token}_hyperswitch")
     }
 
     pub async fn insert(

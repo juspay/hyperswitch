@@ -3153,10 +3153,9 @@ pub async fn list_customer_payment_methods_core(
                 let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
 
                 if let Some(token_data) = token_data {
-                    pm_routes::ParentPaymentMethodToken::create_key_for_token((
+                    pm_routes::ParentPaymentMethodToken::create_key_for_token(
                         &parent_payment_method_token,
-                        payment_method_type,
-                    ))
+                    )
                     .insert(intent_fulfillment_time, token_data, state)
                     .await?;
 
@@ -3996,10 +3995,9 @@ pub async fn payment_methods_session_confirm(
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token((
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(
             &parent_payment_method_token,
-            request.payment_method_type,
-        ))
+        )
         .insert(intent_fulfillment_time, token_data, &state)
         .await?;
     };
@@ -4157,7 +4155,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .get_order_fulfillment_time()
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
-        pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method_type))
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(token)
             .insert(intent_fulfillment_time, token_data, state)
             .await?;
 
