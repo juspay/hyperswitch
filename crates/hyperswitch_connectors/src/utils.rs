@@ -7346,6 +7346,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         frm_metadata: data.frm_metadata.clone(),
         dispute_id: data.dispute_id.clone(),
         refund_id: data.refund_id.clone(),
+        payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
         additional_merchant_data: data.additional_merchant_data.clone(),

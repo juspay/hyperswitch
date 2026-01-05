@@ -48,8 +48,7 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             tokenization::create_vault_token_core(
                 state,
-                &auth.merchant_account,
-                &auth.key_store,
+                auth.platform.get_provider().clone(),
                 request,
             )
             .await
@@ -88,8 +87,7 @@ pub async fn delete_tokenized_data_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            tokenization::delete_tokenized_data_core(state, platform, &token_id, req)
+            tokenization::delete_tokenized_data_core(state, auth.platform, &token_id, req)
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {

@@ -904,7 +904,6 @@ default_imp_for_create_order!(
     connectors::Thunes,
     connectors::Tokenex,
     connectors::Tokenio,
-    connectors::Trustpay,
     connectors::Trustpayments,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
