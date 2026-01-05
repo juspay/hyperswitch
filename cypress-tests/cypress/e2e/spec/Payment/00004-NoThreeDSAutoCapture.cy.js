@@ -63,7 +63,10 @@ describe("Card - NoThreeDS payment flow test", () => {
 
       // INTENTIONAL FAILURE FOR TESTING S-test-ready LABEL REMOVAL
       // TODO: Remove this after testing
-      expect(true).to.equal(false, "Intentional failure to test S-test-ready label removal");
+      expect(true).to.equal(
+        false,
+        "Intentional failure to test S-test-ready label removal"
+      );
     });
   });
 
