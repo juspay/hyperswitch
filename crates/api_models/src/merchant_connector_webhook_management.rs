@@ -21,7 +21,6 @@ pub struct RegisterConnectorWebhookResponse {
     pub error_message: Option<String>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookListResponse {
@@ -36,4 +35,3 @@ pub struct ConnectorWebhookResponse {
     pub event_type: common_enums::ConnectorWebhookEventType,
     pub connector_webhook_id: String,
 }
-

@@ -211,7 +211,8 @@ pub async fn validate_webhook_registration_request(
 #[cfg(feature = "v1")]
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
-) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>> {
+) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>>
+{
     let mut webhooks = Vec::new();
 
     if let Some(webhook_response) = register_webhook_response {
@@ -223,10 +224,12 @@ pub fn get_connector_webhook_list_response(
                 serde_json::from_value(webhook_data_value.clone())
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-            webhooks.push(api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
-                event_type: webhook_data.event_type,
-                connector_webhook_id: connector_webhook_id.clone(),
-            });
+            webhooks.push(
+                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
+                    event_type: webhook_data.event_type,
+                    connector_webhook_id: connector_webhook_id.clone(),
+                },
+            );
         }
     }
 

@@ -128,15 +128,14 @@ pub async fn register_connector_webhook(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-
-
 #[cfg(feature = "v1")]
 pub async fn fetch_connector_webhook(
     state: SessionState,
     merchant_id: id_type::MerchantId,
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: id_type::MerchantConnectorAccountId,
-) -> RouterResponse<api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse> {
+) -> RouterResponse<api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse>
+{
     let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(

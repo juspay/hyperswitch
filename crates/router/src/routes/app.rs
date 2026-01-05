@@ -1982,7 +1982,6 @@ impl MerchantConnectorAccount {
                     web::resource("/{merchant_id}/webhooks/{merchant_connector_id}")
                         .route(web::post().to(connector_webhook_register))
                         .route(web::get().to(retrieve_connector_webhook)),
-
                 );
         }
         #[cfg(feature = "oltp")]

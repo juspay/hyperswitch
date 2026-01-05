@@ -370,7 +370,6 @@ pub async fn connector_delete() {}
 )]
 pub async fn connector_webhook_register() {}
 
-
 /// Configure Connector Webhook - Register
 ///
 /// List webhooks configured with hyperswitch at the connector

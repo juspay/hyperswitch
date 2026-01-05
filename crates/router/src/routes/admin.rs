@@ -1118,7 +1118,6 @@ pub async fn connector_webhook_register(
     .await
 }
 
-
 /// Configure Connector Webhook - Register
 ///
 /// List webhooks configured with hyperswitch at the connector
