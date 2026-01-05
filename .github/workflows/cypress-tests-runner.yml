@@ -5,6 +5,7 @@ on:
     types:
       - checks_requested
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -136,6 +137,9 @@ jobs:
   runner:
     name: Run mandatory Cypress tests
     needs: build-hyperswitch
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
     runs-on: ubuntu-latest
 
     services:
@@ -486,6 +490,9 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-ready'))
     runs-on: hyperswitch-runners
     env:
       CODECOV_FILE: "lcov.info"
