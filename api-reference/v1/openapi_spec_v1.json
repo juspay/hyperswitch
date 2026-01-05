@@ -9153,8 +9153,11 @@
         "description": "Unified error details standardized across all payment connectors",
         "properties": {
           "category": {
-            "type": "string",
-            "description": "Error category",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnifiedCode"
+              }
+            ],
             "nullable": true
           },
           "message": {
