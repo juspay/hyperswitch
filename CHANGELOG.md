@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.05.1
+
+### Features
+
+- **UCS:** Added wallets, bankredirect, banktransfer, bnpl payment methods in HS<>UCS tunnel ([#10760](https://github.com/juspay/hyperswitch/pull/10760)) ([`406ef79`](https://github.com/juspay/hyperswitch/commit/406ef79fcb332dc3b00bad9fc43dfdc329c1b593))
+- **connector:** [ADYEN] Googlepay predecrypt ([#10806](https://github.com/juspay/hyperswitch/pull/10806)) ([`2de4f6e`](https://github.com/juspay/hyperswitch/commit/2de4f6e2e3ca2cdf814d6734abf49ee4a47f3359))
+- **core:** Add connector_response_reference_id for ErrorResponse ([#10816](https://github.com/juspay/hyperswitch/pull/10816)) ([`e882fc0`](https://github.com/juspay/hyperswitch/commit/e882fc0d062be618e80ffbb1dca909c3caa102ff))
+- **payouts:** Add audit table for payouts ([#10588](https://github.com/juspay/hyperswitch/pull/10588)) ([`3a42b26`](https://github.com/juspay/hyperswitch/commit/3a42b26672c790c3876c0c405621b82d779f5e84))
+
+**Full Changelog:** [`2026.01.05.0...2026.01.05.1`](https://github.com/juspay/hyperswitch/compare/2026.01.05.0...2026.01.05.1)
+
+- - -
+
 ## 2026.01.05.0
 
 ### Features
