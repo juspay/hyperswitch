@@ -3830,7 +3830,7 @@ pub async fn payment_methods_session_update_payment_method(
     profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     request: payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
-) -> RouterResponse<payment_methods::PaymentMethodResponse> {
+) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
 
     // Validate if the session still exists
@@ -3845,12 +3845,17 @@ pub async fn payment_methods_session_update_payment_method(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let (associated_pm_token_details, pm_token) = payment_method_session
+    // Get the associated_pm_token_details for the payment_method_token from the request
+    let associated_pm_token_details = payment_method_session
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
             payment_methods.iter().find_map(|pm| match &pm.token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => Some((pm, token.clone())),
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => if token == &request.payment_method_token {
+                    Some(pm)
+                } else {
+                    None
+                }
             })
         })
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
@@ -3859,7 +3864,7 @@ pub async fn payment_methods_session_update_payment_method(
 
     let payment_token_data = utils::retrieve_payment_token_data(
         &state,
-        pm_token.clone(),
+        request.payment_method_token.clone(),
         Some(&associated_pm_token_details.payment_method_type),
     )
     .await
@@ -3876,7 +3881,7 @@ pub async fn payment_methods_session_update_payment_method(
 
     let payment_method_update_request = request.payment_method_update_request.clone();
 
-    let mut updated_payment_method = Box::pin(update_payment_method_core(
+    Box::pin(update_payment_method_core(
         &state,
         &platform,
         &profile,
@@ -3895,7 +3900,7 @@ pub async fn payment_methods_session_update_payment_method(
             Some(
                 vault::insert_cvc_using_payment_token(
                     &state,
-                    &pm_token,
+                    &request.payment_method_token,
                     cvc,
                     associated_pm_token_details.payment_method_type,
                     common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
@@ -3912,9 +3917,16 @@ pub async fn payment_methods_session_update_payment_method(
         card_cvc_token = token;
     }
 
-    updated_payment_method.card_cvc_token_storage = card_cvc_token;
+    let response = transformers::generate_payment_method_session_response(
+        payment_method_session,
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None, // TODO: send associated payments response based on the expandable param
+        None,
+        None,
+        card_cvc_token,
+    );
 
-    Ok(services::ApplicationResponse::Json(updated_payment_method))
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[cfg(feature = "v2")]
