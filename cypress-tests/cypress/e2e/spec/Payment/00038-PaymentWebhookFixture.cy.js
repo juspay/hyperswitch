@@ -66,56 +66,22 @@ describe("Payment Webhook Tests — Split Steps", () => {
 
 
   it("Update-payment_status", () => {
-
-    const merchantId = globalState.get("merchantId");
-    const paymentId  = globalState.get("paymentID");
-
-    return cy.request({
-      method: "PUT",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-        "X-Merchant-Id": merchantId,
-      },
-      body: {
-        attempt_status: "pending",
-        attempt_id: `${paymentId}_1`,  
-        merchant_id: merchantId,
-        payment_id: paymentId,
-      }
-    }).then((resp) => {
-      expect(resp.status).to.eq(200);
-    });
-
+  cy.updatePaymentStatusTest(globalState, {
+    Request: {
+      attempt_status: "pending",
+    },
+    Response: {
+      status: 200,
+    },
   });
+});
 
 
 
-  it("send-webhook", () => {
-    const connectorID = globalState.get("connectorId");
-    const connectorName = globalState.get("connectorName");
-    const connectorTransactionId =
-      globalState.get("connectorTransactionID");
-
-    return cy.fixture(`webhooks/${connectorName}_payment_success.json`)
-    .then((payload) => {
-
-      const webhookPayload = { ...payload };
-
-      // Replace nested field: data.object.id
-      webhookPayload.data.object.id = connectorTransactionId;
-
-      return cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/webhooks/${globalState.get("merchantId")}/${connectorID}`,
-        body: webhookPayload,
-        headers: { "Content-Type": "application/json" }
-      });
-    })
-    .then((response) => {
-      expect(response.status).to.equal(200);
-    });
+it("send-webhook", () => {
+  cy.sendWebhookTest(globalState, {
+    Response: { status: 200 }
   });
+});
 
 });

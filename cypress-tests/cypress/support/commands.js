@@ -5089,3 +5089,151 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
     });
   });
 });
+
+
+Cypress.Commands.add(
+  "updatePaymentStatusTest",
+  (globalState, data = {}) => {
+    const { Request: reqData = {}, Response: resData = {} } = data;
+
+    const merchantId = globalState.get("merchantId");
+    const paymentId = globalState.get("paymentID");
+
+    if (!paymentId || !merchantId) {
+      throw new Error(
+        "Missing merchantId or paymentId in globalState for updatePaymentStatusTest"
+      );
+    }
+
+    // Default values if not provided in test data
+    const requestBody = {
+      attempt_status: reqData.attempt_status || "pending",
+      attempt_id: reqData.attempt_id || `${paymentId}_1`,
+      merchant_id: merchantId,
+      payment_id: paymentId,
+      ...reqData,
+    };
+
+    cy.request({
+      method: "PUT",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+        "X-Merchant-Id": merchantId,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include(
+          "application/json"
+        );
+
+        if (resData.status === 200) {
+          expect(response.status, "status").to.equal(200);
+
+          // Validate echo fields if backend returns them
+          if (response.body.payment_id) {
+            expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+          }
+
+          if (response.body.merchant_id) {
+            expect(response.body.merchant_id, "merchant_id").to.equal(
+              merchantId
+            );
+          }
+
+          if (response.body.attempt_status) {
+            expect(
+              response.body.attempt_status,
+              "attempt_status"
+            ).to.equal(requestBody.attempt_status);
+          }
+
+          validateErrorMessage(response, resData);
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+
+Cypress.Commands.add(
+  "sendWebhookTest",
+  (globalState, data = {}) => {
+    const { Request: reqData = {}, Response: resData = {} } = data;
+
+    const connectorId = globalState.get("connectorId");
+    const connectorName = globalState.get("connectorName");
+    const merchantId = globalState.get("merchantId");
+    const connectorTransactionId =
+      globalState.get("connectorTransactionID");
+
+    // Default convention-based fixture name
+    const fixturePath =
+      reqData.fixture ||
+      `webhooks/${connectorName}_payment_success.json`;
+
+    return cy.fixture(fixturePath)
+      .then((payload) => {
+        // Clone to avoid modifying fixture cache
+        let payloadStr = JSON.stringify(payload);
+
+       const rawId = connectorTransactionId;
+
+        // Try numeric conversion
+        const numericId = Number(rawId);
+        const isNumeric = !Number.isNaN(numericId);
+
+        payloadStr = payloadStr
+          // quoted placeholder → always string
+          .replace(
+            /"{{\s*connector_transaction_id\s*}}"/g,
+            JSON.stringify(String(rawId))
+          )
+
+          // unquoted placeholder → number if possible, else fallback string
+          .replace(
+            /{{\s*connector_transaction_id\s*}}/g,
+            isNumeric ? String(numericId) : JSON.stringify(String(rawId))
+          );
+
+
+
+        const webhookPayload = JSON.parse(payloadStr);
+
+        return cy.request({
+          method: "POST",
+          url: `${globalState.get(
+            "baseUrl"
+          )}/webhooks/${merchantId}/${connectorId}`,
+          headers: { "Content-Type": "application/json" },
+          body: webhookPayload,
+          failOnStatusCode: false,
+        });
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+
+          if (resData.status === 200) {
+            expect(response.status).to.equal(200);
+            validateErrorMessage(response, resData);
+          } else {
+            defaultErrorHandler(response, resData);
+          }
+        });
+      });
+  }
+);
+
+

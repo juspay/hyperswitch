@@ -5,7 +5,7 @@
   "created": 1686089970,
   "data": {
     "object": {
-      "id": "pi_3SesJJD5R7gDAGff0hvqndmk",
+      "id": "{{connector_transaction_id}}",
       "object": "payment_intent",
       "application": null,
       "automatic_payment_methods": null,
