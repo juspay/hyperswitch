@@ -279,7 +279,7 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
                     amount: item.amount,
                     external_id: item.router_data.connector_request_reference_id.clone(),
                     qr_type: QrType::Dynamic,
-                    callback_url: item.router_data.request.get_router_return_url()?,
+                    callback_url: item.router_data.request.get_webhook_url()?,
                 };
                 Ok(Self::QrPaymentsRequest(qr_request))
             }
