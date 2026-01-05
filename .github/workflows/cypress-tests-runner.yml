@@ -25,7 +25,9 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
-    if: ${{ github.event_name == 'pull_request' }}
+    if: |
+      github.event_name == 'pull_request' && 
+      contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
