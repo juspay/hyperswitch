@@ -192,7 +192,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview
+          components: llvm-tools-preview, rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
