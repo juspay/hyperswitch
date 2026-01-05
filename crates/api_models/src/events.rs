@@ -76,6 +76,7 @@ impl_api_event_type!(
         MandateListConstraints,
         CreateFileResponse,
         ConnectorWebhookRegisterRequest,
+        ConnectorWebhookListResponse,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,
