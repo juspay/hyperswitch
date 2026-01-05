@@ -1113,7 +1113,10 @@ pub async fn create_payment_method_card_core(
         }
     };
 
-    payments_core::helpers::validate_card_expiry( &card_data.card_exp_month, &card_data.card_exp_year, )?;
+    payments_core::helpers::validate_card_expiry(
+        &card_data.card_exp_month,
+        &card_data.card_exp_year,
+    )?;
 
     let db = &*state.store;
 
