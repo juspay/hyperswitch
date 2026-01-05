@@ -1103,21 +1103,17 @@ pub async fn create_payment_method_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let card_data = req
-        .payment_method_data
-        .as_ref()
-        .and_then(|data| match data {
-            api::PaymentMethodCreateData::Card(card) => Some(card),
-            _ => None,
-        })
-        .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_method_data",
-        })?;
+    let card_data = match &req.payment_method_data {
+        api::PaymentMethodCreateData::Card(card) => card,
+        _ => {
+            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            }
+            .into());
+        }
+    };
 
-    payments_core::helpers::validate_card_expiry(
-        &card_data.card_exp_month,
-        &card_data.card_exp_year,
-    )?;
+    payments_core::helpers::validate_card_expiry( &card_data.card_exp_month, &card_data.card_exp_year, )?;
 
     let db = &*state.store;
 
