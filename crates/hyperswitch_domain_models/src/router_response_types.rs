@@ -301,6 +301,15 @@ pub enum PreprocessingResponseId {
     ConnectorTransactionId(String),
 }
 
+impl PreprocessingResponseId {
+    pub fn get_string_repr(&self) -> &String {
+        match self {
+            Self::PreProcessingId(value) => value,
+            Self::ConnectorTransactionId(value) => value,
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
@@ -358,6 +367,9 @@ pub enum RedirectForm {
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    WorldpayxmlRedirectForm {
+        jwt: String,
     },
 }
 
@@ -474,6 +486,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -574,6 +587,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            }
         }
     }
 }
@@ -635,6 +651,7 @@ pub enum AuthenticationResponseData {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         directory_server_id: Option<String>,
+        scheme_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,

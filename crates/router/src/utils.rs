@@ -187,6 +187,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                     platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
                     platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -205,6 +206,7 @@ pub async fn find_payment_intent_from_payment_id_type(
                     &attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -255,6 +257,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             &refund.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -318,6 +321,8 @@ pub async fn find_mca_from_authentication_id_type(
             .find_authentication_by_merchant_id_authentication_id(
                 platform.get_processor().get_account().get_id(),
                 &authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -325,6 +330,8 @@ pub async fn find_mca_from_authentication_id_type(
             db.find_authentication_by_merchant_id_connector_authentication_id(
                 platform.get_processor().get_account().get_id().clone(),
                 connector_authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
@@ -373,6 +380,7 @@ pub async fn get_mca_from_payment_intent(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1386,6 +1394,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let cloned_state = state.clone();

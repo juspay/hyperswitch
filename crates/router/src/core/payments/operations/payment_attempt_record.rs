@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::ToEncryptable,
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
@@ -77,11 +77,13 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
         match intent_status {
             // Payment attempt can be recorded for failed payment as well in revenue recovery flow.
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::PartiallyCaptured => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -242,11 +244,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentAttemptRecordData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -256,19 +256,31 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
         let active_attempt_id = match payment_data.revenue_recovery_data.triggered_by {
             common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
             common_enums::TriggeredBy::External => None,
         };
+        let active_attempts_group_id = payment_data.payment_intent.active_attempts_group_id.clone();
+        let amount_captured = payment_data.payment_intent.amount_captured;
+        let status = if amount_captured > Some(MinorUnit::new(0))
+            && *payment_data.payment_intent.enable_partial_authorization
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            common_enums::IntentStatus::from(payment_data.payment_attempt.status)
+        };
         let payment_intent_update =
 
     hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
         {
-            status: common_enums::IntentStatus::from(payment_data.payment_attempt.status),
+            status,
             feature_metadata: Box::new(feature_metadata),
             updated_by: storage_scheme.to_string(),
-            active_attempt_id
+            active_attempt_id,
+            active_attempts_group_id,
         }
     ;
         payment_data.payment_intent = state

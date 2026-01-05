@@ -230,6 +230,7 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
             PaymentMethodDataType::BancontactCard,
+            PaymentMethodDataType::MandatePayment,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -445,8 +446,14 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         if matches!(
-            req.request.split_payments,
-            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+            (
+                req.request.split_payments.as_ref(),
+                req.request.payment_method_data.clone()
+            ),
+            (
+                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
+                PaymentMethodData::Card(_)
+            )
         ) {
             return Ok(format!(
                 "{}{}",

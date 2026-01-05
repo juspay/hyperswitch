@@ -109,6 +109,8 @@ impl<F: Send + Clone + Sync>
         }
         let key_manager_state = &state.into();
 
+        let cell_id = state.conf.cell_information.id.clone();
+
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -143,6 +145,7 @@ impl<F: Send + Clone + Sync>
                 profile,
                 request.clone(),
                 encrypted_data,
+                cell_id,
             )
             .await?;
 
@@ -194,11 +197,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsC
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: payments::PaymentIntentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(

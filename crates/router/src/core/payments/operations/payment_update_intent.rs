@@ -55,11 +55,13 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Expired => {
@@ -298,7 +300,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .or(payment_intent.allowed_payment_method_types),
             active_attempt_id,
             enable_partial_authorization: enable_partial_authorization
-                .or(payment_intent.enable_partial_authorization),
+                .unwrap_or(payment_intent.enable_partial_authorization),
             setup_future_usage: setup_future_usage.unwrap_or(payment_intent.setup_future_usage),
             ..payment_intent
         };
@@ -327,11 +329,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -342,6 +342,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         F: 'b + Send,
     {
         let db = &*state.store;
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
 
         let intent = payment_data.payment_intent.clone();
 
@@ -390,7 +392,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 active_attempt_id: Some(intent.active_attempt_id),
                 force_3ds_challenge: intent.force_3ds_challenge,
                 is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
-                enable_partial_authorization: intent.enable_partial_authorization,
+                enable_partial_authorization: Some(intent.enable_partial_authorization),
+                active_attempts_group_id: intent.active_attempts_group_id,
+                active_attempt_id_type: Some(intent.active_attempt_id_type),
             }));
 
         let new_payment_intent = db

@@ -29,12 +29,12 @@ if (jsonData?.refund_id) {
   );
 }
 
-// Response body should have value "pending" for "status"
+// Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/refunds - Content check if value for 'status' matches 'pending'",
+    "[POST]::/refunds - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("pending");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }

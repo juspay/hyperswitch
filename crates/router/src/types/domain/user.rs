@@ -47,6 +47,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod oidc;
 pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
@@ -614,12 +615,13 @@ impl NewUserMerchant {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
 
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            platform,
+            platform.get_processor().clone(),
         ))
         .await
         .change_context(UserErrors::InternalServerError)
@@ -1217,7 +1219,7 @@ impl UserFromStorage {
                     key_manager_state,
                     EncryptionTransferRequest {
                         identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: consts::BASE64_ENGINE.encode(key),
+                        key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
                     },
                 )
                 .await
@@ -1229,7 +1231,7 @@ impl UserFromStorage {
                 key: domain_types::crypto_operation(
                     key_manager_state,
                     type_name!(UserKeyStore),
-                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+                    domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )

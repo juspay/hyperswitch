@@ -77,6 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             key_store.clone(),
             merchant_account.clone(),
             key_store.clone(),
+            None,
         );
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
@@ -162,7 +163,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             authentication_type: None,
                             issuer_error_code: None,
                             issuer_error_message: None,
-                            network_details:None
+                            network_details:None,
+                            encrypted_payment_method_data: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -170,6 +172,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             payment_data.payment_attempt,
                             payment_attempt_update,
                             merchant_account.storage_scheme,
+                            &key_store,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

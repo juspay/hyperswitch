@@ -59,6 +59,7 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
@@ -376,11 +377,12 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id,
+                    customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
                     psp_tokenization: None,
                     network_tokenization: None,
+                    storage_type: None, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
@@ -477,11 +479,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
@@ -489,6 +489,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         F: 'b + Send,
     {
         let db = &*state.store;
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;

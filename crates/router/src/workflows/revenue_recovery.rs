@@ -65,6 +65,7 @@ use crate::types::storage::{
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use crate::{
+    consts,
     core::{
         payments,
         revenue_recovery::{self as pcr},
@@ -119,6 +120,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
+            None,
         );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -796,8 +798,17 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match locked_acquired {
-        false => {
+    match (locked_acquired, payment_intent.status) {
+        (true, _) | (false, common_enums::IntentStatus::PartiallyCaptured) => {
+            let payment_processor_token_response = get_payment_processor_token_by_calling_decider(
+                state,
+                payment_intent,
+                connector_customer_id,
+            )
+            .await?;
+            Ok(payment_processor_token_response)
+        }
+        (false, _) => {
             let token_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
                     state,
@@ -836,39 +847,43 @@ pub async fn get_best_psp_token_available_for_smart_retry(
 
             Ok(payment_processor_token_response)
         }
-
-        true => {
-            // Get existing tokens from Redis
-            let existing_tokens =
-                RedisTokenManager::get_connector_customer_payment_processor_tokens(
-                    state,
-                    connector_customer_id,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::ERedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
-
-            let active_tokens: HashMap<_, _> = existing_tokens
-                .into_iter()
-                .filter(|(_, token_status)| token_status.is_active != Some(false))
-                .collect();
-
-            let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
-
-            let payment_processor_token_response =
-                call_decider_for_payment_processor_tokens_select_closest_time(
-                    state,
-                    &result,
-                    payment_intent,
-                    connector_customer_id,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-            Ok(payment_processor_token_response)
-        }
     }
+}
+
+#[cfg(feature = "v2")]
+async fn get_payment_processor_token_by_calling_decider(
+    state: &SessionState,
+    payment_intent: &PaymentIntent,
+    connector_customer_id: &str,
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    // Get existing tokens from Redis
+    let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
+        state,
+        connector_customer_id,
+    )
+    .await
+    .change_context(errors::ProcessTrackerError::ERedisError(
+        errors::RedisError::RedisConnectionError.into(),
+    ))?;
+
+    let active_tokens: HashMap<_, _> = existing_tokens
+        .into_iter()
+        .filter(|(_, token_status)| token_status.is_active != Some(false))
+        .collect();
+
+    let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
+
+    let payment_processor_token_response =
+        call_decider_for_payment_processor_tokens_select_closest_time(
+            state,
+            &result,
+            payment_intent,
+            connector_customer_id,
+        )
+        .await
+        .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+    Ok(payment_processor_token_response)
 }
 
 #[cfg(feature = "v2")]
@@ -1061,14 +1076,24 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 .values()
                 .all(|token| token.token_status.is_hard_decline.unwrap_or(false))
                 && !processor_tokens.is_empty();
-
-            RedisTokenManager::unlock_connector_customer_status(
-                state,
-                connector_customer_id,
-                &payment_intent.id,
-            )
-            .await
-            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+            // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
+            let _unlocked = match payment_intent.status {
+                common_enums::enums::IntentStatus::Failed => {
+                    let lock_released = RedisTokenManager::unlock_connector_customer_status(
+                        state,
+                        connector_customer_id,
+                        &payment_intent.id,
+                    )
+                    .await
+                    .change_context(
+                        errors::ProcessTrackerError::ERedisError(
+                            errors::RedisError::RedisConnectionError.into(),
+                        ),
+                    )?;
+                    lock_released
+                }
+                _ => false,
+            };
 
             tracing::debug!("No payment processor tokens available for scheduling");
 
@@ -1133,7 +1158,8 @@ pub async fn check_hard_decline(
         error_code,
         error_message,
         connector_name,
-        REVENUE_RECOVERY.to_string(),
+        REVENUE_RECOVERY,
+        consts::DEFAULT_SUBFLOW_STR,
     )
     .await;
 

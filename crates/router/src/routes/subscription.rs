@@ -67,10 +67,9 @@ pub async fn create_subscription(
         &req,
         json_payload.into_inner(),
         move |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::create_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
             )
@@ -109,10 +108,9 @@ pub async fn pause_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::pause_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
@@ -146,10 +144,9 @@ pub async fn resume_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::resume_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
@@ -183,10 +180,9 @@ pub async fn cancel_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::cancel_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
@@ -230,10 +226,9 @@ pub async fn confirm_subscription(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::confirm_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
                 subscription_id.clone(),
@@ -252,12 +247,12 @@ pub async fn confirm_subscription(
 }
 
 #[instrument(skip_all)]
-pub async fn get_subscription_plans(
+pub async fn get_subscription_items(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<subscription_types::GetPlansQuery>,
+    query: web::Query<subscription_types::GetSubscriptionItemsQuery>,
 ) -> impl Responder {
-    let flow = Flow::GetPlansForSubscription;
+    let flow = Flow::GetSubscriptionItemsForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
     let payload = query.into_inner();
 
@@ -277,8 +272,12 @@ pub async fn get_subscription_plans(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            subscriptions::get_subscription_plans(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_subscription_items(
+                state.into(),
+                auth.platform,
+                profile_id.clone(),
+                query,
+            )
         },
         auth::auth_type(
             &*auth_type,
@@ -312,10 +311,9 @@ pub async fn get_subscription(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             subscriptions::get_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
             )
@@ -352,10 +350,9 @@ pub async fn create_and_confirm_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::create_and_confirm_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 payload.clone(),
             )
@@ -401,8 +398,7 @@ pub async fn get_estimate(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            subscriptions::get_estimate(state.into(), platform, profile_id.clone(), query)
+            subscriptions::get_estimate(state.into(), auth.platform, profile_id.clone(), query)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -429,10 +425,9 @@ pub async fn update_subscription(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let platform = auth.into();
             subscriptions::update_subscription(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 subscription_id.clone(),
                 payload.clone(),
@@ -466,10 +461,9 @@ pub async fn list_subscriptions(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
             subscriptions::list_subscriptions(
                 state.into(),
-                platform,
+                auth.platform,
                 profile_id.clone(),
                 query.clone(),
             )

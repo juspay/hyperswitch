@@ -28,7 +28,6 @@ accounts_cache = ["storage_impl/accounts_cache"]
 vergen = ["router_env/vergen"]
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hyperswitch_interfaces/dummy_connector", "kgraph_utils/dummy_connector", "payment_methods/dummy_connector", "hyperswitch_domain_models/dummy_connector","hyperswitch_connectors/dummy_connector"]
 external_access_dc = ["dummy_connector"]
-detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "payment_methods/payouts"]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
@@ -89,9 +88,9 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "b5a367c1c775c32503feb00cdc6cd063cc97ea3b", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "b5a367c1c775c32503feb00cdc6cd063cc97ea3b", package = "ucs_cards" }
-unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.09.24.0", package = "masking" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "3dcfd30ef1405c81ba711c370397cabba277e854", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "3dcfd30ef1405c81ba711c370397cabba277e854", package = "ucs_cards" }
+unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"

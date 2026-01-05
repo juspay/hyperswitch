@@ -11,8 +11,7 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    services::authentication::AuthenticationData,
-    types::{self, storage},
+    types::{self, domain, storage},
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -134,7 +133,8 @@ pub fn log_applepay_verification_response_if_error(
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    auth_data: &AuthenticationData,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }
@@ -143,20 +143,20 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    auth_data: &AuthenticationData,
+    processor: &domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
-            auth_data.merchant_account.get_id(),
-            &auth_data.key_store,
-            auth_data.merchant_account.storage_scheme,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
+    utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)
 }
 
 #[cfg(feature = "v1")]
