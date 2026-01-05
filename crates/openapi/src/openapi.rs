@@ -462,6 +462,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GsmDecision,
         api_models::enums::GsmFeature,
         api_models::enums::StandardisedCode,
+        api_models::enums::UnifiedCode,
         api_models::enums::RecommendedAction,
         common_types::domain::GsmFeatureData,
         common_types::domain::RetryFeatureData,
