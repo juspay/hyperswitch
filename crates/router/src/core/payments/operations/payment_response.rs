@@ -234,7 +234,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             && payment_data
                 .payment_attempt
                 .is_save_payment_method_not_supported_for_on_session(
-                    state
+                    &state
                         .conf
                         .save_payment_method_on_session
                         .unsupported_payment_methods,

@@ -1437,9 +1437,9 @@ impl PaymentAttempt {
     // Check if the payment method type does not support saving during on-session payments
     pub fn is_save_payment_method_not_supported_for_on_session(
         &self,
-        unsupported_payment_methods: &HashMap<
-            enums::PaymentMethod,
-            HashSet<enums::PaymentMethodType>,
+        unsupported_payment_methods: &std::collections::HashMap<
+            common_enums::PaymentMethod,
+            std::collections::HashSet<common_enums::PaymentMethodType>,
         >,
     ) -> bool {
         self.payment_method_type.is_some_and(|pm_type| {
