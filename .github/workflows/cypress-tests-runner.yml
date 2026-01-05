@@ -192,6 +192,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: llvm-tools-preview
       
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -206,10 +207,6 @@ jobs:
         with:
           name: hyperswitch-server
           path: target/debug
-
-      - name: Make server executable
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -373,6 +370,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: llvm-tools-preview
       
       - name: Install sccache
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
@@ -552,6 +550,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: llvm-tools-preview
       
       - name: Install sccache
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
