@@ -27,19 +27,21 @@ use hyperswitch_domain_models::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_flow_types::GiftCardBalanceCheck,
+    router_flow_types::{GiftCardBalanceCheck, merchant_connector_webhook_management::ConnectorWebhookRegister},
     router_request_types::{
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData, ConnectorWebhookRegisterRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -5317,9 +5319,18 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
-    pub error_type: String,
+    pub message: Option<String>,
+    pub error_type: Option<String>,
     pub psp_reference: Option<String>,
+    pub invalid_fields: Option<Vec<InvalidFieldErrorResponse>>,
+}
+
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvalidFieldErrorResponse {
+    pub name: String,
+    pub message: String,
 }
 
 // #[cfg(test)]
@@ -6838,5 +6849,100 @@ impl CardExpiry {
 
     pub fn year(&self) -> Secret<String> {
         Secret::new(format!("{:02}", self.year % 100))
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WebhookRegisterType {
+    Standard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CommunicationFormat {
+    Json,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookRegister {
+    #[serde(rename = "type")]
+    webhook_type: WebhookRegisterType,
+    url: String,
+    active: bool,
+    communication_format: CommunicationFormat,
+}
+
+impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &common_enums::ConnectorWebhookEventType) -> Result<Self, Self::Error> {
+        match item {
+            enums::ConnectorWebhookEventType::Standard => Ok(Self::Standard),
+            enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("Webhook Register for {} event type", event_type),
+                    connector: "Adyen",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        let webhook_type = item.request.event_type;
+        let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
+        Ok(Self {
+            webhook_type,
+            url: item.request.webhook_url.clone(),
+            active: true,
+            communication_format: CommunicationFormat::Json,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenWebhookRegisterResponse {
+    id: String,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            AdyenWebhookRegisterResponse,
+            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            AdyenWebhookRegisterResponse,
+            ConnectorWebhookRegisterData,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                connector_webhook_id: Some(item.response.id.clone()),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
     }
 }

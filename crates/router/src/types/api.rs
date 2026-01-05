@@ -12,6 +12,8 @@ pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod mandates;
+pub mod merchant_connector_webhook_management;
+pub mod merchant_connector_webhook_management_v2;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
@@ -51,6 +53,7 @@ pub use hyperswitch_domain_models::router_flow_types::{
 };
 pub use hyperswitch_interfaces::{
     api::{
+        merchant_connector_webhook_management::{WebhookRegister, ConfigureConnectorWebhook},
         authentication::{
             ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
             ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
@@ -82,7 +85,7 @@ pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
     disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*,
+    refunds_v2::*, webhooks::*, merchant_connector_webhook_management::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

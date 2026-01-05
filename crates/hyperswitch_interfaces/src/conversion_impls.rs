@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
             SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
-            WebhookSourceVerifyData,
+            WebhookSourceVerifyData, ConnectorWebhookConfigurationFlowData,
         },
         RouterDataV2,
     },
@@ -694,6 +694,44 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
         Ok(router_data)
     }
 }
+
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
+    for ConnectorWebhookConfigurationFlowData
+{
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {};
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "files",
+            new_router_data.request,
+            new_router_data.response,
+        );
+
+        Ok(router_data)
+    }
+}
+
 
 #[cfg(feature = "payouts")]
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PayoutFlowData {

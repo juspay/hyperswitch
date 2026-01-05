@@ -19,6 +19,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
@@ -33,19 +34,19 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        SyncRequestType, UploadFileRequestData,
+        SyncRequestType, UploadFileRequestData, merchant_connector_webhook_management::ConnectorWebhookRegisterData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
         GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, UploadFileResponse,
+        SupportedPaymentMethodsExt, UploadFileResponse, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
         PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        SetupMandateRouterData, ConnectorWebhookRegisterRouterData
     },
 };
 #[cfg(feature = "payouts")]
@@ -64,7 +65,7 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         CaptureSyncMethod, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        ConnectorValidation, WebhookRegister,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -74,7 +75,7 @@ use hyperswitch_interfaces::{
         AcceptDisputeType, DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType,
         PaymentsSyncType, PaymentsVoidType, RefundExecuteType, Response, SetupMandateType,
-        SubmitEvidenceType,
+        SubmitEvidenceType, ConnectorWebhookRegisterType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
@@ -149,11 +150,23 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+         let message = response.invalid_fields.map(|fields| {
+            fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, f.message))
+                .collect::<Vec<_>>()
+                .join(", ")
+        });
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.message.to_owned(),
-            reason: Some(response.message),
+            message: response
+                .message
+                .clone()
+                .or(message.clone())
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.message.clone().or(message.clone()),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
             network_advice_code: None,
@@ -2531,6 +2544,102 @@ impl FileUpload for Adyen {
     }
 }
 
+
+
+impl WebhookRegister for Adyen {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            ConnectorWebhookRegisterType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let merchant_id = auth.merchant_account.expose();
+        Ok(format!("{endpoint}/v3/merchants/{merchant_id}/webhooks",))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = adyen::WebhookRegister::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&ConnectorWebhookRegisterType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(ConnectorWebhookRegisterType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(ConnectorWebhookRegisterType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookRegisterRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenWebhookRegisterResponse = res
+            .response
+            .parse_struct("AdyenWebhookRegisterResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+
 static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods1 = vec![
         enums::CaptureMethod::Automatic,
@@ -3315,6 +3424,13 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     adyen_supported_payment_methods
 });
 
+static ADYEN_WEBHOOK_SETUP_CAPABILITIES: common_types::connector_webhook_configuration::WebhookSetupCapabilities =
+    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        is_webhook_auto_configuration_supported: true,
+        requires_webhook_secret: Some(false),
+        config_type: Some(common_types::connector_webhook_configuration::WebhookConfigType::Standard),
+    };
+
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Adyen",
         description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam",
@@ -3356,5 +3472,11 @@ impl ConnectorSpecifications for Adyen {
                 cid.get_string_repr()
             )
         })
+    }
+
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        &ADYEN_WEBHOOK_SETUP_CAPABILITIES
     }
 }

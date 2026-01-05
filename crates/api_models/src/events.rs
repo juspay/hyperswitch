@@ -28,6 +28,7 @@ use crate::tokenization;
 #[allow(unused_imports)]
 use crate::{
     admin::*,
+    merchant_connector_webhook_management::*,
     analytics::{
         api_event::*, auth_events::*, connector_events::ConnectorEventsRequest,
         outgoing_webhook_event::OutgoingWebhookLogsRequest, routing_events::RoutingEventsRequest,
@@ -74,6 +75,7 @@ impl_api_event_type!(
         RetrievePaymentLinkResponse,
         MandateListConstraints,
         CreateFileResponse,
+        ConnectorWebhookRegisterRequest,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,
@@ -83,6 +85,7 @@ impl_api_event_type!(
         MandateId,
         DisputeListGetConstraints,
         RetrieveApiKeyResponse,
+        RegisterConnectorWebhookResponse,
         ProfileResponse,
         ProfileUpdate,
         ProfileCreate,

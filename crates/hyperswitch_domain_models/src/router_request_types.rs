@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod merchant_connector_webhook_management;
 pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod subscriptions;
