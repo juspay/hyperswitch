@@ -3559,5 +3559,5 @@ pub struct PaymentMethodGetTokenDetailsResponse {
 
     /// The tokenization id associated with the payment method
     #[schema(value_type = String, example = "token_CSum555d9YxDOpGwYq6q")]
-    pub tokenization_status: String,
+    pub token: String,
 }

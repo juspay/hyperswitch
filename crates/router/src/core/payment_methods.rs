@@ -4496,7 +4496,7 @@ pub async fn payment_method_get_token(
     };
     let response = payment_methods::PaymentMethodGetTokenDetailsResponse {
         id: payment_method_id,
-        tokenization_status: temporary_token,
+        token: temporary_token,
     };
 
     Ok(services::ApplicationResponse::Json(response))
