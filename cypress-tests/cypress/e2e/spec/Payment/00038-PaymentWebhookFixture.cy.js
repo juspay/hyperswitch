@@ -95,8 +95,11 @@ describe("Payment Webhook Tests — Split Steps", () => {
   });
 
   it("send-webhook", () => {
-    cy.sendWebhookTest(globalState, {
-      Response: { status: 200 },
-    });
+    cy.sendWebhookTest(globalState);
+  });
+  it("Retrieve Payment Call Test", () => {
+    cy.retrievePaymentCallTest(globalState);
   });
 });
+
+

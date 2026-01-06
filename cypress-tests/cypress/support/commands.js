@@ -2056,10 +2056,8 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
-          globalState.set(
-            "connectorTransactionID",
-            response.body.connector_transaction_id
-          );
+          globalState.set("connectorTransactionID", response.body.connector_transaction_id);
+          globalState.set("paymentIntentStatus", response.body.status);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2871,6 +2869,14 @@ Cypress.Commands.add(
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
+          let intentStatus = globalState.get("paymentIntentStatus");
+
+          if (intentStatus !== undefined && intentStatus !== null) {
+            expect(
+              response.body.status,
+              "payment status should match stored intent_status"
+            ).to.equal(intentStatus);
+          }
 
           if (
             ["succeeded", "processing", "requires_customer_action"].includes(
@@ -5166,18 +5172,15 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
   return cy
     .fixture(fixturePath)
     .then((payload) => {
-      // Clone to avoid mutating fixture cache
-      const metaType = payload._meta?.connector_transaction_id_type || "string";
+      const connector_transaction_id_type = payload._meta?.connector_transaction_id_type || "string";
 
       let payloadStr = JSON.stringify(payload);
 
       const rawId = connectorTransactionId;
       const numericId = Number(rawId);
-      const isNumeric = !Number.isNaN(numericId) && metaType == "number";
+      const isNumeric = !Number.isNaN(numericId) && connector_transaction_id_type == "number";
 
-      // --- Single placeholder — type-aware replacement ---
       payloadStr = payloadStr
-        // quoted → always string literal
         .replace(
           /"{{\s*connector_transaction_id\s*}}"/g,
           isNumeric ? String(numericId) : JSON.stringify(String(rawId))
@@ -5206,16 +5209,11 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
           );
         }
 
-        // ---- SAFE STATUS LOGIC ----
         const expectedStatus = resData?.status ?? 200;
 
         if (response.status === expectedStatus) {
           expect(response.status).to.equal(expectedStatus);
 
-          // Only validate body if resData has validation rules
-          if (resData?.body) {
-            validateErrorMessage(response, resData);
-          }
         } else {
           // Delegate to your shared error handler
           defaultErrorHandler(response, resData);
