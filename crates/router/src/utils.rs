@@ -1181,6 +1181,7 @@ where
             None,
             None,
             None,
+            &platform,
         )?;
 
         let event_type = status.into();
