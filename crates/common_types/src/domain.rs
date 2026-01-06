@@ -252,7 +252,6 @@ impl MerchantAdviceCodesConfig {
     }
 }
 
-
 // Custom deserialization to convert from Vec<MerchantAdviceCodeEntry> to MerchantAdviceCodesConfig
 impl<'de> Deserialize<'de> for MerchantAdviceCodesConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

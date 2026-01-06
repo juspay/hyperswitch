@@ -330,7 +330,7 @@ pub async fn trigger_refund_to_gateway(
                     Some(err.code.clone()),
                     Some(err.message.clone()),
                     err.network_decline_code.clone(),
-                    None,// card_network
+                    None, // card_network
                 )
                 .await
             } else {

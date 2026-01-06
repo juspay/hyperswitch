@@ -6876,7 +6876,11 @@ pub async fn get_gsm_record(
 ) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
     // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
     if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
-        let issuer_lookup_key = format!("network:{}|issuer_code:{:0>2}", to_snake_case(network), issuer_code);
+        let issuer_lookup_key = format!(
+            "network:{}|issuer_code:{:0>2}",
+            to_snake_case(network),
+            issuer_code
+        );
         if let Some(result) = perform_gsm_lookup(
             state,
             Some(issuer_lookup_key.clone()),
