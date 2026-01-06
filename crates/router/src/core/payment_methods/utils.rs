@@ -860,14 +860,7 @@ pub(super) async fn retrieve_payment_token_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_{}_hyperswitch",
-        token,
-        payment_method
-            .get_required_value("payment_method")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment method is required")?
-    );
+    let key = format!("pm_token_{}_hyperswitch", token);
 
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key.into())

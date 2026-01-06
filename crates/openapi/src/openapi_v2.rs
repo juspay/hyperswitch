@@ -685,6 +685,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::Bank,
         api_models::payouts::ApplePayDecrypt,
         api_models::payouts::PayoutCreatePayoutLinkConfig,
+        api_models::platform::Initiator,
         api_models::enums::PayoutEntityType,
         api_models::enums::PayoutSendPriority,
         api_models::enums::PayoutStatus,
