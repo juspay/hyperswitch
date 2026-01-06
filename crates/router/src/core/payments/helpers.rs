@@ -6857,7 +6857,7 @@ fn to_snake_case(input: &str) -> String {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
         }
-        result.push(ch.to_lowercase().next().unwrap());
+        result.push(ch.to_lowercase().next().unwrap_or(ch));
     }
 
     result
