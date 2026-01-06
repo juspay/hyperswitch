@@ -226,6 +226,13 @@ async fn validate_and_consume_authorization_code(
 ) -> error_stack::Result<AuthCodeData, ApiErrorResponse> {
     let auth_code_data = oidc_utils::get_auth_code_from_redis(state, code).await?;
 
+    if let Err(err) = oidc_utils::delete_auth_code_from_redis(state, code).await {
+        logger::warn!(
+            error = ?err,
+            "Failed to delete authorization code from Redis after consumption"
+        );
+    }
+
     if !oidc_utils::validate_client_id_match(&auth_code_data.client_id, client_id) {
         let error = OidcTokenError::InvalidGrant;
         return Err(report!(ApiErrorResponse::OidcTokenError {
@@ -240,13 +247,6 @@ async fn validate_and_consume_authorization_code(
             error,
             description: error.description().into(),
         }));
-    }
-
-    if let Err(err) = oidc_utils::delete_auth_code_from_redis(state, code).await {
-        logger::warn!(
-            error = ?err,
-            "Failed to delete authorization code from Redis after consumption"
-        );
     }
 
     Ok(auth_code_data)
