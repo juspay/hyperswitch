@@ -220,28 +220,28 @@ pub struct NTEligibilityRequest {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct NTEligibilityResponse {
+    /// country associated with the card
     pub country: Option<String>,
-
+    /// extended card type
     pub extended_card_type: Option<String>,
-
+    /// card brand (like VISA, MASTERCARD etc)
     pub brand: Option<String>,
-
+    /// bank code as per juspay
     pub juspay_bank_code: Option<String>,
-
+    /// object type
     pub object: Option<String>,
-
+    /// card bin length
     pub id: String,
-
+    /// card sub type
     pub card_sub_type: Option<String>,
-
+    /// indicates whether the (merchant + card_bin) is enabled tokenization
     #[serde(default)]
     pub tokenize_support: bool,
 
-    // "type" is a reserved keyword in Rust, so we rename the struct field
-    // but map it to the "type" key in JSON.
+    /// card type (like CREDIT, DEBIT etc)
     #[serde(rename = "type")]
     pub card_type: Option<String>,
-
+    /// bank associated with the card
     pub bank: Option<String>,
 }
 #[cfg(feature = "v1")]
