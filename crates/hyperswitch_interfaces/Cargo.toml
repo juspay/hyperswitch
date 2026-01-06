@@ -29,7 +29,7 @@ serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "a910df283e18aa625070dc9aea6cd31d83f7167e", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "3dcfd30ef1405c81ba711c370397cabba277e854", package = "rust-grpc-client" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 # First party crates

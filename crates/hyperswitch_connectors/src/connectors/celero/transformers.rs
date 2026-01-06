@@ -541,6 +541,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                         status_code: item.http_code,
                                         attempt_status: None,
                                         connector_transaction_id: Some(data.id),
+                                        connector_response_reference_id: None,
                                         network_decline_code: None,
                                         network_advice_code: None,
                                         network_error_message: None,
@@ -588,6 +589,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
@@ -617,6 +619,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id,
+                        connector_response_reference_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -707,6 +710,7 @@ impl
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -778,6 +782,7 @@ impl
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -837,6 +842,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CeleroRefundResponse>>
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -871,6 +877,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CeleroRefundResponse>> for Refunds
                     connector_transaction_id: Some(
                         item.data.request.connector_transaction_id.clone(),
                     ),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,

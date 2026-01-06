@@ -614,6 +614,18 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
+    operation
+        .to_domain()?
+        .populate_raw_customer_details(
+            state,
+            &mut payment_data,
+            customer_details.as_ref(),
+            platform.get_processor(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while populating raw customer details")?;
+
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -621,8 +633,7 @@ where
             state,
             &mut payment_data,
             customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1356,14 +1367,25 @@ where
         None
     };
 
+    operation
+        .to_domain()?
+        .populate_raw_customer_details(
+            state,
+            &mut payment_data,
+            customer_details.as_ref(),
+            platform.get_processor(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while populating raw customer details")?;
+
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
             &mut payment_data,
             customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -8592,7 +8614,7 @@ pub async fn get_payment_filters(
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
+            platform.get_processor().clone(),
             profile_id_list,
         )
         .await?
