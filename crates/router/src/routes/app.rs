@@ -1585,8 +1585,9 @@ impl PaymentMethods {
                         .route(web::get().to(payment_methods::network_token_status_check_api)),
                 )
                 .service(
-                        web::resource("/details/{temporary_token}")
-                            .route(web::get().to(payment_methods::payment_method_get_token_details_api)),
+                    web::resource("/details/{temporary_token}").route(
+                        web::get().to(payment_methods::payment_method_get_token_details_api),
+                    ),
                 );
 
             route = route.service(

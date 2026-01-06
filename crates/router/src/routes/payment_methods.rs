@@ -16,6 +16,7 @@ use hyperswitch_domain_models::{
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
+use storage_impl::StorageError;
 
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
@@ -36,7 +37,6 @@ use crate::{
         storage::{self, payment_method::PaymentTokenData},
     },
 };
-use storage_impl::StorageError;
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
@@ -1132,7 +1132,6 @@ pub struct ParentPaymentMethodToken {
 }
 
 impl ParentPaymentMethodToken {
-    
     #[cfg(feature = "v1")]
     pub fn create_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
@@ -1211,17 +1210,23 @@ impl ParentPaymentMethodToken {
     pub async fn get_data_for_token(
         &self,
         state: &SessionState,
-    ) -> CustomResult<PaymentTokenData , errors::ApiErrorResponse> {
+    ) -> CustomResult<PaymentTokenData, errors::ApiErrorResponse> {
         let redis_conn = state
             .store
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        logger::debug!("Fetching payment method token data from redis for key: {}", self.key_for_token);
+        logger::debug!(
+            "Fetching payment method token data from redis for key: {}",
+            self.key_for_token
+        );
 
         let pm_token_data = redis_conn
-            .get_and_deserialize_key::<PaymentTokenData>(&self.key_for_token.as_str().into(), "Token Data")
+            .get_and_deserialize_key::<PaymentTokenData>(
+                &self.key_for_token.as_str().into(),
+                "Token Data",
+            )
             .await
             .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
             .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -1706,7 +1711,8 @@ pub async fn payment_method_get_token_details_api(
                     state,
                     platform.get_provider().clone(),
                     temporary_token,
-                ).await
+                )
+                .await
             }
         },
         &auth::V2ApiKeyAuth {

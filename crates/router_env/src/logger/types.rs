@@ -135,7 +135,7 @@ pub enum Flow {
     /// Payment method save flow
     PaymentMethodSave,
     /// Get token details using temporary token
-    PaymentMethodGetTokenDetails,    
+    PaymentMethodGetTokenDetails,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// Payment methods token data get flow.
