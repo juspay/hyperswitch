@@ -840,7 +840,6 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         let recurring_enabled = true;
 
         Ok(Self {
-            id: item.id,
             customer_id: item
                 .customer_id
                 .get_required_value("GlobalCustomerId")

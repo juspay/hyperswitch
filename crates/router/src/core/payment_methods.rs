@@ -3856,7 +3856,7 @@ pub async fn payment_methods_session_update_payment_method(
             message: "No associated payment method found in the session".to_string(),
         })?;
 
-    let payment_token_data = utils::retrieve_payment_token_data(
+    let payment_method_token_data = utils::retrieve_payment_token_data(
         &state,
         request.payment_method_token.clone(),
         Some(&associated_pm_token_details.payment_method_type),
@@ -3864,7 +3864,7 @@ pub async fn payment_methods_session_update_payment_method(
     .await
     .attach_printable("Failed to retrieve payment method token data")?;
 
-    let payment_method_id = match payment_token_data {
+    let payment_method_id = match payment_method_token_data {
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
             Some(card.payment_method_id)
         }
