@@ -1871,7 +1871,7 @@ pub async fn list_payment_methods_for_session(
         .iter()
         .map(|cpm| {
             common_types::payment_methods::AssociatedPaymentMethods {
-                payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_token.clone()),
+                payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_method_token.clone()),
             }
         })
         .collect();

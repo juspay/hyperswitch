@@ -856,7 +856,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
-            payment_token,
+            payment_method_token: payment_token,
         })
     }
 }

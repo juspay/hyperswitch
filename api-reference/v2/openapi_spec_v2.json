@@ -10561,7 +10561,7 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "payment_token",
+          "payment_method_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
@@ -10572,7 +10572,7 @@
           "is_default"
         ],
         "properties": {
-          "payment_token": {
+          "payment_method_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
