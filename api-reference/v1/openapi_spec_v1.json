@@ -20259,6 +20259,14 @@
           }
         }
       },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -27971,6 +27979,7 @@
           "amount",
           "net_amount",
           "amount_capturable",
+          "processor_merchant_id",
           "currency",
           "payment_method",
           "attempt_count"
@@ -28028,6 +28037,20 @@
             "format": "int64",
             "description": "The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.",
             "example": 6540,
+            "nullable": true
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
             "nullable": true
           },
           "connector": {
@@ -29536,6 +29559,7 @@
           "amount",
           "net_amount",
           "amount_capturable",
+          "processor_merchant_id",
           "currency",
           "payment_method",
           "attempt_count"
@@ -29593,6 +29617,20 @@
             "format": "int64",
             "description": "The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.",
             "example": 6540,
+            "nullable": true
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
             "nullable": true
           },
           "connector": {

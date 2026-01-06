@@ -2027,7 +2027,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2189,7 +2190,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2292,7 +2294,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2351,6 +2354,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCu
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2389,6 +2393,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
+        let resource_id: router_request_types::ResponseId = match response
+            .registration_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
@@ -2402,7 +2422,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2429,32 +2450,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: response
-                        .registration_id
-                        .as_ref()
-                        .and_then(|identifier| {
-                            identifier
-                                .id_type
-                                .clone()
-                                .and_then(|id_type| match id_type {
-                                    payments_grpc::identifier::IdType::Id(id) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            id,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::EncodedData(
-                                        encoded_data,
-                                    ) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            encoded_data,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => {
-                                        None
-                                    }
-                                })
-                        })
-                        .unwrap_or(router_request_types::ResponseId::NoResponseId),
+                    resource_id,
                     redirection_data: Box::new(
                         response
                             .redirection_data
@@ -2507,13 +2503,21 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     })
             });
 
-        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-            id.id_type.clone().and_then(|id_type| match id_type {
-                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-            })
-        });
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -2544,7 +2548,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: transaction_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2555,14 +2560,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: match transaction_id.as_ref() {
-                        Some(transaction_id) => {
-                            router_request_types::ResponseId::ConnectorTransactionId(
-                                transaction_id.clone(),
-                            )
-                        }
-                        None => router_request_types::ResponseId::NoResponseId,
-                    },
+                    resource_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
@@ -2612,6 +2610,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessToken
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3584,7 +3583,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3830,6 +3830,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3875,6 +3876,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3908,6 +3910,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceSdkSessionTokenRe
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4455,7 +4458,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4612,6 +4616,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionToke
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4951,7 +4956,8 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status: None,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: None,
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -5083,6 +5089,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                     })
             });
 
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
@@ -5113,7 +5135,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -5124,32 +5147,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: response
-                        .transaction_id
-                        .as_ref()
-                        .and_then(|identifier| {
-                            identifier
-                                .id_type
-                                .clone()
-                                .and_then(|id_type| match id_type {
-                                    payments_grpc::identifier::IdType::Id(id) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            id,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::EncodedData(
-                                        encoded_data,
-                                    ) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            encoded_data,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => {
-                                        None
-                                    }
-                                })
-                        })
-                        .unwrap_or(router_request_types::ResponseId::NoResponseId),
+                    resource_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {

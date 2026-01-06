@@ -852,7 +852,6 @@ pub async fn get_sdk_next_action_for_payment_method_list(
 pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
-    payment_method: Option<&storage_enums::PaymentMethod>,
 ) -> errors::RouterResult<storage::PaymentTokenData> {
     let redis_conn = state
         .store
