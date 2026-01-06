@@ -236,7 +236,12 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_value = req.request.amount;
+        let amount_value =
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?;
 
         let amount = MinorUnit::new(amount_value);
 
