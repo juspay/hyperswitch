@@ -386,6 +386,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PromptPay
             | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
     }
 }
@@ -418,6 +419,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
+            payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
         }
     }
 }
@@ -2334,6 +2336,7 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             card_network: card_info.card_network.to_owned(),
             card_type: card_info.card_type.to_owned(),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             last4: card_info.last_four_digits.to_owned(),
             card_isin: None,

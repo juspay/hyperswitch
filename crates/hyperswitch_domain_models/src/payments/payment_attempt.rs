@@ -1604,6 +1604,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        connector_response_reference_id: Option<String>,
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -1927,6 +1928,7 @@ impl PaymentAttemptUpdate {
                 is_overcapture_enabled,
                 authorized_amount,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
+                error_details: Box::new(None),
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1948,6 +1950,7 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
+                error_details: Box::new(None),
             },
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
@@ -1963,6 +1966,7 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_response_reference_id,
                 payment_method_data,
                 authentication_type,
                 issuer_error_code,
@@ -1980,12 +1984,14 @@ impl PaymentAttemptUpdate {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_response_reference_id,
                 payment_method_data,
                 authentication_type,
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
                 encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
+                error_details: Box::new(None),
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -2192,6 +2198,7 @@ pub enum PaymentAttemptUpdate {
         error: ErrorDetails,
         updated_by: String,
         connector_payment_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -2323,6 +2330,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
+            error_details: None,
         })
     }
 
@@ -2546,6 +2554,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
+            error_details: None,
         })
     }
 }
@@ -2727,6 +2736,7 @@ impl behaviour::Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 
@@ -3017,6 +3027,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount,
             amount_captured: amount_details.amount_captured,
             encrypted_payment_method_data: None,
+            error_details: None,
         })
     }
 }
@@ -3067,6 +3078,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 status,
                 error,
                 connector_payment_id,
+                connector_response_reference_id,
                 amount_capturable,
                 updated_by,
             } => {
@@ -3102,7 +3114,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_decline_code: error.network_decline_code,
                     network_error_message: error.network_error_message,
                     connector_request_reference_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id,
                     cancellation_reason: None,
                     amount_captured: None,
                 }

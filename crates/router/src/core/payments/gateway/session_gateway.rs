@@ -105,36 +105,38 @@ where
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
-            router_data.clone(),
-            state,
-            sdk_session_token_request,
-            header_payload,
-            |mut router_data, sdk_session_token_request, grpc_headers| async move {
-                let response = Box::pin(client.sdk_session_token(
-                    sdk_session_token_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to get payment")?;
+        let updated_router_data =
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+                router_data.clone(),
+                state,
+                sdk_session_token_request,
+                header_payload,
+                |mut router_data, sdk_session_token_request, grpc_headers| async move {
+                    let response = Box::pin(client.sdk_session_token(
+                        sdk_session_token_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                    ))
+                    .await
+                    .attach_printable("Failed to get payment")?;
 
-                let sdk_session_token_response = response.into_inner();
+                    let sdk_session_token_response = response.into_inner();
 
-                let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_sdk_session_token(
-                        sdk_session_token_response.clone(),
-                    )
-                    .attach_printable("Failed to deserialize UCS response")?;
+                    let (router_data_response, status_code) =
+                        handle_unified_connector_service_response_for_sdk_session_token(
+                            sdk_session_token_response.clone(),
+                        )
+                        .attach_printable("Failed to deserialize UCS response")?;
 
-                router_data.response = router_data_response;
-                router_data.connector_http_status_code = Some(status_code);
+                    router_data.response = router_data_response;
+                    router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, sdk_session_token_response))
-            },
-        ))
-        .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
+                    Ok((router_data, (), sdk_session_token_response))
+                },
+            ))
+            .await
+            .map(|(router_data, _)| router_data)
+            .change_context(ConnectorError::ResponseHandlingFailed)?;
 
         Ok(updated_router_data)
     }

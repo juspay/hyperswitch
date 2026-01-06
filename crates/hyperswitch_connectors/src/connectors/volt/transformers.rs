@@ -227,7 +227,8 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
                 )
@@ -480,6 +481,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(payment_response.id),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -525,6 +527,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(webhook_response.payment.clone()),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,

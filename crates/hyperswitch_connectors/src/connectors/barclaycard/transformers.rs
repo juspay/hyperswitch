@@ -813,7 +813,8 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 ))
@@ -1002,6 +1003,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(error_response.id.clone()),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1095,7 +1097,8 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
@@ -1570,7 +1573,8 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
@@ -1649,6 +1653,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(error_response.id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1693,7 +1698,8 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Barclaycard"),
                 )
@@ -1953,6 +1959,7 @@ fn map_error_response<F, T>(
         status_code: item.http_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -2069,7 +2076,8 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardPaymentsResponse>>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -2253,7 +2261,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 let risk_info: Option<ClientRiskInformation> = None;
@@ -2792,6 +2801,7 @@ fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
+        connector_response_reference_id: None,
         network_advice_code,
         network_decline_code,
         network_error_message: None,
