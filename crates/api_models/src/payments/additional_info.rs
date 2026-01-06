@@ -349,6 +349,7 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
+    #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<payments::UpiSource>,
 }

@@ -4638,6 +4638,7 @@ pub struct UpiCollectData {
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
     /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }
@@ -4648,6 +4649,7 @@ pub struct UpiCollectData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiQrData {
     /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }
@@ -4658,6 +4660,7 @@ pub struct UpiQrData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct UpiIntentData {
     /// The UPI source type (Credit Card, Credit Line, Account, or Credit Card + Credit Line)
+    #[schema(value_type = Option<UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<UpiSource>,
 }

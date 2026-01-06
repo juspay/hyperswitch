@@ -37761,7 +37761,7 @@
           "upi_source": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/payments.UpiSource"
+                "$ref": "#/components/schemas/UpiSource"
               }
             ],
             "nullable": true
