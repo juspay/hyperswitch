@@ -49,7 +49,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -57,7 +57,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -107,7 +107,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -188,7 +188,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -589,7 +589,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -793,7 +793,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
