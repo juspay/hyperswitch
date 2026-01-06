@@ -1103,10 +1103,12 @@ pub async fn create_payment_method_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-
     match req.payment_method_data {
         api::PaymentMethodCreateData::Card(ref card_data) => {
-            payments_core::helpers::validate_card_expiry(&card_data.card_exp_month, &card_data.card_exp_year)?;
+            payments_core::helpers::validate_card_expiry(
+                &card_data.card_exp_month,
+                &card_data.card_exp_year,
+            )?;
         }
         ref other => {
             logger::warn!("Payment method data is not CardDetail, got: {:?}", other);
