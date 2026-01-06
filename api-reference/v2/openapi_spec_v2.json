@@ -8176,6 +8176,26 @@
           }
         }
       },
+      "CardCVCTokenStorageDetails": {
+        "type": "object",
+        "required": [
+          "is_stored"
+        ],
+        "properties": {
+          "is_stored": {
+            "type": "boolean",
+            "description": "Indicates whether the card cvc is stored or not",
+            "example": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines expiry for stored card cvc token",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          }
+        }
+      },
       "CardDetail": {
         "type": "object",
         "required": [
@@ -10541,7 +10561,6 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "id",
           "payment_token",
           "customer_id",
           "payment_method_type",
@@ -10553,11 +10572,6 @@
           "is_default"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
           "payment_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
