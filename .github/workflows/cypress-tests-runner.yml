@@ -343,7 +343,7 @@ jobs:
               "batch": [
                 {
                   "name": "batch-1",
-                  "connectors": "braintree redsys nmi",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-1"
                 },
@@ -355,9 +355,39 @@ jobs:
                 },
                 {
                   "name": "batch-3",
-                  "connectors": "${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3}",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3}"'",
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-3"
+                },
+                {
+                  "name": "batch-4",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-4"
+                },
+                {
+                  "name": "batch-5",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-5"
+                },
+                {
+                  "name": "batch-6",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-6"
+                },
+                {
+                  "name": "batch-7",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-7"
+                },
+                {
+                  "name": "batch-8",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-8"
                 }
               ]
             }'
