@@ -2056,7 +2056,10 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
-          globalState.set("connectorTransactionID", response.body.connector_transaction_id);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -5110,125 +5113,113 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   });
 });
 
+Cypress.Commands.add("updatePaymentStatusTest", (globalState, reqData = {}) => {
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
 
-Cypress.Commands.add(
-  "updatePaymentStatusTest",
-  (globalState, reqData = {}) => {
-    const merchantId = globalState.get("merchantId");
-    const paymentId = globalState.get("paymentID");
+  const body = {
+    attempt_status: "pending",
+    attempt_id: `${paymentId}_1`,
+    merchant_id: merchantId,
+    payment_id: paymentId,
+    ...reqData, // allow overrides if needed
+  };
 
-    const body = {
-      attempt_status: "pending",
-      attempt_id: `${paymentId}_1`,
-      merchant_id: merchantId,
-      payment_id: paymentId,
-      ...reqData, // allow overrides if needed
-    };
+  cy.request({
+    method: "PUT",
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+      "X-Merchant-Id": merchantId,
+    },
+    body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-    cy.request({
-      method: "PUT",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-        "X-Merchant-Id": merchantId,
-      },
-      body,
-      failOnStatusCode: false,
-    }).then((response) => {
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      // Use response.status, not resData.status
+      expect(response.status).to.eq(200);
+
+      // Optional sanity assertions
+      expect(response.body.payment_id).to.equal(paymentId);
+      expect(response.body.merchant_id).to.equal(merchantId);
+    });
+  });
+});
+
+Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
+  const { Request: reqData = {}, Response: resData = {} } = data;
+
+  const connectorId = globalState.get("connectorId");
+  const connectorName = globalState.get("connectorName");
+  const merchantId = globalState.get("merchantId");
+  const connectorTransactionId = globalState.get("connectorTransactionID");
+
+  // Default convention-based fixture path
+  const fixturePath =
+    reqData.fixture || `webhooks/${connectorName}_payment_success.json`;
+
+  return cy
+    .fixture(fixturePath)
+    .then((payload) => {
+      // Clone to avoid mutating fixture cache
+      const metaType = payload._meta?.connector_transaction_id_type || "string";
+
+      let payloadStr = JSON.stringify(payload);
+
+      const rawId = connectorTransactionId;
+      const numericId = Number(rawId);
+      const isNumeric = !Number.isNaN(numericId) && metaType == "number";
+
+      // --- Single placeholder — type-aware replacement ---
+      payloadStr = payloadStr
+        // quoted → always string literal
+        .replace(
+          /"{{\s*connector_transaction_id\s*}}"/g,
+          isNumeric ? String(numericId) : JSON.stringify(String(rawId))
+        );
+
+      const webhookPayload = JSON.parse(payloadStr);
+
+      return cy.request({
+        method: "POST",
+        url: `${globalState.get(
+          "baseUrl"
+        )}/webhooks/${merchantId}/${connectorId}`,
+        headers: { "Content-Type": "application/json" },
+        body: webhookPayload,
+        failOnStatusCode: false,
+      });
+    })
+    .then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"])
-          .to.include("application/json");
+        // Webhook endpoints may not return JSON or content-type
+        if (response.headers["content-type"]) {
+          expect(response.headers["content-type"]).to.match(
+            /(application|text)\//
+          );
+        }
 
-        // Use response.status, not resData.status
-        expect(response.status).to.eq(200);
+        // ---- SAFE STATUS LOGIC ----
+        const expectedStatus = resData?.status ?? 200;
 
-        // Optional sanity assertions
-        expect(response.body.payment_id).to.equal(paymentId);
-        expect(response.body.merchant_id).to.equal(merchantId);
+        if (response.status === expectedStatus) {
+          expect(response.status).to.equal(expectedStatus);
+
+          // Only validate body if resData has validation rules
+          if (resData?.body) {
+            validateErrorMessage(response, resData);
+          }
+        } else {
+          // Delegate to your shared error handler
+          defaultErrorHandler(response, resData);
+        }
       });
     });
-  }
-);
-
-
-
-Cypress.Commands.add(
-  "sendWebhookTest",
-  (globalState, data = {}) => {
-    const { Request: reqData = {}, Response: resData = {} } = data;
-
-    const connectorId = globalState.get("connectorId");
-    const connectorName = globalState.get("connectorName");
-    const merchantId = globalState.get("merchantId");
-    const connectorTransactionId =
-      globalState.get("connectorTransactionID");
-
-    // Default convention-based fixture path
-    const fixturePath =
-      reqData.fixture ||
-      `webhooks/${connectorName}_payment_success.json`;
-
-    return cy.fixture(fixturePath)
-      .then((payload) => {
-        // Clone to avoid mutating fixture cache
-        const metaType = payload._meta?.connector_transaction_id_type || "string";
-
-        let payloadStr = JSON.stringify(payload);
-
-        const rawId = connectorTransactionId;
-        const numericId = Number(rawId);
-        const isNumeric = !Number.isNaN(numericId) && metaType=='number';
-
-        // --- Single placeholder — type-aware replacement ---
-        payloadStr = payloadStr
-          // quoted → always string literal
-          .replace(
-            /"{{\s*connector_transaction_id\s*}}"/g,
-            isNumeric ? String(numericId) : JSON.stringify(String(rawId))
-          );
-
-        const webhookPayload = JSON.parse(payloadStr);
-
-        return cy.request({
-          method: "POST",
-          url: `${globalState.get(
-            "baseUrl"
-          )}/webhooks/${merchantId}/${connectorId}`,
-          headers: { "Content-Type": "application/json" },
-          body: webhookPayload,
-          failOnStatusCode: false,
-        });
-      })
-      .then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-
-        cy.wrap(response).then(() => {
-          // Webhook endpoints may not return JSON or content-type
-          if (response.headers["content-type"]) {
-            expect(response.headers["content-type"]).to.match(
-              /(application|text)\//
-            );
-          }
-
-          // ---- SAFE STATUS LOGIC ----
-          const expectedStatus = resData?.status ?? 200;
-
-          if (response.status === expectedStatus) {
-            expect(response.status).to.equal(expectedStatus);
-
-            // Only validate body if resData has validation rules
-            if (resData?.body) {
-              validateErrorMessage(response, resData);
-            }
-          } else {
-            // Delegate to your shared error handler
-            defaultErrorHandler(response, resData);
-          }
-        });
-      });
-  }
-);
-
+});
