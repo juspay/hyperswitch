@@ -1867,7 +1867,7 @@ pub async fn list_payment_methods_for_session(
     };
 
     // Create associated payment methods from customer payment methods
-    let mut associated_payment_methods_vec: Vec<common_types::payment_methods::AssociatedPaymentMethods> = customer_payment_methods
+    let associated_payment_methods_vec: Vec<common_types::payment_methods::AssociatedPaymentMethods> = customer_payment_methods
         .iter()
         .map(|cpm| {
             common_types::payment_methods::AssociatedPaymentMethods {
@@ -1875,13 +1875,6 @@ pub async fn list_payment_methods_for_session(
             }
         })
         .collect();
-
-    // Extend with existing associated payment methods if any
-    if let Some(existing_associated_pms) =
-        payment_method_session.associated_payment_methods.as_ref()
-    {
-        associated_payment_methods_vec.extend(existing_associated_pms.clone());
-    }
 
     // Update payment method session with associated payment methods
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
