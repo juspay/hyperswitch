@@ -6845,7 +6845,66 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
+/// Convert a string to snake_case format.
+/// This converts PascalCase or camelCase strings to snake_case.
+/// Example: "CardNetwork" -> "card_network", "Visa" -> "visa"
+fn to_snake_case(input: &str) -> String {
+    let mut result = String::new();
+    let chars = input.chars();
+
+    for ch in chars {
+        if ch.is_uppercase() && !result.is_empty() {
+            // Add underscore before uppercase letters (except the first character)
+            result.push('_');
+        }
+        result.push(ch.to_lowercase().next().unwrap());
+    }
+
+    result
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn get_gsm_record(
+    state: &SessionState,
+    connector_name: String,
+    flow: &str,
+    sub_flow: &str,
+    connector_error_code: Option<String>,
+    connector_error_message: Option<String>,
+    issuer_error_code: Option<String>,
+    card_network: Option<String>,
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
+    // Priority 1: Try issuer_code lookup (requires both card_network and issuer_error_code)
+    if let (Some(network), Some(issuer_code)) = (&card_network, &issuer_error_code) {
+        let issuer_lookup_key = format!("network:{}|issuer_code:{:0>2}", to_snake_case(network), issuer_code);
+        if let Some(result) = perform_gsm_lookup(
+            state,
+            Some(issuer_lookup_key.clone()),
+            Some(issuer_lookup_key),
+            connector_name.clone(),
+            flow,
+            sub_flow,
+        )
+        .await
+        {
+            return Some(result);
+        }
+    }
+
+    // Priority 2: Fallback to connector_error_code lookup
+    perform_gsm_lookup(
+        state,
+        connector_error_code,
+        connector_error_message,
+        connector_name,
+        flow,
+        sub_flow,
+    )
+    .await
+}
+
+/// Perform GSM lookup with the given error code and message.
+async fn perform_gsm_lookup(
     state: &SessionState,
     error_code: Option<String>,
     error_message: Option<String>,
@@ -6923,6 +6982,52 @@ pub async fn get_unified_translation(
         })
         .ok()
 }
+
+/// Look up merchant advice code config to get recommended action for MIT transactions.
+/// This is used when a payment fails with a network_advice_code to determine retry recommendations.
+pub async fn lookup_merchant_advice_code_config(
+    state: &SessionState,
+    card_network: &str,
+    network_advice_code: &str,
+) -> Option<common_enums::RecommendedAction> {
+    let config = state
+        .store
+        .find_config_by_key(consts::MERCHANT_ADVICE_CODES_CONFIG_KEY)
+        .await
+        .map_err(|err| {
+            logger::warn!(
+                merchant_advice_code_config_error = ?err,
+                "Failed to fetch merchant_advice_codes config"
+            );
+        })
+        .ok()?;
+
+    let merchant_advice_codes_config: common_types::domain::MerchantAdviceCodesConfig =
+        serde_json::from_str(&config.config)
+            .map_err(|err| {
+                logger::warn!(
+                    merchant_advice_code_parse_error = ?err,
+                    "Failed to parse merchant_advice_codes config"
+                );
+            })
+            .ok()?;
+
+    let merchant_advice_lookup_key = format!(
+        "network:{}|merchant_advice_code:{:0>2}",
+        to_snake_case(card_network),
+        network_advice_code
+    );
+
+    logger::debug!(
+        "Looking up merchant advice code - lookup_key: {}",
+        merchant_advice_lookup_key
+    );
+
+    merchant_advice_codes_config
+        .find_by_lookup_key(&merchant_advice_lookup_key)
+        .map(|entry| entry.recommended_action)
+}
+
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: MinorUnit,

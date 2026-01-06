@@ -1221,11 +1221,13 @@ impl Action {
             .attach_printable("unable to derive payment connector from payment attempt")?;
         let gsm_record = helpers::get_gsm_record(
             state,
-            error_code,
-            error_message,
             connector_name,
             REVENUE_RECOVERY,
             consts::DEFAULT_SUBFLOW_STR,
+            error_code,
+            error_message,
+            None, // issuer_error_code not available in recovery context
+            None, // card_network
         )
         .await;
         let is_hard_decline = gsm_record

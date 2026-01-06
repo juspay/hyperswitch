@@ -1154,11 +1154,13 @@ pub async fn check_hard_decline(
 
     let gsm_record = payments::helpers::get_gsm_record(
         state,
-        error_code,
-        error_message,
         connector_name,
         REVENUE_RECOVERY,
         consts::DEFAULT_SUBFLOW_STR,
+        error_code,
+        error_message,
+        None, // issuer_error_code not available in recovery context
+        None, // card_network
     )
     .await;
 

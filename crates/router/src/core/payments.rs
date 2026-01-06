@@ -10990,14 +10990,19 @@ pub async fn payments_manual_update(
         .zip(error_message.as_ref())
         .zip(payment_attempt.connector.as_ref())
     {
+        let card_network = payment_attempt
+            .extract_card_network()
+            .map(|network| network.to_string());
         helpers::get_gsm_record(
             &state,
-            Some(code.to_string()),
-            Some(message.to_string()),
             connector_name.to_string(),
             // We need to get the unified_code and unified_message of the Authorize flow
             consts::PAYMENT_FLOW_STR,
             consts::AUTHORIZE_FLOW_STR,
+            Some(code.to_string()),
+            Some(message.to_string()),
+            None, // issuer_error_code not available in manual update
+            card_network,
         )
         .await
     } else {

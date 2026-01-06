@@ -22,7 +22,9 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
-    ConnectorMandateReferenceId, NetworkDetails, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+    ConnectorErrorDetails, ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails,
+    IssuerErrorDetails, NetworkDetails, NetworkErrorDetails,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate, UnifiedErrorDetails,
 };
 use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -1567,6 +1569,9 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        standardised_code: Option<storage_enums::StandardisedCode>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
         capture_before: Option<PrimitiveDateTime>,
         extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
         extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
@@ -1605,6 +1610,9 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
+        standardised_code: Option<storage_enums::StandardisedCode>,
+        description: Option<Option<String>>,
+        user_guidance_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
         payment_method_data: Option<Value>,
         encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
@@ -1612,6 +1620,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_code: Option<String>,
         issuer_error_message: Option<String>,
         network_details: Option<NetworkDetails>,
+        recommended_action: Option<storage_enums::RecommendedAction>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1666,6 +1675,95 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
     },
+}
+
+/// Helper function to build ErrorDetails from ErrorUpdate fields
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+fn build_error_details(
+    error_code: Option<&String>,
+    error_message: Option<&String>,
+    error_reason: Option<&String>,
+    category: Option<storage_enums::UnifiedCode>,
+    message: Option<&String>,
+    standardised_code: Option<storage_enums::StandardisedCode>,
+    description: Option<&String>,
+    user_guidance_message: Option<&String>,
+    issuer_error_code: Option<&String>,
+    issuer_error_message: Option<&String>,
+    network_details: Option<&NetworkDetails>,
+    recommended_action: Option<storage_enums::RecommendedAction>,
+) -> Box<Option<DieselErrorDetails>> {
+    let connector_details = {
+        let code = error_code.cloned();
+        let message = error_message.cloned();
+        let reason = error_reason.cloned();
+
+        if code.is_some() || message.is_some() || reason.is_some() {
+            Some(ConnectorErrorDetails {
+                code,
+                message,
+                reason,
+            })
+        } else {
+            None
+        }
+    };
+
+    let unified_details = {
+        let message = message.cloned();
+        let description = description.cloned();
+        let user_guidance_message = user_guidance_message.cloned();
+
+        if category.is_some()
+            || message.is_some()
+            || standardised_code.is_some()
+            || description.is_some()
+            || user_guidance_message.is_some()
+            || recommended_action.is_some()
+        {
+            Some(UnifiedErrorDetails {
+                category,
+                message,
+                standardised_code,
+                description,
+                user_guidance_message,
+                recommended_action,
+            })
+        } else {
+            None
+        }
+    };
+
+    let issuer_details = {
+        let code = issuer_error_code.cloned();
+        let message = issuer_error_message.cloned();
+        let network_error_details = network_details.map(|network| NetworkErrorDetails {
+            name: None,
+            advice_code: network.network_advice_code.clone(),
+            advice_message: None,
+        });
+
+        if code.is_some() || message.is_some() || network_error_details.is_some() {
+            Some(IssuerErrorDetails {
+                code,
+                message,
+                network_details: network_error_details,
+            })
+        } else {
+            None
+        }
+    };
+
+    if connector_details.is_some() || unified_details.is_some() || issuer_details.is_some() {
+        Box::new(Some(DieselErrorDetails {
+            unified_details,
+            issuer_details,
+            connector_details,
+        }))
+    } else {
+        Box::new(None)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1885,6 +1983,9 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 unified_code,
                 unified_message,
+                standardised_code,
+                description,
+                user_guidance_message,
                 capture_before,
                 extended_authorization_applied,
                 extended_authorization_last_applied_at,
@@ -1898,39 +1999,56 @@ impl PaymentAttemptUpdate {
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
-            } => DieselPaymentAttemptUpdate::ResponseUpdate {
-                status,
-                connector,
-                connector_transaction_id,
-                authentication_type,
-                payment_method_id,
-                mandate_id,
-                connector_metadata,
-                payment_token,
-                error_code,
-                error_message,
-                error_reason,
-                connector_response_reference_id,
-                amount_capturable,
-                updated_by,
-                authentication_data,
-                encoded_data,
-                unified_code,
-                unified_message,
-                capture_before,
-                extended_authorization_applied,
-                extended_authorization_last_applied_at,
-                payment_method_data,
-                connector_mandate_detail,
-                tokenization,
-                charges,
-                setup_future_usage_applied,
-                network_transaction_id,
-                is_overcapture_enabled,
-                authorized_amount,
-                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: Box::new(None),
-            },
+            } => {
+                let error_details = build_error_details(
+                    error_code.as_ref().and_then(|o| o.as_ref()),
+                    error_message.as_ref().and_then(|o| o.as_ref()),
+                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()).and_then(|s| s.parse().ok()),
+                    unified_message.as_ref().and_then(|o| o.as_ref()),
+                    standardised_code,
+                    description.as_ref().and_then(|o| o.as_ref()),
+                    user_guidance_message.as_ref().and_then(|o| o.as_ref()),
+                    None, // issuer_error_code
+                    None, // issuer_error_message
+                    None, // network_details
+                    None, // recommended_action
+                );
+                DieselPaymentAttemptUpdate::ResponseUpdate {
+                    status,
+                    connector,
+                    connector_transaction_id,
+                    authentication_type,
+                    payment_method_id,
+                    mandate_id,
+                    connector_metadata,
+                    payment_token,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    connector_response_reference_id,
+                    amount_capturable,
+                    updated_by,
+                    authentication_data,
+                    encoded_data,
+                    unified_code,
+                    unified_message,
+                    capture_before,
+                    extended_authorization_applied,
+                    extended_authorization_last_applied_at,
+                    payment_method_data,
+                    connector_mandate_detail,
+                    tokenization,
+                    charges,
+                    setup_future_usage_applied,
+                    network_transaction_id,
+                    is_overcapture_enabled,
+                    authorized_amount,
+                    encrypted_payment_method_data: encrypted_payment_method_data
+                        .map(Encryption::from),
+                    error_details,
+                }
+            }
             Self::UnresolvedResponseUpdate {
                 status,
                 connector,
@@ -1941,18 +2059,34 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
-            } => DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
-                status,
-                connector,
-                connector_transaction_id,
-                payment_method_id,
-                error_code,
-                error_message,
-                error_reason,
-                connector_response_reference_id,
-                updated_by,
-                error_details: Box::new(None),
-            },
+            } => {
+                let error_details = build_error_details(
+                    error_code.as_ref().and_then(|o| o.as_ref()),
+                    error_message.as_ref().and_then(|o| o.as_ref()),
+                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    None, // unified_code
+                    None, // unified_message
+                    None, // standardised_code
+                    None, // description
+                    None, // user_guidance_message
+                    None, // issuer_error_code
+                    None, // issuer_error_message
+                    None, // network_details
+                    None, // recommended_action
+                );
+                DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
+                    status,
+                    connector,
+                    connector_transaction_id,
+                    payment_method_id,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    connector_response_reference_id,
+                    updated_by,
+                    error_details,
+                }
+            }
             Self::StatusUpdate { status, updated_by } => {
                 DieselPaymentAttemptUpdate::StatusUpdate { status, updated_by }
             }
@@ -1966,6 +2100,9 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                standardised_code,
+                description,
+                user_guidance_message,
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
@@ -1973,25 +2110,43 @@ impl PaymentAttemptUpdate {
                 issuer_error_message,
                 network_details,
                 encrypted_payment_method_data,
-            } => DieselPaymentAttemptUpdate::ErrorUpdate {
-                connector,
-                status,
-                error_code,
-                error_message,
-                error_reason,
-                amount_capturable,
-                updated_by,
-                unified_code,
-                unified_message,
-                connector_transaction_id,
-                payment_method_data,
-                authentication_type,
-                issuer_error_code,
-                issuer_error_message,
-                network_details,
-                encrypted_payment_method_data: encrypted_payment_method_data.map(Encryption::from),
-                error_details: Box::new(None),
-            },
+                recommended_action,
+            } => {
+                let error_details = build_error_details(
+                    error_code.as_ref().and_then(|o| o.as_ref()),
+                    error_message.as_ref().and_then(|o| o.as_ref()),
+                    error_reason.as_ref().and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()).and_then(|s| s.parse().ok()),
+                    unified_message.as_ref().and_then(|o| o.as_ref()),
+                    standardised_code,
+                    description.as_ref().and_then(|o| o.as_ref()),
+                    user_guidance_message.as_ref().and_then(|o| o.as_ref()),
+                    issuer_error_code.as_ref(),
+                    issuer_error_message.as_ref(),
+                    network_details.as_ref(),
+                    recommended_action,
+                );
+                DieselPaymentAttemptUpdate::ErrorUpdate {
+                    connector,
+                    status,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    amount_capturable,
+                    updated_by,
+                    unified_code,
+                    unified_message,
+                    connector_transaction_id,
+                    payment_method_data,
+                    authentication_type,
+                    issuer_error_code,
+                    issuer_error_message,
+                    network_details,
+                    encrypted_payment_method_data: encrypted_payment_method_data
+                        .map(Encryption::from),
+                    error_details,
+                }
+            }
             Self::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,

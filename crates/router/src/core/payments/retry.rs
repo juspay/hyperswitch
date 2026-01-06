@@ -65,7 +65,12 @@ where
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
-    let mut initial_gsm = get_gsm(state, &router_data).await?;
+    let card_network = payment_data
+        .get_payment_attempt()
+        .extract_card_network()
+        .map(|card_network| card_network.to_string());
+
+    let mut initial_gsm = get_gsm(state, &router_data, card_network.clone()).await?;
 
     let step_up_possible = initial_gsm
         .as_ref()
@@ -122,7 +127,7 @@ where
             // Use initial_gsm for first time alone
             let gsm = match initial_gsm.as_ref() {
                 Some(gsm) => Some(gsm.clone()),
-                None => get_gsm(state, &router_data).await?,
+                None => get_gsm(state, &router_data, card_network.clone()).await?,
             };
 
             match get_gsm_decision(gsm) {
@@ -299,19 +304,24 @@ pub async fn get_retries(
 pub async fn get_gsm<F, FData>(
     state: &app::SessionState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+    card_network: Option<String>,
 ) -> RouterResult<Option<hyperswitch_domain_models::gsm::GatewayStatusMap>> {
     let error_response = router_data.response.as_ref().err();
-    let error_code = error_response.map(|err| err.code.to_owned());
-    let error_message = error_response.map(|err| err.message.to_owned());
-    let connector_name = router_data.connector.to_string();
     let subflow = get_flow_name::<F>()?;
+
+    let Some(err) = error_response else {
+        return Ok(None);
+    };
+
     Ok(payments::helpers::get_gsm_record(
         state,
-        error_code,
-        error_message,
-        connector_name,
+        router_data.connector.to_string(),
         consts::PAYMENT_FLOW_STR,
-        subflow.as_str(),
+        &subflow,
+        Some(err.code.clone()),
+        Some(err.message.clone()),
+        err.network_decline_code.clone(),
+        card_network,
     )
     .await)
 }
@@ -552,6 +562,9 @@ where
                 encoded_data,
                 unified_code: None,
                 unified_message: None,
+                standardised_code: None,
+                description: None,
+                user_guidance_message: None,
                 capture_before: None,
                 extended_authorization_applied: None,
                 extended_authorization_last_applied_at: None,
@@ -596,7 +609,11 @@ where
             return Ok(());
         }
         Err(ref error_response) => {
-            let option_gsm = get_gsm(state, &router_data).await?;
+            let card_network = payment_data
+                .get_payment_attempt()
+                .extract_card_network()
+                .map(|card_network| card_network.to_string());
+            let option_gsm = get_gsm(state, &router_data, card_network).await?;
             let auth_update = if Some(router_data.auth_type)
                 != payment_data.get_payment_attempt().authentication_type
             {
@@ -614,7 +631,10 @@ where
                 amount_capturable: Some(MinorUnit::new(0)),
                 updated_by: storage_scheme.to_string(),
                 unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
-                unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                unified_message: option_gsm.clone().map(|gsm| gsm.unified_message),
+                standardised_code: option_gsm.as_ref().and_then(|gsm| gsm.standardised_code),
+                description: option_gsm.clone().map(|gsm| gsm.description),
+                user_guidance_message: option_gsm.clone().map(|gsm| gsm.user_guidance_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
@@ -622,6 +642,7 @@ where
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
                 network_details: Some(ForeignFrom::foreign_from(error_response)),
+                recommended_action: None,
             };
 
             #[cfg(feature = "v1")]

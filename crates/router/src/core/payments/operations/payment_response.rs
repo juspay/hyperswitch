@@ -1553,22 +1553,56 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         )
                     }
                     None => {
-                        let connector_name = router_data.connector.to_string();
                         let sub_flow = core_utils::get_flow_name::<F>()?;
+
+                        // Extract card_network from payment_method_data for GSM lookup
+                        let card_network = payment_data
+                            .payment_attempt
+                            .extract_card_network()
+                            .map(|card_network| card_network.to_string());
+
+                        // GSM lookup for error object construction
                         let option_gsm = payments_helpers::get_gsm_record(
                             state,
+                            router_data.connector.to_string(),
+                            consts::PAYMENT_FLOW_STR,
+                            &sub_flow,
                             Some(err.code.clone()),
                             Some(err.message.clone()),
-                            connector_name,
-                            consts::PAYMENT_FLOW_STR,
-                            sub_flow.as_str(),
+                            err.network_decline_code.clone(),
+                            card_network.clone(),
                         )
                         .await;
 
                         let gsm_unified_code =
                             option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
-                        let gsm_unified_message =
-                            option_gsm.clone().and_then(|gsm| gsm.unified_message);
+                        let gsm_unified_message = option_gsm
+                            .as_ref()
+                            .and_then(|gsm| gsm.unified_message.clone());
+                        let gsm_standardised_code =
+                            option_gsm.as_ref().and_then(|gsm| gsm.standardised_code);
+                        let gsm_description =
+                            option_gsm.as_ref().and_then(|gsm| gsm.description.clone());
+                        let gsm_user_guidance_message = option_gsm
+                            .as_ref()
+                            .and_then(|gsm| gsm.user_guidance_message.clone());
+
+                        // For MIT transactions, lookup recommended action from merchant_advice_codes config
+                        let recommended_action = match (
+                            payment_data.payment_intent.off_session,
+                            card_network.as_ref(),
+                            err.network_advice_code.as_ref(),
+                        ) {
+                            (Some(true), Some(network), Some(advice_code)) => {
+                                payments_helpers::lookup_merchant_advice_code_config(
+                                    state,
+                                    network,
+                                    advice_code,
+                                )
+                                .await
+                            }
+                            _ => None,
+                        };
 
                         let (unified_code, unified_message) = if let Some((code, message)) =
                             gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
@@ -1642,6 +1676,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
                                 unified_message: Some(unified_translated_message),
+                                standardised_code: gsm_standardised_code,
+                                description: Some(gsm_description),
+                                user_guidance_message: Some(gsm_user_guidance_message),
                                 connector_transaction_id: err.connector_transaction_id.clone(),
                                 payment_method_data: additional_payment_method_data,
                                 encrypted_payment_method_data,
@@ -1649,6 +1686,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 issuer_error_code: err.network_decline_code.clone(),
                                 issuer_error_message: err.network_error_message.clone(),
                                 network_details: Some(ForeignFrom::foreign_from(&err)),
+                                recommended_action,
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1684,6 +1722,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             updated_by: storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
+                            standardised_code: None,
+                            description: None,
+                            user_guidance_message: None,
                             connector_transaction_id,
                             payment_method_data: None,
                             encrypted_payment_method_data: None,
@@ -1691,6 +1732,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             issuer_error_code: None,
                             issuer_error_message: None,
                             network_details: None,
+                            recommended_action: None,
                         }),
                         None,
                     )
@@ -1997,6 +2039,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         error_reason: error_status.clone(),
                                         unified_code: error_status.clone(),
                                         unified_message: error_status,
+                                        standardised_code: None,
+                                        description: None,
+                                        user_guidance_message: None,
                                         connector_response_reference_id,
                                         updated_by: storage_scheme.to_string(),
                                         authentication_data,

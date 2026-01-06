@@ -157,13 +157,17 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
+                            standardised_code: None,
+                            description: None,
+                            user_guidance_message: None,
                             connector_transaction_id: None,
                             payment_method_data: None,
                             authentication_type: None,
                             issuer_error_code: None,
                             issuer_error_message: None,
-                            network_details:None,
+                            network_details: None,
                             encrypted_payment_method_data: None,
+                            recommended_action: None,
                         };
 
                     payment_data.payment_attempt = db
