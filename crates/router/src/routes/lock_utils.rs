@@ -138,7 +138,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
             | Flow::PaymentMethodSave
-            | Flow::TotalPaymentMethodCount 
+            | Flow::TotalPaymentMethodCount
             | Flow::PaymentMethodGetTokenDetails => Self::PaymentMethods,
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
             Flow::PaymentsCreate
