@@ -34,9 +34,7 @@
           "verification_method": "automatic"
         }
       },
-      "payment_method_types": [
-        "acss_debit"
-      ],
+      "payment_method_types": ["acss_debit"],
       "single_use_mandate": null,
       "status": "requires_confirmation",
       "usage": "off_session"
