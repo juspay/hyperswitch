@@ -799,10 +799,12 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<diesel_models::payment_attempt::UnifiedErrorDetails>
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::UnifiedErrorDetails>
     for payments::ApiUnifiedErrorDetails
 {
-    fn foreign_from(unified: diesel_models::payment_attempt::UnifiedErrorDetails) -> Self {
+    fn foreign_from(
+        unified: hyperswitch_domain_models::payments::payment_attempt::UnifiedErrorDetails,
+    ) -> Self {
         Self {
             category: unified.category,
             message: unified.message,
@@ -815,10 +817,12 @@ impl ForeignFrom<diesel_models::payment_attempt::UnifiedErrorDetails>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<diesel_models::payment_attempt::NetworkErrorDetails>
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::NetworkErrorDetails>
     for payments::ApiNetworkErrorDetails
 {
-    fn foreign_from(network: diesel_models::payment_attempt::NetworkErrorDetails) -> Self {
+    fn foreign_from(
+        network: hyperswitch_domain_models::payments::payment_attempt::NetworkErrorDetails,
+    ) -> Self {
         Self {
             name: network.name,
             advice_code: network.advice_code,
@@ -828,10 +832,12 @@ impl ForeignFrom<diesel_models::payment_attempt::NetworkErrorDetails>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<diesel_models::payment_attempt::IssuerErrorDetails>
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::IssuerErrorDetails>
     for payments::ApiIssuerErrorDetails
 {
-    fn foreign_from(issuer: diesel_models::payment_attempt::IssuerErrorDetails) -> Self {
+    fn foreign_from(
+        issuer: hyperswitch_domain_models::payments::payment_attempt::IssuerErrorDetails,
+    ) -> Self {
         Self {
             code: issuer.code,
             message: issuer.message,
@@ -843,10 +849,12 @@ impl ForeignFrom<diesel_models::payment_attempt::IssuerErrorDetails>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<diesel_models::payment_attempt::ConnectorErrorDetails>
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ConnectorErrorDetails>
     for payments::ApiConnectorErrorDetails
 {
-    fn foreign_from(connector: diesel_models::payment_attempt::ConnectorErrorDetails) -> Self {
+    fn foreign_from(
+        connector: hyperswitch_domain_models::payments::payment_attempt::ConnectorErrorDetails,
+    ) -> Self {
         Self {
             code: connector.code,
             message: connector.message,
@@ -856,8 +864,12 @@ impl ForeignFrom<diesel_models::payment_attempt::ConnectorErrorDetails>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<diesel_models::payment_attempt::ErrorDetails> for payments::PaymentErrorDetails {
-    fn foreign_from(details: diesel_models::payment_attempt::ErrorDetails) -> Self {
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptErrorDetails>
+    for payments::PaymentErrorDetails
+{
+    fn foreign_from(
+        details: hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptErrorDetails,
+    ) -> Self {
         Self {
             unified_details: details
                 .unified_details

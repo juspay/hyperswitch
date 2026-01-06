@@ -22,9 +22,8 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
-    ConnectorErrorDetails, ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails,
-    IssuerErrorDetails, NetworkDetails, NetworkErrorDetails,
-    PaymentAttemptUpdate as DieselPaymentAttemptUpdate, UnifiedErrorDetails,
+    ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails, NetworkDetails,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -394,6 +393,165 @@ impl From<ErrorDetails> for api_models::payments::RecordAttemptErrorDetails {
             network_decline_code: error_details.network_decline_code,
             network_advice_code: error_details.network_advice_code,
             network_error_message: error_details.network_error_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAttemptErrorDetails {
+    pub unified_details: Option<UnifiedErrorDetails>,
+    pub issuer_details: Option<IssuerErrorDetails>,
+    pub connector_details: Option<ConnectorErrorDetails>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UnifiedErrorDetails {
+    pub category: Option<storage_enums::UnifiedCode>,
+    pub message: Option<String>,
+    pub standardised_code: Option<storage_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
+    pub recommended_action: Option<storage_enums::RecommendedAction>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct IssuerErrorDetails {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub network_details: Option<NetworkErrorDetails>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct NetworkErrorDetails {
+    pub name: Option<storage_enums::CardNetwork>,
+    pub advice_code: Option<String>,
+    pub advice_message: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorErrorDetails {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentAttemptErrorDetails> for DieselErrorDetails {
+    fn from(domain: PaymentAttemptErrorDetails) -> Self {
+        Self {
+            unified_details: domain.unified_details.map(Into::into),
+            issuer_details: domain.issuer_details.map(Into::into),
+            connector_details: domain.connector_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<DieselErrorDetails> for PaymentAttemptErrorDetails {
+    fn from(diesel: DieselErrorDetails) -> Self {
+        Self {
+            unified_details: diesel.unified_details.map(Into::into),
+            issuer_details: diesel.issuer_details.map(Into::into),
+            connector_details: diesel.connector_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<UnifiedErrorDetails> for diesel_models::UnifiedErrorDetails {
+    fn from(domain: UnifiedErrorDetails) -> Self {
+        Self {
+            category: domain.category,
+            message: domain.message,
+            standardised_code: domain.standardised_code,
+            description: domain.description,
+            user_guidance_message: domain.user_guidance_message,
+            recommended_action: domain.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::UnifiedErrorDetails> for UnifiedErrorDetails {
+    fn from(diesel: diesel_models::UnifiedErrorDetails) -> Self {
+        Self {
+            category: diesel.category,
+            message: diesel.message,
+            standardised_code: diesel.standardised_code,
+            description: diesel.description,
+            user_guidance_message: diesel.user_guidance_message,
+            recommended_action: diesel.recommended_action,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<IssuerErrorDetails> for diesel_models::IssuerErrorDetails {
+    fn from(domain: IssuerErrorDetails) -> Self {
+        Self {
+            code: domain.code,
+            message: domain.message,
+            network_details: domain.network_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::IssuerErrorDetails> for IssuerErrorDetails {
+    fn from(diesel: diesel_models::IssuerErrorDetails) -> Self {
+        Self {
+            code: diesel.code,
+            message: diesel.message,
+            network_details: diesel.network_details.map(Into::into),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkErrorDetails> for diesel_models::NetworkErrorDetails {
+    fn from(domain: NetworkErrorDetails) -> Self {
+        Self {
+            name: domain.name,
+            advice_code: domain.advice_code,
+            advice_message: domain.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::NetworkErrorDetails> for NetworkErrorDetails {
+    fn from(diesel: diesel_models::NetworkErrorDetails) -> Self {
+        Self {
+            name: diesel.name,
+            advice_code: diesel.advice_code,
+            advice_message: diesel.advice_message,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ConnectorErrorDetails> for diesel_models::ConnectorErrorDetails {
+    fn from(domain: ConnectorErrorDetails) -> Self {
+        Self {
+            code: domain.code,
+            message: domain.message,
+            reason: domain.reason,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<diesel_models::ConnectorErrorDetails> for ConnectorErrorDetails {
+    fn from(diesel: diesel_models::ConnectorErrorDetails) -> Self {
+        Self {
+            code: diesel.code,
+            message: diesel.message,
+            reason: diesel.reason,
         }
     }
 }
@@ -1065,7 +1223,7 @@ pub struct PaymentAttempt {
     #[encrypt(ty = Value)]
     pub encrypted_payment_method_data: Option<Encryptable<pii::SecretSerdeValue>>,
     /// Complete error details containing unified, issuer, and connector-level error information
-    pub error_details: Option<diesel_models::payment_attempt::ErrorDetails>,
+    pub error_details: Option<PaymentAttemptErrorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1757,9 +1915,9 @@ fn build_error_details(
 
     if connector_details.is_some() || unified_details.is_some() || issuer_details.is_some() {
         Box::new(Some(DieselErrorDetails {
-            unified_details,
-            issuer_details,
-            connector_details,
+            unified_details: unified_details.map(Into::into),
+            issuer_details: issuer_details.map(Into::into),
+            connector_details: connector_details.map(Into::into),
         }))
     } else {
         Box::new(None)
@@ -2477,7 +2635,7 @@ impl behaviour::Conversion for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
-            error_details: self.error_details,
+            error_details: self.error_details.map(Into::into),
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -2616,7 +2774,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 is_stored_credential: storage_model.is_stored_credential,
                 authorized_amount: storage_model.authorized_amount,
                 encrypted_payment_method_data,
-                error_details: storage_model.error_details,
+                error_details: storage_model.error_details.map(Into::into),
             })
         }
         .await
@@ -2714,7 +2872,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
-            error_details: None,
+            error_details: self.error_details.map(Into::into),
         })
     }
 }
