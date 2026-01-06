@@ -1860,12 +1860,48 @@ pub async fn list_payment_methods_for_session(
         .attach_printable("error when fetching merchant connector accounts")?;
 
     let customer_payment_methods = match payment_method_session.customer_id {
-        Some(customer_id) => {
-            list_customer_payment_methods_core(&state, platform.get_provider(), &customer_id)
-                .await?
+        Some(ref customer_id) => {
+            list_customer_payment_methods_core(&state, platform.get_provider(), customer_id).await?
         }
         None => Vec::new(),
     };
+
+    // Create associated payment methods from customer payment methods
+    let mut associated_payment_methods_vec: Vec<common_types::payment_methods::AssociatedPaymentMethods> = customer_payment_methods
+        .iter()
+        .map(|cpm| {
+            common_types::payment_methods::AssociatedPaymentMethods {
+                payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_token.clone()),
+                payment_method_type: cpm.payment_method_type,
+                payment_method_subtype: Some(cpm.payment_method_subtype),
+            }
+        })
+        .collect();
+
+    // Extend with existing associated payment methods if any
+    if let Some(existing_associated_pms) =
+        payment_method_session.associated_payment_methods.as_ref()
+    {
+        associated_payment_methods_vec.extend(existing_associated_pms.clone());
+    }
+
+    // Update payment method session with associated payment methods
+    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods: Some(associated_payment_methods_vec.clone())
+    };
+
+    let updated_payment_method_session = db
+        .update_payment_method_session(
+            platform.get_provider().get_key_store(),
+            &payment_method_session_id,
+            update_payment_method_session,
+            payment_method_session,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update payment method session with associated payment methods",
+        )?;
 
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
