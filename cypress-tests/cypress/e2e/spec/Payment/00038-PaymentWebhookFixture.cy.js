@@ -3,14 +3,36 @@ import State from "../../../utils/State";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
+let globalState;
+let connector; 
+
 describe("Payment Webhook Tests — Split Steps", () => {
+  
 
-  let globalState;
+  before(function () {
 
-  before(() => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+    let skip = true;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        // Continue running test against a connector that is added in the include list
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.PAYMENTS_WEBHOOK
+          )
+        ) {
+          skip = false;
+        }
+      })
+      .then(() => {
+        if (!skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
