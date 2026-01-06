@@ -33,7 +33,7 @@ use crate::{
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
-        storage::{payment_method::PaymentTokenData},
+        storage::payment_method::PaymentTokenData,
     },
 };
 
