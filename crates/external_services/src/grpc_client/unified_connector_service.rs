@@ -215,6 +215,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs SDK Session Token Create
+    pub async fn incremental_authorization(
+        &self,
+        sdk_session_token_request: payments_grpc::PaymentServiceIncrementalAuthorizationRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceIncrementalAuthorizationResponse>,
+    > {
+        let mut request = tonic::Request::new(sdk_session_token_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .incremental_authorization(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::IncrementalAuthorizationFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="incremental_authorization",
+                    connector_name=?connector_name,
+                    "UCS incremental_authorization gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Granular Authorize
     pub async fn payment_authorize_granular(
         &self,

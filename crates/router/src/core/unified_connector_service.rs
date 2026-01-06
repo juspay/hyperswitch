@@ -1324,6 +1324,18 @@ pub fn handle_unified_connector_service_response_for_sdk_session_token(
     Ok((router_data_response, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_incremental_authorization(
+    response: payments_grpc::PaymentServiceIncrementalAuthorizationResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_authenticate(
     response: payments_grpc::PaymentServiceAuthenticateResponse,
 ) -> UnifiedConnectorServiceResult {

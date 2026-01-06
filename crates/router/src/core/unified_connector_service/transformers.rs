@@ -9,7 +9,7 @@ use api_models::payments::{
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
 };
-use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
+use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
     ext_traits::Encode,
     request::Method,
@@ -24,12 +24,14 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
-        unified_authentication_service as uas_flows, ExternalVaultProxy, Session,
+        unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
+        Session,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData, SyncRequestType,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        SyncRequestType,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
@@ -1970,6 +1972,58 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
     }
 }
 
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for payments_grpc::PaymentServiceIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            IncrementalAuthorization,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        Ok(Self {
+            minor_amount: router_data.request.total_amount,
+            transaction_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.request.connector_transaction_id.clone(),
+                )),
+            }),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            currency: currency.into(),
+            reason: router_data.request.reason.clone(),
+            connector_metadata: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
+            state,
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -3890,6 +3944,42 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthorizationResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceIncrementalAuthorizationResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: response.error_reason,
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: AuthorizationStatus::foreign_from(response.status()),
+                connector_authorization_id: response.connector_authorization_id,
+                error_code: response.error_code,
+                error_message: response.error_message,
+            })
+        };
+
+        Ok(response)
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceSdkSessionTokenResponse>
     for Result<PaymentsResponseData, ErrorResponse>
 {
@@ -4549,6 +4639,18 @@ impl ForeignFrom<&SyncRequestType> for payments_grpc::SyncRequestType {
         match sync_type {
             SyncRequestType::MultipleCaptureSync(_) => Self::MultipleCaptureSync,
             SyncRequestType::SinglePaymentSync => Self::SinglePaymentSync,
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::AuthorizationStatus> for AuthorizationStatus {
+    fn foreign_from(grpc_status: payments_grpc::AuthorizationStatus) -> Self {
+        match grpc_status {
+            payments_grpc::AuthorizationStatus::AuthorizationSuccess => Self::Success,
+            payments_grpc::AuthorizationStatus::AuthorizationFailure => Self::Failure,
+            payments_grpc::AuthorizationStatus::AuthorizationProcessing => Self::Processing,
+            payments_grpc::AuthorizationStatus::AuthorizationUnresolved => Self::Unresolved,
+            payments_grpc::AuthorizationStatus::Unspecified => Self::Processing,
         }
     }
 }
