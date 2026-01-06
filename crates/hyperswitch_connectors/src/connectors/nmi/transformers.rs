@@ -955,14 +955,12 @@ impl TryFrom<&SetupMandateRouterData> for NmiValidateRequest {
                     PaymentMethodToken::Token(_) => {
                         Err(unimplemented_payment_method!("Apple Pay", "Manual", "NMI"))
                     }
-                    PaymentMethodToken::PazeDecrypt(_) => Err(unimplemented_payment_method!(
-                        "Paze",
-                        "NMI"
-                    )),
-                    PaymentMethodToken::GooglePayDecrypt(_) => Err(unimplemented_payment_method!(
-                        "Google Pay",
-                        "NMI"
-                    )),
+                    PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Paze", "NMI"))
+                    }
+                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Google Pay", "NMI"))
+                    }
                 },
                 None => {
                     let apple_pay_encrypted_data = apple_pay_wallet_data
