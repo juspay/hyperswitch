@@ -159,6 +159,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             payment_method_data: None,
                             authentication_type: None,
                             issuer_error_code: None,

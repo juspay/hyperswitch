@@ -152,6 +152,7 @@ impl ConnectorCommon for Celero {
             reason: error_details.decline_reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: error_details.processor_response_code.clone(),
             network_advice_code: None,
             network_error_message: error_details.processor_response_code,
