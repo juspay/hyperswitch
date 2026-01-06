@@ -2783,6 +2783,7 @@ fn get_error_response(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: transaction_id,
+        connector_response_reference_id: None,
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
