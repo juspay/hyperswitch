@@ -1455,8 +1455,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("SdkEvents table is not implemented for Sqlx"))?,
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
-            Self::ApiEventsPayout => Err(error_stack::report!(ParsingError::UnknownError)
-                .attach_printable("ApiEventsPayout table is not implemented for Sqlx"))?,
+            Self::ApiPayoutEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ApiPayoutEvents table is not implemented for Sqlx"))?,
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::PaymentIntent => Ok("payment_intent".to_string()),
             Self::PaymentIntentSessionized => Err(error_stack::report!(
@@ -1465,18 +1465,18 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             .attach_printable("PaymentIntentSessionized table is not implemented for Sqlx"))?,
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
-            Self::ConnectorEventsPayout => Err(error_stack::report!(ParsingError::UnknownError)
-                .attach_printable("ConnectorEventsPayout table is not implemented for Sqlx"))?,
+            Self::ConnectorPayoutEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ConnectorPayoutEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::ActivePaymentsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ActivePaymentsAnalytics table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
-            Self::OutgoingWebhookEventPayout => Err(error_stack::report!(
+            Self::OutgoingWebhookPayoutEvent => Err(error_stack::report!(
                 ParsingError::UnknownError
             )
-            .attach_printable("OutgoingWebhookEventsPayout table is not implemented for Sqlx"))?,
+            .attach_printable("OutgoingWebhookPayoutEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,

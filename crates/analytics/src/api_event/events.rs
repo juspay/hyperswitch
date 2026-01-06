@@ -27,7 +27,7 @@ where
     Window<&'static str>: ToSql<T>,
 {
     let mut query_builder: QueryBuilder<T> = match query_param.query_param.clone() {
-        QueryType::Payout { .. } => QueryBuilder::new(AnalyticsCollection::ApiEventsPayout),
+        QueryType::Payout { .. } => QueryBuilder::new(AnalyticsCollection::ApiPayoutEvents),
         QueryType::Payment { .. } | QueryType::Refund { .. } | QueryType::Dispute { .. } => {
             QueryBuilder::new(AnalyticsCollection::ApiEvents)
         }

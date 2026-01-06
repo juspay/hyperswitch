@@ -24,7 +24,7 @@ where
 {
     let mut query_builder: QueryBuilder<T> = match query_param.payment_id {
         Some(_) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
-        None => QueryBuilder::new(AnalyticsCollection::ConnectorEventsPayout),
+        None => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
     };
     query_builder.add_select_column("*").switch()?;
 

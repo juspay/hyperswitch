@@ -24,7 +24,7 @@ where
 {
     let mut query_builder: QueryBuilder<T> = match query_param.payment_id.as_ref() {
         Some(_) => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent),
-        None => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEventPayout),
+        None => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookPayoutEvent),
     };
     query_builder.add_select_column("*").switch()?;
 
