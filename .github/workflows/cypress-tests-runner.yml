@@ -391,7 +391,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    needs: build-hyperswitch
+    needs: [ build-hyperswitch, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
