@@ -4483,9 +4483,12 @@ pub async fn payment_method_get_token(
         .get_data_for_token(&state)
         .await;
 
-    let payment_method_id = match token_data {
+    match token_data {
         Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-            card_token_data.payment_method_id
+            return Ok(services::ApplicationResponse::Json(payment_methods::PaymentMethodGetTokenDetailsResponse {
+                id: card_token_data.payment_method_id,
+                token: temporary_token,
+            }))
         }
         Ok(_) => {
             return Err(errors::ApiErrorResponse::PaymentMethodNotFound.into())
@@ -4494,10 +4497,4 @@ pub async fn payment_method_get_token(
             return Err(e)
         }
     };
-    let response = payment_methods::PaymentMethodGetTokenDetailsResponse {
-        id: payment_method_id,
-        token: temporary_token,
-    };
-
-    Ok(services::ApplicationResponse::Json(response))
 }
