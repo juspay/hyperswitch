@@ -131,106 +131,6 @@ function parseMethodFlows(methodFlowInput) {
     : [methodFlowInput.trim()];
 }
 
-function createUcsConfigs(globalState, flow, type) {
-  // --- Phase 1: Environment Setup & Validation ---
-  const ucsEnabled = globalState.get("ucsEnabled");
-  if (!ucsEnabled) {
-    cy.task(
-      "cli_log",
-      `UCS ${type} config creation skipped - ucsEnabled is false or not set`
-    );
-    return;
-  }
-
-  const httpUrl = globalState.get("proxyHttp");
-  const httpsUrl = globalState.get("proxyHttps");
-  const connector = globalState.get("connectorId");
-  const methodFlowInput = flow || globalState.get("methodFlow");
-
-  if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing proxyHttp or proxyHttps in globalState");
-  }
-
-  if (!connector || !methodFlowInput) {
-    throw new Error("Missing connectorId or methodFlow in globalState");
-  }
-
-  if (!globalState) {
-    throw new Error("Missing required parameter: globalState");
-  }
-
-  // --- Phase 2: Data Preparation ---
-  const merchantId = globalState.get("merchantId");
-  const adminApiKey = globalState.get("adminApiKey");
-  const baseUrl = globalState.get("baseUrl");
-
-  if (!merchantId || !adminApiKey || !baseUrl) {
-    throw new Error(
-      "Missing merchantId, adminApiKey, or baseUrl in globalState"
-    );
-  }
-
-  const methodFlows = parseMethodFlows(methodFlowInput);
-
-  return cy
-    .task(
-      "cli_log",
-      `Creating ${type} rollout config for merchant: ${merchantId}`
-    )
-    .then(() => {
-      return cy
-        .task(
-          "cli_log",
-          `Processing ${methodFlows.length} flows: ${methodFlows.join(", ")}`
-        )
-        .then(() => {
-          // --- Phase 3: Sequential Config Creation ---
-          function processFlowsSequentially(flows, index, results) {
-            if (index >= flows.length) {
-              // --- Phase 4: Final Summary ---
-              const successCount = results.filter((r) => r.success).length;
-              const failureCount = results.filter((r) => !r.success).length;
-              const failedConfigs = results.filter((r) => !r.success);
-
-              return cy
-                .task(
-                  "cli_log",
-                  `${type} rollout config creation completed: ${successCount} success, ${failureCount} failures`
-                )
-                .then(() => {
-                  if (failedConfigs.length > 0) {
-                    return cy.task(
-                      "cli_log",
-                      `Failed configs: ${JSON.stringify(failedConfigs)}`
-                    );
-                  }
-                });
-            }
-
-            const currentFlow = flows[index];
-            return cy
-              .task(
-                "cli_log",
-                `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`
-              )
-              .then(() => {
-                return createIndividualRolloutConfig(
-                  currentFlow,
-                  globalState,
-                  type
-                );
-              })
-              .then((result) => {
-                results.push(result);
-                return processFlowsSequentially(flows, index + 1, results);
-              });
-          }
-
-          return processFlowsSequentially(methodFlows, 0, []);
-        });
-    });
-}
-
 function storeRequestId(xRequestId, globalState) {
   if (xRequestId && globalState) {
     // Get existing request IDs array or initialize empty array
@@ -418,6 +318,66 @@ function logRequestId(xRequestId) {
   } else {
     cy.task("cli_log", "x-request-id is not available in the response headers");
   }
+}
+
+function ensureMerchantConnectorId(
+  globalState,
+  {
+    connectorStateKey = "connectorId",
+    merchantConnectorStateKey = "merchantConnectorId",
+  } = {}
+) {
+  const existingConnectorId = globalState.get(merchantConnectorStateKey);
+  if (existingConnectorId) {
+    return cy.wrap(existingConnectorId);
+  }
+
+  const connectorName = globalState.get(connectorStateKey);
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+
+  if (!connectorName || !merchantId || !baseUrl || !apiKey) {
+    throw new Error(
+      "Missing connectorId, merchantId, baseUrl, or apiKey in globalState"
+    );
+  }
+
+  return cy
+    .request({
+      method: "GET",
+      url: `${baseUrl}/account/${merchantId}/connectors`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status !== 200 || !Array.isArray(response.body)) {
+        throw new Error(
+          `Unable to fetch connectors for merchant ${merchantId} (status ${response.status})`
+        );
+      }
+
+      const matchingConnector = response.body.find(
+        (connector) => connector.connector_name === connectorName
+      );
+
+      if (!matchingConnector || !matchingConnector.merchant_connector_id) {
+        throw new Error(
+          `Connector ${connectorName} not found for merchant ${merchantId}`
+        );
+      }
+
+      const merchantConnectorId = matchingConnector.merchant_connector_id;
+      globalState.set(merchantConnectorStateKey, merchantConnectorId);
+
+      return cy.wrap(merchantConnectorId);
+    });
 }
 
 function validateErrorMessage(response, resData) {
@@ -1265,6 +1225,70 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body).to.be.an("array").and.not.empty;
+
+Cypress.Commands.add(
+  "ensureMerchantConnectorId",
+  (
+    globalState,
+    {
+      connectorStateKey = "connectorId",
+      merchantConnectorStateKey = "merchantConnectorId",
+    } = {}
+  ) => {
+    const existingConnectorId = globalState.get(merchantConnectorStateKey);
+    if (existingConnectorId) {
+      return cy.wrap(existingConnectorId);
+    }
+
+    const connectorName = globalState.get(connectorStateKey);
+    const merchantId = globalState.get("merchantId");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+
+    if (!connectorName || !merchantId || !baseUrl || !apiKey) {
+      throw new Error(
+        "Missing connectorId, merchantId, baseUrl, or apiKey in globalState"
+      );
+    }
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/account/${merchantId}/connectors`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Merchant-Id": merchantId,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        if (response.status !== 200 || !Array.isArray(response.body)) {
+          throw new Error(
+            `Unable to fetch connectors for merchant ${merchantId} (status ${response.status})`
+          );
+        }
+
+        const matchingConnector = response.body.find(
+          (connector) => connector.connector_name === connectorName
+        );
+
+        if (!matchingConnector || !matchingConnector.merchant_connector_id) {
+          throw new Error(
+            `Connector ${connectorName} not found for merchant ${merchantId}`
+          );
+        }
+
+        const merchantConnectorId = matchingConnector.merchant_connector_id;
+        globalState.set(merchantConnectorStateKey, merchantConnectorId);
+
+        return cy.wrap(merchantConnectorId);
+      });
+  }
+);
+
       response.body.forEach((item) => {
         expect(item).to.not.have.property("metadata");
         expect(item).to.not.have.property("additional_merchant_data");
@@ -1274,61 +1298,8 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
   });
 });
 
-Cypress.Commands.add("ensureMerchantConnectorId", (globalState) => {
-  const cachedId = globalState.get("merchantConnectorId");
-  if (cachedId) {
-    return cy.wrap(cachedId);
-  }
-
-  const merchantId = globalState.get("merchantId");
-  const connectorName = globalState.get("connectorId");
-  const baseUrl = globalState.get("baseUrl");
-  const apiKey = globalState.get("apiKey");
-
-  if (!merchantId || !connectorName || !baseUrl || !apiKey) {
-    throw new Error(
-      "Missing merchant or connector context to fetch connector id"
-    );
-  }
-
-  return cy
-    .request({
-      method: "GET",
-      url: `${baseUrl}/account/${merchantId}/connectors`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-        "X-Merchant-Id": merchantId,
-      },
-      failOnStatusCode: false,
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        expect(response.status).to.equal(200);
-        const connectors = Array.isArray(response.body) ? response.body : [];
-        const connectorEntry = connectors.find(
-          (item) => item.connector_name === connectorName
-        );
-
-        if (!connectorEntry) {
-          throw new Error(
-            `Connector ${connectorName} not found for merchant ${merchantId}`
-          );
-        }
-
-        globalState.set(
-          "merchantConnectorId",
-          connectorEntry.merchant_connector_id
-        );
-      });
-    });
-});
-
 Cypress.Commands.add("enableVoltBankRedirectPaymentMethods", (globalState) =>
-  cy.ensureMerchantConnectorId(globalState).then(() =>
+  ensureMerchantConnectorId(globalState).then(() =>
     cy.fixture("update-connector-body").then((updateConnectorBody) => {
       const updateBody = {
         ...updateConnectorBody,

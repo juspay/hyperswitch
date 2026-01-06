@@ -14,6 +14,49 @@ const billingAddress = {
   },
 };
 
+const zeroAuthResponse = {
+  status: 501,
+  body: {
+    error: {
+      message: "Setup Mandate flow for Volt is not implemented",
+      code: "IR_00",
+      type: "invalid_request",
+    },
+  },
+};
+
+const zeroAuthConfigs = {
+  TRIGGER_SKIP: true,
+};
+
+const zeroAuthConfirmPayment = {
+  Request: {
+    payment_type: "setup_mandate",
+    payment_method: "card",
+    payment_method_data: {
+      card: {
+        card_number: "4242424242424242",
+        card_exp_month: "01",
+        card_exp_year: "50",
+        card_holder_name: "joseph Doe",
+        card_cvc: "123",
+      },
+    },
+  },
+  Response: zeroAuthResponse,
+  Configs: zeroAuthConfigs,
+};
+
+const zeroAuthMandate = {
+  Configs: zeroAuthConfigs,
+  Response: zeroAuthResponse,
+};
+
+const listRevokeMandate = {
+  Configs: zeroAuthConfigs,
+  Response: zeroAuthResponse,
+};
+
 export const connectorDetails = {
   card_pm: {
     ZeroAuthPaymentIntent: {
@@ -31,64 +74,9 @@ export const connectorDetails = {
         },
       },
     },
-    ZeroAuthConfirmPayment: {
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4242424242424242",
-            card_exp_month: "01",
-            card_exp_year: "50",
-            card_holder_name: "joseph Doe",
-            card_cvc: "123",
-          },
-        },
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            message: "Setup Mandate flow for Volt is not implemented",
-            code: "IR_00",
-            type: "invalid_request",
-          },
-        },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-    },
-    ZeroAuthMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            message: "Setup Mandate flow for Volt is not implemented",
-            code: "IR_00",
-            type: "invalid_request",
-          },
-        },
-      },
-    },
-    ListRevokeMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            message: "Setup Mandate flow for Volt is not implemented",
-            code: "IR_00",
-            type: "invalid_request",
-          },
-        },
-      },
-    },
+    ZeroAuthConfirmPayment: zeroAuthConfirmPayment,
+    ZeroAuthMandate: zeroAuthMandate,
+    ListRevokeMandate: listRevokeMandate,
   },
   bank_redirect_pm: {
     OpenBankingUk: getCustomExchange({
