@@ -386,6 +386,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PromptPay
             | api_enums::PaymentMethodType::VietQr => Self::RealTimePayment,
             api_enums::PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            api_enums::PaymentMethodType::NetworkToken => Self::NetworkToken,
         }
     }
 }
@@ -418,6 +419,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
+            payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
         }
     }
 }
@@ -1671,6 +1673,9 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest>
             error_category: value.error_category,
             feature_data: value.feature_data.unwrap_or(inferred_feature_data),
             feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         }
     }
 }
@@ -1776,6 +1781,9 @@ impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_t
                 .unwrap_or(false),
             feature_data: Some(value.feature_data),
             feature: value.feature,
+            standardised_code: value.standardised_code,
+            description: value.description,
+            user_guidance_message: value.user_guidance_message,
         }
     }
 }
@@ -1825,27 +1833,16 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         {
             return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message:
-                     "Either only `object_id` or `event_id` must be specified, or one or more of \
+                     "Either `object_id` alone, or `event_id` alone, or one or more of \
                                 `created_after`, `created_before`, `limit`, `offset`, `event_classes` and `event_types` must be specified"
                         .to_string()
             }));
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), Some(event_id)) => Ok(Self::ObjectIdFilter {
-                object_id,
-                event_id,
-            }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
 
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
-                event_id: object_id.clone(),
-                object_id,
-            }),
-
-            (None, Some(event_id)) => Ok(Self::ObjectIdFilter {
-                object_id: event_id.clone(),
-                event_id,
-            }),
+            (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
             (None, None) => Ok(Self::GenericFilter {
                 created_after: item.created_after,
@@ -1856,6 +1853,11 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 event_types: item.event_types,
                 is_delivered: item.is_delivered,
             }),
+
+            (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot specify both `object_id` and `event_id`. Please provide only one."
+                    .to_string()
+            })),
         }
     }
 }
@@ -2336,6 +2338,7 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             card_network: card_info.card_network.to_owned(),
             card_type: card_info.card_type.to_owned(),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             last4: card_info.last_four_digits.to_owned(),
             card_isin: None,

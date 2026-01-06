@@ -195,6 +195,7 @@ impl EuclidDirFilter for ConditionalConfigs {
         DirKeyKind::CaptureMethod,
         DirKeyKind::BillingCountry,
         DirKeyKind::BusinessCountry,
+        DirKeyKind::NetworkTokenType,
     ];
 }
 
@@ -846,6 +847,25 @@ impl ApplePayPredecryptData {
         Ok(self.application_expiration_month.clone())
     }
 
+    /// Get the two-digit expiration month from the Apple Pay pre-decrypt data
+    /// Returns the month with zero-padding if it's a single digit (e.g., "1" -> "01")
+    pub fn get_two_digit_expiry_month(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let month_str = self.application_expiration_month.peek();
+        let month = month_str
+            .parse::<u8>()
+            .map_err(|_| errors::ValidationError::InvalidValue {
+                message: format!("Failed to parse expiry month: {month_str}"),
+            })?;
+
+        if !(1..=12).contains(&month) {
+            return Err(errors::ValidationError::InvalidValue {
+                message: format!("Invalid expiry month: {month}. Must be between 1 and 12"),
+            }
+            .into());
+        }
+        Ok(Secret::new(format!("{:02}", month)))
+    }
+
     /// Get the expiry date in MMYY format from the Apple Pay pre-decrypt data
     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ValidationError> {
         let year = self.get_two_digit_expiry_year()?.expose();
@@ -1101,4 +1121,24 @@ impl PaymentMethodsConfig {
         }
         Ok(())
     }
+}
+
+/// Interac Customer Information Details
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct InteracCustomerInfoDetails {
+    /// Customer Name
+    #[schema(value_type = Option<String>)]
+    pub customer_name: Option<Secret<String>>,
+    /// Customer Email
+    #[schema(value_type = Option<String>)]
+    pub customer_email: Option<pii::Email>,
+    /// Customer Phone Number
+    #[schema(value_type = Option<String>)]
+    pub customer_phone_number: Option<Secret<String>>,
+    /// Customer Bank Id
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_id: Option<Secret<String>>,
+    /// Customer Bank Name
+    #[schema(value_type = Option<String>)]
+    pub customer_bank_name: Option<Secret<String>>,
 }

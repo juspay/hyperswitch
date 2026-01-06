@@ -149,6 +149,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Cancel from gRPC Server
     #[error("Failed to perform Cancel from gRPC Server")]
     PaymentCancelFailure,
+
+    /// Failed to perform Sdk Session Token from gRPC Server
+    #[error("Failed to perform Sdk Session Token from gRPC Server")]
+    SdkSessionTokenFailure,
 }
 
 /// UCS Webhook transformation status
@@ -213,7 +217,8 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 reason: Some(response.error_message().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,

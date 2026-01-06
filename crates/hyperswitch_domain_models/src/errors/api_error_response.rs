@@ -307,6 +307,11 @@ pub enum ApiErrorResponse {
     ConnectedAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_50", message = "Invalid connected account operation")]
     InvalidConnectedOperation,
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_51",
+        message = "Access forbidden, invalid Basic authentication credentials"
+    )]
+    InvalidBasicAuth,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -598,6 +603,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
+            Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 51, "Access forbidden, invalid Basic authentication credentials", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
@@ -756,6 +762,7 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             },
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

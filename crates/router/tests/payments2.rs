@@ -76,6 +76,7 @@ async fn payments_create_core() {
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
@@ -107,6 +108,7 @@ async fn payments_create_core() {
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 bank_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
@@ -143,8 +145,10 @@ async fn payments_create_core() {
         description: Some("Its my first payment request".to_string()),
         refunds: None,
         mandate_id: None,
-        merchant_id,
+        merchant_id: merchant_id.clone(),
         net_amount: MinorUnit::new(6540),
+        processor_merchant_id: merchant_id,
+        initiator: None,
         connector: None,
         customer: None,
         disputes: None,
@@ -379,6 +383,7 @@ async fn payments_create_core_adyen_no_redirect() {
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let req = api::PaymentsRequest {
@@ -407,6 +412,7 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             })),
             billing: None,
@@ -444,8 +450,10 @@ async fn payments_create_core_adyen_no_redirect() {
             description: Some("Its my first payment request".to_string()),
             refunds: None,
             mandate_id: None,
-            merchant_id,
+            merchant_id: merchant_id.clone(),
             net_amount: MinorUnit::new(6540),
+            processor_merchant_id: merchant_id,
+            initiator: None,
             connector: None,
             customer: None,
             disputes: None,

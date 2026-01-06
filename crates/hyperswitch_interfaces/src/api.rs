@@ -282,6 +282,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -374,6 +375,7 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -400,6 +402,8 @@ pub enum CurrentFlowInfo<'a> {
     CompleteAuthorize {
         /// The payment authorize request data
         request_data: &'a router_request_types::CompleteAuthorizeData,
+        /// The payment method that is used
+        payment_method: Option<PaymentMethod>,
     },
 }
 
@@ -434,6 +438,10 @@ pub struct PreProcessingFlowResponse<'a> {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Check if pre-authentication flow is required
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
     /// Check if pre-authentication flow is required
     fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
         false

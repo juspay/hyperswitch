@@ -6,7 +6,7 @@ use api_models::{
     enums,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
-use cards::CardNumber;
+use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
 use common_utils::ext_traits::OptionExt;
@@ -19,7 +19,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, Card, CardRedirectData, GiftCardData,
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -153,10 +152,19 @@ pub struct AdditionalData {
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
+    //FPAN Gpay
+    paymentdatasource: Option<AdyenPaymentDataSource>,
     merchant_advice_code: Option<String>,
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+struct AdyenPaymentDataSource {
+    #[serde(rename = "type")]
+    data_type: String,
+    tokenized: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -778,6 +786,7 @@ pub enum AdyenPaymentMethod<'a> {
     Gcash(Box<GcashData>),
     #[serde(rename = "googlepay")]
     Gpay(Box<AdyenGPay>),
+    GooglePayDecrypt(Box<AdyenGooglePayDecryptData>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal,
@@ -1376,7 +1385,7 @@ pub struct AdyenCard {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPazeData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
@@ -1389,6 +1398,18 @@ pub struct AdyenPazeData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenApplePayDecryptData {
+    number: CardNumber,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    brand: String,
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGooglePayDecryptData {
     number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -1494,7 +1515,7 @@ pub struct AdyenApplePay {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNetworkTokenData {
-    number: NetworkTokenNumber,
+    number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Option<Secret<String>>,
@@ -1906,7 +1927,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -2077,6 +2099,17 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
     } else {
         Some("false".to_string())
     };
+    let paymentdatasource = match item.payment_method_token.clone() {
+        Some(PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt))
+            if google_pay_decrypt.cryptogram.is_none() =>
+        {
+            Some(AdyenPaymentDataSource {
+                data_type: "googlepay".to_string(),
+                tokenized: "false".to_string(),
+            })
+        }
+        _ => None,
+    };
     Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -2091,6 +2124,7 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        paymentdatasource,
         ..AdditionalData::default()
     })
 }
@@ -2429,17 +2463,42 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
         let (wallet_data, item) = value;
         match wallet_data {
             WalletData::GooglePay(data) => {
-                let gpay_data = AdyenGPay {
-                    google_pay_token: Secret::new(
-                        data.tokenization_data
-                            .get_encrypted_google_pay_token()
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
-                            })?
-                            .to_owned(),
-                    ),
-                };
-                Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
+                if let Some(PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt)) =
+                    item.payment_method_token.clone()
+                {
+                    let expiry_year_4_digit = google_pay_decrypt
+                        .get_four_digit_expiry_year()
+                        .change_context(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_year",
+                        })?;
+                    let exp_month = google_pay_decrypt.get_expiry_month().change_context(
+                        errors::ConnectorError::InvalidDataFormat {
+                            field_name: "expiration_month",
+                        },
+                    )?;
+                    let google_pay_decrypted_data = AdyenGooglePayDecryptData {
+                        number: google_pay_decrypt.application_primary_account_number,
+                        expiry_month: exp_month,
+                        expiry_year: expiry_year_4_digit,
+                        brand: "googlepay".to_string(),
+                        payment_type: PaymentType::Scheme,
+                    };
+                    Ok(AdyenPaymentMethod::GooglePayDecrypt(Box::new(
+                        google_pay_decrypted_data,
+                    )))
+                } else {
+                    let gpay_data = AdyenGPay {
+                        google_pay_token: Secret::new(
+                            data.tokenization_data
+                                .get_encrypted_google_pay_token()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay wallet_token",
+                                })?
+                                .to_owned(),
+                        ),
+                    };
+                    Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
+                }
             }
             WalletData::ApplePay(data) => {
                 if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypte)) =
@@ -3074,10 +3133,13 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
-                        message: "Network tokenization for payment method".to_string(),
-                        connector: "Adyen",
-                    })?,
+                    | PaymentMethodData::Card(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Network tokenization for payment method".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 }
             }
             payments::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
@@ -3118,7 +3180,8 @@ impl
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -3853,7 +3916,10 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
         let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
-        let mpi_data = if matches!(wallet_data, WalletData::Paze(_) | WalletData::ApplePay(_)) {
+        let mpi_data = if matches!(
+            wallet_data,
+            WalletData::Paze(_) | WalletData::ApplePay(_) | WalletData::GooglePay(_)
+        ) {
             match item.router_data.payment_method_token.clone() {
                 Some(PaymentMethodToken::PazeDecrypt(paze_data)) => Some(AdyenMpiData {
                     directory_response: common_enums::TransactionStatus::Success,
@@ -3881,6 +3947,26 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                     risk_score: None,
                     cavv_algorithm: None,
                 }),
+                Some(PaymentMethodToken::GooglePayDecrypt(google_pay)) => {
+                    match (google_pay.cryptogram, google_pay.eci_indicator.clone()) {
+                        // DPAN
+                        (Some(cryptogram), Some(eci_indicator)) => Some(AdyenMpiData {
+                            directory_response: common_enums::TransactionStatus::Success,
+                            authentication_response: common_enums::TransactionStatus::Success,
+                            cavv: Some(cryptogram),
+                            token_authentication_verification_value: None,
+                            eci: Some(eci_indicator),
+                            ds_trans_id: None,
+                            three_ds_version: None,
+                            challenge_cancel: None,
+                            risk_score: None,
+                            cavv_algorithm: None,
+                        }),
+
+                        _ => None,
+                    }
+                }
+
                 _ => None,
             }
         } else {
@@ -4321,6 +4407,7 @@ pub fn get_adyen_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.psp_reference.clone()),
+            connector_response_reference_id: None,
             network_advice_code: response
                 .additional_data
                 .as_ref()
@@ -4421,6 +4508,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code,
             network_error_message,
@@ -4523,6 +4611,7 @@ pub fn get_redirection_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code,
             network_error_message,
@@ -4605,6 +4694,7 @@ pub fn get_present_to_shopper_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -4675,6 +4765,7 @@ pub fn get_qr_code_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -4758,6 +4849,7 @@ pub fn get_redirection_error_response(
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
+            connector_response_reference_id: None,
             network_advice_code: response
                 .additional_data
                 .as_ref()
@@ -6455,6 +6547,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -6497,6 +6590,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -6541,6 +6635,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     )?,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
