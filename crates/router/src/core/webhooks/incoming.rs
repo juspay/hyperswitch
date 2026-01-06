@@ -2611,30 +2611,44 @@ async fn disputes_incoming_webhook_flow(
             connector.id(),
         )
         .await?;
+
+        //Updating Payment Intent State Metadata if Dispute is lost and customer got their funds back
         if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
             && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
         {
-            let payment_intent = db
-                .find_payment_intent_by_payment_id_merchant_id(
-                    &payment_attempt.payment_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch payment_intent")?;
+            tokio::spawn({
+                let state = state.clone();
+                let platform = platform.clone();
+                let payment_intent = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        &payment_attempt.payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch payment_intent")?;
+                let dispute_object = dispute_object.clone();
+                let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
 
-            PaymentIntentStateMetadataExt::from(
-                payment_intent.state_metadata.clone().unwrap_or_default(),
-            )
-            .update_intent_state_metadata_for_dispute(
-                &state,
-                &platform,
-                payment_intent,
-                &dispute_object,
-            )
-            .await?;
+                async move {
+                    if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                        .update_intent_state_metadata_for_dispute(
+                            &state,
+                            &platform,
+                            payment_intent,
+                            &dispute_object,
+                        )
+                        .await
+                    {
+                        logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata after dispute lost"
+                        );
+                    }
+                }
+            });
         }
 
         let disputes_response = Box::new(dispute_object.clone().foreign_into());

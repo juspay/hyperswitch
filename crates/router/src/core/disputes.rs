@@ -165,9 +165,16 @@ pub async fn retrieve_dispute(
     #[cfg(feature = "v1")]
     {
         let state = payment_intent.state_metadata.clone().unwrap_or_default();
-        dispute_response.is_already_refunded = payment_intent
-            .validate_against_intent_state_metadata(state.total_disputed_amount)
-            .is_err();
+        let validation_result = payment_intent
+            .validate_amount_against_intent_state_metadata(state.total_disputed_amount);
+
+        if let Err(err) = &validation_result {
+            logger::debug!(
+                ?err,
+                "Dispute validation failed against intent state metadata"
+            );
+        }
+        dispute_response.is_already_refunded = validation_result.is_err();
     }
     #[cfg(not(feature = "v1"))]
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);

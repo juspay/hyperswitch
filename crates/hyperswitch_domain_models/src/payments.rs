@@ -339,7 +339,7 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v1")]
-    pub fn validate_against_intent_state_metadata(
+    pub fn validate_amount_against_intent_state_metadata(
         &self,
         requested_amount: Option<MinorUnit>,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
@@ -361,7 +361,7 @@ impl PaymentIntent {
         let total = blocked_amount + requested;
 
         if total > captured {
-            return Err(
+            Err(
                 Report::new(common_utils::errors::ValidationError::InvalidValue {
                     message: "Requested amount exceeds available captured amount.".to_string(),
                 })
@@ -373,10 +373,10 @@ impl PaymentIntent {
                     captured,
                     (captured - blocked_amount).max(0),
                 )),
-            );
+            )
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 }
 

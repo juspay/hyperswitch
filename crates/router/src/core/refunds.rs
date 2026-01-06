@@ -88,11 +88,10 @@ pub async fn refund_create_core(
     )?;
 
     payment_intent
-        .validate_against_intent_state_metadata(req.amount)
+        .validate_amount_against_intent_state_metadata(req.amount)
         .map_err(|err| {
-            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Refund amount exceeds captured amount".to_string(),
-            })
+            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
+                .attach_printable("refund amount validation against payment intent failed")
         })?;
 
     // Amount is not passed in request refer from payment intent.
@@ -1025,15 +1024,25 @@ pub async fn sync_refund_with_gateway(
         },
     };
 
-    if let diesel_models::refund::RefundUpdate::StatusUpdate { refund_status, .. } = refund_update {
-        if refund_status.is_success() && !refund.refund_status.is_success() {
-            PaymentIntentStateMetadataExt::from(
-                payment_intent.state_metadata.clone().unwrap_or_default(),
-            )
-            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
-            .await?;
+    // If the original refund status was not success and upon a force sync it is now success, in that case we update the state metadata of the payment intent
+    tokio::spawn({
+        let state = state.clone();
+        let platform = platform.clone();
+        let payment_intent = payment_intent.clone();
+        let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+        async move {
+            if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                .update_intent_state_metadata_for_refund(&state, &platform, payment_intent)
+                .await
+            {
+                logger::error!(
+                    ?err,
+                    "Failed to update payment intent state metadata after refund sync"
+                );
+            }
         }
-    }
+    });
 
     let response = state
         .store
@@ -1368,11 +1377,31 @@ pub async fn validate_and_create_refund(
             ))
             .await?;
 
-            PaymentIntentStateMetadataExt::from(
-                payment_intent.state_metadata.clone().unwrap_or_default(),
-            )
-            .update_intent_state_metadata_for_refund(state, platform, payment_intent.clone())
-            .await?;
+            // Update the state metadata of the payment intent if the refund is successful
+            if refund.refund_status.is_success() {
+                tokio::spawn({
+                    let state = state.clone();
+                    let platform = platform.clone();
+                    let payment_intent = payment_intent.clone();
+                    let state_metadata = payment_intent.state_metadata.clone().unwrap_or_default();
+
+                    async move {
+                        if let Err(err) = PaymentIntentStateMetadataExt::from(state_metadata)
+                            .update_intent_state_metadata_for_refund(
+                                &state,
+                                &platform,
+                                payment_intent,
+                            )
+                            .await
+                        {
+                            logger::error!(
+                            ?err,
+                            "Failed to update payment intent state metadata during refund creation"
+                        );
+                        }
+                    }
+                });
+            }
             (updated_refund, raw_response)
         }
         Err(err) => {
