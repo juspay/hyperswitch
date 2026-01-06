@@ -82,6 +82,7 @@ use crate::{
         CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
         WalletAdditionalDataForCard,
     },
+    platform,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, refunds, ValidateFieldAndGet};
@@ -4151,7 +4152,7 @@ pub struct KlarnaSdkPaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct InteracPaymentMethod {
     #[schema(value_type = Option<Object>)]
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<common_types::payments::InteracCustomerInfoDetails>,
 }
 
 #[derive(
@@ -7072,6 +7073,20 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
 
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    #[smithy(value_type = "String")]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[smithy(value_type = "Option<Initiator>")]
+    pub initiator: Option<platform::Initiator>,
+
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
@@ -8256,6 +8271,18 @@ pub struct PaymentsResponse {
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    pub initiator: Option<platform::Initiator>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
@@ -10828,10 +10855,23 @@ pub enum ThreeDsCompletionIndicator {
 }
 
 /// Device Channel indicating whether request is coming from App or Browser
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+#[derive(
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    ToSchema,
+    Eq,
+    PartialEq,
+    Display,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum DeviceChannel {
+    #[strum(serialize = "APP")]
     #[serde(rename = "APP")]
     App,
+    #[strum(serialize = "BRW")]
     #[serde(rename = "BRW")]
     Browser,
 }
@@ -10853,6 +10893,21 @@ pub struct SdkInformation {
     pub sdk_max_timeout: u8,
     /// Indicates the type of 3DS SDK
     pub sdk_type: Option<SdkType>,
+    /// Device details for collecting Device information
+    pub device_details: Option<DeviceDetails>,
+}
+
+/// Device details for collecting Device information
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub struct DeviceDetails {
+    /// Device type
+    pub device_type: Option<String>,
+    /// Device brand
+    pub device_brand: Option<String>,
+    /// Device OS
+    pub device_os: Option<String>,
+    /// Device display
+    pub device_display: Option<String>,
 }
 
 /// Enum representing the type of 3DS SDK.
@@ -10971,6 +11026,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub three_ds_requestor_url: String,
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
     pub three_ds_requestor_app_url: Option<String>,
+    /// Error message if any
+    pub error_message: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

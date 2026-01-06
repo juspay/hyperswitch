@@ -1722,6 +1722,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -2001,6 +2002,7 @@ fn validate_liability_response(
             code: NO_ERROR_CODE.to_string(),
             message: NO_ERROR_MESSAGE.to_string(),
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             reason: Some(reason),
             status_code: 400, // Will be overridden by caller
             network_advice_code: None,

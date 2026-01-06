@@ -9103,6 +9103,7 @@
           "payu",
           "peachpayments",
           "payjustnow",
+          "payjustnowinstore",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -11062,6 +11063,32 @@
           "APP",
           "BRW"
         ]
+      },
+      "DeviceDetails": {
+        "type": "object",
+        "description": "Device details for collecting Device information",
+        "properties": {
+          "device_type": {
+            "type": "string",
+            "description": "Device type",
+            "nullable": true
+          },
+          "device_brand": {
+            "type": "string",
+            "description": "Device brand",
+            "nullable": true
+          },
+          "device_os": {
+            "type": "string",
+            "description": "Device OS",
+            "nullable": true
+          },
+          "device_display": {
+            "type": "string",
+            "description": "Device display",
+            "nullable": true
+          }
+        }
       },
       "DisplayAmountOnSdk": {
         "type": "object",
@@ -13888,6 +13915,14 @@
             "nullable": true
           }
         }
+      },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
       },
       "IntentStatus": {
         "type": "string",
@@ -20730,6 +20765,11 @@
             "type": "string",
             "description": "Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred",
             "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any",
+            "nullable": true
           }
         }
       },
@@ -21436,6 +21476,7 @@
           "status",
           "amount",
           "customer_id",
+          "processor_merchant_id",
           "created",
           "modified_at"
         ],
@@ -21459,6 +21500,20 @@
             "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -25430,6 +25485,7 @@
           "payu",
           "peachpayments",
           "payjustnow",
+          "payjustnowinstore",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -25967,6 +26023,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SdkType"
+              }
+            ],
+            "nullable": true
+          },
+          "device_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeviceDetails"
               }
             ],
             "nullable": true
@@ -27382,7 +27446,8 @@
         "type": "string",
         "enum": [
           "tokenization_id",
-          "payment_method_id"
+          "payment_method_id",
+          "volatile_payment_method_id"
         ]
       },
       "Tokenization": {

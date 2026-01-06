@@ -263,6 +263,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
                     reason: error_response.error_description,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

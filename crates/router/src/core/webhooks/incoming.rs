@@ -2167,12 +2167,13 @@ async fn external_authentication_incoming_webhook_flow(
     business_profile: domain::Profile,
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let key_manager_state = (&state).into();
     if source_verified {
         let authentication_details = connector
             .get_external_authentication_details(request_details)
             .switch()?;
         let trans_status = authentication_details.trans_status;
-        let authentication_update = storage::AuthenticationUpdate::PostAuthenticationUpdate {
+        let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
             authentication_status: common_enums::AuthenticationStatus::foreign_from(
                 trans_status.clone(),
             ),
@@ -2191,6 +2192,8 @@ async fn external_authentication_incoming_webhook_flow(
                         .find_authentication_by_merchant_id_authentication_id(
                             platform.get_processor().get_account().get_id(),
                             &authentication_id,
+                            platform.get_processor().get_key_store(),
+                            &key_manager_state,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2204,6 +2207,8 @@ async fn external_authentication_incoming_webhook_flow(
                         .find_authentication_by_merchant_id_connector_authentication_id(
                             platform.get_processor().get_account().get_id().clone(),
                             connector_authentication_id.clone(),
+                            platform.get_processor().get_key_store(),
+                            &key_manager_state,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -2221,6 +2226,8 @@ async fn external_authentication_incoming_webhook_flow(
             .update_authentication_by_merchant_id_authentication_id(
                 authentication,
                 authentication_update,
+                platform.get_processor().get_key_store(),
+                &key_manager_state,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
