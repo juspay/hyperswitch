@@ -3995,11 +3995,9 @@ pub async fn payment_methods_session_confirm(
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(
-            &parent_payment_method_token,
-        )
-        .insert(intent_fulfillment_time, token_data, &state)
-        .await?;
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+            .insert(intent_fulfillment_time, token_data, &state)
+            .await?;
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {

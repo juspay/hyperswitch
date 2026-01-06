@@ -1131,7 +1131,6 @@ pub struct ParentPaymentMethodToken {
 }
 
 impl ParentPaymentMethodToken {
-    
     #[cfg(feature = "v1")]
     pub fn create_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
