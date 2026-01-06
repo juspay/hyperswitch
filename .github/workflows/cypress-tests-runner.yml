@@ -348,7 +348,7 @@ jobs:
               },
               {
                 "name": "batch-2",
-                "connectors": ${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2},
+                "connectors": '${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}',
                 "parallel": 3,
                 "report_artifact_name": "cypress-test-results-batch-2"
               },
