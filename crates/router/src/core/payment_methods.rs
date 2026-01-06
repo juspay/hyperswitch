@@ -2389,8 +2389,7 @@ pub async fn get_external_vault_token(
 ) -> CustomResult<domain::ExternalVaultPaymentMethodData, errors::ApiErrorResponse> {
     let db = &*state.store;
 
-    let pm_token_data =
-        utils::retrieve_payment_token_data(state, payment_token).await?;
+    let pm_token_data = utils::retrieve_payment_token_data(state, payment_token).await?;
 
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
@@ -3826,11 +3825,8 @@ pub async fn payment_methods_session_retrieve(
         });
 
     let expiry = associated_pm_token
-        .async_map(| token_string| {
-            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(
-                &state,
-                token_string,
-            )
+        .async_map(|token_string| {
+            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(&state, token_string)
         })
         .await
         .transpose()
@@ -3888,12 +3884,10 @@ pub async fn payment_methods_session_update_payment_method(
             message: "No associated payment method found in the session".to_string(),
         })?;
 
-    let payment_method_token_data = utils::retrieve_payment_token_data(
-        &state,
-        request.payment_method_token.clone(),
-    )
-    .await
-    .attach_printable("Failed to retrieve payment method token data")?;
+    let payment_method_token_data =
+        utils::retrieve_payment_token_data(&state, request.payment_method_token.clone())
+            .await
+            .attach_printable("Failed to retrieve payment method token data")?;
 
     let payment_method_id = match payment_method_token_data {
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
@@ -3916,7 +3910,7 @@ pub async fn payment_methods_session_update_payment_method(
     .await
     .attach_printable("Failed to update saved payment method")?;
 
-     // Update payment method session with associated payment methods
+    // Update payment method session with associated payment methods
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
         associated_payment_methods: Some(vec![associated_pm_token_details.clone()])
     };
@@ -4171,7 +4165,7 @@ pub async fn payment_methods_session_confirm(
     };
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),    
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
