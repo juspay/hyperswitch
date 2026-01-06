@@ -3885,9 +3885,7 @@ pub async fn payment_methods_session_update_payment_method(
     .await
     .attach_printable("Failed to update saved payment method")?;
 
-    let mut card_cvc_token = None;
-
-    if let Some(api::PaymentMethodUpdateData::Card(ref card_data)) =
+    let card_cvc_token = if let Some(api::PaymentMethodUpdateData::Card(ref card_data)) =
         request.payment_method_update_request.payment_method_data
     {
         let token = if let Some(cvc) = card_data.card_cvc.clone() {
@@ -3907,9 +3905,10 @@ pub async fn payment_methods_session_update_payment_method(
         } else {
             None
         };
-
-        card_cvc_token = token;
-    }
+        token
+    } else {
+        None
+    };
 
     let response = transformers::generate_payment_method_session_response(
         payment_method_session,
