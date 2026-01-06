@@ -22,8 +22,10 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> =
-        QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent);
+    let mut query_builder: QueryBuilder<T> = match query_param.payment_id.as_ref() {
+        Some(_) => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent),
+        None => QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEventPayout),
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder

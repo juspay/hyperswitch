@@ -150,10 +150,13 @@ impl AnalyticsDataSource for ClickhouseClient {
             AnalyticsCollection::SdkEvents
             | AnalyticsCollection::SdkEventsAnalytics
             | AnalyticsCollection::ApiEvents
+            | AnalyticsCollection::ApiEventsPayout
             | AnalyticsCollection::ConnectorEvents
+            | AnalyticsCollection::ConnectorEventsPayout
             | AnalyticsCollection::RoutingEvents
             | AnalyticsCollection::ApiEventsAnalytics
             | AnalyticsCollection::OutgoingWebhookEvent
+            | AnalyticsCollection::OutgoingWebhookEventPayout
             | AnalyticsCollection::ActivePaymentsAnalytics => TableEngine::BasicTree,
         }
     }
@@ -475,11 +478,16 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::SdkEvents => Ok("sdk_events_audit".to_string()),
             Self::SdkEventsAnalytics => Ok("sdk_events".to_string()),
             Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::ApiEventsPayout => Ok("api_events_payout_audit".to_string()),
             Self::ApiEventsAnalytics => Ok("api_events".to_string()),
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::PaymentIntentSessionized => Ok("sessionizer_payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
+            Self::ConnectorEventsPayout => Ok("connector_events_payout_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
+            Self::OutgoingWebhookEventPayout => {
+                Ok("outgoing_webhook_events_payout_audit".to_string())
+            }
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
