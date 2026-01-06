@@ -345,7 +345,7 @@ jobs:
                 "connectors": "braintree redsys nmi",
                 "parallel": 3,
                 "report_artifact_name": "cypress-test-results-batch-1"
-              }
+              },
               {
                 "name": "batch-2",
                 "connectors": ${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2},
