@@ -192,21 +192,23 @@ run_tests() {
   if [[ -s "$results_log" ]]; then
 
     print_color green "\n========================================"
-    print_color green "🟢 SUCCESSFUL CONNECTORS"
+    print_color green " SUCCESSFUL CONNECTORS"
     print_color green "========================================"
     awk -F: '$3=="PASS" {
       printf "  • %-30s | %5ss\n", $1 ":" $2, $4
     }' "$results_log"
+    print_color green "\n========================================"
 
     print_color red "\n========================================"
-    print_color red "🔴 FAILED CONNECTORS"
+    print_color red " FAILED CONNECTORS"
     print_color red "========================================"
     awk -F: '$3=="FAIL" {
       printf "  • %-30s | %5ss\n", $1 ":" $2, $4
     }' "$results_log"
+    print_color red "\n========================================"
 
     print_color blue "\n========================================"
-    print_color blue "📊 EXECUTION STATS"
+    print_color blue " EXECUTION STATS"
     print_color blue "========================================"
     awk -F: '
     {
