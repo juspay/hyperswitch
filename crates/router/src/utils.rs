@@ -672,6 +672,7 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1394,6 +1395,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     let cloned_state = state.clone();

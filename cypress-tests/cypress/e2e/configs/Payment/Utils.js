@@ -20,6 +20,7 @@ import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
+import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
@@ -87,6 +88,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
+  cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
