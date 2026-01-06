@@ -101,5 +101,3 @@ describe("Payment Webhook Tests — Split Steps", () => {
     cy.retrievePaymentCallTest(globalState);
   });
 });
-
-

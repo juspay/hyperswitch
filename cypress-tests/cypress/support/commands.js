@@ -2056,7 +2056,10 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
-          globalState.set("connectorTransactionID", response.body.connector_transaction_id);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
           globalState.set("paymentIntentStatus", response.body.status);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
@@ -2869,7 +2872,7 @@ Cypress.Commands.add(
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
-          let intentStatus = globalState.get("paymentIntentStatus");
+          const intentStatus = globalState.get("paymentIntentStatus");
 
           if (intentStatus !== undefined && intentStatus !== null) {
             expect(
@@ -5172,19 +5175,20 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
   return cy
     .fixture(fixturePath)
     .then((payload) => {
-      const connector_transaction_id_type = payload._meta?.connector_transaction_id_type || "string";
+      const connector_transaction_id_type =
+        payload._meta?.connector_transaction_id_type || "string";
 
       let payloadStr = JSON.stringify(payload);
 
       const rawId = connectorTransactionId;
       const numericId = Number(rawId);
-      const isNumeric = !Number.isNaN(numericId) && connector_transaction_id_type == "number";
+      const isNumeric =
+        !Number.isNaN(numericId) && connector_transaction_id_type == "number";
 
-      payloadStr = payloadStr
-        .replace(
-          /"{{\s*connector_transaction_id\s*}}"/g,
-          isNumeric ? String(numericId) : JSON.stringify(String(rawId))
-        );
+      payloadStr = payloadStr.replace(
+        /"{{\s*connector_transaction_id\s*}}"/g,
+        isNumeric ? String(numericId) : JSON.stringify(String(rawId))
+      );
 
       const webhookPayload = JSON.parse(payloadStr);
 
@@ -5213,7 +5217,6 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
 
         if (response.status === expectedStatus) {
           expect(response.status).to.equal(expectedStatus);
-
         } else {
           // Delegate to your shared error handler
           defaultErrorHandler(response, resData);
