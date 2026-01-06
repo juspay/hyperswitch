@@ -22,6 +22,7 @@ function normalize(input) {
     paypal: "Paypal",
     stax: "Stax",
     wellsfargo: "Wellsfargo",
+    nmi: "Nmi",
     // Add more known exceptions here
   };
 
