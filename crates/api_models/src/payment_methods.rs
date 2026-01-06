@@ -3583,6 +3583,7 @@ pub enum NetworkTokenStatusCheckResponse {
     FailureResponse(NetworkTokenStatusCheckFailureResponse),
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodGetTokenDetailsResponse {
     /// The payment method ID associated with the token

@@ -16,7 +16,6 @@ use hyperswitch_domain_models::{
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
-use storage_impl::StorageError;
 
 use super::app::{AppState, SessionState};
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
@@ -34,7 +33,7 @@ use crate::{
     types::{
         api::payment_methods::{self, PaymentMethodId},
         domain,
-        storage::{self, payment_method::PaymentTokenData},
+        storage::{payment_method::PaymentTokenData},
     },
 };
 

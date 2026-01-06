@@ -4632,14 +4632,14 @@ pub async fn payment_method_get_token(
 
     match token_data {
         Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-            return Ok(services::ApplicationResponse::Json(
+            Ok(services::ApplicationResponse::Json(
                 payment_methods::PaymentMethodGetTokenDetailsResponse {
                     id: card_token_data.payment_method_id,
                     token: temporary_token,
                 },
             ))
         }
-        Ok(_) => return Err(errors::ApiErrorResponse::PaymentMethodNotFound.into()),
-        Err(e) => return Err(e),
-    };
+        Ok(_) => Err(errors::ApiErrorResponse::PaymentMethodNotFound.into()),
+        Err(e) => Err(e),
+    }
 }
