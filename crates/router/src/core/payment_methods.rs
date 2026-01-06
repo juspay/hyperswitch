@@ -1872,8 +1872,6 @@ pub async fn list_payment_methods_for_session(
         .map(|cpm| {
             common_types::payment_methods::AssociatedPaymentMethods {
                 payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_token.clone()),
-                payment_method_type: cpm.payment_method_type,
-                payment_method_subtype: Some(cpm.payment_method_subtype),
             }
         })
         .collect();
@@ -2392,7 +2390,7 @@ pub async fn get_external_vault_token(
     let db = &*state.store;
 
     let pm_token_data =
-        utils::retrieve_payment_token_data(state, payment_token, Some(payment_method_type)).await?;
+        utils::retrieve_payment_token_data(state, payment_token).await?;
 
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
@@ -3818,21 +3816,20 @@ pub async fn payment_methods_session_retrieve(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let associated_pm_token_details = payment_method_session_domain_model
+    let associated_pm_token = payment_method_session_domain_model
         .associated_payment_methods
         .as_ref()
         .and_then(|payment_methods| {
             payment_methods.iter().map(|pm| match &pm.payment_method_token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => (pm, token.clone()),
+                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token.clone(),
             }).next()
         });
 
-    let expiry = associated_pm_token_details
-        .async_map(|(pm_token, token_string)| {
+    let expiry = associated_pm_token
+        .async_map(| token_string| {
             vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(
                 &state,
                 token_string,
-                pm_token.payment_method_type,
             )
         })
         .await
@@ -3894,7 +3891,6 @@ pub async fn payment_methods_session_update_payment_method(
     let payment_method_token_data = utils::retrieve_payment_token_data(
         &state,
         request.payment_method_token.clone(),
-        Some(&associated_pm_token_details.payment_method_type),
     )
     .await
     .attach_printable("Failed to retrieve payment method token data")?;
@@ -3920,6 +3916,24 @@ pub async fn payment_methods_session_update_payment_method(
     .await
     .attach_printable("Failed to update saved payment method")?;
 
+     // Update payment method session with associated payment methods
+    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods: Some(vec![associated_pm_token_details.clone()])
+    };
+
+    let updated_payment_method_session = db
+        .update_payment_method_session(
+            platform.get_provider().get_key_store(),
+            &payment_method_session_id,
+            update_payment_method_session,
+            payment_method_session,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update payment method session with associated payment methods",
+        )?;
+
     let card_cvc_token = if let Some(api::PaymentMethodUpdateData::Card(ref card_data)) =
         request.payment_method_update_request.payment_method_data
     {
@@ -3929,7 +3943,6 @@ pub async fn payment_methods_session_update_payment_method(
                     &state,
                     &request.payment_method_token,
                     cvc,
-                    associated_pm_token_details.payment_method_type,
                     common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
                     platform.get_provider().get_key_store(),
                 )
@@ -3946,7 +3959,7 @@ pub async fn payment_methods_session_update_payment_method(
     };
 
     let response = transformers::generate_payment_method_session_response(
-        payment_method_session,
+        updated_payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // TODO: send associated payments response based on the expandable param
         None,
@@ -4143,7 +4156,6 @@ pub async fn payment_methods_session_confirm(
                 &state,
                 &parent_payment_method_token,
                 cvc,
-                request.payment_method_type,
                 intent_fulfillment_time,
                 platform.get_provider().get_key_store(),
             )
@@ -4159,9 +4171,7 @@ pub async fn payment_methods_session_confirm(
     };
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
-        payment_method_type: request.payment_method_type,
-        payment_method_subtype: Some(request.payment_method_subtype),
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),    
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {

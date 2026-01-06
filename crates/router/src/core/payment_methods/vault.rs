@@ -1720,12 +1720,8 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     payment_token: &String,
     payment_method_type: &common_enums::PaymentMethod,
 ) -> RouterResult<(domain::PaymentMethod, domain::PaymentMethodVaultingData)> {
-    let pm_token_data = utils::retrieve_payment_token_data(
-        state,
-        payment_token.to_string(),
-        Some(payment_method_type),
-    )
-    .await?;
+    let pm_token_data =
+        utils::retrieve_payment_token_data(state, payment_token.to_string()).await?;
 
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
@@ -1779,7 +1775,6 @@ pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
     payment_method_token: &String,
     card_cvc: masking::Secret<String>,
-    payment_method: common_enums::PaymentMethod,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
@@ -1789,7 +1784,7 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_token}_hyperswitch_cvc");
+    let key = format!("pm_token_{payment_method_token}_hyperswitch_cvc");
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -1875,7 +1870,6 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
 pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_token(
     state: &routes::SessionState,
     payment_method_token: String,
-    payment_method: common_enums::PaymentMethod,
 ) -> RouterResult<i64> {
     let redis_conn = state
         .store
@@ -1883,7 +1877,7 @@ pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_method_token}_{payment_method}_hyperswitch_cvc",);
+    let key = format!("pm_token_{payment_method_token}_hyperswitch_cvc",);
 
     // check if key exists and get ttl
     redis_conn

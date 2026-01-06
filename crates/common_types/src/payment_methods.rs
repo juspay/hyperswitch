@@ -280,8 +280,4 @@ pub enum AssociatedPaymentMethodTokenType {
 pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
-    /// payment method type for associated payment method
-    pub payment_method_type: common_enums::PaymentMethod,
-    /// payment method subtype for associated payment method
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
 }
