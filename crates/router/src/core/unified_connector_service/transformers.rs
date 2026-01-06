@@ -168,16 +168,15 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_type
-            .map(|payment_method_type| {
-                unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
-                    Some(payment_method_type),
-                )
-            })
-            .transpose()?;
+        // Always build payment_method using payment_method_data (which is non-optional).
+        // payment_method_type is passed as optional, but payment_method must always be present
+        // for UCS to process the tokenization request.
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
 
         // TODO: Fix the type of address field in UCS request and pass address
         // let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
