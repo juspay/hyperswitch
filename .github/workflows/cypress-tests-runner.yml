@@ -336,8 +336,9 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          cat <<EOF >> "$GITHUB_OUTPUT"
-          matrix={
+          cat <<'EOF' >> "$GITHUB_OUTPUT"
+          matrix<<JSON
+          {
             "batch": [
               {
                 "name": "batch-1",
@@ -389,7 +390,9 @@ jobs:
               }
             ]
           }
+          JSON
           EOF
+
 
 
   runner-optional-connectors:
