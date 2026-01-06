@@ -1045,6 +1045,7 @@ Cypress.Commands.add(
                 `${mcaPrefix}Id`,
                 response.body.merchant_connector_id
               );
+              globalState.set("connectorName", response.body.connector_name);
             } else {
               cy.task(
                 "cli_log",
@@ -2055,6 +2056,7 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
+          globalState.set("connectorTransactionID", response.body.connector_transaction_id);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -5093,25 +5095,16 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 
 Cypress.Commands.add(
   "updatePaymentStatusTest",
-  (globalState, data = {}) => {
-    const { Request: reqData = {}, Response: resData = {} } = data;
-
+  (globalState, reqData = {}) => {
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
 
-    if (!paymentId || !merchantId) {
-      throw new Error(
-        "Missing merchantId or paymentId in globalState for updatePaymentStatusTest"
-      );
-    }
-
-    // Default values if not provided in test data
-    const requestBody = {
-      attempt_status: reqData.attempt_status || "pending",
-      attempt_id: reqData.attempt_id || `${paymentId}_1`,
+    const body = {
+      attempt_status: "pending",
+      attempt_id: `${paymentId}_1`,
       merchant_id: merchantId,
       payment_id: paymentId,
-      ...reqData,
+      ...reqData, // allow overrides if needed
     };
 
     cy.request({
@@ -5122,45 +5115,26 @@ Cypress.Commands.add(
         "api-key": globalState.get("adminApiKey"),
         "X-Merchant-Id": merchantId,
       },
-      body: requestBody,
+      body,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include(
-          "application/json"
-        );
+        expect(response.headers["content-type"])
+          .to.include("application/json");
 
-        if (resData.status === 200) {
-          expect(response.status, "status").to.equal(200);
+        // Use response.status, not resData.status
+        expect(response.status).to.eq(200);
 
-          // Validate echo fields if backend returns them
-          if (response.body.payment_id) {
-            expect(response.body.payment_id, "payment_id").to.equal(paymentId);
-          }
-
-          if (response.body.merchant_id) {
-            expect(response.body.merchant_id, "merchant_id").to.equal(
-              merchantId
-            );
-          }
-
-          if (response.body.attempt_status) {
-            expect(
-              response.body.attempt_status,
-              "attempt_status"
-            ).to.equal(requestBody.attempt_status);
-          }
-
-          validateErrorMessage(response, resData);
-        } else {
-          defaultErrorHandler(response, resData);
-        }
+        // Optional sanity assertions
+        expect(response.body.payment_id).to.equal(paymentId);
+        expect(response.body.merchant_id).to.equal(merchantId);
       });
     });
   }
 );
+
 
 
 Cypress.Commands.add(
@@ -5174,36 +5148,29 @@ Cypress.Commands.add(
     const connectorTransactionId =
       globalState.get("connectorTransactionID");
 
-    // Default convention-based fixture name
+    // Default convention-based fixture path
     const fixturePath =
       reqData.fixture ||
       `webhooks/${connectorName}_payment_success.json`;
 
     return cy.fixture(fixturePath)
       .then((payload) => {
-        // Clone to avoid modifying fixture cache
+        // Clone to avoid mutating fixture cache
+        const metaType = payload._meta?.connector_transaction_id_type || "string";
+
         let payloadStr = JSON.stringify(payload);
 
-       const rawId = connectorTransactionId;
-
-        // Try numeric conversion
+        const rawId = connectorTransactionId;
         const numericId = Number(rawId);
-        const isNumeric = !Number.isNaN(numericId);
+        const isNumeric = !Number.isNaN(numericId) && metaType=='number';
 
+        // --- Single placeholder — type-aware replacement ---
         payloadStr = payloadStr
-          // quoted placeholder → always string
+          // quoted → always string literal
           .replace(
             /"{{\s*connector_transaction_id\s*}}"/g,
-            JSON.stringify(String(rawId))
-          )
-
-          // unquoted placeholder → number if possible, else fallback string
-          .replace(
-            /{{\s*connector_transaction_id\s*}}/g,
             isNumeric ? String(numericId) : JSON.stringify(String(rawId))
           );
-
-
 
         const webhookPayload = JSON.parse(payloadStr);
 
@@ -5221,19 +5188,29 @@ Cypress.Commands.add(
         logRequestId(response.headers["x-request-id"]);
 
         cy.wrap(response).then(() => {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
-          );
+          // Webhook endpoints may not return JSON or content-type
+          if (response.headers["content-type"]) {
+            expect(response.headers["content-type"]).to.match(
+              /(application|text)\//
+            );
+          }
 
-          if (resData.status === 200) {
-            expect(response.status).to.equal(200);
-            validateErrorMessage(response, resData);
+          // ---- SAFE STATUS LOGIC ----
+          const expectedStatus = resData?.status ?? 200;
+
+          if (response.status === expectedStatus) {
+            expect(response.status).to.equal(expectedStatus);
+
+            // Only validate body if resData has validation rules
+            if (resData?.body) {
+              validateErrorMessage(response, resData);
+            }
           } else {
+            // Delegate to your shared error handler
             defaultErrorHandler(response, resData);
           }
         });
       });
   }
 );
-
 

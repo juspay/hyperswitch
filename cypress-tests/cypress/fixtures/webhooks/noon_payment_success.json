@@ -1,0 +1,15 @@
+  {
+    "_meta": {
+        "connector_transaction_id_type": "number"
+    },
+    "orderId": "{{connector_transaction_id}}",
+    "orderStatus": "AUTHORIZED",
+    "eventType": "Fail",
+    "eventId": "89d5cdd4-6f12-4ca4-b0ea-a3a14fbf49b2",
+    "timeStamp": "2025-09-08T10:30:18.8451Z",
+    "merchantOrderRef": "TR1234567890",
+    "txnAmount": 400,
+    "txnId": "473703108481",
+    "txnRef": "91757884853710001",
+    "merchantTxnRef": "auth-123"
+  }

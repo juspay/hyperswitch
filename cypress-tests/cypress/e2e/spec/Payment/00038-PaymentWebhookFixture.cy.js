@@ -1,7 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import * as utils from "../../configs/Routing/Utils";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 describe("Payment Webhook Tests — Split Steps", () => {
 
@@ -11,6 +11,10 @@ describe("Payment Webhook Tests — Split Steps", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
   });
 
   it("merchant-create-call-test", () => {  
@@ -34,34 +38,33 @@ describe("Payment Webhook Tests — Split Steps", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
   });
 
-  it("create-payment-intent", () => {
-    const connectorID = globalState.get("connectorId");
-    const data =
-      utils.getConnectorDetails(connectorID)["card_pm"]["PaymentIntent"];
-
-    return cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
-    );
-  });
+ it("create-payment-call-test", () => {
+     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+       "PaymentIntent"
+     ];
+ 
+     cy.createPaymentIntentTest(
+       fixtures.createPaymentBody,
+       data,
+       "no_three_ds",
+       "automatic",
+       globalState
+     );
+ 
+   });
 
   it("payment_methods-call-test", () => {
       cy.paymentMethodsCallTest(globalState);
   });
 
-  it("confirm-payment", () => {
-    const connectorID = globalState.get("connectorId");
-    const data = utils.getConnectorDetails(connectorID)["card_pm"]["No3DSAutoCapture"];
-
-    return cy.confirmCallTest(
-      fixtures.confirmBody,
-      data,
-      true,
-      globalState
-    );
+  it("Confirm No 3DS", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+  
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+  
+      
   });
 
 
