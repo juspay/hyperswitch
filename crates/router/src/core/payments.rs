@@ -10373,6 +10373,18 @@ where
         routing_approach: None,
     };
 
+    let routing_algorithm_id: Option<id_type::RoutingId> = {
+        let routing_algorithm = business_profile.routing_algorithm.clone();
+
+        let algorithm_ref = routing_algorithm
+            .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .unwrap_or_default();
+
+        algorithm_ref.algorithm_id
+    };
+
     let static_stage = routing::StaticRoutingStage;
 
     routing_outcome = static_stage
@@ -10380,6 +10392,7 @@ where
             state,
             platform,
             business_profile,
+            routing_algorithm_id.as_ref(),
             eligible_connectors.as_ref(),
             &transaction_data,
             routing_outcome,
@@ -10400,6 +10413,7 @@ where
                     state,
                     platform,
                     business_profile,
+                    routing_algorithm_id.as_ref(),
                     eligible_connectors.as_ref(),
                     &transaction_data,
                     routing_outcome,

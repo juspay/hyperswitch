@@ -498,11 +498,13 @@ pub fn make_dsl_input(
 
 #[async_trait]
 pub trait RoutingStage: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     async fn apply(
         &self,
         state: &SessionState,
         platform: &domain::Platform,
         business_profile: &domain::Profile,
+        routing_algorithm_id: Option<&common_utils::id_type::RoutingId>,
         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
         transaction_data: &routing::PaymentsDslInput<'_>,
         input: RoutingOutcome,
@@ -524,29 +526,15 @@ impl RoutingStage for StaticRoutingStage {
         state: &SessionState,
         platform: &domain::Platform,
         business_profile: &domain::Profile,
+        routing_algorithm_id: Option<&common_utils::id_type::RoutingId>,
         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
         transaction_data: &routing::PaymentsDslInput<'_>,
         _input: RoutingOutcome,
     ) -> RoutingResult<RoutingOutcome> {
-        let routing_algorithm_id = {
-            let routing_algorithm = business_profile.routing_algorithm.clone();
-
-            let algorithm_ref = routing_algorithm
-                .map(|ra| {
-                    ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
-                })
-                .transpose()
-                .change_context(errors::RoutingError::InvalidRoutingAlgorithmStructure)
-                .attach_printable("Could not decode merchant routing algorithm ref")?
-                .unwrap_or_default();
-
-            algorithm_ref.algorithm_id
-        };
-
         let (connectors, routing_approach) = perform_static_routing_v1(
             state,
             platform.get_processor().get_account().get_id(),
-            routing_algorithm_id.as_ref(),
+            routing_algorithm_id,
             business_profile,
             &routing::TransactionData::Payment(transaction_data.clone()),
         )
@@ -583,6 +571,7 @@ impl RoutingStage for DynamicRoutingStage {
         state: &SessionState,
         _platform: &domain::Platform,
         business_profile: &domain::Profile,
+        _routing_algorithm_id: Option<&common_utils::id_type::RoutingId>,
         _eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
         transaction_data: &routing::PaymentsDslInput<'_>,
         mut input: RoutingOutcome,
