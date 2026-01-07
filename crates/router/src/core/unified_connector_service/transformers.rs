@@ -946,7 +946,7 @@ impl
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_metadata: None,
-            connector_order_reference_id: None,
+            connector_order_reference_id: router_data.request.connector_transaction_id.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             threeds_method_comp_ind: router_data
                 .request
