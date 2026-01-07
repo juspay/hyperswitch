@@ -127,6 +127,7 @@ impl ConnectorCommon for Worldpaymodular {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -455,7 +456,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_request_body(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
         let connector_router_data = WorldpaymodularRouterData::try_from((
             &self.get_currency_unit(),
@@ -465,11 +466,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         ))?;
         let auth = WorldpaymodularAuthType::try_from(&req.connector_auth_type)
             .change_context(ConnectorError::FailedToObtainAuthType)?;
-        let connector_req = WorldpaymodularPaymentsRequest::try_from((
-            &connector_router_data,
-            &auth.entity_id,
-            self.base_url(connectors),
-        ))?;
+        let connector_req =
+            WorldpaymodularPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

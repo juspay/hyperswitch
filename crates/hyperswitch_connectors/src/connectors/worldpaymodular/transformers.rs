@@ -63,7 +63,6 @@ fn fetch_payment_instrument(
     payment_method: PaymentMethodData,
     billing_address: Option<&Address>,
     connector_mandate_id: Option<MandateIds>,
-    base_url: &str,
 ) -> CustomResult<PaymentInstrument, ConnectorError> {
     let billing_address =
         if let Some(address) = billing_address.and_then(|addr| addr.address.clone()) {
@@ -105,7 +104,7 @@ fn fetch_payment_instrument(
                 .ok_or(ConnectorError::MissingConnectorMandateID)?;
             Ok(PaymentInstrument::CardToken(CardToken {
                 payment_type: PaymentType::CardToken,
-                href: format!("{base_url}tokens/{mandate_id}").into(),
+                href: mandate_id.into(),
             }))
         }
         PaymentMethodData::Wallet(WalletData::GooglePay(data)) => {
@@ -143,7 +142,6 @@ impl
             &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         >,
         &Secret<String>,
-        &str,
     )> for WorldpaymodularPaymentsRequest
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -154,10 +152,9 @@ impl
                 &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
             >,
             &Secret<String>,
-            &str,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, entity_id, base_url) = req;
+        let (item, entity_id) = req;
         let worldpay_connector_metadata_object: WorldpaymodularConnectorMetadataObject =
             WorldpaymodularConnectorMetadataObject::try_from(
                 item.router_data.connector_meta_data.as_ref(),
@@ -204,7 +201,6 @@ impl
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
                     item.router_data.request.mandate_id.clone(),
-                    base_url,
                 )?,
                 debt_repayment: None,
                 customer_agreement,

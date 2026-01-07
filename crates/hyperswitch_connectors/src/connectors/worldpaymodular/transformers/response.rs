@@ -182,15 +182,12 @@ impl PaymentLinks {
             .and_then(|event| event.get_response_id_str())
     }
     pub fn get_mandate_id(&self) -> Option<MandateReference> {
-        self.token
-            .clone()
-            .and_then(|pm| pm.get_event_data())
-            .map(|mandate_id| MandateReference {
-                connector_mandate_id: Some(mandate_id),
-                payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
-            })
+        self.token.clone().map(|mandate_id| MandateReference {
+            connector_mandate_id: Some(mandate_id.href.expose()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        })
     }
 }
 
