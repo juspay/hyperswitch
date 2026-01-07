@@ -2037,7 +2037,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Recurly,
     connectors::Riskified,
     connectors::Santander,
-    connectors::Shift4,
     connectors::Sift,
     connectors::Signifyd,
     connectors::Silverflow,
