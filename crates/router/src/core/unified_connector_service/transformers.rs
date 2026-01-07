@@ -56,7 +56,7 @@ use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
-        transformers::{self, ForeignFrom},
+        transformers::{self, ForeignFrom, ForeignInto},
     },
 };
 
@@ -810,6 +810,15 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
+
+        // Convert ucs_authentication_data from PreAuthenticate response to gRPC format
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(|ucs_auth_data| payments_grpc::AuthenticationData::foreign_try_from(ucs_auth_data))
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -831,8 +840,8 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
-            authentication_data: None,
             metadata: None,
+            authentication_data,
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -904,6 +913,13 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(|ucs_auth_data| payments_grpc::AuthenticationData::foreign_try_from(ucs_auth_data))
+            .transpose()?;
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -925,8 +941,8 @@ impl
                 .map(|e| e.expose().expose().into()),
             customer_name: None,
             address: Some(address),
-            authentication_data: None,
             metadata: None,
+            authentication_data,
             return_url: None,
             continue_redirection_url: None,
             state: None,

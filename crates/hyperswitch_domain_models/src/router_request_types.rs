@@ -14,7 +14,7 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
@@ -1231,7 +1231,7 @@ impl
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
