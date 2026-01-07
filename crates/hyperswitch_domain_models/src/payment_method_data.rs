@@ -2126,19 +2126,32 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             }
             api_models::payments::BankTransferData::Pix {
                 pix_key,
-                cpf,
-                cnpj,
+                document_details,
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            } => Self::Pix {
-                pix_key,
-                cpf,
-                cnpj,
-                source_bank_account_id,
-                destination_bank_account_id,
-                expiry_date,
-            },
+            } => {
+                let (cpf, cnpj) = match document_details {
+                    Some(details) => match details.document_type {
+                        common_enums::enums::DocumentKind::Cpf => {
+                            (Some(details.document_number), None)
+                        }
+                        common_enums::enums::DocumentKind::Cnpj => {
+                            (None, Some(details.document_number))
+                        }
+                    },
+                    None => (None, None),
+                };
+
+                Self::Pix {
+                    pix_key,
+                    cpf,
+                    cnpj,
+                    source_bank_account_id,
+                    destination_bank_account_id,
+                    expiry_date,
+                }
+            }
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }

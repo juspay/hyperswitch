@@ -4765,14 +4765,10 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         #[smithy(value_type = "Option<String>")]
         pix_key: Option<Secret<String>>,
-        /// CPF is a Brazilian tax identification number
-        #[schema(value_type = Option<String>, example = "10599054689")]
-        #[smithy(value_type = "Option<String>")]
-        cpf: Option<Secret<String>>,
-        /// CNPJ is a Brazilian company tax identification number
-        #[schema(value_type = Option<String>, example = "74469027417312")]
-        #[smithy(value_type = "Option<String>")]
-        cnpj: Option<Secret<String>>,
+        /// Document details for pix transfer
+        #[schema(value_type = Option<DocumentType>, )]
+        #[smithy(value_type = "Option<DocumentType>")]
+        document_details: Option<DocumentDetails>,
         /// Source bank account number
         #[schema(value_type = Option<String>, example = "8b******-****-****-****-*******08bc5")]
         #[smithy(value_type = "Option<String>")]
@@ -4806,6 +4802,18 @@ pub enum BankTransferData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DocumentDetails {
+    /// Specifies the type of document - Cpf or Cnpj
+    pub document_type: enums::DocumentKind,
+    /// Cpf or Cnpj number
+    pub document_number: Secret<String>,
 }
 
 #[derive(

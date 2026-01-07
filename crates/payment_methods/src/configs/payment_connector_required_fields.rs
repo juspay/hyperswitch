@@ -181,6 +181,8 @@ enum RequiredField {
     CryptoNetwork,
     CyptoPayCurrency(Vec<&'static str>),
     DocumentType(Vec<&'static str>),
+    PixDocumentType(Vec<&'static str>),
+    PixDocumentNumber,
     BoletoSocialSecurityNumber,
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
@@ -686,11 +688,35 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::PixDocumentNumber => (
+                "payment_method_data.bank_transfer.pix.document_details.document_number"
+                    .to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix.document_details.document_number"
+                            .to_string(),
+                    display_name: "document_number".to_string(),
+                    field_type: FieldType::UserSocialSecurityNumber,
+                    value: None,
+                },
+            ),
             Self::DocumentType(document_type) => (
                 "payment_method_data.voucher.boleto.document_type".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.voucher.boleto.document_type"
-                        .to_string(),
+                    required_field: "payment_method_data.voucher.boleto.document_type".to_string(),
+                    display_name: "document_type".to_string(),
+                    field_type: FieldType::UserDocumentType {
+                        options: document_type.iter().map(|d| d.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
+            Self::PixDocumentType(document_type) => (
+                "payment_method_data.bank_transfer.pix.document_details.document_type".to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix.document_details.document_type"
+                            .to_string(),
                     display_name: "document_type".to_string(),
                     field_type: FieldType::UserDocumentType {
                         options: document_type.iter().map(|d| d.to_string()).collect(),
@@ -3680,8 +3706,8 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
-                            RequiredField::PixCpf.to_tuple(),
-                            RequiredField::PixCnpj.to_tuple(),
+                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
+                            RequiredField::PixDocumentNumber.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
                             RequiredField::BillingAddressCity.to_tuple(),
