@@ -403,6 +403,7 @@ where
                         reason: response.status_message,
                         status_code: item.http_code,
                         connector_transaction_id: Some(response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,

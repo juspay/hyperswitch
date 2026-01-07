@@ -12,7 +12,8 @@ pub struct PaymentMethodSession {
     pub return_url: Option<common_utils::types::Url>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_at: time::PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
     pub associated_token_id: Option<common_utils::id_type::GlobalTokenId>,
 }

@@ -96,7 +96,7 @@ pub struct ConnectorAuthentication {
     pub paybox: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payjustnow: Option<HeaderKey>,
-    pub payjustnowinstore: Option<HeaderKey>,
+    pub payjustnowinstore: Option<BodyKey>,
     pub payload: Option<CurrencyAuthKey>,
     pub payme: Option<BodyKey>,
     pub payone: Option<HeaderKey>,
