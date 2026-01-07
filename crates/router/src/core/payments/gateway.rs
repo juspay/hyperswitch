@@ -7,6 +7,7 @@ pub mod complete_authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
 pub mod create_order_gateway;
+pub mod mandate_revoke_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod post_authenticate_gateway;
 pub mod pre_authenticate_gateway;

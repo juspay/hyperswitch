@@ -1440,7 +1440,7 @@ pub struct VerifyWebhookSourceRequestData {
     pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MandateRevokeRequestData {
     pub mandate_id: String,
     pub connector_mandate_id: Option<String>,

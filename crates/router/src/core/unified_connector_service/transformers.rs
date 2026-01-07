@@ -22,6 +22,7 @@ use hyperswitch_domain_models::{
     mandates::MandateData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
+        mandate_revoke::MandateRevoke,
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
         unified_authentication_service as uas_flows, ExternalVaultProxy, Session,
@@ -31,7 +32,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData, SyncRequestType,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateRevokeResponseData, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
@@ -1967,6 +1970,75 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             metadata: HashMap::new(),
             connector_metadata: HashMap::new(),
         })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            MandateRevoke,
+            router_request_types::MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    > for payments_grpc::PaymentServiceRevokeMandateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            MandateRevoke,
+            router_request_types::MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            mandate_id: router_data.request.mandate_id.clone(),
+            connector_mandate_id: router_data.request.connector_mandate_id.clone(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRevokeMandateResponse>
+    for Result<MandateRevokeResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceRevokeMandateResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: Some(response.error_message().to_owned()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let mandate_status = match response.status {
+                1 => common_enums::MandateStatus::Active,
+                2 => common_enums::MandateStatus::Inactive,
+                3 => common_enums::MandateStatus::Pending,
+                4 => common_enums::MandateStatus::Revoked,
+                _ => common_enums::MandateStatus::Pending,
+            };
+
+            Ok(MandateRevokeResponseData { mandate_status })
+        };
+
+        Ok(response)
     }
 }
 

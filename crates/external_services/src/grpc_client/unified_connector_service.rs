@@ -731,6 +731,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Mandate Revoke Create
+    pub async fn mandate_revoke(
+        &self,
+        mandate_revoke_request: payments_grpc::PaymentServiceRevokeMandateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceRevokeMandateResponse>,
+    > {
+        let mut request = tonic::Request::new(mandate_revoke_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .mandate_revoke(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::MandateRevokeFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="mandate_revoke",
+                    connector_name=?connector_name,
+                    "UCS mandate_revoke gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Create Access Token Granular
     pub async fn create_access_token(
         &self,

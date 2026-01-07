@@ -153,6 +153,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Sdk Session Token from gRPC Server
     #[error("Failed to perform Sdk Session Token from gRPC Server")]
     SdkSessionTokenFailure,
+
+    /// Failed to perform Mandate Revoke from gRPC Server
+    #[error("Failed to perform Mandate Revoke from gRPC Server")]
+    MandateRevokeFailure,
 }
 
 /// UCS Webhook transformation status

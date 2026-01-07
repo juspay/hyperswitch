@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -1413,6 +1413,20 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
         connector_customer_id,
         connector_response,
     })
+}
+
+pub fn handle_unified_connector_service_response_for_mandate_revoke(
+    response: payments_grpc::PaymentServiceRevokeMandateResponse,
+) -> CustomResult<
+    (Result<MandateRevokeResponseData, ErrorResponse>, u16),
+    UnifiedConnectorServiceError,
+> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<MandateRevokeResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
 }
 
 /// Extracts connector_customer_id from UCS state

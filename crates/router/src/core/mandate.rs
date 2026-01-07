@@ -1,18 +1,22 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
+use common_enums::{ExecutionMode, ExecutionPath};
 use common_types::payments as common_payments_types;
 use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+use external_services::grpc_client::LineageIds;
 use futures::future;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, logger, tracing};
 
-use super::payments::helpers as payment_helper;
+use super::payments::{gateway::context::RouterGatewayContext, helpers as payment_helper};
 use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         payments::CallConnectorAction,
+        unified_connector_service,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
@@ -97,27 +101,56 @@ pub async fn revoke_mandate(
                 GetToken::Connector,
                 mandate.merchant_connector_id.clone(),
             )?;
-            let connector_integration: services::BoxedMandateRevokeConnectorIntegrationInterface<
-                types::api::MandateRevoke,
-                types::MandateRevokeRequestData,
-                types::MandateRevokeResponseData,
-            > = connector_data.connector.get_connector_integration();
-
             let router_data = utils::construct_mandate_revoke_router_data(
                 &state,
-                merchant_connector_account,
+                merchant_connector_account.clone(),
                 &platform,
                 mandate.clone(),
             )
             .await?;
 
-            let response = services::execute_connector_processing_step(
-                &state,
-                connector_integration,
+            // Use gateway pattern instead of direct connector call
+            let (execution_path, updated_state) =
+                unified_connector_service::should_call_unified_connector_service(
+                    &state,
+                    &platform,
+                    &router_data,
+                    None, // No previous gateway for mandate revoke
+                    CallConnectorAction::Trigger,
+                    None,
+                )
+                .await?;
+
+            let lineage_ids = LineageIds::new(
+                platform.get_processor().get_account().get_id().clone(),
+                profile_id.clone(),
+            );
+
+            let execution_mode = match execution_path {
+                ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+                ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+                ExecutionPath::Direct => ExecutionMode::NotApplicable,
+            };
+
+            let gateway_context = RouterGatewayContext {
+                creds_identifier: None, // No creds identifier for mandate revoke
+                platform: platform.clone(),
+                header_payload: HeaderPayload::default(),
+                lineage_ids,
+                merchant_connector_account: merchant_connector_account,
+                execution_path,
+                execution_mode,
+            };
+
+            // Execute through gateway
+            let response = hyperswitch_interfaces::api::gateway::execute_payment_gateway(
+                &updated_state,
+                connector_data.connector.get_connector_integration(),
                 &router_data,
                 CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
