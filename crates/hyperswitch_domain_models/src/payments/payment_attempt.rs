@@ -2164,9 +2164,7 @@ impl PaymentAttemptUpdate {
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
-                    unified_code
-                        .as_ref()
-                        .and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
@@ -2279,9 +2277,7 @@ impl PaymentAttemptUpdate {
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
-                    unified_code
-                        .as_ref()
-                        .and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
