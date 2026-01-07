@@ -127,7 +127,6 @@ impl ConnectorCommon for Worldpaymodular {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
