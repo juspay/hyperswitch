@@ -3960,7 +3960,7 @@ pub async fn payment_methods_session_delete_payment_method(
     profile: domain::Profile,
     pm_token: String,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
-) -> RouterResponse<api::PaymentMethodDeleteResponse> {
+) -> RouterResponse<()> {
     let db = state.store.as_ref();
 
     // Validate if the session still exists
@@ -3987,11 +3987,11 @@ pub async fn payment_methods_session_delete_payment_method(
     .get_required_value("payment_method_id from payment method token data")
     .attach_printable("Failed to get payment method id from payment method token data")?;
 
-    let response = delete_payment_method_core(&state, payment_method_id, &platform, &profile)
+    delete_payment_method_core(&state, payment_method_id, &platform, &profile)
         .await
         .attach_printable("Failed to delete saved payment method")?;
 
-    Ok(services::ApplicationResponse::Json(response))
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
 #[cfg(feature = "v2")]
