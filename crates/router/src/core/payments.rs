@@ -10495,44 +10495,56 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let routing_strategy: Box<dyn routing::RoutingStrategy> = {
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        {
-            if business_profile.dynamic_routing_algorithm.is_some() {
-                Box::new(routing::DynamicRoutingStrategy {
-                    static_strategy: routing::StaticRoutingStrategy,
-                })
-            } else {
-                Box::new(routing::StaticRoutingStrategy)
-            }
-        }
+    use routing::RoutingStage;
 
-        #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
-        {
-            Box::new(routing::StaticRoutingStrategy)
-        }
+    let mut routing_outcome = routing::RoutingOutcome {
+        connectors: Vec::new(),
+        routing_approach: None,
     };
 
-    let routing::RoutingOutcome {
-        connectors,
-        routing_approach,
-    } = routing_strategy
-        .route(
+    let static_stage = routing::StaticRoutingStage;
+
+    routing_outcome = static_stage
+        .apply(
             state,
             platform,
             business_profile,
-            &transaction_data.clone(),
             eligible_connectors.as_ref(),
+            &transaction_data,
+            routing_outcome,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("euclid: unable to perform routing")?;
+        .map_err(|e| {
+            e.change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("static routing failed")
+        })?;
 
-    if let Some(approach) = routing_approach {
-        payment_data.set_routing_approach_in_attempt(Some(approach));
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    {
+        if business_profile.dynamic_routing_algorithm.is_some() {
+            let dynamic_stage = routing::DynamicRoutingStage;
+
+            routing_outcome = dynamic_stage
+                .apply(
+                    state,
+                    platform,
+                    business_profile,
+                    eligible_connectors.as_ref(),
+                    &transaction_data,
+                    routing_outcome,
+                )
+                .await
+                .map_err(|e| {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("dynamic routing failed")
+                })?;
+        }
     }
 
-    let connector_data = connectors
+    payment_data.set_routing_approach_in_attempt(routing_outcome.routing_approach);
+
+    let connector_data = routing_outcome
+        .connectors
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(

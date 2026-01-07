@@ -496,15 +496,180 @@ pub fn make_dsl_input(
     })
 }
 
+// #[async_trait]
+// pub trait RoutingStrategy: Send + Sync {
+//     async fn route(
+//         &self,
+//         state: &SessionState,
+//         platform: &domain::Platform,
+//         business_profile: &domain::Profile,
+//         transaction_data: &routing::PaymentsDslInput<'_>,
+//         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+//     ) -> RoutingResult<RoutingOutcome>;
+// }
+//
+// pub struct RoutingOutcome {
+//     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+//     pub routing_approach: Option<common_enums::RoutingApproach>,
+// }
+//
+// pub struct StaticRoutingStrategy;
+//
+// #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+// pub struct DynamicRoutingStrategy {
+//     pub static_strategy: StaticRoutingStrategy,
+// }
+//
+// use async_trait::async_trait;
+// #[async_trait]
+// impl RoutingStrategy for StaticRoutingStrategy {
+//     async fn route(
+//         &self,
+//         state: &SessionState,
+//         platform: &domain::Platform,
+//         business_profile: &domain::Profile,
+//         transaction_data: &routing::PaymentsDslInput<'_>,
+//         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+//     ) -> RoutingResult<RoutingOutcome> {
+//         let routing_algorithm_id = {
+//             let routing_algorithm = business_profile.routing_algorithm.clone();
+//
+//             let algorithm_ref = routing_algorithm
+//                 .map(|ra| {
+//                     ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+//                 })
+//                 .transpose()
+//                 .change_context(errors::RoutingError::InvalidRoutingAlgorithmStructure)
+//                 .attach_printable("Could not decode merchant routing algorithm ref")?
+//                 .unwrap_or_default();
+//
+//             algorithm_ref.algorithm_id
+//         };
+//
+//         let (connectors, routing_approach) = perform_static_routing_v1(
+//             state,
+//             platform.get_processor().get_account().get_id(),
+//             routing_algorithm_id.as_ref(),
+//             business_profile,
+//             &routing::TransactionData::Payment(transaction_data.clone()),
+//         )
+//         .await
+//         .change_context(errors::RoutingError::DslExecutionError)
+//         .attach_printable("euclid: unable to perform static_routing")?;
+//
+//         perform_eligibility_analysis_with_fallback(
+//             state,
+//             platform.get_processor().get_key_store(),
+//             connectors.clone(),
+//             &routing::TransactionData::Payment(transaction_data.clone()),
+//             eligible_connectors.cloned(),
+//             business_profile,
+//         )
+//         .await
+//         .change_context(errors::RoutingError::KgraphAnalysisError)
+//         .attach_printable("failed eligibility analysis and fallback")?;
+//
+//         Ok(RoutingOutcome {
+//             connectors,
+//             routing_approach,
+//         })
+//     }
+// }
+//
+// #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+// #[async_trait]
+// impl RoutingStrategy for DynamicRoutingStrategy {
+//     async fn route(
+//         &self,
+//         state: &SessionState,
+//         platform: &domain::Platform,
+//         business_profile: &domain::Profile,
+//         transaction_data: &routing::PaymentsDslInput<'_>,
+//         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+//     ) -> RoutingResult<RoutingOutcome> {
+//         let mut routing_outcome = self
+//             .static_strategy
+//             .route(
+//                 state,
+//                 platform,
+//                 business_profile,
+//                 transaction_data,
+//                 eligible_connectors,
+//             )
+//             .await?;
+//
+//         let Some(algo) = business_profile.dynamic_routing_algorithm.clone() else {
+//             return Ok(routing_outcome);
+//         };
+//
+//         let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+//             .parse_value("DynamicRoutingAlgorithmRef")
+//             .change_context(errors::RoutingError::DeserializationError {
+//                 from: "json".to_string(),
+//                 to: "DynamicAlgorithmRef".to_string(),
+//             })
+//             .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef")?;
+//
+//         let dynamic_split = api_models::routing::RoutingVolumeSplit {
+//             routing_type: api_models::routing::RoutingType::Dynamic,
+//             split: dynamic_routing_config
+//                 .dynamic_routing_volume_split
+//                 .unwrap_or_default(),
+//         };
+//
+//         let static_split = api_models::routing::RoutingVolumeSplit {
+//             routing_type: api_models::routing::RoutingType::Static,
+//             split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+//                 - dynamic_routing_config
+//                     .dynamic_routing_volume_split
+//                     .unwrap_or_default(),
+//         };
+//
+//         let routing_choice =
+//             perform_dynamic_routing_volume_split(vec![dynamic_split, static_split], None)
+//                 .change_context(errors::RoutingError::VolumeSplitFailed)
+//                 .attach_printable("failed to perform volume split on routing type")?;
+//
+//         let payment_attempt = transaction_data.payment_attempt.clone();
+//         if routing_choice.routing_type.is_dynamic_routing()
+//             && state.conf.open_router.dynamic_routing_enabled
+//         {
+//             let dynamic_result = perform_dynamic_routing_with_open_router(
+//                 state,
+//                 routing_outcome.connectors.clone(),
+//                 business_profile,
+//                 payment_attempt,
+//             )
+//             .await
+//             .unwrap_or_else(|e| {
+//                 logger::error!(open_routing_error=?e);
+//                 DynamicRoutingResult {
+//                     connectors: routing_outcome.connectors.clone(),
+//                     routing_approach: routing_outcome.routing_approach.clone(),
+//                 }
+//             });
+//
+//             routing_outcome.connectors = dynamic_result.connectors;
+//
+//             if dynamic_result.routing_approach.is_some() {
+//                 routing_outcome.routing_approach = dynamic_result.routing_approach;
+//             }
+//         }
+//
+//         Ok(routing_outcome)
+//     }
+// }
+
 #[async_trait]
-pub trait RoutingStrategy: Send + Sync {
-    async fn route(
+pub trait RoutingStage: Send + Sync {
+    async fn apply(
         &self,
         state: &SessionState,
         platform: &domain::Platform,
         business_profile: &domain::Profile,
-        transaction_data: &routing::PaymentsDslInput<'_>,
         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+        transaction_data: &routing::PaymentsDslInput<'_>,
+        input: RoutingOutcome,
     ) -> RoutingResult<RoutingOutcome>;
 }
 
@@ -513,23 +678,19 @@ pub struct RoutingOutcome {
     pub routing_approach: Option<common_enums::RoutingApproach>,
 }
 
-pub struct StaticRoutingStrategy;
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub struct DynamicRoutingStrategy {
-    pub static_strategy: StaticRoutingStrategy,
-}
+pub struct StaticRoutingStage;
 
 use async_trait::async_trait;
 #[async_trait]
-impl RoutingStrategy for StaticRoutingStrategy {
-    async fn route(
+impl RoutingStage for StaticRoutingStage {
+    async fn apply(
         &self,
         state: &SessionState,
         platform: &domain::Platform,
         business_profile: &domain::Profile,
-        transaction_data: &routing::PaymentsDslInput<'_>,
         eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+        transaction_data: &routing::PaymentsDslInput<'_>,
+        _input: RoutingOutcome,
     ) -> RoutingResult<RoutingOutcome> {
         let routing_algorithm_id = {
             let routing_algorithm = business_profile.routing_algorithm.clone();
@@ -557,17 +718,16 @@ impl RoutingStrategy for StaticRoutingStrategy {
         .change_context(errors::RoutingError::DslExecutionError)
         .attach_printable("euclid: unable to perform static_routing")?;
 
-        perform_eligibility_analysis_with_fallback(
+        let connectors = perform_eligibility_analysis_with_fallback(
             state,
             platform.get_processor().get_key_store(),
-            connectors.clone(),
+            connectors,
             &routing::TransactionData::Payment(transaction_data.clone()),
             eligible_connectors.cloned(),
             business_profile,
         )
         .await
-        .change_context(errors::RoutingError::KgraphAnalysisError)
-        .attach_printable("failed eligibility analysis and fallback")?;
+        .change_context(errors::RoutingError::KgraphAnalysisError)?;
 
         Ok(RoutingOutcome {
             connectors,
@@ -577,38 +737,30 @@ impl RoutingStrategy for StaticRoutingStrategy {
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingStage;
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[async_trait]
-impl RoutingStrategy for DynamicRoutingStrategy {
-    async fn route(
+impl RoutingStage for DynamicRoutingStage {
+    async fn apply(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        _platform: &domain::Platform,
         business_profile: &domain::Profile,
+        _eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
         transaction_data: &routing::PaymentsDslInput<'_>,
-        eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
+        mut input: RoutingOutcome,
     ) -> RoutingResult<RoutingOutcome> {
-        let mut routing_outcome = self
-            .static_strategy
-            .route(
-                state,
-                platform,
-                business_profile,
-                transaction_data,
-                eligible_connectors,
-            )
-            .await?;
-
         let Some(algo) = business_profile.dynamic_routing_algorithm.clone() else {
-            return Ok(routing_outcome);
+            return Ok(input);
         };
 
         let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
             .parse_value("DynamicRoutingAlgorithmRef")
             .change_context(errors::RoutingError::DeserializationError {
-                from: "json".to_string(),
-                to: "DynamicAlgorithmRef".to_string(),
-            })
-            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef")?;
+                from: "json".into(),
+                to: "DynamicAlgorithmRef".into(),
+            })?;
 
         let dynamic_split = api_models::routing::RoutingVolumeSplit {
             routing_type: api_models::routing::RoutingType::Dynamic,
@@ -630,13 +782,14 @@ impl RoutingStrategy for DynamicRoutingStrategy {
                 .change_context(errors::RoutingError::VolumeSplitFailed)
                 .attach_printable("failed to perform volume split on routing type")?;
 
-        let payment_attempt = transaction_data.payment_attempt.clone();
         if routing_choice.routing_type.is_dynamic_routing()
             && state.conf.open_router.dynamic_routing_enabled
         {
+            let payment_attempt = transaction_data.payment_attempt.clone();
+
             let dynamic_result = perform_dynamic_routing_with_open_router(
                 state,
-                routing_outcome.connectors.clone(),
+                input.connectors.clone(),
                 business_profile,
                 payment_attempt,
             )
@@ -644,19 +797,19 @@ impl RoutingStrategy for DynamicRoutingStrategy {
             .unwrap_or_else(|e| {
                 logger::error!(open_routing_error=?e);
                 DynamicRoutingResult {
-                    connectors: routing_outcome.connectors.clone(),
-                    routing_approach: routing_outcome.routing_approach.clone(),
+                    connectors: input.connectors.clone(),
+                    routing_approach: input.routing_approach.clone(),
                 }
             });
 
-            routing_outcome.connectors = dynamic_result.connectors;
+            input.connectors = dynamic_result.connectors;
 
             if dynamic_result.routing_approach.is_some() {
-                routing_outcome.routing_approach = dynamic_result.routing_approach;
+                input.routing_approach = dynamic_result.routing_approach;
             }
         }
 
-        Ok(routing_outcome)
+        Ok(input)
     }
 }
 
