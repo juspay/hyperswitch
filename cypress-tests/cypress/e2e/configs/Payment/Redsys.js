@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Modifiers";
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
@@ -11,7 +11,7 @@ const ThreeDSChallengeTestCardDetails = {
 const threeDSFrictionlessTestCardDetails = {
   card_number: "4548814479727229",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
