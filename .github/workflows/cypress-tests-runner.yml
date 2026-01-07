@@ -331,8 +331,19 @@ jobs:
             cypress-tests/cypress/reports/
           retention-days: 1
 
+  decide-whether-to-run-optional:
+    name: Decide whether to run optional connectors Cypress tests
+    runs-on: hyperswitch-runners
+    outputs:
+      run_optional: ${{ steps.decide.outputs.run_optional }}
+    steps:
+      - id: decide
+        run: |
+          echo "run_optional=${RUN_OPTIONAL_CONNECTORS_TESTS}" >> "$GITHUB_OUTPUT"
+
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
+    if: ${{ needs.decide.outputs.run_optional == 'true' }}
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -404,10 +415,9 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
+    if: ${{ needs.decide.outputs.run_optional == 'true' }}
     needs: [ build-hyperswitch, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
