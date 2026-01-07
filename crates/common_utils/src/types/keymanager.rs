@@ -75,6 +75,7 @@ impl KeyManagerState {
             infra_values: Default::default(),
         }
     }
+
     pub fn add_confirm_value_in_infra_values(
         &self,
         is_confirm_operation: bool,
@@ -90,6 +91,17 @@ impl KeyManagerState {
             }
             infra_values
         })
+    }
+
+    pub fn is_encryption_service_enabled(&self) -> bool {
+        #[cfg(feature = "encryption_service")]
+        {
+            self.enabled
+        }
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            false
+        }
     }
 }
 

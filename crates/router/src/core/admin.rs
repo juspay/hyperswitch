@@ -13,6 +13,11 @@ use common_utils::{
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+#[cfg(feature = "olap")]
+use {
+    base64::Engine,
+    common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
+};
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
@@ -189,9 +194,6 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    #[cfg(feature = "keymanager_create")]
-    use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
-
     let db = state.store.as_ref();
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -202,25 +204,16 @@ pub async fn create_merchant_account(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
-    #[cfg(feature = "keymanager_create")]
-    {
-        use base64::Engine;
-
-        use crate::consts::BASE64_ENGINE;
-
-        if key_manager_state.enabled {
-            keymanager::transfer_key_to_key_manager(
-                key_manager_state,
-                EncryptionTransferRequest {
-                    identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
-                },
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-            .attach_printable("Failed to insert key to KeyManager")?;
-        }
-    }
+    keymanager::transfer_key_to_key_manager(
+        key_manager_state,
+        EncryptionTransferRequest {
+            identifier: identifier.clone(),
+            key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+        },
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+    .attach_printable("Failed to insert key to KeyManager")?;
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
