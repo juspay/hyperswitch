@@ -65,8 +65,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-        RefundsRequestData,
-        RouterData as OtherRouterData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -385,7 +384,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount = req.request.get_minor_amount()?;
+        let minor_amount = req.request.get_minor_amount();
         let currency = req.request.get_currency()?;
 
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;

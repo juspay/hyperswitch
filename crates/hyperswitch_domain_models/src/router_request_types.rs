@@ -622,7 +622,7 @@ pub struct PaymentsPreProcessingData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
-    pub minor_amount: Option<MinorUnit>,
+    pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
 }
 
@@ -640,7 +640,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             amount: data.amount,
-            minor_amount: Some(data.minor_amount),
+            minor_amount: data.minor_amount,
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
@@ -681,7 +681,7 @@ pub struct PaymentsPreAuthenticateData {
     pub customer_name: Option<Secret<String>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     // New amount for amount frame work
-    pub minor_amount: Option<MinorUnit>,
+    pub minor_amount: MinorUnit,
     pub webhook_url: Option<String>,
 }
 
@@ -694,7 +694,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             customer_name: data.customer_name,
             metadata: data.metadata.map(Secret::new),
             amount: data.amount,
-            minor_amount: Some(data.minor_amount),
+            minor_amount: data.minor_amount,
             email: data.email,
             capture_method: data.capture_method,
             currency: Some(data.currency),
@@ -805,7 +805,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             amount: data.amount,
-            minor_amount: Some(data.minor_amount),
+            minor_amount: data.minor_amount,
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: None,
@@ -1543,7 +1543,7 @@ pub struct SetupMandateRequestData {
     pub related_transaction_id: Option<String>,
 
     // MinorUnit for amount framework
-    pub minor_amount: Option<MinorUnit>,
+    pub minor_amount: MinorUnit,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,

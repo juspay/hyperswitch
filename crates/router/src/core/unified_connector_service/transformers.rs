@@ -1006,11 +1006,7 @@ impl
             .transpose()?
             .unwrap_or_default();
         let amount = router_data.request.amount;
-        let minor_amount = router_data.request.minor_amount.ok_or(report!(
-            UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "minor_amount"
-            }
-        ))?;
+        let minor_amount = router_data.request.minor_amount;
 
         Ok(Self {
             request_ref_id: Some(Identifier {
