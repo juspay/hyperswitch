@@ -117,8 +117,7 @@ execute_test() {
     exit_code=1
   fi
 
-  local end_ts
-  end_ts=$(date +%s)
+  local end_ts=$(date +%s)
   local duration=$((end_ts - start_ts))
 
   local status
