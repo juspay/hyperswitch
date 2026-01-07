@@ -27817,6 +27817,7 @@
       },
       "UpiSource": {
         "type": "string",
+        "description": "The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.",
         "enum": [
           "UPI_CC",
           "UPI_CL",

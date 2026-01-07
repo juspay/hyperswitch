@@ -4620,11 +4620,16 @@ pub enum UpiData {
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// The source type for UPI payments. This indicates what payment source is being used for the UPI transaction.
 pub enum UpiSource {
-    UpiCc,      // UPI Credit Card
-    UpiCl,      // UPI Credit Line
-    UpiAccount, // UPI Bank Account (Savings)
-    UpiCcCl,    // UPI Credit Card + Credit Line
+    /// UPI payment using a credit card
+    UpiCc,
+    /// UPI payment using a credit line
+    UpiCl,
+    /// UPI payment using a bank account (savings)
+    UpiAccount,
+    /// UPI payment using a combination of credit card and credit line
+    UpiCcCl,
 }
 
 #[derive(
