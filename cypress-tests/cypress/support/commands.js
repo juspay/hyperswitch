@@ -23,7 +23,6 @@
 //
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-
 // commands.js or your custom support file
 import {
   defaultErrorHandler,
@@ -1304,7 +1303,6 @@ Cypress.Commands.add("enableVoltBankRedirectPaymentMethods", (globalState) =>
     return cy.connectorUpdateCall("payment_processor", updateBody, globalState);
   })
 );
-
 Cypress.Commands.add(
   "createCustomerCallTest",
   (customerCreateBody, globalState) => {

@@ -308,13 +308,6 @@ describe("Bank Redirect tests", () => {
         globalState = new State(state);
       });
     });
-    before("ensure connector supports OpenBankingUk", () => {
-      const connectorId = (globalState.get("connectorId") || "").toLowerCase();
-      if (connectorId !== "volt") {
-        return;
-      }
-      cy.enableVoltBankRedirectPaymentMethods(globalState);
-    });
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
