@@ -1285,7 +1285,7 @@ impl ConnectorSpecifications for Nexixpay {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, payment_method: _ } => {
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
                     Some(param) if !param.peek().is_empty() => {
@@ -1297,57 +1297,14 @@ impl ConnectorSpecifications for Nexixpay {
         }
     }
 
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        match (current_flow, pre_processing_flow_name) {
-            (api::CurrentFlowInfo::Authorize { .. }, _) => {
-                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
-                true
-            }
-            (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::Authenticate,
-            )
-            | (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::PostAuthenticate,
-            ) => {
-                // Continue to main Authorize flow only if:
-                // 1. No further redirection is required (redirection_data is None)
-                // 2. Authentication did not fail
-                (matches!(
-                    preprocessing_flow_response.response,
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && preprocessing_flow_response.attempt_status
-                    != common_enums::AttemptStatus::AuthenticationFailed)
-            }
-        }
-    }
-
-    fn get_alternate_flow_if_needed(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-    ) -> Option<api::AlternateFlow> {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => {
-                if self.is_3ds_setup_required(request_data, *auth_type) {
-                    Some(api::AlternateFlow::PreAuthenticate)
-                } else {
-                    None
-                }
-            }
+            } => self.is_3ds_setup_required(request_data, *auth_type),
             // No alternate flow for complete authorize
-            api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
 }
