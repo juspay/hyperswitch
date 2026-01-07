@@ -542,6 +542,134 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         }
     }
 
+    async fn authentication_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) {
+            logger::info!(
+                "Authentication flow is required for connector: {}",
+                connector.connector_name
+            );
+            let mut authorize_request_data = self.request.clone();
+
+            // Extract ucs_authentication_data from PreAuthenticate response's connector_metadata
+            let authentication_data: Option<router_request_types::UcsAuthenticationData> =
+                match &self.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    }) => connector_metadata.as_ref().and_then(|metadata| {
+                        serde_json::from_value::<router_request_types::UcsAuthenticationData>(
+                            metadata.clone(),
+                        )
+                        .ok()
+                    }),
+                    _ => None,
+                };
+
+            let mut authenticate_request_data =
+                types::PaymentsAuthenticateData::try_from(self.request.to_owned())?;
+
+            authenticate_request_data.authentication_data = authentication_data;
+
+            let authenticate_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let authenticate_router_data =
+                helpers::router_data_type_conversion::<_, api::Authenticate, _, _, _, _>(
+                    self.clone(),
+                    authenticate_request_data.clone(),
+                    authenticate_response_data,
+                );
+            let (authenticate_router_data, _authentication_data) =
+                Box::pin(payments_gateway::handle_gateway_call::<
+                    _,
+                    _,
+                    _,
+                    PaymentFlowData,
+                    _,
+                >(
+                    state,
+                    authenticate_router_data,
+                    connector,
+                    gateway_context,
+                ))
+                .await?;
+
+            let authenticate_response = authenticate_router_data.response.clone();
+
+            // Extract connector_transaction_id from Authenticate response
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &authenticate_router_data.response
+            {
+                // Store authentication_data in metadata for next step
+                if let Some(metadata) = connector_metadata {
+                    authorize_request_data.metadata = Some(metadata.clone());
+                }
+            }
+
+            let authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
+                    authenticate_router_data,
+                    authorize_request_data,
+                    authenticate_response,
+                );
+
+            let should_continue_after_authenticate = match &authorize_router_data.response {
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata,
+                    redirection_data,
+                    ..
+                }) => match connector.connector_name {
+                    api_models::enums::Connector::Redsys => {
+                        // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
+                        // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
+                        let has_ucs_redirection = redirection_data.is_some();
+
+                        let has_hyperswitch_three_ds_invoke_data: bool =
+                            connector_metadata.clone().and_then(|metadata| {
+                                metadata
+                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
+                                    .ok()
+                            }).is_some();
+
+                        let payment_status = !matches!(
+                            authorize_router_data.status,
+                            common_enums::AttemptStatus::AuthenticationFailed
+                                | common_enums::AttemptStatus::Failure
+                                | common_enums::AttemptStatus::Charged
+                                | common_enums::AttemptStatus::PartialCharged
+                                | common_enums::AttemptStatus::Authorized
+                        );
+
+                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        !has_ucs_redirection
+                            && !has_hyperswitch_three_ds_invoke_data
+                            && !payment_status
+                    }
+                    _ => false,
+                },
+                _ => false,
+            };
+            Ok((authorize_router_data, should_continue_after_authenticate))
+        } else {
+            Ok((self, true))
+        }
+    }
+
     async fn postprocessing_steps<'a>(
         self,
         state: &SessionState,
@@ -1179,7 +1307,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             types::PaymentsPreAuthenticateData,
             types::PaymentsResponseData,
         >,
-        (),
+        Option<router_request_types::UcsAuthenticationData>,
     ),
     interface_errors::ConnectorError,
 > {
@@ -1245,7 +1373,55 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 response
             });
             let router_data_response = match router_data_response {
-                Ok(response) => Ok(transform_response_for_pre_authenticate_flow(connector, response)?),
+                Ok(response) => Ok(transform_response_for_pre_authenticate_flow(
+                    connector, response,
+                )?),
+                Err(err) => Err(err),
+            };
+            // Extract authentication_data from the response to store in connector_metadata
+            let domain_authentication_data = payment_pre_authenticate_response
+                .authentication_data
+                .clone()
+                .map(|grpc_authentication_data| {
+                    router_request_types::UcsAuthenticationData::foreign_try_from(
+                        grpc_authentication_data,
+                    )
+                })
+                .transpose()
+                .attach_printable("Failed to Convert to domain AuthenticationData")?;
+
+            let router_data_response = match router_data_response {
+                Ok(response) => {
+                    // Store authentication_data in connector_metadata so it can be used in authenticate step
+                    let response_with_auth_data = match response {
+                        router_response_types::PaymentsResponseData::TransactionResponse {
+                            resource_id,
+                            redirection_data,
+                            mandate_reference,
+                            connector_metadata: _,
+                            network_txn_id,
+                            connector_response_reference_id,
+                            incremental_authorization_allowed,
+                            charges,
+                        } => {
+                            let auth_metadata = domain_authentication_data
+                                .as_ref()
+                                .and_then(|auth_data| serde_json::to_value(auth_data).ok());
+                            router_response_types::PaymentsResponseData::TransactionResponse {
+                                resource_id,
+                                redirection_data,
+                                mandate_reference,
+                                connector_metadata: auth_metadata,
+                                network_txn_id,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                charges,
+                            }
+                        }
+                        other => other,
+                    };
+                    Ok(transform_response_for_pre_authenticate_flow(connector, response_with_auth_data)?)
+                },
                 Err(err) => Err(err)
             };
             router_data.response = router_data_response;
@@ -1255,7 +1431,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 .map(|raw_connector_response| raw_connector_response.expose().into());
             router_data.connector_http_status_code = Some(status_code);
 
-            Ok((router_data, (), payment_pre_authenticate_response))
+            Ok((router_data, domain_authentication_data, payment_pre_authenticate_response))
         },
     ))
     .await
