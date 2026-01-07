@@ -411,6 +411,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUN_OPTIONAL_CONNECTORS_TESTS: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS }}
 
     services:
       redis:
