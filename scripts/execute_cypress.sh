@@ -85,10 +85,8 @@ execute_test() {
   local failure_log="$3"
   local job_slot="${4:-1}"
 
-  local start_ts
-  start_ts=$(date +%s)
-  local start_fmt
-  start_fmt=$(date '+%H:%M:%S')
+  local start_ts=$(date +%s)
+  local start_fmt=$(date '+%H:%M:%S')
 
   echo "----------------------------------------------------"
   print_color blue "[START] $service:$connector (Slot: $job_slot) at $start_fmt"
