@@ -210,6 +210,7 @@ jobs:
         with:
           name: hyperswitch-server
           path: target/debug
+
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
@@ -265,6 +266,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
@@ -442,7 +444,7 @@ jobs:
       - name: Skip tests on PR level
         if: ${{ (env.RUN_OPTIONAL_CONNECTORS_TESTS == 'false')  }}
         shell: bash
-        run: echo 'Skipping tests for PRs from forks'
+        run: echo 'Skipping tests at PR level for optional connectors'
 
       - name: Checkout repository
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
