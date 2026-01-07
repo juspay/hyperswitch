@@ -334,7 +334,7 @@ pub async fn retrieve_merchant_account(
 /// Get merchant account details (recon_status and product_type).
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDetailsRetrieve))]
-pub async fn get_merchant_account_details(
+pub async fn retrieve_merchant_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
     mid: web::Path<common_utils::id_type::MerchantId>,
@@ -349,7 +349,7 @@ pub async fn get_merchant_account_details(
         state,
         &req,
         payload,
-        |state, _user: (), req, _| crate::core::admin::get_merchant_account_details(state, req),
+        |state, _user: (), req, _| get_merchant_account_details(state, req),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -361,7 +361,7 @@ pub async fn get_merchant_account_details(
 /// Get merchant account details (recon_status and product_type).
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDetailsRetrieve))]
-pub async fn get_merchant_account_details(
+pub async fn retrieve_merchant_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
     mid: web::Path<common_utils::id_type::MerchantId>,
@@ -376,7 +376,7 @@ pub async fn get_merchant_account_details(
         state,
         &req,
         payload,
-        |state, _user: (), req, _| crate::core::admin::get_merchant_account_details(state, req),
+        |state, _user: (), req, _| get_merchant_account_details(state, req),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     )

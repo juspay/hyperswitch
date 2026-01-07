@@ -1900,7 +1900,7 @@ impl MerchantAccount {
             )
             .service(
                 web::resource("/{id}/details")
-                    .route(web::get().to(admin::get_merchant_account_details)),
+                    .route(web::get().to(admin::retrieve_merchant_account_details)),
             )
             .service(
                 web::resource("/transfer")
