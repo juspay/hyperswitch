@@ -1287,22 +1287,6 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
   });
 });
 
-Cypress.Commands.add("enableVoltBankRedirectPaymentMethods", (globalState) =>
-  cy.fixture("update-connector-body").then((updateConnectorBody) => {
-    if (!globalState.get("merchantConnectorId")) {
-      throw new Error(
-        "merchantConnectorId is missing. Ensure the connector setup test runs before enabling Volt bank redirect methods."
-      );
-    }
-
-    const updateBody = {
-      ...updateConnectorBody,
-      payment_methods_enabled,
-    };
-
-    return cy.connectorUpdateCall("payment_processor", updateBody, globalState);
-  })
-);
 Cypress.Commands.add(
   "createCustomerCallTest",
   (customerCreateBody, globalState) => {
