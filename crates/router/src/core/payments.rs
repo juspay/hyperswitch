@@ -392,7 +392,7 @@ where
         .payment_token
         .as_ref()
         .zip(Some(payment_data.get_payment_attempt().payment_method_type))
-        .map(ParentPaymentMethodToken::return_key_for_token)
+        .map(|(token, _)| ParentPaymentMethodToken::return_key_for_token(token))
         .async_map(|key_for_token| async move {
             let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
                 .await
