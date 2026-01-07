@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::sync::LazyLock;
+
 use api_models::{
     payments::PaymentIdType,
     webhooks::{IncomingWebhookEvent, RefundIdType},
@@ -28,7 +30,6 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, Maskable};
-use std::sync::LazyLock;
 use transformers::*;
 
 use crate::{
