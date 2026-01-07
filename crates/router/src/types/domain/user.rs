@@ -614,12 +614,13 @@ impl NewUserMerchant {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
 
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            platform,
+            platform.get_processor().clone(),
         ))
         .await
         .change_context(UserErrors::InternalServerError)
