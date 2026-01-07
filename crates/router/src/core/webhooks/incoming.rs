@@ -1983,10 +1983,23 @@ async fn refunds_incoming_webhook_flow(
                 refund.payment_id
             )
         })?;
+    let state_task = state.clone();
+    let platform_task = platform.clone();
+    let payment_intent_task = payment_intent.clone();
+    tokio::spawn(async move {
+        if let Err(err) = PaymentIntentStateMetadataExt::from(
+            payment_intent_task
+                .state_metadata
+                .clone()
+                .unwrap_or_default(),
+        )
+        .update_intent_state_metadata_for_refund(&state_task, &platform_task, payment_intent_task)
+        .await
+        {
+            tracing::error!(?err, "Failed to update intent state metadata for refund");
+        }
+    });
 
-    PaymentIntentStateMetadataExt::from(payment_intent.state_metadata.clone().unwrap_or_default())
-        .update_intent_state_metadata_for_refund(&state, &platform, payment_intent)
-        .await?;
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
