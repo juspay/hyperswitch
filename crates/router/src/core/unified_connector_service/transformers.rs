@@ -1918,11 +1918,9 @@ impl
             authentication_data,
             connector_metadata: HashMap::new(),
             locale: router_data.request.locale.clone(),
-            connector_testing_data: router_data
-                .request
-                .connector_testing_data
-                .as_ref()
-                .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
+            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
+                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
+            ),
         })
     }
 }
@@ -3733,9 +3731,13 @@ impl ForeignFrom<common_enums::ExemptionIndicator> for payments_grpc::ExemptionI
     fn foreign_from(value: common_enums::ExemptionIndicator) -> Self {
         match value {
             common_enums::ExemptionIndicator::LowValue => Self::LowValue,
-            common_enums::ExemptionIndicator::SecureCorporatePayment => Self::SecureCorporatePayment,
+            common_enums::ExemptionIndicator::SecureCorporatePayment => {
+                Self::SecureCorporatePayment
+            }
             common_enums::ExemptionIndicator::TrustedListing => Self::TrustedListing,
-            common_enums::ExemptionIndicator::TransactionRiskAssessment => Self::TransactionRiskAssessment,
+            common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+                Self::TransactionRiskAssessment
+            }
             common_enums::ExemptionIndicator::ThreeDsOutage => Self::ThreeDsOutage,
             common_enums::ExemptionIndicator::ScaDelegation => Self::ScaDelegation,
             common_enums::ExemptionIndicator::OutOfScaScope => Self::OutOfScaScope,
@@ -3759,10 +3761,14 @@ impl ForeignFrom<common_enums::CavvAlgorithm> for payments_grpc::CavvAlgorithm {
     }
 }
 
-impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams> for payments_grpc::CartesBancairesParams {
+impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams>
+    for payments_grpc::CartesBancairesParams
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: api_models::payments::CartesBancairesParams) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        value: api_models::payments::CartesBancairesParams,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             cavv_algorithm: payments_grpc::CavvAlgorithm::foreign_from(value.cavv_algorithm).into(),
             cb_exemption: value.cb_exemption,
@@ -3771,7 +3777,9 @@ impl transformers::ForeignTryFrom<api_models::payments::CartesBancairesParams> f
     }
 }
 
-impl transformers::ForeignTryFrom<api_models::payments::NetworkParams> for payments_grpc::NetworkParams {
+impl transformers::ForeignTryFrom<api_models::payments::NetworkParams>
+    for payments_grpc::NetworkParams
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(value: api_models::payments::NetworkParams) -> Result<Self, Self::Error> {
