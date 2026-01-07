@@ -359,7 +359,7 @@ impl AuthOrEmbeddedClaims {
             Self::EmbeddedToken(payload) => &payload.profile_id,
         }
     }
-    }
+}
 
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
