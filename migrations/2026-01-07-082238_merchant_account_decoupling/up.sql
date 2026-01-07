@@ -1,3 +1,5 @@
+-- Your SQL goes here
+-- NOTE: The order of these statements is important and must be preserved
 UPDATE roles
 SET groups = array_cat(groups, ARRAY['webhooks_manage', 'api_keys_manage'])
 WHERE 'account_manage' = ANY(groups);

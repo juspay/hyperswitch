@@ -1,4 +1,5 @@
 -- This file should undo anything in `up.sql`
+-- NOTE: The order of these statements is important and must be preserved
 UPDATE roles
 SET groups = array_remove(groups, 'account_manage')
 WHERE
