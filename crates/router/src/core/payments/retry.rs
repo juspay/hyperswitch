@@ -616,6 +616,9 @@ where
                 unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                 unified_message: option_gsm.map(|gsm| gsm.unified_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
+                connector_response_reference_id: error_response
+                    .connector_response_reference_id
+                    .clone(),
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
                 authentication_type: auth_update,

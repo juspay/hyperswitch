@@ -1329,6 +1329,7 @@ mod tests {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
         let merchant_id = merchant_id.clone(); // Clone merchant_id to avoid move
 
@@ -1433,8 +1434,10 @@ mod tests {
             description: Some("Its my first payment request".to_string()),
             refunds: None,
             mandate_id: None,
-            merchant_id,
+            merchant_id: merchant_id.clone(),
             net_amount: MinorUnit::new(6540),
+            processor_merchant_id: merchant_id,
+            initiator: None,
             connector: None,
             customer: None,
             disputes: None,

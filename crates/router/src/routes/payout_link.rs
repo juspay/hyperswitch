@@ -31,10 +31,7 @@ pub async fn render_payout_link(
         state,
         &req,
         payload.clone(),
-        |state, auth, req, _| {
-            let platform = auth.into();
-            initiate_payout_link(state, platform, req, headers)
-        },
+        |state, auth, req, _| initiate_payout_link(state, auth.platform, req, headers),
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))

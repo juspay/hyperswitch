@@ -1044,6 +1044,12 @@ impl ResponseId {
             .attach_printable("Expected connector transaction ID not found"),
         }
     }
+    pub fn get_optional_response_id(&self) -> Option<String> {
+        match self {
+            Self::ConnectorTransactionId(id) | Self::EncodedData(id) => Some(id.to_string()),
+            Self::NoResponseId => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, Serialize)]
