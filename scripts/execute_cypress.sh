@@ -222,8 +222,6 @@ run_tests() {
       printf "  ➜ Successful: %d\n", pass
       printf "  ➜ Failed: %d\n", fail
       printf "  ➜ Total execution time: %ds\n", total
-      if (count > 0)
-        printf "  ➜ Avg time per connector: %.2fs\n", total/count
     }' "$results_log"
   fi
 

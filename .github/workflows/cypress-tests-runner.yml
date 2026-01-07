@@ -29,7 +29,7 @@ env:
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-  RUN_OPTIONAL_CONNECTORS_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
+  RUN_OPTIONAL_CONNECTORS_TESTS: ${{ github.event_name == 'merge_group' }}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
 
@@ -195,7 +195,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+          components: rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -455,7 +455,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+          components: rustfmt
       
       - name: Install sccache
         if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
@@ -663,7 +663,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+          components: rustfmt
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -879,7 +879,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
-          components: llvm-tools-preview, rustfmt
+          components: rustfmt
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
