@@ -407,6 +407,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
+    if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
     needs: [ build-hyperswitch, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
