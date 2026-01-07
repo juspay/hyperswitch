@@ -3415,6 +3415,7 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
     pub payment_method_update_request: PaymentMethodUpdate,
 }
 
+#[cfg(feature = "v2")]
 impl PaymentMethodSessionUpdateSavedPaymentMethod {
     pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
         match &self.payment_method_update_request.payment_method_data {
