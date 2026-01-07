@@ -12,10 +12,9 @@ use hyperswitch_connectors::constants as connector_consts;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse,
-    payments as domain_payments, router_data,
-    router_data_v2::{flow_common_types, PaymentFlowData},
-    router_flow_types, router_request_types, router_response_types,
+    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
+    router_data_v2::PaymentFlowData, router_flow_types, router_request_types,
+    router_response_types,
 };
 use hyperswitch_interfaces::{
     api::{self as api_interface, gateway, ConnectorSpecifications},
@@ -451,7 +450,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 "Pre-authentication flow is required for connector: {}",
                 connector.connector_name
             );
-            let authorize_request_data = self.request.clone();
+            let mut authorize_request_data = self.request.clone();
             let pre_authenticate_request_data =
                 types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
             let pre_authenticate_response_data: Result<
@@ -482,6 +481,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await?;
             // Convert back to CompleteAuthorize router data while preserving pre authentication response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
+
+            // Extract connector_transaction_id from PreAuthenticate response
+            if let Ok(types::PaymentsResponseData::TransactionResponse {
+                connector_metadata, ..
+            }) = &pre_authenticate_router_data.response
+            {
+                // Store authentication_data in metadata for next step
+                if let Some(metadata) = connector_metadata {
+                    authorize_request_data.metadata = Some(metadata.clone());
+                }
+            }
+
             let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     pre_authenticate_router_data,
@@ -504,16 +515,20 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 api_models::enums::Connector::Redsys => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         connector_metadata,
+                        redirection_data,
                         ..
                     }) => {
-                        let three_ds_invoke_data: Option<
-                            api_models::payments::PaymentsConnectorThreeDsInvokeData,
-                        > = connector_metadata.clone().and_then(|metadata| {
-                            metadata
-                                .parse_value("PaymentsConnectorThreeDsInvokeData")
-                                .ok()
-                        });
-                        three_ds_invoke_data.is_none()
+                        let has_ucs_redirection = redirection_data.is_some();
+
+                        let has_hyperswitch_three_ds_invoke_data: bool =
+                            connector_metadata.clone().and_then(|metadata| {
+                                metadata
+                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
+                                    .ok()
+                            }).is_some();
+
+                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data
                     }
                     _ => false,
                 },
