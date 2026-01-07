@@ -8176,6 +8176,26 @@
           }
         }
       },
+      "CardCVCTokenStorageDetails": {
+        "type": "object",
+        "required": [
+          "is_stored"
+        ],
+        "properties": {
+          "is_stored": {
+            "type": "boolean",
+            "description": "Indicates whether the card cvc is stored or not",
+            "example": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines expiry for stored card cvc token",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          }
+        }
+      },
       "CardDetail": {
         "type": "object",
         "required": [
@@ -8323,6 +8343,12 @@
             "type": "string",
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242",
             "nullable": true
           }
         },
@@ -10536,8 +10562,7 @@
       "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
-          "id",
-          "payment_token",
+          "payment_method_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
@@ -10548,12 +10573,7 @@
           "is_default"
         ],
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
-          },
-          "payment_token": {
+          "payment_method_token": {
             "type": "string",
             "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
@@ -13916,6 +13936,14 @@
             "nullable": true
           }
         }
+      },
+      "Initiator": {
+        "type": "string",
+        "description": "Represents the initiator context in platform-connected setups\nUsed in payment/refund/dispute responses to indicate who initiated the operation\nNone indicates a standard merchant flow / JWT flow / Admin flow or insufficient information",
+        "enum": [
+          "platform",
+          "connected"
+        ]
       },
       "IntentStatus": {
         "type": "string",
@@ -19509,6 +19537,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19820,6 +19856,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_cvc_token_storage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardCVCTokenStorageDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19831,13 +19875,13 @@
           {
             "type": "object",
             "required": [
-              "payment_method_id"
+              "payment_method_token"
             ],
             "properties": {
-              "payment_method_id": {
+              "payment_method_token": {
                 "type": "string",
-                "description": "The payment method id of the payment method to be updated",
-                "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+                "description": "The payment method token associated with the payment method session",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
               }
             }
           }
@@ -21468,6 +21512,7 @@
           "status",
           "amount",
           "customer_id",
+          "processor_merchant_id",
           "created",
           "modified_at"
         ],
@@ -21491,6 +21536,20 @@
             "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the processor merchant account. In platform-connected setups,\nthis is the connected merchant ID. For standard merchants, this is same as merchant_id.",
+            "example": "merchant_1689512302",
+            "maxLength": 255
+          },
+          "initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Initiator"
+              }
+            ],
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -27413,7 +27472,8 @@
         "type": "string",
         "enum": [
           "tokenization_id",
-          "payment_method_id"
+          "payment_method_id",
+          "volatile_payment_method_id"
         ]
       },
       "Tokenization": {
