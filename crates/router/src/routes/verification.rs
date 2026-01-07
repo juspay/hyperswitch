@@ -28,7 +28,7 @@ pub async fn apple_pay_merchant_registration(
                 state.clone(),
                 body,
                 merchant_id.clone(),
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
             )
         },
         auth::auth_type(

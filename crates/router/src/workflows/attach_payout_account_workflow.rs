@@ -52,6 +52,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             key_store.clone(),
             merchant_account,
             key_store,
+            None,
         );
         let mut payout_data = Box::pin(payouts::make_payout_data(
             state,

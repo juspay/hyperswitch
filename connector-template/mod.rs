@@ -153,6 +153,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
