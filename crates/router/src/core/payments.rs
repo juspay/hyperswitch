@@ -76,6 +76,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
+use routing::RoutingStage;
 use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
@@ -10351,134 +10352,6 @@ pub async fn route_connector_v2_for_payments(
         .map(|connector_data| ConnectorCallType::PreDetermined(connector_data.into()))
 }
 
-// #[cfg(feature = "v1")]
-// #[allow(clippy::too_many_arguments)]
-// pub async fn route_connector_v1_for_payments<F, D>(
-//     state: &SessionState,
-//     platform: &domain::Platform,
-//     business_profile: &domain::Profile,
-//     payment_data: &mut D,
-//     transaction_data: core_routing::PaymentsDslInput<'_>,
-//     routing_data: &mut storage::RoutingData,
-//     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
-//     mandate_type: Option<api::MandateTransactionType>,
-// ) -> RouterResult<ConnectorCallType>
-// where
-//     F: Send + Clone,
-//     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-// {
-//     let routing_algorithm_id = {
-//         let routing_algorithm = business_profile.routing_algorithm.clone();
-//
-//         let algorithm_ref = routing_algorithm
-//             .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
-//             .transpose()
-//             .change_context(errors::ApiErrorResponse::InternalServerError)
-//             .attach_printable("Could not decode merchant routing algorithm ref")?
-//             .unwrap_or_default();
-//         algorithm_ref.algorithm_id
-//     };
-//
-//     let (connectors, routing_approach) = routing::perform_static_routing_v1(
-//         state,
-//         platform.get_processor().get_account().get_id(),
-//         routing_algorithm_id.as_ref(),
-//         business_profile,
-//         &TransactionData::Payment(transaction_data.clone()),
-//     )
-//     .await
-//     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-//
-//     payment_data.set_routing_approach_in_attempt(routing_approach);
-//
-//     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-//     let payment_attempt = transaction_data.payment_attempt.clone();
-//
-//     let connectors = routing::perform_eligibility_analysis_with_fallback(
-//         &state.clone(),
-//         platform.get_processor().get_key_store(),
-//         connectors,
-//         &TransactionData::Payment(transaction_data),
-//         eligible_connectors,
-//         business_profile,
-//     )
-//     .await
-//     .change_context(errors::ApiErrorResponse::InternalServerError)
-//     .attach_printable("failed eligibility analysis and fallback")?;
-//
-//     // dynamic success based connector selection
-//     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-//     let connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-//         let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-//             .parse_value("DynamicRoutingAlgorithmRef")
-//             .change_context(errors::ApiErrorResponse::InternalServerError)
-//             .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-//         let dynamic_split = api_models::routing::RoutingVolumeSplit {
-//             routing_type: api_models::routing::RoutingType::Dynamic,
-//             split: dynamic_routing_config
-//                 .dynamic_routing_volume_split
-//                 .unwrap_or_default(),
-//         };
-//         let static_split: api_models::routing::RoutingVolumeSplit =
-//             api_models::routing::RoutingVolumeSplit {
-//                 routing_type: api_models::routing::RoutingType::Static,
-//                 split: consts::DYNAMIC_ROUTING_MAX_VOLUME
-//                     - dynamic_routing_config
-//                         .dynamic_routing_volume_split
-//                         .unwrap_or_default(),
-//             };
-//         let volume_split_vec = vec![dynamic_split, static_split];
-//         let routing_choice = routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
-//             .change_context(errors::ApiErrorResponse::InternalServerError)
-//             .attach_printable("failed to perform volume split on routing type")?;
-//
-//         if routing_choice.routing_type.is_dynamic_routing()
-//             && state.conf.open_router.dynamic_routing_enabled
-//         {
-//             routing::perform_dynamic_routing_with_open_router(
-//                 state,
-//                 connectors.clone(),
-//                 business_profile,
-//                 payment_attempt,
-//                 payment_data,
-//             )
-//             .await
-//             .map_err(|e| logger::error!(open_routing_error=?e))
-//             .unwrap_or(connectors)
-//         } else {
-//             connectors
-//         }
-//     } else {
-//         connectors
-//     };
-//
-//     let connector_data = connectors
-//         .into_iter()
-//         .map(|conn| {
-//             api::ConnectorData::get_connector_by_name(
-//                 &state.conf.connectors,
-//                 &conn.connector.to_string(),
-//                 api::GetToken::Connector,
-//                 conn.merchant_connector_id,
-//             )
-//             .map(|connector_data| connector_data.into())
-//         })
-//         .collect::<CustomResult<Vec<_>, _>>()
-//         .change_context(errors::ApiErrorResponse::InternalServerError)
-//         .attach_printable("Invalid connector name received")?;
-//
-//     decide_multiplex_connector_for_normal_or_recurring_payment(
-//         state,
-//         payment_data,
-//         routing_data,
-//         connector_data,
-//         mandate_type,
-//         business_profile.is_connector_agnostic_mit_enabled,
-//         business_profile.is_network_tokenization_enabled,
-//     )
-//     .await
-// }
-
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payments<F, D>(
@@ -10495,8 +10368,6 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    use routing::RoutingStage;
-
     let mut routing_outcome = routing::RoutingOutcome {
         connectors: Vec::new(),
         routing_approach: None,
