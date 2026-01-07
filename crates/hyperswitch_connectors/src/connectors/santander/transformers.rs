@@ -696,6 +696,7 @@ pub fn get_sync_error_response(
         status_code,
         attempt_status: Some(attempt_status),
         connector_transaction_id: Some(pix_data.txid.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,

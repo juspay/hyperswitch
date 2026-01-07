@@ -60,6 +60,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             key_store.clone(),
             merchant_account,
             key_store,
+            None,
         );
 
         let business_profile = state

@@ -138,6 +138,7 @@ pub async fn construct_relay_refund_router_data<F>(
         frm_metadata: None,
         refund_id: Some(relay_id_string),
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,

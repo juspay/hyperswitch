@@ -19,11 +19,13 @@ use hyperswitch_domain_models::{
             Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
+        unified_authentication_service::PostAuthenticate,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -31,8 +33,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPostAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -85,6 +88,7 @@ impl api::RefundExecute for Nexixpay {}
 impl api::RefundSync for Nexixpay {}
 impl api::PaymentToken for Nexixpay {}
 impl api::PaymentsCompleteAuthorize for Nexixpay {}
+impl api::PaymentsPostAuthenticate for Nexixpay {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Nexixpay
@@ -203,6 +207,7 @@ impl ConnectorCommon for Nexixpay {
             reason: concatenated_descriptions,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -317,6 +322,91 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
+impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for Nexixpay
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/orders/3steps/validation",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nexixpay::NexixpayRedirectRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPostAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPostAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPostAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPostAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPostAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPostAuthenticateRouterData, errors::ConnectorError> {
+        let response: nexixpay::NexixpayRedirectionResponse = res
+            .response
+            .parse_struct("NexixpayRedirectionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Nexixpay
 {
@@ -348,7 +438,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nexixpay::NexixpayPreProcessingRequest::try_from(req)?;
+        let connector_req = nexixpay::NexixpayRedirectRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -380,9 +470,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: nexixpay::NexixpayPreProcessingResponse = res
+        let response: nexixpay::NexixpayRedirectionResponse = res
             .response
-            .parse_struct("NexixpayPreProcessingResponse")
+            .parse_struct("NexixpayRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -1147,6 +1237,23 @@ lazy_static! {
 impl ConnectorSpecifications for Nexixpay {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*NEXIXPAY_CONNECTOR_INFO)
+    }
+
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method,
+            } => {
+                payment_method == Some(enums::PaymentMethod::Card)
+                    && request_data
+                        .redirect_response
+                        .as_ref()
+                        .and_then(|redirect_response| redirect_response.payload.as_ref())
+                        .is_some()
+            }
+        }
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

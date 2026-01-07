@@ -48,8 +48,8 @@ pub async fn retrieve_dispute(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            disputes::retrieve_dispute(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::retrieve_dispute(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -84,8 +84,7 @@ pub async fn fetch_disputes(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            disputes::connector_sync_disputes(state, platform, connector_id.clone(), req)
+            disputes::connector_sync_disputes(state, auth.platform, connector_id.clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -140,8 +139,7 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            disputes::retrieve_disputes_list(state, platform, None, req)
+            disputes::retrieve_disputes_list(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -197,11 +195,10 @@ pub async fn retrieve_disputes_list_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             disputes::retrieve_disputes_list(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },
@@ -241,8 +238,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.into();
-            disputes::get_filters_for_disputes(state, platform, None)
+            disputes::get_filters_for_disputes(state, auth.platform, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -283,11 +279,10 @@ pub async fn get_disputes_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let platform = auth.clone().into();
             disputes::get_filters_for_disputes(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
         auth::auth_type(
@@ -337,8 +332,8 @@ pub async fn accept_dispute(
         &req,
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            disputes::accept_dispute(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::accept_dispute(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -382,8 +377,8 @@ pub async fn submit_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            disputes::submit_evidence(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::submit_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -434,8 +429,8 @@ pub async fn attach_dispute_evidence(
         &req,
         attach_evidence_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            disputes::attach_evidence(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::attach_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -484,8 +479,8 @@ pub async fn retrieve_dispute_evidence(
         &req,
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
-            disputes::retrieve_dispute_evidence(state, platform, auth.profile_id, req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::retrieve_dispute_evidence(state, auth.platform, profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -530,8 +525,7 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            disputes::delete_evidence(state, platform, req)
+            disputes::delete_evidence(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -563,8 +557,7 @@ pub async fn get_disputes_aggregate(
         &req,
         query_param,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            disputes::get_aggregates_for_disputes(state, platform, None, req)
+            disputes::get_aggregates_for_disputes(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -597,11 +590,10 @@ pub async fn get_disputes_aggregate_profile(
         &req,
         query_param,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.clone().into();
             disputes::get_aggregates_for_disputes(
                 state,
-                platform,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
         },

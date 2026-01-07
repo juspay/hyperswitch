@@ -180,6 +180,7 @@ paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url = "https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payjustnow.base_url = "https://sandbox-checkout.payjustnow.io/v2"
+payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
@@ -233,7 +234,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://secure-test.worldpay.com/shopper/3ds/challenge.html"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -715,6 +716,9 @@ google_pay = { country = "AD, AE, AG, AI, AM, AO, AQ, AR, AS, AT, AU, AW, AX, AZ
 apple_pay = { currency = "USD, CAD" }
 
 [pm_filters.payjustnow]
+payjustnow = { country = "ZA", currency = "ZAR" }
+
+[pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
 [pm_filters.worldpayxml]

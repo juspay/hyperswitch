@@ -6,7 +6,7 @@ use common_enums::CardNetwork;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
-    pii::Email,
+    pii::{Email, SecretSerdeValue},
     request::RequestContent,
 };
 use error_stack::ResultExt;
@@ -111,6 +111,8 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
+    /// Additional metadata containing PAR, UPT, and other tokens   
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -538,6 +540,8 @@ pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
+    customer_id: Option<id_type::GlobalCustomerId>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -589,7 +593,7 @@ pub fn generate_payment_method_response(
 
     let resp = api::PaymentMethodResponse {
         merchant_id: payment_method.merchant_id.to_owned(),
-        customer_id: payment_method.customer_id.to_owned(),
+        customer_id,
         id: payment_method.id.to_owned(),
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
@@ -600,6 +604,7 @@ pub fn generate_payment_method_response(
         connector_tokens,
         network_token,
         storage_type,
+        card_cvc_token_storage,
     };
 
     Ok(resp)
@@ -835,7 +840,6 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         let recurring_enabled = true;
 
         Ok(Self {
-            id: item.id,
             customer_id: item
                 .customer_id
                 .get_required_value("GlobalCustomerId")
@@ -852,7 +856,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
-            payment_token,
+            payment_method_token: payment_token,
         })
     }
 }
@@ -956,6 +960,7 @@ pub fn generate_payment_method_session_response(
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
     storage_type: Option<common_enums::StorageType>,
+    card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -991,6 +996,7 @@ pub fn generate_payment_method_session_response(
         authentication_details,
         associated_token_id: token_id,
         storage_type,
+        card_cvc_token_storage,
     }
 }
 

@@ -82,6 +82,7 @@ use crate::{
         CardTokenAdditionalData, GiftCardAdditionalData, UpiAdditionalData,
         WalletAdditionalDataForCard,
     },
+    platform,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, refunds, ValidateFieldAndGet};
@@ -3281,6 +3282,15 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
+impl PaymentMethodDataRequest {
+    pub fn get_card(&self) -> Option<Card> {
+        match &self.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => Some(card.clone()),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SplitPaymentMethodDataRequest {
@@ -4150,7 +4160,7 @@ pub struct KlarnaSdkPaymentMethod {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct InteracPaymentMethod {
     #[schema(value_type = Option<Object>)]
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<common_types::payments::InteracCustomerInfoDetails>,
 }
 
 #[derive(
@@ -7085,6 +7095,20 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<i64>")]
     pub amount_received: Option<MinorUnit>,
 
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    #[smithy(value_type = "String")]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[smithy(value_type = "Option<Initiator>")]
+    pub initiator: Option<platform::Initiator>,
+
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
@@ -8269,6 +8293,18 @@ pub struct PaymentsResponse {
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The identifier for the processor merchant account. In platform-connected setups,
+    /// this is the connected merchant ID. For standard merchants, this is same as merchant_id.
+    #[schema(max_length = 255, example = "merchant_1689512302", value_type = String)]
+    pub processor_merchant_id: id_type::MerchantId,
+
+    /// Indicates who initiated the payment in platform-connected setups.
+    /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
+    /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
+    /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
+    #[schema(value_type = Option<Initiator>, example = "platform")]
+    pub initiator: Option<platform::Initiator>,
 
     /// The connector used for the payment
     #[schema(example = "stripe")]

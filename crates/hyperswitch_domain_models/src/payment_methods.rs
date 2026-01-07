@@ -285,6 +285,14 @@ impl PaymentMethod {
             .and_then(|record| record.connector_customer_id.clone()))
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_metadata(
+        &self,
+        optional_metadata: Option<pii::SecretSerdeValue>,
+    ) -> Option<pii::SecretSerdeValue> {
+        common_utils::merge_json_values(self.metadata.clone(), optional_metadata)
+    }
+
     #[cfg(feature = "v2")]
     pub fn get_payout_connector_customer_id(
         &self,
@@ -745,7 +753,8 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
@@ -875,6 +884,15 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_payment_methods_by_merchant_id_payment_method_ids(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        payment_method_ids: &[String],
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         key_store: &MerchantKeyStore,
@@ -977,7 +995,8 @@ pub enum PaymentMethodsSessionUpdateEnum {
         tokenization_data: Option<pii::SecretSerdeValue>,
     },
     UpdateAssociatedPaymentMethods {
-        associated_payment_methods: Option<Vec<String>>,
+        associated_payment_methods:
+            Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
     },
 }
 
@@ -1050,7 +1069,8 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
-    pub associated_payment_methods: Option<Vec<String>>,
+    pub associated_payment_methods:
+        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

@@ -248,17 +248,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+
         let metadata = payment_data.payment_intent.metadata.clone();
         let feature_metadata = payment_data
             .payment_intent
@@ -320,27 +321,62 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Data = PaymentData<F>>,
 {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        request: Option<&payments::CustomerDetails>,
+        processor: &domain::Processor,
+    ) -> errors::CustomResult<(), errors::StorageError> {
+        helpers::populate_raw_customer_details(state, payment_data, request, processor).await
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        helpers::create_customer_if_not_exist(
-            state,
-            Box::new(self),
-            payment_data,
-            request,
-            &key_store.merchant_id,
-            key_store,
-            storage_scheme,
-        )
-        .await
+        match provider.get_account().merchant_account_type {
+            common_enums::MerchantAccountType::Standard => {
+                helpers::create_customer_if_not_exist(
+                    state,
+                    Box::new(self),
+                    payment_data,
+                    request,
+                    provider,
+                )
+                .await
+            }
+            common_enums::MerchantAccountType::Platform => {
+                let customer = helpers::get_customer_if_exists(
+                    state,
+                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                    payment_data.payment_intent.customer_id.as_ref(),
+                    provider,
+                )
+                .await?
+                .inspect(|cust| {
+                    payment_data.email = payment_data
+                        .email
+                        .clone()
+                        .or_else(|| cust.email.clone().map(Into::into));
+                });
+
+                Ok((Box::new(self), customer))
+            }
+            common_enums::MerchantAccountType::Connected => {
+                Err(errors::StorageError::ValueNotFound(
+                    "Connected merchant cannot be a provider".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     #[instrument(skip_all)]
