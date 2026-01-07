@@ -301,13 +301,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -376,13 +370,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -404,7 +392,7 @@ where
         .payment_token
         .as_ref()
         .zip(Some(payment_data.get_payment_attempt().payment_method_type))
-        .map(ParentPaymentMethodToken::return_key_for_token)
+        .map(|(token, _)| ParentPaymentMethodToken::return_key_for_token(token))
         .async_map(|key_for_token| async move {
             let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
                 .await
@@ -518,13 +506,7 @@ where
 
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
-        .update_tracker(
-            state,
-            payment_data,
-            router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .update_tracker(state, platform.get_processor(), payment_data, router_data)
         .await?;
 
     Ok((
@@ -614,6 +596,18 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
+    operation
+        .to_domain()?
+        .populate_raw_customer_details(
+            state,
+            &mut payment_data,
+            customer_details.as_ref(),
+            platform.get_processor(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while populating raw customer details")?;
+
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -621,8 +615,7 @@ where
             state,
             &mut payment_data,
             customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -900,10 +893,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1068,10 +1060,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1356,14 +1347,25 @@ where
         None
     };
 
+    operation
+        .to_domain()?
+        .populate_raw_customer_details(
+            state,
+            &mut payment_data,
+            customer_details.as_ref(),
+            platform.get_processor(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while populating raw customer details")?;
+
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
             &mut payment_data,
             customer_details,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1405,10 +1407,9 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
+            platform.get_processor(),
             payment_data,
             router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
             &locale,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             routable_connectors,
@@ -1520,13 +1521,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(vec) => todo!(),
@@ -1659,13 +1654,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(_) => todo!(),
@@ -2187,6 +2176,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
+        &platform,
     )
 }
 
@@ -2226,7 +2216,7 @@ where
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            platform,
+            platform.clone(),
             profile_id,
             operation.clone(),
             req,
@@ -2247,6 +2237,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
+        &platform,
     )
 }
 
@@ -8239,11 +8230,15 @@ pub async fn list_payments(
             .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
     //Will collect responses in same order async, leading to sorted responses
 
+    let api_initiator = platform
+        .get_initiator()
+        .and_then(domain::Initiator::to_api_initiator);
+
     //Converting Intent-Attempt array to Response if no error
     let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
         .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
-        .map(ForeignFrom::foreign_from)
+        .map(|(pi, pa)| ForeignFrom::foreign_from((pi, pa, api_initiator)))
         .collect();
 
     Ok(services::ApplicationResponse::Json(
@@ -8494,8 +8489,15 @@ pub async fn apply_filters_on_payments(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let data: Vec<api::PaymentsResponse> =
-                list.into_iter().map(ForeignFrom::foreign_from).collect();
+            let api_initiator = platform
+                .get_initiator()
+                .and_then(domain::Initiator::to_api_initiator);
+            let data: Vec<api::PaymentsResponse> = list
+                .into_iter()
+                .map(|(payment_intent, payment_attempt)| {
+                    ForeignFrom::foreign_from((payment_intent, payment_attempt, api_initiator))
+                })
+                .collect();
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
@@ -8592,7 +8594,7 @@ pub async fn get_payment_filters(
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            platform.get_processor().get_account().get_id().to_owned(),
+            platform.get_processor().clone(),
             profile_id_list,
         )
         .await?

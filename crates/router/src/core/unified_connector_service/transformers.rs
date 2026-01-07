@@ -43,7 +43,7 @@ pub use hyperswitch_interfaces::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
-use unified_connector_service_cards::CardNumber;
+use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, Identifier,
     PaymentServiceTransformRequest, PaymentServiceTransformResponse,
@@ -291,10 +291,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -492,10 +492,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: true,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(true),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -679,14 +679,13 @@ impl
                 e
             })
             .ok();
+        let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
-        let connector_ref_id = router_data
-            .request
-            .connector_reference_id
-            .clone()
-            .map(|id| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-            });
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -724,10 +723,11 @@ impl
         Ok(Self {
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
-            request_ref_id: connector_ref_id,
+            request_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
+            connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
             currency: currency.into(),
             state,
@@ -1209,8 +1209,8 @@ impl
             return_url: router_data.request.complete_authorize_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: false,
-            request_incremental_authorization: false,
+            enrolled_for_3ds: Some(false),
+            request_incremental_authorization: Some(false),
             minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
             email: router_data
                 .request
@@ -1347,10 +1347,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -1509,10 +1509,10 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
-            request_incremental_authorization: router_data
-                .request
-                .request_incremental_authorization,
+            enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
+            request_incremental_authorization: Some(
+                router_data.request.request_incremental_authorization,
+            ),
             minor_amount: router_data.request.amount,
             email: router_data
                 .request
@@ -2034,7 +2034,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePreAuthenticateRe
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2196,7 +2197,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2299,7 +2301,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2358,6 +2361,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCu
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2396,6 +2400,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                     })
             });
 
+        let resource_id: router_request_types::ResponseId = match response
+            .registration_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
@@ -2409,7 +2429,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2436,32 +2457,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: response
-                        .registration_id
-                        .as_ref()
-                        .and_then(|identifier| {
-                            identifier
-                                .id_type
-                                .clone()
-                                .and_then(|id_type| match id_type {
-                                    payments_grpc::identifier::IdType::Id(id) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            id,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::EncodedData(
-                                        encoded_data,
-                                    ) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            encoded_data,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => {
-                                        None
-                                    }
-                                })
-                        })
-                        .unwrap_or(router_request_types::ResponseId::NoResponseId),
+                    resource_id,
                     redirection_data: Box::new(
                         response
                             .redirection_data
@@ -2514,13 +2510,21 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                     })
             });
 
-        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-            id.id_type.clone().and_then(|id_type| match id_type {
-                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-            })
-        });
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -2551,7 +2555,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: transaction_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2562,14 +2567,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingR
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: match transaction_id.as_ref() {
-                        Some(transaction_id) => {
-                            router_request_types::ResponseId::ConnectorTransactionId(
-                                transaction_id.clone(),
-                            )
-                        }
-                        None => router_request_types::ResponseId::NoResponseId,
-                    },
+                    resource_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
@@ -2619,6 +2617,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessToken
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -2809,6 +2808,118 @@ impl transformers::ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::
                 .into(),
             ),
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::NetworkTokenData>
+    for payments_grpc::NetworkTokenData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        network_token_data: hyperswitch_domain_models::payment_method_data::NetworkTokenData,
+    ) -> Result<Self, Self::Error> {
+        let card_network = network_token_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_try_from)
+            .transpose()?;
+
+        #[cfg(feature = "v1")]
+        let network_token = Self {
+            token_number: Some(
+                NetworkToken::from_str(&network_token_data.token_number.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(network_token_data.token_exp_month.expose().into()),
+            token_exp_year: Some(network_token_data.token_exp_year.expose().into()),
+            token_cryptogram: network_token_data
+                .token_cryptogram
+                .map(|cryptogram| cryptogram.expose().into()),
+            card_issuer: network_token_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: network_token_data.card_type.clone(),
+            card_issuing_country: network_token_data.card_issuing_country.clone(),
+            bank_code: network_token_data.bank_code.clone(),
+            nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
+            eci: network_token_data.eci,
+        };
+
+        #[cfg(feature = "v2")]
+        let network_token = Self {
+            token_number: Some(
+                NetworkToken::from_str(&network_token_data.network_token.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse network token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(network_token_data.network_token_exp_month.expose().into()),
+            token_exp_year: Some(network_token_data.network_token_exp_year.expose().into()),
+            token_cryptogram: network_token_data
+                .cryptogram
+                .map(|cryptogram| cryptogram.expose().into()),
+            card_issuer: network_token_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: network_token_data
+                .card_type
+                .clone()
+                .map(|ct| ct.to_string()),
+            card_issuing_country: network_token_data
+                .card_issuing_country
+                .map(|cic| cic.to_string()),
+            bank_code: network_token_data.bank_code.clone(),
+            nick_name: network_token_data.nick_name.map(|n| n.expose().into()),
+            eci: network_token_data.eci,
+        };
+
+        Ok(network_token)
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    > for payments_grpc::CardDetailsForNetworkTransactionId
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        card_nti_data: hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        let card_network = card_nti_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_try_from)
+            .transpose()?;
+
+        let card_details_for_nti = Self {
+            card_number: Some(
+                CardNumber::from_str(&card_nti_data.card_number.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?,
+            ),
+            card_exp_month: Some(card_nti_data.card_exp_month.expose().into()),
+            card_exp_year: Some(card_nti_data.card_exp_year.expose().into()),
+            card_issuer: card_nti_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: card_nti_data.card_type.clone(),
+            card_issuing_country: card_nti_data.card_issuing_country.clone(),
+            bank_code: card_nti_data.bank_code.clone(),
+            nick_name: card_nti_data.nick_name.map(|n| n.expose().into()),
+            card_holder_name: card_nti_data
+                .card_holder_name
+                .map(|name| name.expose().into()),
+        };
+
+        Ok(card_details_for_nti)
     }
 }
 
@@ -3113,6 +3224,179 @@ impl transformers::ForeignTryFrom<storage_enums::CaptureMethod> for payments_grp
     }
 }
 
+impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::BankNames {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(bank_name: common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            common_enums::BankNames::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::BankNames::AffinBank => Ok(Self::AffinBank),
+            common_enums::BankNames::AgroBank => Ok(Self::AgroBank),
+            common_enums::BankNames::AllianceBank => Ok(Self::AllianceBank),
+            common_enums::BankNames::AmBank => Ok(Self::AmBank),
+            common_enums::BankNames::BankOfAmerica => Ok(Self::BankOfAmerica),
+            common_enums::BankNames::BankOfChina => Ok(Self::BankOfChina),
+            common_enums::BankNames::BankIslam => Ok(Self::BankIslam),
+            common_enums::BankNames::BankMuamalat => Ok(Self::BankMuamalat),
+            common_enums::BankNames::BankRakyat => Ok(Self::BankRakyat),
+            common_enums::BankNames::BankSimpananNasional => Ok(Self::BankSimpananNasional),
+            common_enums::BankNames::Barclays => Ok(Self::Barclays),
+            common_enums::BankNames::BlikPSP => Ok(Self::BlikPsp),
+            common_enums::BankNames::CapitalOne => Ok(Self::CapitalOne),
+            common_enums::BankNames::Chase => Ok(Self::Chase),
+            common_enums::BankNames::Citi => Ok(Self::Citi),
+            common_enums::BankNames::CimbBank => Ok(Self::CimbBank),
+            common_enums::BankNames::Discover => Ok(Self::Discover),
+            common_enums::BankNames::NavyFederalCreditUnion => Ok(Self::NavyFederalCreditUnion),
+            common_enums::BankNames::PentagonFederalCreditUnion => {
+                Ok(Self::PentagonFederalCreditUnion)
+            }
+            common_enums::BankNames::SynchronyBank => Ok(Self::SynchronyBank),
+            common_enums::BankNames::WellsFargo => Ok(Self::WellsFargo),
+            common_enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            common_enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            common_enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::BankNames::Handelsbanken => Ok(Self::Handelsbanken),
+            common_enums::BankNames::HongLeongBank => Ok(Self::HongLeongBank),
+            common_enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            common_enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::BankNames::KuwaitFinanceHouse => Ok(Self::KuwaitFinanceHouse),
+            common_enums::BankNames::Moneyou => Ok(Self::Moneyou),
+            common_enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::BankNames::Revolut => Ok(Self::Revolut),
+            common_enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            common_enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
+            common_enums::BankNames::ArzteUndApothekerBank => Ok(Self::ArzteUndApothekerBank),
+            common_enums::BankNames::AustrianAnadiBankAg => Ok(Self::AustrianAnadiBankAg),
+            common_enums::BankNames::BankAustria => Ok(Self::BankAustria),
+            common_enums::BankNames::Bank99Ag => Ok(Self::Bank99Ag),
+            common_enums::BankNames::BankhausCarlSpangler => Ok(Self::BankhausCarlSpangler),
+            common_enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
+                Ok(Self::BankhausSchelhammerUndSchatteraAg)
+            }
+            common_enums::BankNames::BankMillennium => Ok(Self::BankMillennium),
+            common_enums::BankNames::BankPEKAOSA => Ok(Self::BankPekaoSa),
+            common_enums::BankNames::BawagPskAg => Ok(Self::BawagPskAg),
+            common_enums::BankNames::BksBankAg => Ok(Self::BksBankAg),
+            common_enums::BankNames::BrullKallmusBankAg => Ok(Self::BrullKallmusBankAg),
+            common_enums::BankNames::BtvVierLanderBank => Ok(Self::BtvVierLanderBank),
+            common_enums::BankNames::CapitalBankGraweGruppeAg => Ok(Self::CapitalBankGraweGruppeAg),
+            common_enums::BankNames::CeskaSporitelna => Ok(Self::CeskaSporitelna),
+            common_enums::BankNames::Dolomitenbank => Ok(Self::Dolomitenbank),
+            common_enums::BankNames::EasybankAg => Ok(Self::EasybankAg),
+            common_enums::BankNames::EPlatbyVUB => Ok(Self::EPlatbyVub),
+            common_enums::BankNames::ErsteBankUndSparkassen => Ok(Self::ErsteBankUndSparkassen),
+            common_enums::BankNames::FrieslandBank => Ok(Self::FrieslandBank),
+            common_enums::BankNames::HypoAlpeadriabankInternationalAg => {
+                Ok(Self::HypoAlpeadriabankInternationalAg)
+            }
+            common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
+                Ok(Self::HypoNoeLbFurNiederosterreichUWien)
+            }
+            common_enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
+                Ok(Self::HypoOberosterreichSalzburgSteiermark)
+            }
+            common_enums::BankNames::HypoTirolBankAg => Ok(Self::HypoTirolBankAg),
+            common_enums::BankNames::HypoVorarlbergBankAg => Ok(Self::HypoVorarlbergBankAg),
+            common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
+                Ok(Self::HypoBankBurgenlandAktiengesellschaft)
+            }
+            common_enums::BankNames::KomercniBanka => Ok(Self::KomercniBanka),
+            common_enums::BankNames::MBank => Ok(Self::MBank),
+            common_enums::BankNames::MarchfelderBank => Ok(Self::MarchfelderBank),
+            common_enums::BankNames::Maybank => Ok(Self::Maybank),
+            common_enums::BankNames::OberbankAg => Ok(Self::OberbankAg),
+            common_enums::BankNames::OsterreichischeArzteUndApothekerbank => {
+                Ok(Self::OsterreichischeArzteUndApothekerbank)
+            }
+            common_enums::BankNames::OcbcBank => Ok(Self::OcbcBank),
+            common_enums::BankNames::PayWithING => Ok(Self::PayWithIng),
+            common_enums::BankNames::PlaceZIPKO => Ok(Self::PlaceZipko),
+            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => {
+                Ok(Self::PlatnoscOnlineKartaPlatnicza)
+            }
+            common_enums::BankNames::PosojilnicaBankEGen => Ok(Self::PosojilnicaBankEGen),
+            common_enums::BankNames::PostovaBanka => Ok(Self::PostovaBanka),
+            common_enums::BankNames::PublicBank => Ok(Self::PublicBank),
+            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+                Ok(Self::RaiffeisenBankengruppeOsterreich)
+            }
+            common_enums::BankNames::RhbBank => Ok(Self::RhbBank),
+            common_enums::BankNames::SchelhammerCapitalBankAg => Ok(Self::SchelhammerCapitalBankAg),
+            common_enums::BankNames::StandardCharteredBank => Ok(Self::StandardCharteredBank),
+            common_enums::BankNames::SchoellerbankAg => Ok(Self::SchoellerbankAg),
+            common_enums::BankNames::SpardaBankWien => Ok(Self::SpardaBankWien),
+            common_enums::BankNames::SporoPay => Ok(Self::SporoPay),
+            common_enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            common_enums::BankNames::TatraPay => Ok(Self::TatraPay),
+            common_enums::BankNames::Viamo => Ok(Self::Viamo),
+            common_enums::BankNames::VolksbankGruppe => Ok(Self::VolksbankGruppe),
+            common_enums::BankNames::VolkskreditbankAg => Ok(Self::VolkskreditbankAg),
+            common_enums::BankNames::VrBankBraunau => Ok(Self::VrBankBraunau),
+            common_enums::BankNames::UobBank => Ok(Self::UobBank),
+            common_enums::BankNames::PayWithAliorBank => Ok(Self::PayWithAliorBank),
+            common_enums::BankNames::BankiSpoldzielcze => Ok(Self::BankiSpoldzielcze),
+            common_enums::BankNames::PayWithInteligo => Ok(Self::PayWithInteligo),
+            common_enums::BankNames::BNPParibasPoland => Ok(Self::BnpParibasPoland),
+            common_enums::BankNames::BankNowySA => Ok(Self::BankNowySa),
+            common_enums::BankNames::CreditAgricole => Ok(Self::CreditAgricole),
+            common_enums::BankNames::PayWithBOS => Ok(Self::PayWithBos),
+            common_enums::BankNames::PayWithCitiHandlowy => Ok(Self::PayWithCitiHandlowy),
+            common_enums::BankNames::PayWithPlusBank => Ok(Self::PayWithPlusBank),
+            common_enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
+            common_enums::BankNames::VeloBank => Ok(Self::VeloBank),
+            common_enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
+            common_enums::BankNames::PlusBank => Ok(Self::PlusBank),
+            common_enums::BankNames::EtransferPocztowy24 => Ok(Self::ETransferPocztowy24),
+            common_enums::BankNames::BankiSpbdzielcze => Ok(Self::BankiSpbdzielcze),
+            common_enums::BankNames::BankNowyBfgSa => Ok(Self::BankNowyBfgSa),
+            common_enums::BankNames::GetinBank => Ok(Self::GetinBank),
+            common_enums::BankNames::Blik => Ok(Self::BlikPoland),
+            common_enums::BankNames::NoblePay => Ok(Self::NoblePay),
+            common_enums::BankNames::IdeaBank => Ok(Self::IdeaBank),
+            common_enums::BankNames::EnveloBank => Ok(Self::EnveloBank),
+            common_enums::BankNames::NestPrzelew => Ok(Self::NestPrzelew),
+            common_enums::BankNames::MbankMtransfer => Ok(Self::MbankMtransfer),
+            common_enums::BankNames::Inteligo => Ok(Self::Inteligo),
+            common_enums::BankNames::PbacZIpko => Ok(Self::PbacZIpko),
+            common_enums::BankNames::BnpParibas => Ok(Self::BnpParibas),
+            common_enums::BankNames::BankPekaoSa => Ok(Self::BankPekaoSa),
+            common_enums::BankNames::VolkswagenBank => Ok(Self::VolkswagenBank),
+            common_enums::BankNames::AliorBank => Ok(Self::AliorBank),
+            common_enums::BankNames::Boz => Ok(Self::Boz),
+            common_enums::BankNames::BangkokBank => Ok(Self::BangkokBank),
+            common_enums::BankNames::KrungsriBank => Ok(Self::KrungsriBank),
+            common_enums::BankNames::KrungThaiBank => Ok(Self::KrungThaiBank),
+            common_enums::BankNames::TheSiamCommercialBank => Ok(Self::TheSiamCommercialBank),
+            common_enums::BankNames::KasikornBank => Ok(Self::KasikornBank),
+            common_enums::BankNames::OpenBankSuccess => Ok(Self::OpenBankSuccess),
+            common_enums::BankNames::OpenBankFailure => Ok(Self::OpenBankFailure),
+            common_enums::BankNames::OpenBankCancelled => Ok(Self::OpenBankCancelled),
+            common_enums::BankNames::Aib => Ok(Self::Aib),
+            common_enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
+            common_enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
+            common_enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
+            common_enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
+            common_enums::BankNames::Halifax => Ok(Self::Halifax),
+            common_enums::BankNames::Lloyds => Ok(Self::Lloyds),
+            common_enums::BankNames::Monzo => Ok(Self::Monzo),
+            common_enums::BankNames::NatWest => Ok(Self::NatWest),
+            common_enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
+            common_enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            common_enums::BankNames::Starling => Ok(Self::Starling),
+            common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
+            common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
+            common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
+            common_enums::BankNames::Yoursafe => Ok(Self::Yoursafe),
+            common_enums::BankNames::N26 => Ok(Self::N26),
+            common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::AuthenticationData {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -3306,7 +3590,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServicePostAuthenticateR
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3552,6 +3837,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3597,6 +3883,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreatePaymentMeth
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3630,6 +3917,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceSdkSessionTokenRe
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4177,7 +4465,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceAuthenticateRespo
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4334,6 +4623,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionToke
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4673,7 +4963,8 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status: None,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: None,
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4805,6 +5096,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                     })
             });
 
+        let resource_id: router_request_types::ResponseId = match response
+            .transaction_id
+            .as_ref()
+            .and_then(|id| id.id_type.clone())
+        {
+            Some(payments_grpc::identifier::IdType::Id(id)) => {
+                router_request_types::ResponseId::ConnectorTransactionId(id)
+            }
+            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
+                router_request_types::ResponseId::EncodedData(encoded_data)
+            }
+            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
+                router_request_types::ResponseId::NoResponseId
+            }
+        };
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
@@ -4835,7 +5142,8 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
                 reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_response_reference_id,
+                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -4846,32 +5154,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: response
-                        .transaction_id
-                        .as_ref()
-                        .and_then(|identifier| {
-                            identifier
-                                .id_type
-                                .clone()
-                                .and_then(|id_type| match id_type {
-                                    payments_grpc::identifier::IdType::Id(id) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            id,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::EncodedData(
-                                        encoded_data,
-                                    ) => Some(
-                                        router_request_types::ResponseId::ConnectorTransactionId(
-                                            encoded_data,
-                                        ),
-                                    ),
-                                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => {
-                                        None
-                                    }
-                                })
-                        })
-                        .unwrap_or(router_request_types::ResponseId::NoResponseId),
+                    resource_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
