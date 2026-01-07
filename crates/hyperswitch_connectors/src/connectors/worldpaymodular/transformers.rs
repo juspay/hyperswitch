@@ -4,7 +4,8 @@ use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::{enums, Currency, PaymentChannel};
 use common_utils::{
-    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, types::MinorUnit,
+    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, pii::SecretSerdeValue,
+    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -17,18 +18,30 @@ use hyperswitch_domain_models::{
     types::*,
 };
 use hyperswitch_interfaces::{api::*, errors::ConnectorError};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface as _, PeekInterface, Secret};
 pub use request::*;
 pub use response::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     types::PaymentsResponseRouterData,
     utils::{
-        get_unimplemented_payment_method_error_message, ApplePay,
+        get_unimplemented_payment_method_error_message, to_connector_meta_from_secret, ApplePay,
         PaymentsAuthorizeRequestData as _, RouterData as _,
     },
 };
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct WorldpaymodularConnectorMetadataObject {
+    pub merchant_name: Option<Secret<String>>,
+}
+impl TryFrom<Option<&SecretSerdeValue>> for WorldpaymodularConnectorMetadataObject {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(meta_data: Option<&SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = to_connector_meta_from_secret::<Self>(meta_data.cloned())
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
+        Ok(metadata)
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct WorldpaymodularRouterData<T> {
@@ -145,6 +158,16 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, entity_id, base_url) = req;
+        let worldpay_connector_metadata_object: WorldpaymodularConnectorMetadataObject =
+            WorldpaymodularConnectorMetadataObject::try_from(
+                item.router_data.connector_meta_data.as_ref(),
+            )?;
+
+        let merchant_name = worldpay_connector_metadata_object.merchant_name.ok_or(
+            ConnectorError::InvalidConnectorConfig {
+                config: "metadata.merchant_name",
+            },
+        )?;
 
         let customer_agreement = if item.router_data.request.is_cit_mandate_payment() {
             Some(WMCustomerAcceptance::CardOnFile(WMCustomerAgreement {
@@ -174,11 +197,7 @@ impl
                     currency: item.router_data.request.currency,
                 },
                 narrative: InstructionNarrative {
-                    line1: item
-                        .router_data
-                        .merchant_id
-                        .get_string_repr()
-                        .replace('_', "-"),
+                    line1: merchant_name.expose(),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
@@ -195,7 +214,7 @@ impl
                 ..Default::default()
             },
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
-            channel: channel,
+            channel,
             customer: None,
         })
     }
@@ -227,6 +246,73 @@ impl TryFrom<&ConnectorAuthType> for WorldpaymodularAuthType {
     }
 }
 
+pub fn get_worldpay_combined_psync_response(
+    response: WorldpayModularPsyncObjResponse,
+    data: &PaymentsSyncRouterData,
+) -> CustomResult<PaymentsSyncRouterData, ConnectorError> {
+    let attempt_status = match response {
+        WorldpayModularPsyncObjResponse::PsyncResponse(payment_outcome) => {
+            enums::AttemptStatus::from(payment_outcome.last_event)
+        }
+        WorldpayModularPsyncObjResponse::Webhook(worldpaymodular_webhook_event_type) => {
+            enums::AttemptStatus::from(worldpaymodular_webhook_event_type.event_details.event_type)
+        }
+    };
+    Ok(PaymentsSyncRouterData {
+        status: attempt_status,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: data.request.connector_transaction_id.clone(),
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..data.clone()
+    })
+}
+
+pub fn get_worldpay_combined_capture_response(
+    response: WorldpaymodularCaptureResponse,
+    data: &PaymentsCaptureRouterData,
+) -> CustomResult<PaymentsCaptureRouterData, ConnectorError> {
+    let mandate = response.links.get_mandate_id();
+    Ok(PaymentsCaptureRouterData {
+        status: enums::AttemptStatus::Charged,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: response.links.get_resource_id()?,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(mandate),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..data.clone()
+    })
+}
+pub fn get_worldpay_void_response(
+    _response: WorldpaymodularVoidResponse,
+    data: &PaymentsCancelRouterData,
+) -> CustomResult<PaymentsCancelRouterData, ConnectorError> {
+    Ok(PaymentsCancelRouterData {
+        status: enums::AttemptStatus::Voided,
+        response: Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::NoResponseId,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        }),
+        ..data.clone()
+    })
+}
 impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
@@ -234,15 +320,16 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             PaymentOutcome::Refused => Self::Failure,
             PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
             PaymentOutcome::SentForRefund => Self::AutoRefunded,
+            PaymentOutcome::SentForCancellation => Self::Voided,
         }
     }
 }
 
-impl From<&EventType> for enums::AttemptStatus {
-    fn from(value: &EventType) -> Self {
+impl From<EventType> for enums::AttemptStatus {
+    fn from(value: EventType) -> Self {
         match value {
             EventType::SentForAuthorization => Self::Authorizing,
-            EventType::SentForSettlement => Self::CaptureInitiated,
+            EventType::SentForSettlement => Self::Charged,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
             EventType::SettlementRejected | EventType::Refused | EventType::SettlementFailed => {
@@ -262,7 +349,7 @@ impl From<&EventType> for enums::AttemptStatus {
 impl From<EventType> for enums::RefundStatus {
     fn from(value: EventType) -> Self {
         match value {
-            EventType::SentForRefund => Self::Pending,
+            EventType::SentForRefund => Self::Success,
             EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
             EventType::Authorized
@@ -288,8 +375,10 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
         item: PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let mandate = item.response.links.get_mandate_id();
+        let status = enums::AttemptStatus::from(item.response.outcome);
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.outcome),
+            status,
             description: item.response.description,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item.response.links.get_resource_id()?,
@@ -306,40 +395,33 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
     }
 }
 
-impl TryFrom<(&PaymentsCaptureRouterData, MinorUnit)> for WorldpaymodularPartialRequest {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(req: (&PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
-        let (item, amount) = req;
-        Ok(Self {
-            reference: item.payment_id.clone().replace("_", "-"),
-            value: PaymentValue {
-                amount: amount,
-                currency: item.request.currency,
-            },
-        })
-    }
-}
-
-impl<F> TryFrom<(&RefundsRouterData<F>, MinorUnit)> for WorldpaymodularPartialRequest {
+impl<F> TryFrom<(&RefundsRouterData<F>, MinorUnit)> for WorldpaymodularPartialRefundRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(req: (&RefundsRouterData<F>, MinorUnit)) -> Result<Self, Self::Error> {
         let (item, amount) = req;
         Ok(Self {
             reference: item.request.refund_id.clone().replace("_", "-"),
             value: PaymentValue {
-                amount: amount,
+                amount,
                 currency: item.request.currency,
             },
         })
     }
 }
 
-impl TryFrom<WorldpaymodularWebhookEventType> for WorldpaymodularEventResponse {
+impl TryFrom<(&PaymentsCaptureRouterData, MinorUnit)> for WorldpaymodularPartialCaptureRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(event: WorldpaymodularWebhookEventType) -> Result<Self, Self::Error> {
+    fn try_from(req: (&PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
+        let (item, amount) = req;
         Ok(Self {
-            last_event: event.event_details.event_type,
-            links: None,
+            reference: item
+                .connector_request_reference_id
+                .clone()
+                .replace("_", "-"),
+            value: PaymentValue {
+                amount,
+                currency: item.request.currency,
+            },
         })
     }
 }

@@ -42,6 +42,8 @@ pub enum PaymentOutcome {
     SentForSettlement,
     #[serde(alias = "Sent for Refund")]
     SentForRefund,
+    #[serde(alias = "Sent for Cancellation")]
+    SentForCancellation,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -60,7 +62,38 @@ pub struct WorldpaymodularEventResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WroldpayModularActualPsyncResponseObj {
+    pub last_event: PaymentOutcome,
+    pub value: super::PaymentValue,
+}
+
+// Sent for settlement plays totally differnt role in worldpaymodular in webhooks and psync
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayModularPsyncObjResponse {
+    PsyncResponse(WroldpayModularActualPsyncResponseObj),
+    Webhook(WorldpaymodularWebhookEventType),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpaymodularCaptureResponse {
+    pub payment_id: String,
+    #[serde(rename = "_links")]
+    pub links: PaymentLinks,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpaymodularVoidResponse {
+    #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
+    pub links: Option<PaymentLinks>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum EventType {
+    #[serde(alias = "sentForAuthorization", alias = "Sent for Authorization")]
     SentForAuthorization,
     #[serde(alias = "Authorized", alias = "authorized")]
     Authorized,
@@ -370,15 +403,16 @@ pub struct WorldpaymodularWebhookTransactionId {
     pub event_details: EventDetails,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventDetails {
     pub transaction_reference: String,
     #[serde(rename = "type")]
     pub event_type: EventType,
+    pub reference: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpaymodularWebhookEventType {
     pub event_id: String,

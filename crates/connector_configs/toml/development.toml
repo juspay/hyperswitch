@@ -7900,6 +7900,13 @@ key1="Username"
 api_key="Password"
 api_secret="Merchant Identifier"
 
+[worldpaymodular.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant to be displayed for customer"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+
 [worldpaymodular.connector_webhook_details]
 merchant_secret="Source verification key"
 

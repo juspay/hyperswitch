@@ -249,7 +249,15 @@ pub struct SubMerchant {
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct WorldpaymodularPartialRequest {
+#[serde(rename_all = "camelCase")]
+pub struct WorldpaymodularPartialRefundRequest {
+    pub value: PaymentValue,
+    pub reference: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpaymodularPartialCaptureRequest {
     pub value: PaymentValue,
     pub reference: String,
 }

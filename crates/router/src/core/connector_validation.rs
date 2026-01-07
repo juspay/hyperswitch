@@ -558,6 +558,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Worldpaymodular => {
                 worldpaymodular::transformers::WorldpaymodularAuthType::try_from(self.auth_type)?;
+                worldpaymodular::transformers::WorldpaymodularConnectorMetadataObject::try_from(
+                    self.connector_meta_data.as_ref(),
+                )?;
+
                 Ok(())
             }
             api_enums::Connector::Worldpayvantiv => {
