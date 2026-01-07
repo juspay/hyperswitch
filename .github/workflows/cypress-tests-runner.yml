@@ -332,13 +332,18 @@ jobs:
           retention-days: 1
 
   prepare-matrix:
-    name: Prepare Optional Connectors matrix to run cypress tests\
-    if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
+    name: Prepare Optional Connectors matrix to run cypress tests
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - name: Skipping matrix setup at PR level
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'false' }}
+        shell: bash
+        run: echo 'Skipping matrix setup for PRs from forks'
+
       - name : Set matrix for optional connectors batches
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         id: set-matrix
         shell: bash
         run: |
@@ -402,7 +407,6 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
     needs: [ build-hyperswitch, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
@@ -411,7 +415,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      RUN_OPTIONAL_CONNECTORS_TESTS: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS }}
 
     services:
       redis:
@@ -438,33 +441,42 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Skip tests on PR level
+        if: ${{ (env.RUN_OPTIONAL_CONNECTORS_TESTS == 'false')  }}
+        shell: bash
+        run: echo 'Skipping tests at PR level for optional connectors'
 
       - name: Checkout repository
-
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: actions/checkout@v5
 
       - name: Install Rust
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
       
       - name: Install sccache
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: sccache
           checksum: true
 
       - name: Download hyperswitch server artifact
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -481,11 +493,13 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -493,6 +507,7 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
@@ -500,31 +515,37 @@ jobs:
           args: --no-default-features
 
       - name: Install Just
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "24"
       
       - name: Install Cypress and dependencies
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Setup Local Server
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -551,6 +572,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        if: ${{ env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -562,7 +584,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload Cypress test results
-        if: failure()
+        if: env.RUN_OPTIONAL_CONNECTORS_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v4
         with:
           name:  ${{ matrix.batch.report_artifact_name }}
