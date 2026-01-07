@@ -83,7 +83,6 @@ describe("Payment Webhook Tests — Split Steps", () => {
     cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
   });
 
-  let expected_intent_status= globalState.get("paymentIntentStatus");
 
   it("Update-payment_status", () => {
     cy.updatePaymentStatusTest(globalState, {
@@ -100,6 +99,7 @@ describe("Payment Webhook Tests — Split Steps", () => {
     cy.sendWebhookTest(globalState);
   });
   it("Retrieve Payment Call Test", () => {
+    let expected_intent_status= globalState.get("paymentIntentStatus");
     cy.retrievePaymentCallTest(globalState, null, false, 1, expected_intent_status);
   });
 });
