@@ -29,7 +29,6 @@ import {
   extractIntegerAtEnd,
   getValueByKey,
 } from "../e2e/configs/Payment/Utils";
-import { payment_methods_enabled } from "../e2e/configs/Payment/Commons";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
