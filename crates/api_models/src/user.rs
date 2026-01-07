@@ -462,5 +462,6 @@ pub struct IssueEmbeddedTokenResponse {
 pub struct EmbeddedTokenInfoResponse {
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
+    pub merchant_account_version: common_enums::ApiVersion,
     pub profile_id: id_type::ProfileId,
 }

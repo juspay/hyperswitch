@@ -3826,13 +3826,38 @@ pub async fn issue_embedded_token(
 }
 
 pub async fn embedded_token_info(
-    _state: SessionState,
+    state: SessionState,
     authentication_data: auth::AuthenticationData,
 ) -> UserResponse<user_api::EmbeddedTokenInfoResponse> {
+    let key_manager_state = &(&state).into();
+
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            authentication_data.merchant_account.get_id(),
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(
+            key_manager_state,
+            authentication_data.merchant_account.get_id(),
+            &key_store,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
     Ok(ApplicationResponse::Json(
         user_api::EmbeddedTokenInfoResponse {
             org_id: authentication_data.merchant_account.get_org_id().clone(),
             merchant_id: authentication_data.merchant_account.get_id().clone(),
+            merchant_account_version: merchant_account.version,
             profile_id: authentication_data
                 .profile_id
                 .ok_or(UserErrors::InternalServerError)
