@@ -2,9 +2,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use api_models::{
     oidc::{
-        Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizationError, OidcAuthorizeQuery,
-        OidcDiscoveryResponse, OidcTokenError, OidcTokenRequest, OidcTokenResponse, Scope,
-        SigningAlgorithm,
+        Jwk, JwksResponse, KeyType, KeyUse, OidcAuthorizeQuery, OidcDiscoveryResponse,
+        OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
     },
     payments::RedirectionResponse,
 };
@@ -18,7 +17,7 @@ use crate::{
     consts::oidc::{
         ACCESS_TOKEN_TTL_IN_SECS, AUTH_CODE_LENGTH, ID_TOKEN_TTL_IN_SECS, TOKEN_TYPE_BEARER,
     },
-    core::errors::{ApiErrorResponse, RouterResponse},
+    core::errors::oidc::{OidcErrors, OidcResponse, OidcResult},
     routes::app::SessionState,
     services::{api::ApplicationResponse, authentication::UserFromToken, jwt},
     types::domain::user::oidc::{AccessTokenClaims, AuthCodeData, IdTokenClaims},
@@ -26,7 +25,7 @@ use crate::{
 };
 
 /// Build OIDC discovery document
-pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcDiscoveryResponse> {
+pub async fn get_discovery_document(state: SessionState) -> OidcResponse<OidcDiscoveryResponse> {
     let backend_base_url = state.tenant.base_url.clone();
     let control_center_url = user_utils::get_base_url(&state);
 
@@ -38,7 +37,7 @@ pub async fn get_discovery_document(state: SessionState) -> RouterResponse<OidcD
 
 static CACHED_JWKS: OnceCell<JwksResponse> = OnceCell::new();
 /// Build JWKS response with public keys (all keys for token validation)
-pub async fn get_jwks(state: SessionState) -> RouterResponse<&'static JwksResponse> {
+pub async fn get_jwks(state: SessionState) -> OidcResponse<&'static JwksResponse> {
     CACHED_JWKS
         .get_or_try_init(|| {
             let oidc_keys = state.conf.oidc.get_inner().get_all_keys();
@@ -48,7 +47,7 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<&'static JwksRespon
                 let (n, e) = common_utils::crypto::extract_rsa_public_key_components(
                     &key_config.private_key,
                 )
-                .change_context(ApiErrorResponse::InternalServerError)
+                .change_context(OidcErrors::ServerError)
                 .attach_printable("Failed to extract public key from private key")?;
 
                 let jwk = Jwk {
@@ -63,41 +62,24 @@ pub async fn get_jwks(state: SessionState) -> RouterResponse<&'static JwksRespon
                 keys.push(jwk);
             }
 
-            Ok::<_, error_stack::Report<ApiErrorResponse>>(JwksResponse { keys })
+            Ok::<_, error_stack::Report<OidcErrors>>(JwksResponse { keys })
         })
         .map(ApplicationResponse::Json)
 }
 
-fn validate_authorize_params(
-    payload: &OidcAuthorizeQuery,
-    state: &SessionState,
-) -> error_stack::Result<(), ApiErrorResponse> {
+fn validate_authorize_params(payload: &OidcAuthorizeQuery, state: &SessionState) -> OidcResult<()> {
     if !payload.scope.contains(&Scope::Openid) {
-        let error = OidcAuthorizationError::InvalidScope;
-        return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidScope));
     }
     let client = state
         .conf
         .oidc
         .get_inner()
         .get_client(&payload.client_id)
-        .ok_or_else(|| {
-            let error = OidcAuthorizationError::UnauthorizedClient;
-            report!(ApiErrorResponse::OidcAuthorizationError {
-                error,
-                description: error.description().into(),
-            })
-        })?;
+        .ok_or_else(|| report!(OidcErrors::UnauthorizedClient))?;
 
     if !oidc_utils::validate_redirect_uri_match(&client.redirect_uri, &payload.redirect_uri) {
-        let error = OidcAuthorizationError::InvalidRequest;
-        return Err(report!(ApiErrorResponse::OidcAuthorizationError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidRequest));
     }
 
     Ok(())
@@ -107,16 +89,16 @@ async fn generate_and_store_authorization_code(
     state: &SessionState,
     user_id: &str,
     payload: &OidcAuthorizeQuery,
-) -> error_stack::Result<String, ApiErrorResponse> {
+) -> OidcResult<String> {
     let user_from_db = state
         .global_store
         .find_user_by_id(user_id)
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to fetch user from database")?;
 
     let user_email = pii::Email::try_from(user_from_db.email.peek().to_string())
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to parse user email")?;
 
     let auth_code =
@@ -132,7 +114,10 @@ async fn generate_and_store_authorization_code(
         is_verified: user_from_db.is_verified,
     };
 
-    oidc_utils::set_auth_code_in_redis(state, &auth_code, &auth_code_data).await?;
+    oidc_utils::set_auth_code_in_redis(state, &auth_code, &auth_code_data)
+        .await
+        .change_context(OidcErrors::ServerError)
+        .attach_printable("Failed to store authorization code")?;
 
     Ok(auth_code)
 }
@@ -141,22 +126,18 @@ pub async fn process_authorize_request(
     state: SessionState,
     payload: OidcAuthorizeQuery,
     user: Option<UserFromToken>,
-) -> RouterResponse<()> {
+) -> OidcResponse<()> {
     // Validate all parameters
     validate_authorize_params(&payload, &state)?;
     // TODO: Handle users who are not already logged in
-    let user = user.ok_or_else(|| {
-        let error = OidcAuthorizationError::AccessDenied;
-        report!(ApiErrorResponse::OidcAuthorizationError {
-            error,
-            description: error.description().into(),
-        })
-    })?;
+    let user = user.ok_or_else(|| report!(OidcErrors::AccessDenied))?;
 
     let auth_code = generate_and_store_authorization_code(&state, &user.user_id, &payload).await?;
 
     let redirect_url =
-        oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)?;
+        oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)
+            .change_context(OidcErrors::ServerError)
+            .attach_printable("Failed to build redirect URL")?;
 
     #[cfg(feature = "v1")]
     {
@@ -185,13 +166,9 @@ fn validate_token_request(
     state: &SessionState,
     client_id: &str,
     redirect_uri: &str,
-) -> error_stack::Result<(), ApiErrorResponse> {
+) -> OidcResult<()> {
     if redirect_uri.trim().is_empty() {
-        let error = OidcTokenError::InvalidRequest;
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidTokenRequest));
     }
 
     let registered_client = state
@@ -199,20 +176,10 @@ fn validate_token_request(
         .oidc
         .get_inner()
         .get_client(client_id)
-        .ok_or_else(|| {
-            let error = OidcTokenError::InvalidClient;
-            report!(ApiErrorResponse::OidcTokenError {
-                error,
-                description: error.description().into(),
-            })
-        })?;
+        .ok_or_else(|| report!(OidcErrors::InvalidClient))?;
 
     if !oidc_utils::validate_redirect_uri_match(&registered_client.redirect_uri, redirect_uri) {
-        let error = OidcTokenError::InvalidRequest;
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidTokenRequest));
     }
 
     Ok(())
@@ -223,7 +190,7 @@ async fn validate_and_consume_authorization_code(
     code: &str,
     client_id: &str,
     redirect_uri: &str,
-) -> error_stack::Result<AuthCodeData, ApiErrorResponse> {
+) -> OidcResult<AuthCodeData> {
     let auth_code_data = oidc_utils::get_auth_code_from_redis(state, code).await?;
 
     if let Err(err) = oidc_utils::delete_auth_code_from_redis(state, code).await {
@@ -234,19 +201,11 @@ async fn validate_and_consume_authorization_code(
     }
 
     if !oidc_utils::validate_client_id_match(&auth_code_data.client_id, client_id) {
-        let error = OidcTokenError::InvalidGrant;
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidGrant));
     }
 
     if !oidc_utils::validate_redirect_uri_match(&auth_code_data.redirect_uri, redirect_uri) {
-        let error = OidcTokenError::InvalidGrant;
-        return Err(report!(ApiErrorResponse::OidcTokenError {
-            error,
-            description: error.description().into(),
-        }));
+        return Err(report!(OidcErrors::InvalidGrant));
     }
 
     Ok(auth_code_data)
@@ -255,14 +214,14 @@ async fn validate_and_consume_authorization_code(
 async fn generate_id_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
-) -> error_stack::Result<String, ApiErrorResponse> {
+) -> OidcResult<String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .change_context(ApiErrorResponse::InternalServerError)?
+        .change_context(OidcErrors::ServerError)?
         .as_secs();
     let exp_duration = Duration::from_secs(ID_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
-        .change_context(ApiErrorResponse::InternalServerError)?
+        .change_context(OidcErrors::ServerError)?
         .as_secs();
 
     let include_email_claims = auth_code_data.scope.contains(&Scope::Email);
@@ -281,20 +240,23 @@ async fn generate_id_token(
         nonce: auth_code_data.nonce.clone(),
     };
 
-    oidc_utils::sign_oidc_token(state, claims, "ID token").await
+    oidc_utils::sign_oidc_token(state, claims, "ID token")
+        .await
+        .change_context(OidcErrors::ServerError)
+        .attach_printable("Failed to sign ID token")
 }
 
 async fn generate_access_token(
     state: &SessionState,
     auth_code_data: &AuthCodeData,
-) -> error_stack::Result<String, ApiErrorResponse> {
+) -> OidcResult<String> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .change_context(ApiErrorResponse::InternalServerError)?
+        .change_context(OidcErrors::ServerError)?
         .as_secs();
     let exp_duration = Duration::from_secs(ACCESS_TOKEN_TTL_IN_SECS);
     let exp = jwt::generate_exp(exp_duration)
-        .change_context(ApiErrorResponse::InternalServerError)?
+        .change_context(OidcErrors::ServerError)?
         .as_secs();
 
     let include_profile_claims = auth_code_data.scope.contains(&Scope::Profile);
@@ -311,14 +273,17 @@ async fn generate_access_token(
         scope: auth_code_data.scope.clone(),
     };
 
-    oidc_utils::sign_oidc_token(state, claims, "access token").await
+    oidc_utils::sign_oidc_token(state, claims, "access token")
+        .await
+        .change_context(OidcErrors::ServerError)
+        .attach_printable("Failed to sign access token")
 }
 
 pub async fn process_token_request(
     state: SessionState,
     payload: OidcTokenRequest,
     client_id: String,
-) -> RouterResponse<OidcTokenResponse> {
+) -> OidcResponse<OidcTokenResponse> {
     validate_token_request(&state, &client_id, &payload.redirect_uri)?;
 
     let auth_code_data = validate_and_consume_authorization_code(

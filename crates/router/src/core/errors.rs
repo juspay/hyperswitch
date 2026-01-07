@@ -1,6 +1,8 @@
 pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
+#[cfg(feature = "olap")]
+pub mod oidc;
 pub mod transformers;
 #[cfg(feature = "olap")]
 pub mod user;

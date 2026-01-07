@@ -1,7 +1,4 @@
-use api_models::{
-    errors::types::Extra,
-    oidc::{OidcAuthorizationError, OidcTokenError},
-};
+use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
@@ -315,16 +312,6 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid Basic authentication credentials"
     )]
     InvalidBasicAuth,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_52", message = "{error}: {description}")]
-    OidcAuthorizationError {
-        error: OidcAuthorizationError,
-        description: String,
-    },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_53", message = "{error}: {description}")]
-    OidcTokenError {
-        error: OidcTokenError,
-        description: String,
-    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -748,12 +735,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::SubscriptionError { operation } => {
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
-            }
-            Self::OidcAuthorizationError { error, .. } => {
-                AER::BadRequest(ApiError::new("IR", 52, format!("{error}: {}", error.description()), None))
-            }
-            Self::OidcTokenError { error, .. } => {
-                AER::BadRequest(ApiError::new("IR", 53, format!("{error}: {}", error.description()), None))
             }
         }
     }

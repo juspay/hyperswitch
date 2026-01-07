@@ -1,4 +1,3 @@
-use api_models::oidc::OidcTokenError;
 use common_utils::ext_traits::StringExt;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
@@ -6,7 +5,7 @@ use url::Url;
 
 use crate::{
     consts::oidc::{AUTH_CODE_TTL_IN_SECS, REDIS_AUTH_CODE_PREFIX},
-    core::errors::ApiErrorResponse,
+    core::errors::{oidc::OidcErrors, ApiErrorResponse},
     routes::app::SessionState,
     services::encryption,
     types::domain::user::oidc::AuthCodeData,
@@ -72,27 +71,21 @@ pub async fn set_auth_code_in_redis(
 pub async fn get_auth_code_from_redis(
     state: &SessionState,
     code: &str,
-) -> error_stack::Result<AuthCodeData, ApiErrorResponse> {
+) -> error_stack::Result<AuthCodeData, OidcErrors> {
     let connection = user_utils::get_redis_connection_for_global_tenant(state)
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to get redis connection")?;
     let key = get_auth_code_key(code);
     let auth_code_data_string = connection
         .get_key::<Option<String>>(&key.into())
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to get authorization code from redis")?
-        .ok_or_else(|| {
-            let error = OidcTokenError::InvalidGrant;
-            ApiErrorResponse::OidcTokenError {
-                error,
-                description: error.description().into(),
-            }
-        })?;
+        .ok_or_else(|| report!(OidcErrors::InvalidGrant))?;
 
     auth_code_data_string
         .parse_struct("AuthCodeData")
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to deserialize authorization code data")
 }
 
