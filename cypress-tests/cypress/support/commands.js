@@ -1301,11 +1301,7 @@ Cypress.Commands.add("enableVoltBankRedirectPaymentMethods", (globalState) =>
       payment_methods_enabled,
     };
 
-    return cy.connectorUpdateCall(
-      "payment_processor",
-      updateBody,
-      globalState
-    );
+    return cy.connectorUpdateCall("payment_processor", updateBody, globalState);
   })
 );
 
