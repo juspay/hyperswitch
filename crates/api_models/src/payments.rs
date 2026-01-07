@@ -8206,7 +8206,7 @@ pub struct PaymentErrorDetails {
 pub struct ApiUnifiedErrorDetails {
     /// Error category
     #[schema(value_type = Option<UnifiedCode>)]
-    pub category: Option<api_enums::UnifiedCode>,
+    pub category: Option<String>,
     /// Human-readable error message
     pub message: Option<String>,
     /// Standardised error code
