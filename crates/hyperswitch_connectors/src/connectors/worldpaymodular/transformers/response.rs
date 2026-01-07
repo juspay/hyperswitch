@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::{router_request_types::*, router_response_types::*};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use masking::{ExposeInterface as _, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::ForeignTryFrom;
@@ -149,7 +149,7 @@ pub struct PaymentLinks {
     )]
     pub reverse_event: Option<PaymentLink>,
     #[serde(rename = "tokens:token", skip_serializing_if = "Option::is_none")]
-    pub token: Option<PaymentLink>,
+    pub token: Option<SecretPaymentLink>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -196,6 +196,15 @@ impl PaymentLinks {
     }
 }
 
+impl SecretPaymentLink {
+    pub fn get_event_data(&self) -> Option<String> {
+        self.href
+            .clone()
+            .expose()
+            .rsplit_once('/')
+            .map(|h| h.1.to_string())
+    }
+}
 impl PaymentLink {
     pub fn get_event_data(&self) -> Option<String> {
         self.href.rsplit_once('/').map(|h| h.1.to_string())
@@ -224,6 +233,11 @@ impl PaymentLink {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentLink {
     pub href: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+pub struct SecretPaymentLink {
+    pub href: Secret<String>,
 }
 
 fn get_resource_id<T, F>(

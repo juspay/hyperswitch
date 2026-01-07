@@ -189,7 +189,7 @@ pub struct CardPayment {
 pub struct CardToken {
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
-    pub href: String,
+    pub href: Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

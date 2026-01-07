@@ -105,7 +105,7 @@ fn fetch_payment_instrument(
                 .ok_or(ConnectorError::MissingConnectorMandateID)?;
             Ok(PaymentInstrument::CardToken(CardToken {
                 payment_type: PaymentType::CardToken,
-                href: format!("{base_url}tokens/{mandate_id}"),
+                href: format!("{base_url}tokens/{mandate_id}").into(),
             }))
         }
         PaymentMethodData::Wallet(WalletData::GooglePay(data)) => {
