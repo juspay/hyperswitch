@@ -314,7 +314,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
             PaymentOutcome::Refused => Self::Failure,
-            PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
+            PaymentOutcome::SentForSettlement => Self::Charged,
             PaymentOutcome::SentForRefund => Self::AutoRefunded,
             PaymentOutcome::SentForCancellation => Self::Voided,
         }
