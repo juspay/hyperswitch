@@ -2839,7 +2839,13 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
-  (globalState, data, autoretries = false, attempt = 1, expected_intent_status="") => {
+  (
+    globalState,
+    data,
+    autoretries = false,
+    attempt = 1,
+    expected_intent_status = ""
+  ) => {
     const { Configs: configs = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
