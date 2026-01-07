@@ -9,28 +9,28 @@ let expected_intent_status;
 
 describe("Payment Webhook Tests", () => {
   before("seed global state", function () {
-  let skip = true;
+    let skip = true;
 
-  cy.task("getGlobalState")
-    .then((state) => {
-      globalState = new State(state);
-      connector = globalState.get("connectorId");
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
 
-      if (
-        utils.shouldIncludeConnector(
-          connector,
-          utils.CONNECTOR_LISTS.INCLUDE.PAYMENTS_WEBHOOK
-        )
-      ) {
-        skip = false;
-      }
-    })
-    .then(() => {
-      if (!skip) {
-        this.skip();
-      }
-    });
-});
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.PAYMENTS_WEBHOOK
+          )
+        ) {
+          skip = false;
+        }
+      })
+      .then(() => {
+        if (!skip) {
+          this.skip();
+        }
+      });
+  });
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
