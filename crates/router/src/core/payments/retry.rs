@@ -636,6 +636,9 @@ where
                 description: option_gsm.clone().map(|gsm| gsm.description),
                 user_guidance_message: option_gsm.clone().map(|gsm| gsm.user_guidance_message),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
+                connector_response_reference_id: error_response
+                    .connector_response_reference_id
+                    .clone(),
                 payment_method_data: additional_payment_method_data,
                 encrypted_payment_method_data,
                 authentication_type: auth_update,

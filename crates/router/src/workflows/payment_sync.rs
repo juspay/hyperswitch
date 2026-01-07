@@ -77,6 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             key_store.clone(),
             merchant_account.clone(),
             key_store.clone(),
+            None,
         );
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
@@ -161,6 +162,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             description: None,
                             user_guidance_message: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             payment_method_data: None,
                             authentication_type: None,
                             issuer_error_code: None,

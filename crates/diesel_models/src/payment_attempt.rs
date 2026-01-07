@@ -61,7 +61,7 @@ pub struct ErrorDetails {
 
 #[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
 pub struct UnifiedErrorDetails {
-    pub category: Option<storage_enums::UnifiedCode>,
+    pub category: Option<String>,
     pub message: Option<String>,
     pub standardised_code: Option<storage_enums::StandardisedCode>,
     pub description: Option<String>,
@@ -701,6 +701,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_transaction_id: Option<String>,
+        connector_response_reference_id: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -901,6 +902,7 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<Option<String>>,
         unified_message: Option<Option<String>>,
         connector_payment_id: Option<String>,
+        connector_response_reference_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         amount_captured: Option<MinorUnit>,
     },
@@ -1556,6 +1558,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_payment_id,
+                connector_response_reference_id,
                 authentication_type,
                 amount_captured,
             } => {
@@ -1590,7 +1593,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id,
                     cancellation_reason: None,
                     amount_captured,
                 }
@@ -3522,6 +3525,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
+                connector_response_reference_id,
                 payment_method_data,
                 encrypted_payment_method_data,
                 authentication_type,
@@ -3570,7 +3574,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     straight_through_algorithm: None,
                     preprocessing_step_id: None,
                     capture_method: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id,
                     multiple_capture_count: None,
                     surcharge_amount: None,
                     tax_amount: None,
