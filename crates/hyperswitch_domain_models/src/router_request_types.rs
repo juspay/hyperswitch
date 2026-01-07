@@ -780,6 +780,26 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
     }
 }
 
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            payment_method_type: data.payment_method_type,
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            redirect_response: None,
+            capture_method: data.capture_method,
+            authentication_data: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -792,6 +812,7 @@ pub struct PaymentsAuthenticateData {
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub authentication_data: Option<UcsAuthenticationData>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -809,6 +830,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             browser_info: data.browser_info,
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
+            authentication_data: data.authentication_data,
         })
     }
 }
@@ -828,6 +850,18 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
+    pub authentication_data: Option<UcsAuthenticationData>,
+    pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CresData {
+    pub three_ds_server_trans_id: String,
+    pub acs_trans_id: String,
+    pub message_type: String,
+    pub message_version: String,
+    pub trans_status: String,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -847,6 +881,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
             complete_authorize_url: data.complete_authorize_url,
+            authentication_data: data.authentication_data,
+            threeds_method_comp_ind: data.threeds_method_comp_ind,
         })
     }
 }

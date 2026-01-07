@@ -948,6 +948,11 @@ impl
             connector_metadata: None,
             connector_order_reference_id: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            threeds_method_comp_ind: router_data
+                .request
+                .threeds_method_comp_ind
+                .clone()
+                .map(|ind| ind.foreign_into()),
         })
     }
 }
