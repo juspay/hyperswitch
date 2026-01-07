@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0-hotfix2
+
+### Features
+
+- **connector:** [worldpaymodular] worldpay modular connector ([#10857](https://github.com/juspay/hyperswitch/pull/10857)) ([`b2f2f63`](https://github.com/juspay/hyperswitch/commit/b2f2f63e26d97ce4bdd44da5999c1d62e7a36be1))
+
+**Full Changelog:** [`2025.12.25.0-hotfix1...2025.12.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0-hotfix1...2025.12.25.0-hotfix2)
+
+- - -
+
 ## 2025.12.25.0-hotfix1
 
 ### Bug Fixes
