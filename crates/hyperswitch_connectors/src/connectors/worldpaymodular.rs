@@ -724,7 +724,7 @@ impl IncomingWebhook for Worldpaymodular {
             .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
         match body.event_details.event_type {
-            EventType::Refunded | EventType::SentForRefund | EventType::RefundFailed => {
+            EventType::SentForRefund | EventType::RefundFailed => {
                 let refund_id = body
                     .event_details
                     .reference
@@ -753,18 +753,14 @@ impl IncomingWebhook for Worldpaymodular {
         match body.event_details.event_type {
             EventType::Authorized => Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
             EventType::SentForAuthorization => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
-            EventType::Settled | EventType::SentForSettlement => {
-                Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
-            }
+            EventType::SentForSettlement => Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess),
             EventType::Cancelled | EventType::Error | EventType::Expired => {
                 Ok(IncomingWebhookEvent::PaymentIntentFailure)
             }
             EventType::SettlementFailed | EventType::SettlementRejected => {
                 Ok(IncomingWebhookEvent::PaymentIntentCaptureFailure)
             }
-            EventType::Refunded | EventType::SentForRefund => {
-                Ok(IncomingWebhookEvent::RefundSuccess)
-            }
+            EventType::SentForRefund => Ok(IncomingWebhookEvent::RefundSuccess),
             EventType::RefundFailed => Ok(IncomingWebhookEvent::RefundFailure),
             EventType::Unknown | EventType::Refused => Ok(IncomingWebhookEvent::EventNotSupported),
         }

@@ -330,7 +330,6 @@ impl From<EventType> for enums::AttemptStatus {
         match value {
             EventType::SentForAuthorization => Self::Authorizing,
             EventType::SentForSettlement => Self::Charged,
-            EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
             EventType::SettlementRejected | EventType::Refused | EventType::SettlementFailed => {
                 Self::Failure
@@ -338,7 +337,6 @@ impl From<EventType> for enums::AttemptStatus {
             EventType::Cancelled
             | EventType::SentForRefund
             | EventType::RefundFailed
-            | EventType::Refunded
             | EventType::Error
             | EventType::Expired
             | EventType::Unknown => Self::Pending,
@@ -350,11 +348,9 @@ impl From<EventType> for enums::RefundStatus {
     fn from(value: EventType) -> Self {
         match value {
             EventType::SentForRefund => Self::Success,
-            EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
             EventType::Authorized
             | EventType::Cancelled
-            | EventType::Settled
             | EventType::Refused
             | EventType::Error
             | EventType::SentForSettlement

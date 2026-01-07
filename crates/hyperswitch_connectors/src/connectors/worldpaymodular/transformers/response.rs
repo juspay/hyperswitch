@@ -99,7 +99,6 @@ pub enum EventType {
     Authorized,
     #[serde(alias = "Sent for Settlement", alias = "sentForSettlement")]
     SentForSettlement,
-    Settled,
     #[serde(alias = "Settlement Failed", alias = "settlementFailed")]
     SettlementFailed,
     #[serde(alias = "Settlement Rejected", alias = "settlementRejected")]
@@ -110,7 +109,6 @@ pub enum EventType {
     Refused,
     #[serde(alias = "Sent for Refund", alias = "sentForRefund")]
     SentForRefund,
-    Refunded,
     RefundFailed,
     #[serde(other)]
     Unknown,
