@@ -81,10 +81,11 @@ describe("Payment Webhook Tests", () => {
       "No3DSAutoCapture"
     ];
 
-     cy.confirmCallTest(fixtures.confirmBody, data, true, globalState)
-    .then(() => {
-      expected_intent_status = globalState.get("paymentIntentStatus");
-    });
+    cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
+      () => {
+        expected_intent_status = globalState.get("paymentIntentStatus");
+      }
+    );
   });
 
   it("Update-payment_status", () => {
