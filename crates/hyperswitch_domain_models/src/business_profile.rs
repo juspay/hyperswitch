@@ -20,6 +20,7 @@ use diesel_models::business_profile::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
 use crate::{
     behaviour::Conversion,
@@ -1497,6 +1498,31 @@ impl Profile {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_three_ds_decision_rule_algorithm_id(
+        &self,
+    ) -> Option<common_utils::id_type::RoutingId> {
+        self.three_ds_decision_rule_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize three_ds_decision_rule_algorithm ref from profile",
+            )
+            .inspect_err(|err| {
+                logger::error!(
+                    "Error while parsing three_ds_decision_rule_algorithm ref from profile {:?}",
+                    err
+                )
+            })
+            .ok()
+            .flatten()
+            .and_then(|algorithm| algorithm.algorithm_id)
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_payout_routing_algorithm(
         &self,
     ) -> CustomResult<
@@ -2546,21 +2572,18 @@ where
     type Error;
     async fn insert_business_profile(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         business_profile: Profile,
     ) -> CustomResult<Profile, Self::Error>;
 
     async fn find_business_profile_by_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<Profile, Self::Error>;
 
     async fn find_business_profile_by_merchant_id_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
@@ -2568,7 +2591,6 @@ where
 
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -2576,7 +2598,6 @@ where
 
     async fn update_profile_by_profile_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         current_state: Profile,
         profile_update: ProfileUpdate,
@@ -2590,7 +2611,6 @@ where
 
     async fn list_profile_by_merchant_id(
         &self,
-        key_manager_state: &keymanager::KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Profile>, Self::Error>;

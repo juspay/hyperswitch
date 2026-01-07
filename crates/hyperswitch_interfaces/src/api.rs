@@ -12,6 +12,7 @@ pub mod files_v2;
 pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
+pub mod gateway;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -281,6 +282,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -373,6 +375,7 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -380,6 +383,8 @@ pub trait ConnectorCommon {
         })
     }
 }
+
+impl ConnectorAccessTokenSuffix for BoxedConnector {}
 
 /// Current flow information passed to the connector specifications trait
 ///
@@ -397,6 +402,8 @@ pub enum CurrentFlowInfo<'a> {
     CompleteAuthorize {
         /// The payment authorize request data
         request_data: &'a router_request_types::CompleteAuthorizeData,
+        /// The payment method that is used
+        payment_method: Option<PaymentMethod>,
     },
 }
 
@@ -414,9 +421,9 @@ pub enum AlternateFlow {
 /// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
 #[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
-    /// Authentication flow must be made before the actual flow
+    /// Authentication flow
     Authenticate,
-    /// Post-authentication flow must be made before the actual flow
+    /// Post-authentication flow
     PostAuthenticate,
 }
 
@@ -431,23 +438,28 @@ pub struct PreProcessingFlowResponse<'a> {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Check if pre-authentication flow is required
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if pre-authentication flow is required
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if authentication flow is required
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
+    /// Check if post-authentication flow is required
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+        false
+    }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
         _current_flow: CurrentFlowInfo<'_>,
     ) -> Option<PreProcessingFlowName> {
         None
-    }
-    /// Based on the current flow and preprocessing_flow_response, decide if the main flow must be called or not
-    ///
-    /// By default, always continue with the main flow after the preprocessing flow.
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        _current_flow: CurrentFlowInfo<'_>,
-        _pre_processing_flow_name: PreProcessingFlowName,
-        _preprocessing_flow_response: PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        true
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
@@ -537,6 +549,31 @@ pub trait ConnectorSpecifications {
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
+    }
+
+    /// Is Authorize session token required before authorize
+    fn is_authorize_session_token_call_required(&self) -> bool {
+        false
+    }
+
+    #[cfg(feature = "v1")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        None
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector customer reference ID for payments
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        todo!()
     }
 
     /// Check if connector needs tokenization call before setup mandate flow
@@ -879,5 +916,20 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         Ok(payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string))
+    }
+}
+
+/// Trait ConnectorAccessTokenSuffix
+pub trait ConnectorAccessTokenSuffix {
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(common_utils::access_token::get_default_access_token_key(
+            &router_data.merchant_id,
+            merchant_connector_id_or_connector_name,
+        ))
     }
 }

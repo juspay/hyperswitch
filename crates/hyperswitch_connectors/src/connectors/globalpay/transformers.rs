@@ -91,14 +91,6 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     fn try_from(
         item: &GlobalPayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotSupported {
-                message: "3DS flow".to_string(),
-                connector: "Globalpay",
-            }
-            .into());
-        }
-
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
 
@@ -141,6 +133,13 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
 
         let payment_method = match &item.router_data.request.payment_method_data {
             payment_method_data::PaymentMethodData::Card(ccard) => {
+                if item.router_data.is_three_ds() {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "3DS flow".to_string(),
+                        connector: "Globalpay",
+                    }
+                    .into());
+                }
                 requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {
                     payment_method_data: PaymentMethodData::Card(requests::Card {
                         number: ccard.card_number.clone(),
@@ -423,6 +422,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 status_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: item
                     .response
                     .payment_method

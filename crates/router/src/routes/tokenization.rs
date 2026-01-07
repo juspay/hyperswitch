@@ -4,16 +4,12 @@ use std::sync::Arc;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use api_models;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{
     ext_traits::{BytesExt, Encode},
     id_type,
 };
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -52,8 +48,7 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             tokenization::create_vault_token_core(
                 state,
-                &auth.merchant_account,
-                &auth.key_store,
+                auth.platform.get_provider().clone(),
                 request,
             )
             .await
@@ -92,10 +87,7 @@ pub async fn delete_tokenized_data_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            tokenization::delete_tokenized_data_core(state, merchant_context, &token_id, req)
+            tokenization::delete_tokenized_data_core(state, auth.platform, &token_id, req)
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {

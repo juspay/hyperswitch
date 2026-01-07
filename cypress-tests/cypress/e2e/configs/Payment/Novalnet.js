@@ -33,6 +33,35 @@ const singleUseMandateData = {
   },
 };
 
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "EUR",
+    },
+  },
+};
+
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "CA",
+    line3: "CA",
+    city: "Musterhausen",
+    state: "California",
+    zip: "12345",
+    country: "DE",
+    first_name: "Max",
+    last_name: "Mustermann",
+  },
+  email: "test@novalnet.de",
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -48,61 +77,26 @@ export const connectorDetails = {
         },
       },
     },
-    "3DSManualCapture": {
+    PaymentIntentOffSession: {
       Request: {
-        payment_method: "card",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Musterhausen",
-            state: "California",
-            zip: "12345",
-            country: "DE",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "test@novalnet.de",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
+        currency: "EUR",
+        amount: 6000,
+        authentication_type: "no_three_ds",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
-    "3DSAutoCapture": {
+    "3DSManualCapture": {
       Request: {
         payment_method: "card",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Musterhausen",
-            state: "California",
-            zip: "12345",
-            country: "DE",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "test@novalnet.de",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        billing: billingAddress,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -116,39 +110,55 @@ export const connectorDetails = {
         },
       },
     },
-    //TODO: Add No3DSManualCapture, No3DSAutoCapture
-    // No3DSManualCapture: {
-    //   Request: {
-    //     payment_method: "card",
-    //     payment_method_data: {
-    //       card: successfulNo3DSCardDetails,
-    //     },
-    //     customer_acceptance: null,
-    //     setup_future_usage: "on_session",
-    //   },
-    //   Response: {
-    //     status: 200,
-    //     body: {
-    //       status: "requires_capture",
-    //     },
-    //   },
-    // },
-    // No3DSAutoCapture: {
-    //   Request: {
-    //     payment_method: "card",
-    //     payment_method_data: {
-    //       card: successfulNo3DSCardDetails,
-    //     },
-    //     customer_acceptance: null,
-    //     setup_future_usage: "on_session",
-    //   },
-    //   Response: {
-    //     status: 200,
-    //     body: {
-    //       status: "succeeded",
-    //     },
-    //   },
-    // },
+    "3DSAutoCapture": {
+      Request: {
+        payment_method: "card",
+        billing: billingAddress,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    No3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -216,37 +226,10 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
+    manualPaymentRefund: {
       Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        trigger_skip: true,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    PaymentIntentOffSession: {
-      Request: {
-        currency: "EUR",
         amount: 6000,
-        authentication_type: "no_three_ds",
-        customer_acceptance: null,
-        setup_future_usage: "off_session",
       },
-      Response: {
-        status: 200,
-        trigger_skip: true,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    MITAutoCapture: {
-      Request: {},
       Response: {
         status: 200,
         body: {
@@ -254,19 +237,65 @@ export const connectorDetails = {
         },
       },
     },
-    MITManualCapture: {
-      Request: {},
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
+      },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "succeeded",
         },
       },
     },
-    SaveCardUseNo3DSAutoCaptureOffSession: {
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "EUR",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+          amount_received: 6050,
+          amount: 6000,
+          net_amount: 6050,
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -276,7 +305,40 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
           status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -305,7 +367,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
@@ -318,12 +379,11 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: "EUR",
         mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "succeeded",
         },
@@ -337,15 +397,198 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Novalnet is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "EUR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -384,7 +627,7 @@ export const connectorDetails = {
                   },
                   "billing.email": {
                     required_field: "payment_method_data.billing.email",
-                    display_name: "email_address",
+                    display_name: "email",
                     field_type: "user_email_address",
                     value: "hyperswitch_sdk_demo_id@gmail.com",
                   },
@@ -423,7 +666,7 @@ export const connectorDetails = {
                   },
                   "billing.email": {
                     required_field: "payment_method_data.billing.email",
-                    display_name: "email_address",
+                    display_name: "email",
                     field_type: "user_email_address",
                     value: "hyperswitch.example@gmail.com",
                   },
@@ -462,7 +705,7 @@ export const connectorDetails = {
                   },
                   "billing.email": {
                     required_field: "payment_method_data.billing.email",
-                    display_name: "email_address",
+                    display_name: "email",
                     field_type: "user_email_address",
                     value: "hyperswitch.example@gmail.com",
                   },
@@ -501,7 +744,7 @@ export const connectorDetails = {
                   },
                   "billing.email": {
                     required_field: "payment_method_data.billing.email",
-                    display_name: "email_address",
+                    display_name: "email",
                     field_type: "user_email_address",
                     value: "hyperswitch.example@gmail.com",
                   },

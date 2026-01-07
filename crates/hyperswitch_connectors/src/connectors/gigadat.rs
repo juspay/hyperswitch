@@ -60,7 +60,6 @@ use masking::{Mask, PeekInterface};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
-use url::form_urlencoded;
 use uuid::Uuid;
 
 #[cfg(feature = "payouts")]
@@ -182,6 +181,7 @@ impl ConnectorCommon for Gigadat {
             reason: Some(response.err).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -592,6 +592,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             reason: Some(response.message).clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -933,7 +934,7 @@ fn get_webhook_query_params(
                 "transaction" => txn = Some(value.to_string()),
                 "status" => {
                     if let Ok(status) =
-                        transformers::GigadatPaymentStatus::try_from(value.to_string())
+                        transformers::GigadatTransactionStatus::try_from(value.to_string())
                     {
                         sts = Some(status);
                     }
@@ -959,37 +960,21 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        let webhook_type = details.webhook_type;
 
-        let cpi_type_entry = details
-            .iter()
-            .find(|&entry| entry.key == "cpiType")
-            .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        let reference_id = match cpi_type_entry.value.as_str() {
+        let reference_id = match transformers::GigadatFlow::get_flow(&webhook_type)? {
+            transformers::GigadatFlow::Payment => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        query_params.transaction,
+                    ),
+                )
+            }
             #[cfg(feature = "payouts")]
-            "ETO" | "RTO" | "RTX" | "ANR" | "ANX" => {
-                api_models::webhooks::ObjectReferenceId::PayoutId(
-                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(query_params.transaction),
-                )
-            }
-            "ETI" | "RFM" => api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    query_params.transaction,
-                ),
+            transformers::GigadatFlow::Payout => api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(query_params.transaction),
             ),
-            _ => {
-                return Err(errors::ConnectorError::NotImplemented(
-                    "Invalid transaction type ".to_string(),
-                )
-                .into())
-            }
         };
         Ok(reference_id)
     }
@@ -999,7 +984,16 @@ impl webhooks::IncomingWebhook for Gigadat {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let query_params = get_webhook_query_params(request)?;
-        let event_type = api_models::webhooks::IncomingWebhookEvent::from(query_params.status);
+        let body_str = std::str::from_utf8(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+
+        let webhook_type = details.webhook_type;
+
+        let flow_type = transformers::GigadatFlow::get_flow(&webhook_type)?;
+        let event_type =
+            transformers::get_gigadat_webhook_event_type(query_params.status, flow_type);
         Ok(event_type)
     }
 
@@ -1010,16 +1004,8 @@ impl webhooks::IncomingWebhook for Gigadat {
         let body_str = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let details: Vec<transformers::GigadatWebhookKeyValue> =
-            form_urlencoded::parse(body_str.as_bytes())
-                .map(|(key, value)| transformers::GigadatWebhookKeyValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                })
-                .collect();
-        let resource_object = serde_json::to_string(&details)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(resource_object))
+        let details = transformers::GigadatWebhookKeyValueBody::decode_from_url(body_str)?;
+        Ok(Box::new(details))
     }
     async fn verify_webhook_source(
         &self,
@@ -1055,7 +1041,7 @@ lazy_static! {
         display_name: "Gigadat",
         description: "Gigadat is a financial services product that offers a single API for payment integration. It provides Canadian businesses with a secure payment gateway and various pay-in and pay-out solutions, including Interac e-Transfer",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
     static ref GIGADAT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = {
         #[cfg(feature = "payouts")]

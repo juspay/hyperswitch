@@ -43,6 +43,7 @@ impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
         Self {
             amount: request_payment_data.amount,
             currency: request_payment_data.currency,
+            transaction_initiator: None,
             authentication_type: None,
             capture_method: None,
             business_country: None,
@@ -50,6 +51,7 @@ impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
             business_label: None,
             setup_future_usage: None,
             card_bin: None,
+            extended_card_bin: None,
         }
     }
 }

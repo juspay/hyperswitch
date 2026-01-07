@@ -2,7 +2,6 @@
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
 use masking::Secret;
-use router_derive;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -54,6 +53,7 @@ pub struct Connectors {
     pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
+    pub envoy: ConnectorParams,
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
@@ -99,6 +99,7 @@ pub struct Connectors {
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
     pub payjustnow: ConnectorParams,
+    pub payjustnowinstore: ConnectorParams,
     pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
@@ -138,14 +139,14 @@ pub struct Connectors {
     pub tsys: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
     pub vgs: ConnectorParams,
-    pub volt: ConnectorParams,
+    pub volt: ConnectorParamsWithSecondaryBaseUrl,
     pub wellsfargo: ConnectorParams,
     pub wellsfargopayout: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
-    pub worldpayxml: ConnectorParams,
+    pub worldpayxml: ConnectorParamsWithSecondaryBaseUrl,
     pub xendit: ConnectorParams,
     pub zift: ConnectorParams,
     pub zen: ConnectorParams,

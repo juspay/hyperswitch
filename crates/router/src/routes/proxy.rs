@@ -22,10 +22,7 @@ pub async fn proxy(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            proxy::proxy_core(state, merchant_context, req)
+            proxy::proxy_core(state, auth.platform, req)
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,

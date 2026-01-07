@@ -6,7 +6,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, customers::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::{api::customers, domain},
+    types::api::customers,
 };
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -22,10 +22,7 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            create_customer(state, merchant_context, req, None)
+            create_customer(state, auth.platform.get_provider().clone(), req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -55,15 +52,12 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            create_customer(state, merchant_context, req, None)
+            create_customer(state, auth.platform.get_provider().clone(), req, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -91,7 +85,10 @@ pub async fn customers_retrieve(
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        let api_auth = auth::ApiKeyAuth::default();
+        let api_auth = auth::ApiKeyAuth {
+            is_connected_allowed: true,
+            is_platform_allowed: true,
+        };
         match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
@@ -104,10 +101,13 @@ pub async fn customers_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            retrieve_customer(state, merchant_context, auth.profile_id, customer_id)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            retrieve_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                profile_id,
+                customer_id,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -152,10 +152,7 @@ pub async fn customers_retrieve(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            retrieve_customer(state, merchant_context, id)
+            retrieve_customer(state, auth.platform.get_provider().clone(), id)
         },
         auth,
         api_locking::LockAction::NotApplicable,
@@ -178,13 +175,7 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                None,
-                auth.key_store,
-                request,
-            )
+            list_customers(state, auth.platform.get_provider().clone(), None, request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -216,18 +207,12 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                None,
-                auth.key_store,
-                request,
-            )
+            list_customers(state, auth.platform.get_provider().clone(), None, request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -255,12 +240,7 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                auth.key_store,
-                request,
-            )
+            list_customers_with_count(state, auth.platform.get_provider().clone(), request)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -292,17 +272,12 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(
-                state,
-                auth.merchant_account.get_id().to_owned(),
-                auth.key_store,
-                request,
-            )
+            list_customers_with_count(state, auth.platform.get_provider().clone(), request)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
@@ -336,15 +311,16 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            update_customer(state, merchant_context, request_internal)
+            update_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                request_internal,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -375,10 +351,11 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            update_customer(state, merchant_context, request_internal)
+            update_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                request_internal,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -411,10 +388,7 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            delete_customer(state, merchant_context, id)
+            delete_customer(state, auth.platform.get_provider().clone(), id)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -447,15 +421,12 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            delete_customer(state, merchant_context, customer_id)
+            delete_customer(state, auth.platform.get_provider().clone(), customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                is_connected_allowed: true,
+                is_platform_allowed: true,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
@@ -483,10 +454,7 @@ pub async fn get_customer_mandates(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            crate::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
+            crate::core::mandate::get_customer_mandates(state, auth.platform, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

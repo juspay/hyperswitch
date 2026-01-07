@@ -24,10 +24,13 @@ import updateConnectorBody from "./update-connector-body.json";
 import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
+import blocklistCreateBody from "./blocklist-create-body.json";
+import eligibilityCheckBody from "./eligibility-check-body.json";
 
 export {
   apiKeyCreateBody,
   apiKeyUpdateBody,
+  blocklistCreateBody,
   businessProfile,
   captureBody,
   citConfirmBody,
@@ -39,6 +42,7 @@ export {
   createPayoutBody,
   customerCreateBody,
   customerUpdateBody,
+  eligibilityCheckBody,
   gsmBody,
   listRefundCall,
   merchantCreateBody,

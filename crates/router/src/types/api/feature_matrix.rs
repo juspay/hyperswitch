@@ -276,6 +276,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Payjustnow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payjustnow::new())))
                 }
+                enums::Connector::Payjustnowinstore => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Payjustnowinstore::new(),
+                ))),
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }
@@ -399,6 +402,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
                 }
+                enums::Connector::Zift => Ok(ConnectorEnum::Old(Box::new(connector::Zift::new()))),
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }

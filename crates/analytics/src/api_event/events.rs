@@ -26,7 +26,12 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ApiEvents);
+    let mut query_builder: QueryBuilder<T> = match query_param.query_param.clone() {
+        QueryType::Payout { .. } => QueryBuilder::new(AnalyticsCollection::ApiPayoutEvents),
+        QueryType::Payment { .. } | QueryType::Refund { .. } | QueryType::Dispute { .. } => {
+            QueryBuilder::new(AnalyticsCollection::ApiEvents)
+        }
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
@@ -53,6 +58,9 @@ where
                         Flow::AttachDisputeEvidence,
                         Flow::RetrieveDisputeEvidence,
                         Flow::IncomingWebhookReceive,
+                        Flow::PaymentMethodsList,
+                        Flow::CustomerPaymentMethodsList,
+                        Flow::PaymentsSessionToken,
                     ],
                 )
                 .switch()?;
@@ -68,7 +76,14 @@ where
                 .add_filter_clause("refund_id", refund_id)
                 .switch()?;
             query_builder
-                .add_filter_in_range_clause("api_flow", &[Flow::RefundsCreate, Flow::RefundsUpdate])
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::RefundsCreate,
+                        Flow::RefundsUpdate,
+                        Flow::IncomingWebhookReceive,
+                    ],
+                )
                 .switch()?;
         }
         QueryType::Dispute {
@@ -88,6 +103,27 @@ where
                         Flow::DisputesEvidenceSubmit,
                         Flow::AttachDisputeEvidence,
                         Flow::RetrieveDisputeEvidence,
+                    ],
+                )
+                .switch()?;
+        }
+        QueryType::Payout { payout_id } => {
+            query_builder
+                .add_filter_clause("payout_id", &payout_id)
+                .switch()?;
+
+            query_builder
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::PayoutsCreate,
+                        Flow::PayoutsConfirm,
+                        Flow::PayoutsFulfill,
+                        Flow::PayoutsCancel,
+                        Flow::PayoutsRetrieve,
+                        Flow::PayoutLinkInitiate,
+                        Flow::PayoutsUpdate,
+                        Flow::PayoutsCancel,
                     ],
                 )
                 .switch()?;

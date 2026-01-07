@@ -2,10 +2,7 @@ use actix_web::{web, Responder};
 use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_domain_models::{
-    merchant_context::{Context, MerchantContext},
-    payments as payments_domain,
-};
+use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
 
 use crate::{
     core::{
@@ -43,11 +40,13 @@ pub async fn call_psync_api(
         return_raw_connector_response: None,
         merchant_connector_details: None,
     };
-    let merchant_context_from_revenue_recovery_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
-            revenue_recovery_data.merchant_account.clone(),
-            revenue_recovery_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_data = Platform::new(
+        revenue_recovery_data.merchant_account.clone(),
+        revenue_recovery_data.key_store.clone(),
+        revenue_recovery_data.merchant_account.clone(),
+        revenue_recovery_data.key_store.clone(),
+        None,
+    );
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
     let get_tracker_response = operation
@@ -56,7 +55,7 @@ pub async fn call_psync_api(
             state,
             global_payment_id,
             &req,
-            &merchant_context_from_revenue_recovery_data,
+            &platform_from_revenue_recovery_data,
             &revenue_recovery_data.profile,
             &payments_domain::HeaderPayload::default(),
         )
@@ -71,7 +70,7 @@ pub async fn call_psync_api(
     >(
         state,
         state.get_req_state(),
-        merchant_context_from_revenue_recovery_data,
+        platform_from_revenue_recovery_data,
         &revenue_recovery_data.profile,
         operation,
         req,
@@ -108,11 +107,13 @@ pub async fn call_proxy_api(
         "Call made to payments proxy api , with the request body {:?}",
         req
     );
-    let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        None,
+    );
 
     // TODO : Use api handler instead of calling get_tracker and payments_operation_core
     // Get the tracker related information. This includes payment intent and payment attempt
@@ -122,7 +123,7 @@ pub async fn call_proxy_api(
             state,
             payment_intent.get_id(),
             &req,
-            &merchant_context_from_revenue_recovery_payment_data,
+            &platform_from_revenue_recovery_payment_data,
             &revenue_recovery_payment_data.profile,
             &payments_domain::HeaderPayload::default(),
         )
@@ -137,7 +138,7 @@ pub async fn call_proxy_api(
     >(
         state,
         state.get_req_state(),
-        merchant_context_from_revenue_recovery_payment_data,
+        platform_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
         operation,
         req,
@@ -158,11 +159,13 @@ pub async fn update_payment_intent_api(
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
-    let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        None,
+    );
     let (payment_data, _req, _) = payments::payments_intent_operation_core::<
         api_types::PaymentUpdateIntent,
         _,
@@ -171,7 +174,7 @@ pub async fn update_payment_intent_api(
     >(
         state,
         state.get_req_state(),
-        merchant_context_from_revenue_recovery_payment_data,
+        platform_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
         operation,
         update_req,
@@ -219,16 +222,18 @@ pub async fn record_internal_attempt_api(
             message: "Cannot Create the payment record Request".to_string(),
         })?;
 
-    let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
-            revenue_recovery_payment_data.merchant_account.clone(),
-            revenue_recovery_payment_data.key_store.clone(),
-        )));
+    let platform_from_revenue_recovery_payment_data = Platform::new(
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        revenue_recovery_payment_data.merchant_account.clone(),
+        revenue_recovery_payment_data.key_store.clone(),
+        None,
+    );
 
     let attempt_response = Box::pin(payments::record_attempt_core(
         state.clone(),
         state.get_req_state(),
-        merchant_context_from_revenue_recovery_payment_data,
+        platform_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
         request_payload,
         payment_intent.id.clone(),
@@ -253,19 +258,17 @@ pub async fn record_internal_attempt_api(
 pub async fn custom_revenue_recovery_core(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: MerchantContext,
+    platform: Platform,
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             &payment_merchant_connector_account_id,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -276,9 +279,8 @@ pub async fn custom_revenue_recovery_core(
         })?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
-            key_manager_state,
             &request.billing_merchant_connector_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -294,7 +296,7 @@ pub async fn custom_revenue_recovery_core(
             request.clone(),
             &state,
             &req_state,
-            &merchant_context,
+            &platform,
             &profile,
         )
         .await
@@ -311,7 +313,7 @@ pub async fn custom_revenue_recovery_core(
             request.clone(),
             &state,
             &req_state,
-            &merchant_context,
+            &platform,
             &profile,
             recovery_intent.clone(),
             payment_merchant_connector_account,
@@ -348,7 +350,7 @@ pub async fn custom_revenue_recovery_core(
         .handle_action(
             &state,
             &profile,
-            &merchant_context,
+            &platform,
             &billing_connector_account,
             mca_retry_threshold,
             intent_retry_count,

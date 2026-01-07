@@ -1,3 +1,4 @@
+pub mod oidc;
 pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
@@ -113,6 +114,9 @@ pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
 pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+pub const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+pub const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+pub const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
@@ -121,6 +125,12 @@ pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
 
 // 15 minutes = 900 seconds
 pub const POLL_ID_TTL: i64 = 900;
+
+// 15 minutes = 900 seconds
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// Prefix key for storing authentication eligibility check data in redis
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 
 // Default Poll Config
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
@@ -217,6 +227,12 @@ pub const CLICK_TO_PAY: &str = "click_to_pay";
 /// Merchant eligible for authentication service config
 pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
     "merchants_eligible_for_authentication_service";
+
+/// Payment flow identifier used for performing GSM operations
+pub const PAYMENT_FLOW_STR: &str = "Payment";
+
+/// Default subflow identifier used for performing GSM operations
+pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
@@ -351,8 +367,6 @@ pub mod superposition {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
-
     #[test]
     fn test_profile_id_unavailable_initialization() {
         // Just access the lazy static to ensure it doesn't panic during initialization

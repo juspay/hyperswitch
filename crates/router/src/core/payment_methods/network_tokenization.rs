@@ -23,9 +23,11 @@ use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
 use josekit::jwe;
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
+#[cfg(feature = "v2")]
+use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
     headers, logger,
@@ -70,9 +72,13 @@ pub async fn mk_tokenization_req(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -111,7 +117,7 @@ pub async fn mk_tokenization_req(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -181,9 +187,13 @@ pub async fn generate_network_token(
         service: NETWORK_TOKEN_SERVICE.to_string(),
         card_data: Secret::new(jwt),
         order_data,
-        key_id,
         should_send_token: true,
     };
+    let masked_request_body = api_payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     let mut request = services::Request::new(
         services::Method::Post,
@@ -222,7 +232,7 @@ pub async fn generate_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -362,6 +372,7 @@ pub async fn make_card_network_tokenization_request(
         card_issuing_country: card.card_issuing_country,
         card_holder_name: card.card_holder_name.clone(),
         nick_name: card.nick_name.clone(),
+        cryptogram: None,
     };
     Ok((network_token_details, network_token_req_ref_id))
 }
@@ -381,6 +392,12 @@ pub async fn get_network_token(
         card_reference: network_token_requestor_ref_id,
         customer_id,
     };
+
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
@@ -416,7 +433,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -450,6 +467,12 @@ pub async fn get_network_token(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -484,7 +507,7 @@ pub async fn get_network_token(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -577,13 +600,17 @@ pub async fn get_token_from_tokenization_service(
     network_token_requestor_ref_id: String,
     pm_data: &domain::PaymentMethod,
 ) -> errors::RouterResult<domain::NetworkTokenData> {
+    let customer_id = &pm_data
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
     let token_response =
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             record_operation_time(
                 async {
                     get_network_token(
                 state,
-                &pm_data.customer_id,
+                customer_id,
                 network_token_requestor_ref_id,
                 network_tokenization_service.get_inner(),
             )
@@ -730,6 +757,12 @@ pub async fn check_token_status_with_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -761,7 +794,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -778,10 +811,10 @@ pub async fn check_token_status_with_tokenization_service(
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
-    match check_token_status_response.token_status {
+    match check_token_status_response.payload.token_status {
         pm_types::TokenStatus::Active => Ok((
-            Some(check_token_status_response.token_expiry_month),
-            Some(check_token_status_response.token_expiry_year),
+            check_token_status_response.payload.token_expiry_month,
+            check_token_status_response.payload.token_expiry_year,
         )),
         _ => Ok((None, None)),
     }
@@ -802,6 +835,12 @@ pub async fn check_token_status_with_tokenization_service(
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
     };
+
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
@@ -834,7 +873,7 @@ pub async fn check_token_status_with_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -858,18 +897,22 @@ pub async fn check_token_status_with_tokenization_service(
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,
-) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::NetworkTokenizationError> {
+) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::ApiErrorResponse> {
     let network_token_requestor_reference_id = payment_method_info
         .network_token_requestor_reference_id
         .clone();
 
+    let customer_id = &payment_method_info
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
     if let Some(ref_id) = network_token_requestor_reference_id {
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             let network_token_details = record_operation_time(
                 async {
                     check_token_status_with_tokenization_service(
                         state,
-                        &payment_method_info.customer_id,
+                        customer_id,
                         ref_id,
                         network_tokenization_service.get_inner(),
                     )
@@ -877,8 +920,9 @@ pub async fn do_status_check_for_network_token(
                     .inspect_err(
                         |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
                     )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "Check network token status with tokenization service failed",
+                    "Check network token status with tokenization service failed",
                     )
                 },
                 &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
@@ -888,6 +932,7 @@ pub async fn do_status_check_for_network_token(
             Ok(network_token_details)
         } else {
             Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Network Tokenization Service not configured")
                 .inspect_err(|_| {
                     logger::error!("Network Tokenization Service not configured");
@@ -895,6 +940,7 @@ pub async fn do_status_check_for_network_token(
         }
     } else {
         Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Check network token status failed")?
     }
 }
@@ -907,21 +953,18 @@ pub async fn delete_network_token_from_locker_and_token_service(
     payment_method_id: String,
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
-    merchant_context: &domain::MerchantContext,
+    provider: &domain::Provider,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
-    let resp = payment_methods::cards::PmCards {
-        state,
-        merchant_context,
-    }
-    .delete_card_from_locker(
-        customer_id,
-        merchant_id,
-        network_token_locker_id
-            .as_ref()
-            .unwrap_or(&payment_method_id),
-    )
-    .await?;
+    let resp = payment_methods::cards::PmCards { state, provider }
+        .delete_card_from_locker(
+            customer_id,
+            merchant_id,
+            network_token_locker_id
+                .as_ref()
+                .unwrap_or(&payment_method_id),
+        )
+        .await?;
     if let Some(tokenization_service) = &state.conf.network_tokenization_service {
         let delete_token_resp = record_operation_time(
             async {
@@ -964,6 +1007,12 @@ pub async fn delete_network_token_from_tokenization_service(
         customer_id: customer_id.clone(),
     };
 
+    let masked_request_body = payload
+        .masked_serialize()
+        .inspect_err(|e| logger::error!(error=?e, "failed to mask serialize"))
+        .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
+    logger::info!(raw_network_token_service_request=?masked_request_body);
+
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::AUTHORIZATION,
@@ -997,7 +1046,7 @@ pub async fn delete_network_token_from_tokenization_service(
                 logger::error!(
                     error_code = %parsed_error.error_info.code,
                     developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {}",
+                    "Network tokenization error: {:?}",
                     parsed_error.error_message
                 );
                 Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)

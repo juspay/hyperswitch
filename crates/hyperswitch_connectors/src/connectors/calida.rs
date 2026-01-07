@@ -152,6 +152,7 @@ impl ConnectorCommon for Calida {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -744,7 +745,7 @@ static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Calida",
     description: "Calida Financial is a licensed e-money institution based in Malta and they provide customized financial infrastructure and payment solutions across the EU and EEA. As part of The Payments Group, it focuses on embedded finance, prepaid services, and next-generation digital payment products.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

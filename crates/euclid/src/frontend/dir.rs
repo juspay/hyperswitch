@@ -87,6 +87,13 @@ pub enum DirKeyKind {
     #[serde(rename = "card_bin")]
     CardBin,
     #[strum(
+        serialize = "extended_card_bin",
+        detailed_message = "First 8 digits of a payment card number",
+        props(Category = "Payment Methods")
+    )]
+    #[serde(rename = "extended_card_bin")]
+    ExtendedCardBin,
+    #[strum(
         serialize = "card_type",
         detailed_message = "Type of the payment card - eg. credit, debit",
         props(Category = "Payment Methods")
@@ -334,6 +341,20 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[strum(
+        serialize = "transaction_initiator",
+        detailed_message = "Initiator of transaction either Customer or Merchant",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
+    #[serde(rename = "network_token")]
+    NetworkTokenType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -355,6 +376,7 @@ impl DirKeyKind {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
             Self::CardBin => types::DataType::StrValue,
+            Self::ExtendedCardBin => types::DataType::StrValue,
             Self::CardType => types::DataType::EnumVariant,
             Self::CardNetwork => types::DataType::EnumVariant,
             Self::MetaData => types::DataType::MetadataValue,
@@ -391,6 +413,8 @@ impl DirKeyKind {
             Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
+            Self::TransactionInitiator => types::DataType::EnumVariant,
+            Self::NetworkTokenType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -401,6 +425,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::CardBin => None,
+            Self::ExtendedCardBin => None,
             Self::CardType => Some(enums::CardType::iter().map(DirValue::CardType).collect()),
             Self::MandateAcceptanceType => Some(
                 euclid_enums::MandateAcceptanceType::iter()
@@ -496,7 +521,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::Connector => Some(
-                common_enums::RoutableConnectors::iter()
+                crate::enums::RoutableConnectors::iter()
                     .map(|connector| {
                         DirValue::Connector(Box::new(ast::ConnectorChoice { connector }))
                     })
@@ -555,6 +580,16 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::AcquirerFraudRate => None,
+            Self::TransactionInitiator => Some(
+                enums::TransactionInitiator::iter()
+                    .map(DirValue::TransactionInitiator)
+                    .collect(),
+            ),
+            Self::NetworkTokenType => Some(
+                enums::NetworkTokenType::iter()
+                    .map(DirValue::NetworkTokenType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -568,6 +603,8 @@ pub enum DirValue {
     PaymentMethod(enums::PaymentMethod),
     #[serde(rename = "card_bin")]
     CardBin(types::StrValue),
+    #[serde(rename = "extended_card_bin")]
+    ExtendedCardBin(types::StrValue),
     #[serde(rename = "card_type")]
     CardType(enums::CardType),
     #[serde(rename = "card_network")]
@@ -640,6 +677,10 @@ pub enum DirValue {
     AcquirerCountry(enums::Country),
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate(types::NumValue),
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator(enums::TransactionInitiator),
+    #[serde(rename = "network_token")]
+    NetworkTokenType(enums::NetworkTokenType),
 }
 
 impl DirValue {
@@ -647,6 +688,7 @@ impl DirValue {
         let (kind, data) = match self {
             Self::PaymentMethod(_) => (DirKeyKind::PaymentMethod, None),
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
+            Self::ExtendedCardBin(_) => (DirKeyKind::ExtendedCardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
             Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
@@ -683,6 +725,8 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
+            Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
+            Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
         };
 
         DirKey::new(kind, data)
@@ -692,6 +736,7 @@ impl DirValue {
             Self::MetaData(val) => Some(val.clone()),
             Self::PaymentMethod(_) => None,
             Self::CardBin(_) => None,
+            Self::ExtendedCardBin(_) => None,
             Self::CardType(_) => None,
             Self::CardNetwork(_) => None,
             Self::PayLaterType(_) => None,
@@ -727,12 +772,15 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => None,
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
+            Self::TransactionInitiator(_) => None,
+            Self::NetworkTokenType(_) => None,
         }
     }
 
     pub fn get_str_val(&self) -> Option<types::StrValue> {
         match self {
             Self::CardBin(val) => Some(val.clone()),
+            Self::ExtendedCardBin(val) => Some(val.clone()),
             Self::IssuerName(val) => Some(val.clone()),
             _ => None,
         }
@@ -782,6 +830,8 @@ impl DirValue {
             (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
+            (Self::TransactionInitiator(ti1), Self::TransactionInitiator(ti2)) => ti1 == ti2,
+            (Self::NetworkTokenType(ntt1), Self::NetworkTokenType(ntt2)) => ntt1 == ntt2,
             _ => false,
         }
     }
@@ -910,7 +960,7 @@ pub type DirIfCondition = Vec<DirComparison>;
 #[derive(Debug, Clone)]
 pub struct DirIfStatement {
     pub condition: DirIfCondition,
-    pub nested: Option<Vec<DirIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Debug, Clone)]
@@ -929,7 +979,6 @@ pub struct DirProgram<O> {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::expect_used)]
     use rustc_hash::FxHashMap;
     use strum::IntoEnumIterator;
 

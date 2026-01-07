@@ -42,6 +42,7 @@ mod dummyconnector;
 mod dwolla;
 mod ebanx;
 mod elavon;
+mod envoy;
 mod facilitapay;
 mod finix;
 mod fiserv;
@@ -87,6 +88,7 @@ mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;
+mod payjustnowinstore;
 mod payload;
 mod payme;
 mod payone;

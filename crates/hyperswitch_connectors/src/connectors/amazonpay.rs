@@ -13,7 +13,6 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use hex;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData as WalletDataPaymentMethod},
     router_data::{AccessToken, ErrorResponse, RouterData},
@@ -315,6 +314,7 @@ impl ConnectorCommon for Amazonpay {
             message: response.message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             reason: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -768,7 +768,7 @@ static AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Amazon Pay",
     description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

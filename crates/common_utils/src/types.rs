@@ -682,6 +682,10 @@ impl StringMajorUnit {
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+    /// forms a new default 2-decimal major unit
+    pub fn zero_decimal() -> Self {
+        Self("0.00".to_string())
+    }
 }
 
 #[derive(
@@ -768,7 +772,6 @@ pub struct TimeRange {
 
 #[cfg(test)]
 mod amount_conversion_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
@@ -1440,8 +1443,20 @@ impl_enum_str!(
             /// user id of creator.
             user_id: String,
         },
+        /// EmbeddedToken variant
+        EmbeddedToken {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
     }
 );
+
+/// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
+/// This trait allows generic functions to check if a parsed enum value is invalid.
+pub trait HasInvalidVariant {
+    /// Returns true if this instance is the `Invalid` variant
+    fn is_invalid(&self) -> bool;
+}
 
 #[allow(missing_docs)]
 pub trait TenantConfig: Send + Sync {

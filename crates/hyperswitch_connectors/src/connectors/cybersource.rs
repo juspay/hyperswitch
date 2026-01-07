@@ -205,7 +205,7 @@ impl ConnectorCommon for Cybersource {
                         });
                         (
                             error_info.reason.clone(),
-                            error_info.reason.clone(),
+                            error_info.message.clone(),
                             transformers::get_error_reason(
                                 Some(error_info.message.clone()),
                                 detailed_error_info,
@@ -227,8 +227,9 @@ impl ConnectorCommon for Cybersource {
                                 |reason| reason.to_string(),
                             ),
                             response
-                                .reason
-                                .map_or(error_message.to_string(), |reason| reason.to_string()),
+                                .message
+                                .clone()
+                                .map_or(error_message.to_string(), |msg| msg.to_string()),
                             transformers::get_error_reason(
                                 response.message,
                                 detailed_error_info,
@@ -245,6 +246,7 @@ impl ConnectorCommon for Cybersource {
                     reason,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -261,6 +263,7 @@ impl ConnectorCommon for Cybersource {
                     reason: Some(response.response.rmsg),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -289,6 +292,7 @@ impl ConnectorCommon for Cybersource {
                     reason: Some(error_response),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -511,6 +515,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -595,6 +600,7 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
                     status_code: res.status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1117,6 +1123,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1357,6 +1364,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1480,6 +1488,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1598,6 +1607,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1724,6 +1734,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1849,6 +1860,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
                 .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2287,7 +2299,10 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize { request_data } => {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method: _,
+            } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
@@ -2296,36 +2311,6 @@ impl ConnectorSpecifications for Cybersource {
                     }
                     Some(_) | None => Some(api::PreProcessingFlowName::PostAuthenticate),
                 }
-            }
-        }
-    }
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        match (current_flow, pre_processing_flow_name) {
-            (api::CurrentFlowInfo::Authorize { .. }, _) => {
-                // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
-                true
-            }
-            (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::Authenticate,
-            )
-            | (
-                api::CurrentFlowInfo::CompleteAuthorize { .. },
-                api::PreProcessingFlowName::PostAuthenticate,
-            ) => {
-                (matches!(
-                    preprocessing_flow_response.response,
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        ref redirection_data,
-                        ..
-                    }) if redirection_data.is_none()
-                ) && preprocessing_flow_response.attempt_status
-                    != common_enums::AttemptStatus::AuthenticationFailed)
             }
         }
     }
@@ -2346,6 +2331,62 @@ impl ConnectorSpecifications for Cybersource {
             }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => self.is_3ds_setup_required(request_data, *auth_type),
+            // No alternate flow for complete authorize
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
+    /// Check if authentication flow is required
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no post_authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method: _,
+            } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => true,
+                    Some(_) | None => false,
+                }
+            }
+        }
+    }
+    /// Check if post-authentication flow is required
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { .. } => {
+                // during authorize flow, there is no post_authentication call needed
+                false
+            }
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method: _,
+            } => {
+                // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
+                let redirection_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref());
+                match redirection_params {
+                    Some(param) if !param.peek().is_empty() => false,
+                    Some(_) | None => true,
+                }
+            }
         }
     }
 }

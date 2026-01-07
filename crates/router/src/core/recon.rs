@@ -92,11 +92,9 @@ pub async fn send_recon_request(
                     recon_status: enums::ReconStatus::Requested,
                 };
                 let db = &*state.store;
-                let key_manager_state = &(&state).into();
 
                 let response = db
                     .update_merchant(
-                        key_manager_state,
                         auth_data.merchant_account,
                         updated_merchant_account,
                         &auth_data.key_store,
@@ -149,23 +147,21 @@ pub async fn generate_recon_token(
 
 pub async fn recon_merchant_account_update(
     state: SessionState,
-    auth: authentication::AuthenticationData,
+    processor: domain::Processor,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let db = &*state.store;
-    let key_manager_state = &(&state).into();
 
     let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
         recon_status: req.recon_status,
     };
-    let merchant_id = auth.merchant_account.get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
 
     let updated_merchant_account = db
         .update_merchant(
-            key_manager_state,
-            auth.merchant_account.clone(),
+            processor.get_account().clone(),
             updated_merchant_account,
-            &auth.key_store,
+            processor.get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -181,7 +177,7 @@ pub async fn recon_merchant_account_update(
             &state.clone(),
             ThemeLineage::Merchant {
                 tenant_id: state.tenant.tenant_id.clone(),
-                org_id: auth.merchant_account.get_org_id().clone(),
+                org_id: processor.get_account().get_org_id().clone(),
                 merchant_id: merchant_id.clone(),
             },
         )

@@ -1,3 +1,4 @@
+use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "payouts")]
 use api_models::{
     self,
@@ -13,7 +14,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        InteracCustomerInfo, RouterData,
+    },
     router_flow_types::refunds::Execute,
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -180,7 +184,7 @@ pub struct GigadatPaymentData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum GigadatPaymentStatus {
+pub enum GigadatTransactionStatus {
     StatusInited,
     StatusSuccess,
     StatusRejected,
@@ -191,39 +195,76 @@ pub enum GigadatPaymentStatus {
     StatusFailed,
 }
 
-impl From<GigadatPaymentStatus> for enums::AttemptStatus {
-    fn from(item: GigadatPaymentStatus) -> Self {
+impl From<GigadatTransactionStatus> for enums::AttemptStatus {
+    fn from(item: GigadatTransactionStatus) -> Self {
         match item {
-            GigadatPaymentStatus::StatusSuccess => Self::Charged,
-            GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
+            GigadatTransactionStatus::StatusSuccess => Self::Charged,
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
                 Self::Pending
             }
-            GigadatPaymentStatus::StatusRejected
-            | GigadatPaymentStatus::StatusExpired
-            | GigadatPaymentStatus::StatusRejected1
-            | GigadatPaymentStatus::StatusAborted1
-            | GigadatPaymentStatus::StatusFailed => Self::Failure,
+            GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusAborted1
+            | GigadatTransactionStatus::StatusFailed => Self::Failure,
         }
     }
 }
 
-impl From<GigadatPaymentStatus> for api_models::webhooks::IncomingWebhookEvent {
-    fn from(item: GigadatPaymentStatus) -> Self {
-        match item {
-            GigadatPaymentStatus::StatusSuccess => Self::PaymentIntentSuccess,
-            GigadatPaymentStatus::StatusFailed
-            | GigadatPaymentStatus::StatusRejected
-            | GigadatPaymentStatus::StatusRejected1
-            | GigadatPaymentStatus::StatusExpired
-            | GigadatPaymentStatus::StatusAborted1 => Self::PaymentIntentFailure,
-            GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
-                Self::PaymentIntentProcessing
+pub enum GigadatFlow {
+    Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
+}
+
+impl GigadatFlow {
+    pub fn get_flow(webhook_type: &str) -> Result<Self, errors::ConnectorError> {
+        match webhook_type {
+            #[cfg(feature = "payouts")]
+            "ETO" | "RTO" | "RTX" | "ANR" | "ANX" => Ok(Self::Payout),
+
+            "ETI" | "RFM" | "CPI" | "ACK" => Ok(Self::Payment),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Invalid transaction type ".to_string(),
+            )),
+        }
+    }
+}
+
+pub fn get_gigadat_webhook_event_type(
+    status: GigadatTransactionStatus,
+    flow: GigadatFlow,
+) -> IncomingWebhookEvent {
+    match flow {
+        GigadatFlow::Payment => match status {
+            GigadatTransactionStatus::StatusSuccess => IncomingWebhookEvent::PaymentIntentSuccess,
+            GigadatTransactionStatus::StatusFailed
+            | GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusAborted1 => {
+                IncomingWebhookEvent::PaymentIntentFailure
             }
-        }
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
+                IncomingWebhookEvent::PaymentIntentProcessing
+            }
+        },
+        #[cfg(feature = "payouts")]
+        GigadatFlow::Payout => match status {
+            GigadatTransactionStatus::StatusSuccess => IncomingWebhookEvent::PayoutSuccess,
+            GigadatTransactionStatus::StatusFailed
+            | GigadatTransactionStatus::StatusRejected
+            | GigadatTransactionStatus::StatusRejected1
+            | GigadatTransactionStatus::StatusExpired
+            | GigadatTransactionStatus::StatusAborted1 => IncomingWebhookEvent::PayoutFailure,
+            GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
+                IncomingWebhookEvent::PayoutProcessing
+            }
+        },
     }
 }
 
-impl TryFrom<String> for GigadatPaymentStatus {
+impl TryFrom<String> for GigadatTransactionStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
@@ -242,7 +283,16 @@ impl TryFrom<String> for GigadatPaymentStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatTransactionStatusResponse {
-    pub status: GigadatPaymentStatus,
+    pub status: GigadatTransactionStatus,
+    pub interac_bank_name: Option<Secret<String>>,
+    pub data: Option<GigadatSyncData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GigadatSyncData {
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub mobile: Option<Secret<String>>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>>
@@ -291,6 +341,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
     fn try_from(
         item: ResponseRouterData<F, GigadatTransactionStatusResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = item.response.data.as_ref().map(|sync_data| {
+            ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                    interac: Some(InteracCustomerInfo {
+                        customer_info: Some(build_interac_customer_info_details(
+                            sync_data,
+                            item.response.interac_bank_name.clone(),
+                        )),
+                    }),
+                },
+            )
+        });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -303,8 +365,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
+            connector_response,
             ..item.data
         })
+    }
+}
+
+fn build_interac_customer_info_details(
+    sync_data: &GigadatSyncData,
+    bank_name: Option<Secret<String>>,
+) -> common_types::payments::InteracCustomerInfoDetails {
+    common_types::payments::InteracCustomerInfoDetails {
+        customer_name: sync_data.name.clone(),
+        customer_email: sync_data.email.clone(),
+        customer_phone_number: sync_data.mobile.clone(),
+        customer_bank_id: None,
+        customer_bank_name: bank_name,
     }
 }
 
@@ -581,11 +657,27 @@ pub struct Error {
 #[derive(Debug, Deserialize)]
 pub struct GigadatWebhookQueryParameters {
     pub transaction: String,
-    pub status: GigadatPaymentStatus,
+    pub status: GigadatTransactionStatus,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GigadatWebhookKeyValue {
-    pub key: String,
-    pub value: String,
+#[serde(rename_all = "camelCase")]
+pub struct GigadatWebhookKeyValueBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub final_type: Option<String>,
+    pub cpi_type: Option<String>,
+    // donot remove the below fields
+    pub name: Option<Secret<String>>,
+    pub mobile: Option<Secret<String>>,
+    pub user_id: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub financial_institution: Option<Secret<String>>,
+}
+
+impl GigadatWebhookKeyValueBody {
+    pub fn decode_from_url(body_str: &str) -> Result<Self, errors::ConnectorError> {
+        serde_urlencoded::from_str(body_str)
+            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
 }

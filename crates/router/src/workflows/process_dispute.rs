@@ -42,40 +42,36 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &tracking_data.merchant_id,
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account,
+            key_store,
+            None,
+        );
 
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             state,
             tracking_data.dispute_payload.object_reference_id.clone(),
-            &merchant_context,
+            &platform,
         )
         .await?;
 
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
-                &(state).into(),
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 &payment_attempt.profile_id,
             )
             .await?;
@@ -84,7 +80,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         let dispute = state
             .store
             .find_by_merchant_id_payment_id_connector_dispute_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &tracking_data.dispute_payload.connector_dispute_id,
             )
@@ -103,7 +99,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             // Update dispute data
             let response = disputes::update_dispute_data(
                 state,
-                merchant_context,
+                platform,
                 business_profile,
                 dispute,
                 tracking_data.dispute_payload,

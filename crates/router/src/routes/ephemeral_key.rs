@@ -27,7 +27,11 @@ pub async fn ephemeral_key_create(
             helpers::make_ephemeral_key(
                 state,
                 payload.customer_id,
-                auth.merchant_account.get_id().to_owned(),
+                auth.platform
+                    .get_processor()
+                    .get_account()
+                    .get_id()
+                    .to_owned(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -78,13 +82,10 @@ pub async fn client_secret_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             helpers::make_client_secret(
                 state,
                 payload.resource_id.to_owned(),
-                merchant_context,
+                auth.platform,
                 req.headers(),
             )
         },

@@ -19,7 +19,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_MANDATE_REVOKE_FLOW: &str =
 pub async fn construct_mandate_revoke_router_data(
     state: &SessionState,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     mandate: Mandate,
 ) -> CustomResult<types::MandateRevokeRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -28,7 +28,7 @@ pub async fn construct_mandate_revoke_router_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         customer_id: Some(mandate.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: None,
@@ -79,6 +79,7 @@ pub async fn construct_mandate_revoke_router_data(
         quote_id: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -91,7 +92,6 @@ pub async fn construct_mandate_revoke_router_data(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
-        is_migrated_card: None,
     };
 
     Ok(router_data)
