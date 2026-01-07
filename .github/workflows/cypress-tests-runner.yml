@@ -311,7 +311,7 @@ jobs:
           retention-days: 1
 
       - name: Remove S-test-ready label on failure
-        if: failure() && github.event_name == 'pull_request'
+        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -726,7 +726,7 @@ jobs:
           disable_search: true
 
       - name: Remove S-test-ready label on failure
-        if: failure() && github.event_name == 'pull_request'
+        if: failure() && env.RUN_TESTS == 'true' && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
