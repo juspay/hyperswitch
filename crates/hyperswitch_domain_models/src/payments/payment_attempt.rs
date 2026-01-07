@@ -408,7 +408,7 @@ pub struct PaymentAttemptErrorDetails {
 #[cfg(feature = "v1")]
 #[derive(Clone, Default, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct UnifiedErrorDetails {
-    pub category: Option<storage_enums::UnifiedCode>,
+    pub category: Option<String>,
     pub message: Option<String>,
     pub standardised_code: Option<storage_enums::StandardisedCode>,
     pub description: Option<String>,
@@ -1843,7 +1843,7 @@ fn build_error_details(
     error_code: Option<&String>,
     error_message: Option<&String>,
     error_reason: Option<&String>,
-    category: Option<storage_enums::UnifiedCode>,
+    category: Option<&String>,
     message: Option<&String>,
     standardised_code: Option<storage_enums::StandardisedCode>,
     description: Option<&String>,
@@ -1870,6 +1870,7 @@ fn build_error_details(
     };
 
     let unified_details = {
+        let category = category.cloned();
         let message = message.cloned();
         let description = description.cloned();
         let user_guidance_message = user_guidance_message.cloned();
@@ -2165,8 +2166,7 @@ impl PaymentAttemptUpdate {
                     error_reason.as_ref().and_then(|o| o.as_ref()),
                     unified_code
                         .as_ref()
-                        .and_then(|o| o.as_ref())
-                        .and_then(|s| s.parse().ok()),
+                        .and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
@@ -2281,8 +2281,7 @@ impl PaymentAttemptUpdate {
                     error_reason.as_ref().and_then(|o| o.as_ref()),
                     unified_code
                         .as_ref()
-                        .and_then(|o| o.as_ref())
-                        .and_then(|s| s.parse().ok()),
+                        .and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
