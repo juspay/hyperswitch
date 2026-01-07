@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Modifiers";
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
@@ -11,7 +11,7 @@ const ThreeDSChallengeTestCardDetails = {
 const threeDSFrictionlessTestCardDetails = {
   card_number: "4548814479727229",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
@@ -317,7 +317,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for redsys is not implemented",
+            message: "Setup Mandate flow for Redsys is not implemented",
             code: "IR_00",
           },
         },

@@ -156,6 +156,7 @@ impl ConnectorCommon for Adyen {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -352,7 +353,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
-                | PaymentMethodType::OpenBanking => {
+                | PaymentMethodType::OpenBanking
+                | PaymentMethodType::NetworkToken => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -1044,6 +1046,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1273,6 +1276,7 @@ impl
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

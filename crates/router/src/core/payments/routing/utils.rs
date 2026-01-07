@@ -1020,6 +1020,12 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
                 Some(ValueType::EnumVariant(v.to_string())),
             );
         }
+        dir::DirValue::NetworkTokenType(v) => {
+            params.insert(
+                "network_token".to_string(),
+                Some(ValueType::EnumVariant(v.to_string())),
+            );
+        }
         other => {
             // all other values can be ignored for now as they don't converge with
             // payment method type
@@ -1110,7 +1116,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     // #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
-    pub nested: Option<Vec<IfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 /// Represents a rule

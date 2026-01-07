@@ -348,6 +348,13 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "transaction_initiator")]
     TransactionInitiator,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
+    #[serde(rename = "network_token")]
+    NetworkTokenType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -407,6 +414,7 @@ impl DirKeyKind {
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
             Self::TransactionInitiator => types::DataType::EnumVariant,
+            Self::NetworkTokenType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -577,6 +585,11 @@ impl DirKeyKind {
                     .map(DirValue::TransactionInitiator)
                     .collect(),
             ),
+            Self::NetworkTokenType => Some(
+                enums::NetworkTokenType::iter()
+                    .map(DirValue::NetworkTokenType)
+                    .collect(),
+            ),
         }
     }
 }
@@ -666,6 +679,8 @@ pub enum DirValue {
     AcquirerFraudRate(types::NumValue),
     #[serde(rename = "transaction_initiator")]
     TransactionInitiator(enums::TransactionInitiator),
+    #[serde(rename = "network_token")]
+    NetworkTokenType(enums::NetworkTokenType),
 }
 
 impl DirValue {
@@ -711,6 +726,7 @@ impl DirValue {
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
             Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
+            Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
         };
 
         DirKey::new(kind, data)
@@ -757,6 +773,7 @@ impl DirValue {
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
             Self::TransactionInitiator(_) => None,
+            Self::NetworkTokenType(_) => None,
         }
     }
 
@@ -814,6 +831,7 @@ impl DirValue {
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
             (Self::TransactionInitiator(ti1), Self::TransactionInitiator(ti2)) => ti1 == ti2,
+            (Self::NetworkTokenType(ntt1), Self::NetworkTokenType(ntt2)) => ntt1 == ntt2,
             _ => false,
         }
     }
@@ -942,7 +960,7 @@ pub type DirIfCondition = Vec<DirComparison>;
 #[derive(Debug, Clone)]
 pub struct DirIfStatement {
     pub condition: DirIfCondition,
-    pub nested: Option<Vec<DirIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,11 +1,10 @@
 use std::str::FromStr;
 
-use cards::CardNumber;
+use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{Card, NetworkTokenData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -179,7 +178,7 @@ pub struct CardDetails {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkTokenDetails {
-    pub token: NetworkTokenNumber,
+    pub token: NetworkToken,
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
@@ -390,14 +389,6 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotSupported {
-                message: "3DS flow".to_string(),
-                connector: "Peachpayments",
-            }
-            .into());
-        }
-
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Self::try_from((item, req_card)),
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
@@ -504,6 +495,13 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     fn try_from(
         (item, req_card): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Peachpayments",
+            }
+            .into());
+        }
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -710,6 +708,7 @@ impl<F>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -750,6 +749,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -885,6 +885,7 @@ pub fn get_peachpayments_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(response.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -934,6 +935,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(transaction.transaction_id.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1006,6 +1008,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.transaction_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
