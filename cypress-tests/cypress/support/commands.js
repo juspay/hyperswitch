@@ -2839,7 +2839,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
-  (globalState, data, autoretries = false, attempt = 1) => {
+  (globalState, data, autoretries = false, attempt = 1, expected_intent_status="") => {
     const { Configs: configs = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
@@ -2872,13 +2872,12 @@ Cypress.Commands.add(
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
-          const intentStatus = globalState.get("paymentIntentStatus");
 
-          if (intentStatus !== undefined && intentStatus !== null) {
+          if (expected_intent_status !== "") {
             expect(
               response.body.status,
               "payment status should match stored intent_status"
-            ).to.equal(intentStatus);
+            ).to.equal(expected_intent_status);
           }
 
           if (
