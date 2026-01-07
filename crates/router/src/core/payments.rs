@@ -1210,6 +1210,7 @@ where
 
     utils::trigger_payments_webhook(
         platform.get_processor(),
+        platform.get_initiator(),
         business_profile,
         cloned_payment_data,
         cloned_customer,
@@ -1436,6 +1437,7 @@ where
 
     utils::trigger_payments_webhook(
         platform.get_processor(),
+        platform.get_initiator(),
         business_profile,
         cloned_payment_data,
         None,

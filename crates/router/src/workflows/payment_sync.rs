@@ -207,6 +207,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
                         platform.get_processor(),
+                        platform.get_initiator(),
                         business_profile,
                         payment_data,
                         customer,

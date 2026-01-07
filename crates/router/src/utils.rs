@@ -1125,6 +1125,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1143,6 +1144,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1181,7 +1183,8 @@ where
             None,
             None,
             None,
-            &platform,
+            processor,
+            initiator,
         )?;
 
         let event_type = status.into();
