@@ -527,6 +527,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 complete_authorize_router_data.status,
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
+                    | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::PartialCharged
+                    | common_enums::AttemptStatus::Authorized
             );
             Ok((complete_authorize_router_data, should_continue))
         } else {
