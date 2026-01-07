@@ -173,7 +173,7 @@ run_tests() {
     declare -n connectors="$service"
 
     if [[ ${#connectors[@]} -gt 0 ]]; then
-      print_color yellow "🚀 Starting Parallel Execution for '$service' (Jobs: $jobs)"
+      print_color yellow " Starting Parallel Execution for '$service' (Jobs: $jobs)"
 
       parallel --jobs "$jobs" \
                --group \
