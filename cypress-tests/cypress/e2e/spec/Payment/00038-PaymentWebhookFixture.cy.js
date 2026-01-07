@@ -7,8 +7,8 @@ let globalState;
 let connector;
 let expected_intent_status;
 
-describe("Payment Webhook Tests — Split Steps", () => {
-  before(function () {
+describe("Payment Webhook Tests", () => {
+  before("seed global state", () => {
     let skip = true;
 
     cy.task("getGlobalState")
@@ -81,8 +81,10 @@ describe("Payment Webhook Tests — Split Steps", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-    expected_intent_status = globalState.get("paymentIntentStatus");
+     cy.confirmCallTest(fixtures.confirmBody, data, true, globalState)
+    .then(() => {
+      expected_intent_status = globalState.get("paymentIntentStatus");
+    });
   });
 
   it("Update-payment_status", () => {
