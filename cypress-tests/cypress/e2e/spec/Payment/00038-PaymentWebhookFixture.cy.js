@@ -85,8 +85,6 @@ describe("Payment Webhook Tests — Split Steps", () => {
     expected_intent_status= globalState.get("paymentIntentStatus");
   });
 
-  const expected_intent_status = globalState.get("paymentIntentStatus");
-
   it("Update-payment_status", () => {
     cy.updatePaymentStatusTest(globalState, {
       Request: {
