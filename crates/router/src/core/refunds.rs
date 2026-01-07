@@ -1378,7 +1378,7 @@ pub async fn validate_and_create_refund(
             .await?;
 
             // Update the state metadata of the payment intent if the refund is successful
-            if refund.refund_status.is_success() {
+            if updated_refund.refund_status.is_success() {
                 tokio::spawn({
                     let state = state.clone();
                     let platform = platform.clone();
