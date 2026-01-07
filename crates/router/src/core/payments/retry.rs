@@ -645,6 +645,7 @@ where
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
                 network_details: Some(ForeignFrom::foreign_from(error_response)),
+                network_error_message: error_response.network_error_message.clone(),
                 recommended_action: None,
             };
 

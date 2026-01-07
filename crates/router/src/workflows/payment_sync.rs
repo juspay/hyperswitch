@@ -168,6 +168,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             issuer_error_code: None,
                             issuer_error_message: None,
                             network_details: None,
+                            network_error_message: None,
                             encrypted_payment_method_data: None,
                             recommended_action: None,
                         };

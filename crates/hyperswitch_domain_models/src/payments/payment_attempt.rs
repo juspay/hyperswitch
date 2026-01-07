@@ -1779,6 +1779,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_code: Option<String>,
         issuer_error_message: Option<String>,
         network_details: Option<NetworkDetails>,
+        network_error_message: Option<String>,
         recommended_action: Option<storage_enums::RecommendedAction>,
     },
     CaptureUpdate {
@@ -1851,6 +1852,7 @@ fn build_error_details(
     issuer_error_code: Option<&String>,
     issuer_error_message: Option<&String>,
     network_details: Option<&NetworkDetails>,
+    network_error_message: Option<&String>,
     recommended_action: Option<storage_enums::RecommendedAction>,
 ) -> Box<Option<DieselErrorDetails>> {
     let connector_details = {
@@ -1898,11 +1900,16 @@ fn build_error_details(
     let issuer_details = {
         let code = issuer_error_code.cloned();
         let message = issuer_error_message.cloned();
-        let network_error_details = network_details.map(|network| NetworkErrorDetails {
-            name: None,
-            advice_code: network.network_advice_code.clone(),
-            advice_message: None,
-        });
+        let network_error_details = if network_details.is_some() || network_error_message.is_some()
+        {
+            Some(NetworkErrorDetails {
+                name: None,
+                advice_code: network_details.and_then(|n| n.network_advice_code.clone()),
+                advice_message: network_error_message.cloned(),
+            })
+        } else {
+            None
+        };
 
         if code.is_some() || message.is_some() || network_error_details.is_some() {
             Some(IssuerErrorDetails {
@@ -2164,9 +2171,7 @@ impl PaymentAttemptUpdate {
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
-                    unified_code
-                        .as_ref()
-                        .and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
@@ -2174,6 +2179,7 @@ impl PaymentAttemptUpdate {
                     None, // issuer_error_code
                     None, // issuer_error_message
                     None, // network_details
+                    None, // network_error_message
                     None, // recommended_action
                 );
                 DieselPaymentAttemptUpdate::ResponseUpdate {
@@ -2234,6 +2240,7 @@ impl PaymentAttemptUpdate {
                     None, // issuer_error_code
                     None, // issuer_error_message
                     None, // network_details
+                    None, // network_error_message
                     None, // recommended_action
                 );
                 DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -2272,6 +2279,7 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
+                network_error_message,
                 encrypted_payment_method_data,
                 recommended_action,
             } => {
@@ -2279,9 +2287,7 @@ impl PaymentAttemptUpdate {
                     error_code.as_ref().and_then(|o| o.as_ref()),
                     error_message.as_ref().and_then(|o| o.as_ref()),
                     error_reason.as_ref().and_then(|o| o.as_ref()),
-                    unified_code
-                        .as_ref()
-                        .and_then(|o| o.as_ref()),
+                    unified_code.as_ref().and_then(|o| o.as_ref()),
                     unified_message.as_ref().and_then(|o| o.as_ref()),
                     standardised_code,
                     description.as_ref().and_then(|o| o.as_ref()),
@@ -2289,6 +2295,7 @@ impl PaymentAttemptUpdate {
                     issuer_error_code.as_ref(),
                     issuer_error_message.as_ref(),
                     network_details.as_ref(),
+                    network_error_message.as_ref(),
                     recommended_action,
                 );
                 DieselPaymentAttemptUpdate::ErrorUpdate {
