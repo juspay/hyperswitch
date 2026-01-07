@@ -825,6 +825,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         integrity_object: None,
         split_payments: None,
         webhook_url: None,
+        merchant_order_reference_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1178,6 +1179,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
+        merchant_order_reference_id: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -5190,6 +5192,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             integrity_object: None,
             split_payments: None,
             webhook_url: None,
+            merchant_order_reference_id: None,
         })
     }
 }
@@ -5321,6 +5324,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method: Some(capture_method),
             split_payments: None,
+            merchant_order_reference_id: None,
         })
     }
 }
