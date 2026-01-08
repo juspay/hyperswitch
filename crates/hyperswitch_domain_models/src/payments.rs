@@ -360,7 +360,7 @@ impl PaymentIntent {
 
         let total = blocked_amount + requested;
 
-        if total >= captured {
+        if total > captured {
             Err(
                 Report::new(common_utils::errors::ValidationError::InvalidValue {
                     message: "Requested amount exceeds available captured amount.".to_string(),
