@@ -3819,7 +3819,7 @@ pub async fn payment_methods_session_retrieve(
         });
 
     let payment_method_token_data = if let Some(token) = &associated_pm_token {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(token)
             .get_data_for_token(&state)
             .await
             .attach_printable("Failed to retrieve payment method token data")
