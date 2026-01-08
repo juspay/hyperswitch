@@ -1205,6 +1205,34 @@ impl ParentPaymentMethodToken {
             }
         }
     }
+
+    pub async fn get_data_for_token(
+        &self,
+        state: &SessionState,
+    ) -> CustomResult<PaymentTokenData, errors::ApiErrorResponse> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        logger::debug!(
+            "Fetching payment method token data from redis for key: {}",
+            self.key_for_token
+        );
+
+        let pm_token_data = redis_conn
+            .get_and_deserialize_key::<PaymentTokenData>(
+                &self.key_for_token.as_str().into(),
+                "Token Data",
+            )
+            .await
+            .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Payment method token either expired or does not exist".to_string(),
+            })?;
+        Ok(pm_token_data)
+    }
 }
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
@@ -1649,6 +1677,42 @@ pub async fn network_token_status_check_api(
                 auth.platform.get_provider().clone(),
                 payment_method_id,
             )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodGetTokenDetails))]
+pub async fn payment_method_get_token_details_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodGetTokenDetails;
+    let temporary_token = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let temporary_token = temporary_token.clone();
+            async move {
+                let platform: domain::Platform = auth.platform;
+                payment_methods_routes::payment_method_get_token_details_core(
+                    state,
+                    platform.get_provider().clone(),
+                    temporary_token,
+                )
+                .await
+            }
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,

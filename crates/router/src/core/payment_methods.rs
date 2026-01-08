@@ -4619,3 +4619,27 @@ pub async fn check_network_token_status(
         network_token_status_check_response,
     ))
 }
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_get_token_details_core(
+    state: SessionState,
+    provider: domain::Provider,
+    temporary_token: String,
+) -> RouterResponse<payment_methods::PaymentMethodGetTokenDetailsResponse> {
+    let token_data = pm_routes::ParentPaymentMethodToken::create_key_for_token(&temporary_token)
+        .get_data_for_token(&state)
+        .await;
+
+    match token_data {
+        Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
+            Ok(services::ApplicationResponse::Json(
+                payment_methods::PaymentMethodGetTokenDetailsResponse {
+                    id: card_token_data.payment_method_id,
+                    payment_method_token: temporary_token,
+                },
+            ))
+        }
+        Ok(_) => Err(errors::ApiErrorResponse::PaymentMethodNotFound.into()),
+        Err(e) => Err(e),
+    }
+}
