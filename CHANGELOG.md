@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.08.0
+
+### Features
+
+- **authentication:** Add pending authentication status to authentication attempt count ([#10833](https://github.com/juspay/hyperswitch/pull/10833)) ([`8df6cfb`](https://github.com/juspay/hyperswitch/commit/8df6cfbb71cd759bf4f49ca70e8f484fc804d0c0))
+- **connector:** [worldpaymodular] worldpay modular connector ([#10795](https://github.com/juspay/hyperswitch/pull/10795)) ([`46bb969`](https://github.com/juspay/hyperswitch/commit/46bb9693bad799f6e8313e329bfd195c4cb4815a))
+
+**Full Changelog:** [`2026.01.07.0...2026.01.08.0`](https://github.com/juspay/hyperswitch/compare/2026.01.07.0...2026.01.08.0)
+
+- - -
+
 ## 2026.01.07.0
 
 ### Features
