@@ -915,6 +915,13 @@ pub struct AuthenticationSessionTokenRequest {
     pub client_secret: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct AuthenticationServiceAddOrgConfigRequest {
+    /// Organization ID for the authentication
+    #[serde(skip_deserializing)]
+    pub organization_id: id_type::OrganizationId,
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct AuthenticationSessionResponse {
     /// The identifier for the payment
@@ -946,5 +953,11 @@ impl ApiEventMetric for AuthenticationSessionResponse {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),
         })
+    }
+}
+
+impl ApiEventMetric for AuthenticationServiceAddOrgConfigRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
     }
 }

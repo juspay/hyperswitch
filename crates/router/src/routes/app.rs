@@ -3193,6 +3193,10 @@ impl Authentication {
                 web::resource("/{authentication_id}/enabled_authn_methods_token")
                     .route(web::post().to(authentication::authentication_session_token)),
             )
+            .service(
+                web::resource("configs/{organization_id}")
+                    .route(web::post().to(authentication::enable_authentication_service_config)),
+            )
     }
 }
 

@@ -1,5 +1,8 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::{AuthenticationAuthenticateRequest, AuthenticationCreateRequest};
+use api_models::authentication::{
+    AuthenticationAuthenticateRequest, AuthenticationCreateRequest,
+    AuthenticationServiceAddOrgConfigRequest,
+};
 #[cfg(feature = "v1")]
 use api_models::authentication::{
     AuthenticationEligibilityCheckRequest, AuthenticationEligibilityRequest,
@@ -298,5 +301,32 @@ pub async fn authentication_session_token(
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationServiceAddOrgConfig))]
+pub async fn enable_authentication_service_config(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::OrganizationId>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationServiceAddOrgConfig;
+    let organization_id = path.into_inner();
+    let payload = AuthenticationServiceAddOrgConfigRequest {
+        organization_id: organization_id.clone(),
+    };
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| {
+            unified_authentication_service::enable_authentication_service_core(state, req)
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
     .await
 }

@@ -7968,7 +7968,8 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-pub async fn is_merchant_eligible_authentication_service(
+pub async fn is_merchant_or_organization_eligible_authentication_service(
+    organization_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
@@ -7994,7 +7995,10 @@ pub async fn is_merchant_eligible_authentication_service(
         }
     };
 
-    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+    Ok(
+        auth_eligible_array.contains(&organization_id.get_string_repr().to_owned())
+            || auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()),
+    )
 }
 
 #[cfg(feature = "v1")]

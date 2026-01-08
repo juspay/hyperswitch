@@ -683,6 +683,8 @@ pub enum Flow {
     AuthenticationEligibilityCheck,
     /// Authentication Retrieve Eligibility Check flow
     AuthenticationRetrieveEligibilityCheck,
+    /// Authentication Service Config flow
+    AuthenticationServiceAddOrgConfig,
     ///Proxy Flow
     Proxy,
     /// Profile Acquirer Create flow

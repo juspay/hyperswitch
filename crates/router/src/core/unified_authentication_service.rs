@@ -10,8 +10,8 @@ use api_models::authentication::{
     AuthenticationEligibilityCheckResponse, AuthenticationEligibilityCheckResponseData,
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
     AuthenticationRetrieveEligibilityCheckRequest, AuthenticationRetrieveEligibilityCheckResponse,
-    AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest, AuthenticationSyncResponse,
-    ClickToPayEligibilityCheckResponseData,
+    AuthenticationServiceAddOrgConfigRequest, AuthenticationSyncPostUpdateRequest,
+    AuthenticationSyncRequest, AuthenticationSyncResponse, ClickToPayEligibilityCheckResponseData,
 };
 use api_models::{
     authentication::{
@@ -65,7 +65,11 @@ use crate::{
     db::domain,
     routes::SessionState,
     services::AuthFlow,
-    types::{domain::types::AsyncLift, transformers::ForeignTryFrom},
+    types::{
+        api::{Config, ConfigUpdate},
+        domain::types::AsyncLift,
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+    },
 };
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -2305,4 +2309,45 @@ pub async fn get_session_token_for_click_to_pay(
             },
         )),
     )
+}
+
+#[cfg(feature = "v1")]
+pub async fn enable_authentication_service_core(
+    state: SessionState,
+    req: AuthenticationServiceAddOrgConfigRequest,
+) -> RouterResponse<Config> {
+    let merchants_eligible_for_authentication_service = state
+        .store
+        .as_ref()
+        .find_config_by_key_from_db(consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG)
+        .await
+        .to_not_found_response(ApiErrorResponse::ConfigNotFound)?;
+
+    let mut auth_eligible_array: Vec<String> =
+        serde_json::from_str(&merchants_eligible_for_authentication_service.config)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse authentication service config")?;
+
+    auth_eligible_array.push(req.organization_id.get_string_repr().to_owned());
+
+    let config_update = ConfigUpdate {
+        key: consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG.to_string(),
+        value: serde_json::to_string(&auth_eligible_array)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to serialize authentication service config")?,
+    };
+
+    let config = state
+        .store
+        .as_ref()
+        .update_config_by_key(
+            config_update.key.as_str(),
+            diesel_models::ConfigUpdate::foreign_from(&config_update),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ConfigNotFound)?;
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        config.foreign_into(),
+    ))
 }
