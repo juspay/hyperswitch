@@ -49,7 +49,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -66,7 +66,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                platform,
+                processor,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -364,7 +364,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
         merchant_order_reference_id: Option<String>,
     ) -> RouterResult<()> {
@@ -383,7 +383,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                platform.get_processor(),
+                processor,
                 self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)

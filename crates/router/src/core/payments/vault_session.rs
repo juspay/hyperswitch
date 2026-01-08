@@ -184,7 +184,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform,
+                        platform.get_processor(),
                         customer,
                         merchant_connector_account_type,
                         None,

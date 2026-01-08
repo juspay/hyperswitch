@@ -907,7 +907,7 @@ where
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
-                            platform,
+                            platform.get_processor(),
                             &customer,
                             &mca,
                             &connector.connector_data,
@@ -1074,7 +1074,7 @@ where
                     if should_trigger_post_processing_flows {
                         complete_postprocessing_steps_if_required(
                             state,
-                            platform,
+                            platform.get_processor(),
                             &customer,
                             &mca,
                             &connector_data,
@@ -1421,7 +1421,7 @@ where
     if should_trigger_post_processing_flows {
         complete_postprocessing_steps_if_required(
             state,
-            &platform,
+            platform.get_processor(),
             &None,
             &mca,
             &connector,
@@ -4454,7 +4454,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
@@ -4804,7 +4804,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             customer,
             &merchant_connector_account_type_details,
             None,
@@ -4963,7 +4963,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             &None,
             &merchant_connector_account,
             None,
@@ -5006,7 +5006,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             &None,
             &merchant_connector_account_type_details,
             None,
@@ -5269,7 +5269,7 @@ where
                 lineage_ids,
                 merchant_connector_account_type_details.clone(),
                 external_vault_merchant_connector_account_type_details.clone(),
-                platform,
+                platform.get_processor(),
                 ExecutionMode::Primary, //UCS is called in primary mode
                 merchant_order_reference_id,
             )
@@ -5341,7 +5341,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
@@ -5550,7 +5550,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             &None,
             &merchant_connector_account,
             None,
@@ -5670,7 +5670,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            platform.get_processor(),
             &None,
             &merchant_connector_account,
             None,
@@ -6253,7 +6253,7 @@ where
             .construct_router_data(
                 state,
                 connector_id,
-                platform,
+                platform.get_processor(),
                 customer,
                 &merchant_connector_account,
                 None,
@@ -6384,7 +6384,7 @@ where
             .construct_router_data(
                 state,
                 connector_id,
-                platform,
+                platform.get_processor(),
                 customer,
                 &merchant_connector_account,
                 None,
@@ -6782,7 +6782,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform,
+                        platform.get_processor(),
                         customer,
                         merchant_connector_account,
                         None,
@@ -6873,7 +6873,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform,
+                        platform.get_processor(),
                         customer,
                         merchant_connector_account,
                         None,
@@ -7177,7 +7177,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer: &Option<domain::Customer>,
     merchant_conn_account: &helpers::MerchantConnectorAccountType,
     connector: &api::ConnectorData,
@@ -7199,7 +7199,7 @@ where
         .construct_router_data(
             state,
             connector.connector.id(),
-            platform,
+            processor,
             customer,
             merchant_conn_account,
             None,
