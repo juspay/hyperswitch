@@ -3808,6 +3808,7 @@ pub async fn payment_methods_session_retrieve(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
+    // Only one associated payment method is supported for now
     let associated_pm_token = payment_method_session_domain_model
         .associated_payment_methods
         .as_ref()
@@ -3818,8 +3819,21 @@ pub async fn payment_methods_session_retrieve(
         });
 
     let expiry = associated_pm_token
-        .async_map(|token_string| {
-            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_token(&state, token_string)
+        .async_map(|token| utils::retrieve_payment_token_data(&state, token.clone()))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve payment method token data")
+        .ok()
+        .flatten()
+        .and_then(|token_data| match token_data {
+            storage::payment_method::PaymentTokenData::PermanentCard(card) => {
+                Some(card.payment_method_id)
+            }
+            _ => None,
+        })
+        .async_map(|pm_id| {
+            vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(&state, pm_id.to_owned())
         })
         .await
         .transpose()
