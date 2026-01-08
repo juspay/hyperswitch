@@ -1921,6 +1921,19 @@ impl
             connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
                 |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
             ),
+            merchant_account_id: router_data.request.merchant_account_id.as_ref().map(
+                |merchant_account_id| {
+                    unified_connector_service_masking::Secret::new(
+                        merchant_account_id.clone().expose(),
+                    )
+                },
+            ),
+            merchant_configered_currency: router_data
+                .request
+                .merchant_config_currency
+                .map(payments_grpc::Currency::foreign_try_from)
+                .transpose()?
+                .map(|currency| currency.into()),
         })
     }
 }
@@ -3429,7 +3442,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .exemption_indicator
                 .map(payments_grpc::ExemptionIndicator::foreign_from)
                 .map(i32::from),
-            cb_network_params: authentication_data
+            network_params: authentication_data
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
@@ -3465,7 +3478,7 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             transaction_id: authentication_data.transaction_id,
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
-            cb_network_params: None,
+            network_params: None,
         })
     }
 }
@@ -3653,7 +3666,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             transaction_id,
             ucaf_collection_indicator,
             exemption_indicator: _,
-            cb_network_params: _,
+            network_params: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
