@@ -8,10 +8,14 @@ use std::{
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use base64::Engine;
 use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
-    types::keymanager::Identifier,
+    crypto::Encryptable,
+    id_type,
+    new_type::MerchantName,
+    pii, type_name,
+    types::keymanager::{EncryptionTransferRequest, Identifier},
 };
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
@@ -25,7 +29,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
-use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
     consts,
