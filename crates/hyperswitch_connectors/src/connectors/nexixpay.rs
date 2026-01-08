@@ -460,8 +460,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         )?;
 
         let connector_router_data = nexixpay::NexixpayRouterData::from((amount, req));
-        let connector_req =
-            nexixpay::NexixpayPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = nexixpay::NexixpayPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -473,7 +472,9 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&PaymentsPreAuthenticateType::get_url(self, req, connectors)?)
+                .url(&PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
                 .headers(PaymentsPreAuthenticateType::get_headers(
                     self, req, connectors,
@@ -1377,7 +1378,10 @@ impl ConnectorSpecifications for Nexixpay {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize { request_data, payment_method: _ } => {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                request_data,
+                payment_method: _,
+            } => {
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
                     Some(param) if !param.peek().is_empty() => {

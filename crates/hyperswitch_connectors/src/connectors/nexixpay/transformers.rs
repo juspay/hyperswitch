@@ -48,8 +48,8 @@ use crate::{
         get_unimplemented_payment_method_error_message, to_connector_meta,
         to_connector_meta_from_secret, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPostAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
+        RouterData as _,
     },
 };
 
@@ -962,9 +962,7 @@ fn get_country_alpha3(country: CountryAlpha2) -> CountryAlpha3 {
     CountryAlpha2::from_alpha2_to_alpha3(country)
 }
 
-impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>>
-    for NexixpayPaymentsRequest
-{
+impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>> for NexixpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &NexixpayRouterData<&PaymentsPreAuthenticateRouterData>,
@@ -1366,14 +1364,12 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
     ) -> Result<Self, Self::Error> {
         match item.response {
             NexixpayPaymentsResponse::PaymentResponse(ref response_body) => {
-                let complete_authorize_url = item
-                    .data
-                    .request
-                    .complete_authorize_url
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "complete_authorize_url",
-                    })?;
+                let complete_authorize_url =
+                    item.data.request.complete_authorize_url.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "complete_authorize_url",
+                        },
+                    )?;
                 let operation_id: String = response_body.operation.operation_id.clone();
                 let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest {
                     three_d_s_auth_url: response_body
