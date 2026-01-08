@@ -90,7 +90,7 @@ where
         let updated_customer = call_create_connector_customer_if_required(
             state,
             customer,
-            platform,
+            platform.get_processor(),
             &merchant_connector_account,
             payment_data,
         )
@@ -131,7 +131,7 @@ where
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -152,7 +152,7 @@ where
         merchant_connector_account_type.get_inner_db_merchant_connector_account();
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
+        processor.clone(),
         merchant_connector_account_type.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
@@ -184,7 +184,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform.get_processor(),
+                        processor,
                         customer,
                         merchant_connector_account_type,
                         None,

@@ -4043,11 +4043,12 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -4067,6 +4068,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
+    Option<storage::CustomerUpdate>,
 )>
 where
     F: Send + Clone + Sync,
@@ -4085,7 +4087,7 @@ where
         .add_access_token(
             state,
             &connector,
-            platform.get_processor(),
+            processor,
             payment_data.get_creds_identifier(),
             &context,
         )
@@ -4122,7 +4124,7 @@ where
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
-        platform,
+        processor,
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
@@ -4277,26 +4279,19 @@ where
             .ok();
     }
 
-    // Update customer information at provider level and payment trackers in parallel
-    // Since the request is already built in the previous step,
-    // there should be no error in request construction from hyperswitch end
-    let ((), (_, new_payment_data)) = tokio::try_join!(
-        operation.to_domain()?.update_customer(
-            state,
-            platform.get_provider(),
-            customer.clone(),
-            updated_customer.clone(),
-        ),
-        operation.to_update_tracker()?.update_trackers(
+    // Update payment trackers
+    let (_, new_payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
             state,
             req_state,
-            platform.get_processor(),
+            processor,
             payment_data.clone(),
             customer.clone(),
             frm_suggestion,
             header_payload.clone(),
         )
-    )?;
+        .await?;
     *payment_data = new_payment_data;
 
     let router_data = if should_continue_further {
@@ -4321,7 +4316,7 @@ where
         Ok(router_data)
     }?;
 
-    Ok((router_data, merchant_connector_account))
+    Ok((router_data, merchant_connector_account, updated_customer))
 }
 
 #[cfg(feature = "v1")]
@@ -4547,10 +4542,10 @@ where
     };
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
-    call_connector_service(
+    let (router_data, merchant_connector_account, updated_customer) = call_connector_service(
         &updated_state,
         req_state,
-        platform,
+        platform.get_processor(),
         connector,
         operation,
         payment_data,
@@ -4568,7 +4563,20 @@ where
         tokenization_action,
         gateway_context,
     )
-    .await
+    .await?;
+
+    // Update customer at provider level after connector operations complete
+    operation
+        .to_domain()?
+        .update_customer(
+            state,
+            platform.get_provider(),
+            customer.clone(),
+            updated_customer,
+        )
+        .await?;
+
+    Ok((router_data, merchant_connector_account))
 }
 
 #[cfg(feature = "v2")]
@@ -4587,11 +4595,12 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -4609,7 +4618,10 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     updated_customer: Option<storage::CustomerUpdate>,
     tokenization_action: TokenizationAction,
     gateway_context: gateway_context::RouterGatewayContext,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+) -> RouterResult<(
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    Option<storage::CustomerUpdate>,
+)>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
@@ -4627,7 +4639,7 @@ where
         .add_access_token(
             state,
             &connector,
-            platform.get_processor(),
+            processor,
             payment_data.get_creds_identifier(),
             &gateway_context,
         )
@@ -4690,26 +4702,19 @@ where
         None => (None, false),
     };
 
-    // Update customer information at provider level and payment trackers in parallel
-    // Since the request is already built in the previous step,
-    // there should be no error in request construction from hyperswitch end
-    let ((), (_, new_payment_data)) = tokio::try_join!(
-        operation.to_domain()?.update_customer(
-            state,
-            platform.get_provider(),
-            customer.clone(),
-            updated_customer.clone(),
-        ),
-        operation.to_update_tracker()?.update_trackers(
+    // Update payment trackers
+    let (_, new_payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
             state,
             req_state,
-            platform.get_processor(),
+            processor,
             payment_data.clone(),
             customer.clone(),
             frm_suggestion,
             header_payload.clone(),
         )
-    )?;
+        .await?;
     *payment_data = new_payment_data;
 
     let router_data = if should_continue_further {
@@ -4735,7 +4740,7 @@ where
         Ok(router_data)
     }?;
 
-    Ok(router_data)
+    Ok((router_data, updated_customer))
 }
 
 #[cfg(feature = "v2")]
@@ -4794,7 +4799,7 @@ where
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
-        platform,
+        platform.get_processor(),
         &merchant_connector_account_type_details,
         payment_data,
     )
@@ -5174,10 +5179,10 @@ where
             execution_path,
             execution_mode,
         };
-        call_connector_service(
+        let (router_data, updated_customer) = call_connector_service(
             &updated_state,
             req_state,
-            platform,
+            platform.get_processor(),
             connector,
             operation,
             payment_data,
@@ -5196,7 +5201,20 @@ where
             tokenization_action,
             gateway_context,
         )
-        .await
+        .await?;
+
+        // Update customer at provider level after connector operations complete
+        operation
+            .to_domain()?
+            .update_customer(
+                state,
+                platform.get_provider(),
+                customer.clone(),
+                updated_customer,
+            )
+            .await?;
+
+        Ok(router_data)
     })
     .await
 }
@@ -6709,7 +6727,7 @@ pub fn validate_customer_details_for_click_to_pay(
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
@@ -6782,7 +6800,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform.get_processor(),
+                        processor,
                         customer,
                         merchant_connector_account,
                         None,
@@ -6823,7 +6841,7 @@ where
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -6844,7 +6862,7 @@ where
 
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
+        processor.clone(),
         merchant_connector_account.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
@@ -6873,7 +6891,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        platform.get_processor(),
+                        processor,
                         customer,
                         merchant_connector_account,
                         None,
