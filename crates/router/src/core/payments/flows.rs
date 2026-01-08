@@ -78,6 +78,15 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }
+
+    #[cfg(feature = "v2")]
+    fn add_guest_customer(
+        &self,
+        _router_data: &mut types::RouterData<F, Req, Res>,
+        _guest_customer: &Option<hyperswitch_domain_models::payments::GuestCustomer>,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
