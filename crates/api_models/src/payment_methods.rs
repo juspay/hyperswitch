@@ -3590,7 +3590,7 @@ pub struct PaymentMethodGetTokenDetailsResponse {
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
     pub id: id_type::GlobalPaymentMethodId,
 
-    /// The tokenization id associated with the payment method
+    /// The token associated with the payment method
     #[schema(value_type = String, example = "token_CSum555d9YxDOpGwYq6q")]
-    pub token: String,
+    pub payment_method_token: String,
 }

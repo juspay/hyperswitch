@@ -2973,17 +2973,17 @@
         ]
       }
     },
-    "/v2/payment-methods/details/{id}": {
+    "/v2/payment-methods/token/{payment_method_temporary_token}/details": {
       "get": {
         "tags": [
           "Payment Methods"
         ],
         "summary": "Payment Method - Get Payment Method Token Data",
-        "description": "Retrieve the Payment method id associated with a payment method.",
+        "description": "Retrieve the Payment method id associated with a payment method token.",
         "operationId": "Get Payment Method Token Data",
         "parameters": [
           {
-            "name": "id",
+            "name": "payment_method_temporary_token",
             "in": "path",
             "description": "The unique identifier for the Payment Method Token",
             "required": true,
@@ -19349,7 +19349,7 @@
         "type": "object",
         "required": [
           "id",
-          "token"
+          "payment_method_token"
         ],
         "properties": {
           "id": {
@@ -19357,9 +19357,9 @@
             "description": "The payment method ID associated with the token",
             "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
           },
-          "token": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The tokenization id associated with the payment method",
+            "description": "The token associated with the payment method",
             "example": "token_CSum555d9YxDOpGwYq6q"
           }
         }

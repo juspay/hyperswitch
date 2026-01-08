@@ -1706,7 +1706,7 @@ pub async fn payment_method_get_token_details_api(
             let temporary_token = temporary_token.clone();
             async move {
                 let platform: domain::Platform = auth.platform;
-                payment_methods_routes::payment_method_get_token(
+                payment_methods_routes::payment_method_get_token_details_core(
                     state,
                     platform.get_provider().clone(),
                     temporary_token,

@@ -348,12 +348,12 @@ pub async fn network_token_status_check_api() {}
 
 /// Payment Method - Get Payment Method Token Data
 /// 
-/// Retrieve the Payment method id associated with a payment method.
+/// Retrieve the Payment method id associated with a payment method token.
 #[utoipa::path(
     get,
-    path = "/v2/payment-methods/details/{id}",
+    path = "/v2/payment-methods/token/{payment_method_temporary_token}/details",
     params (
-        ("id" = String, Path, description = "The unique identifier for the Payment Method Token"),
+        ("payment_method_temporary_token" = String, Path, description = "The unique identifier for the Payment Method Token"),
     ),
     responses(
         (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),

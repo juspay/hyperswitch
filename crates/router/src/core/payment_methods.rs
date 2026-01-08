@@ -4621,7 +4621,7 @@ pub async fn check_network_token_status(
 }
 
 #[cfg(feature = "v2")]
-pub async fn payment_method_get_token(
+pub async fn payment_method_get_token_details_core(
     state: SessionState,
     provider: domain::Provider,
     temporary_token: String,
@@ -4635,7 +4635,7 @@ pub async fn payment_method_get_token(
             Ok(services::ApplicationResponse::Json(
                 payment_methods::PaymentMethodGetTokenDetailsResponse {
                     id: card_token_data.payment_method_id,
-                    token: temporary_token,
+                    payment_method_token: temporary_token,
                 },
             ))
         }
