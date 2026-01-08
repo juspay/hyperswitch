@@ -346,7 +346,7 @@ pub async fn payment_method_delete_api() {}
 pub async fn network_token_status_check_api() {}
 
 /// Payment Method - Get Payment Method Token Data
-/// 
+///
 /// Retrieve the Payment method id associated with a payment method token.
 #[utoipa::path(
     get,
