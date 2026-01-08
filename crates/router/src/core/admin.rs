@@ -853,32 +853,6 @@ pub async fn get_merchant_account(
     ))
 }
 
-pub async fn get_merchant_account_details(
-    state: SessionState,
-    req: api::MerchantId,
-) -> RouterResponse<api::MerchantAccountDetailsResponse> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &req.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    Ok(service_api::ApplicationResponse::Json(
-        api::MerchantAccountDetailsResponse {
-            recon_status: merchant_account.recon_status,
-            product_type: merchant_account.product_type,
-        },
-    ))
-}
-
 #[cfg(feature = "v1")]
 /// For backwards compatibility, whenever new business labels are passed in
 /// primary_business_details, create a profile

@@ -43,7 +43,7 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
-    user::{UserKeyTransferRequest, UserTransferKeyResponse},
+    user::{MerchantAccountDetailsResponse, UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
 

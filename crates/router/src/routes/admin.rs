@@ -329,60 +329,6 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
-/// Merchant Account - Get Details
-///
-/// Get merchant account details (recon_status and product_type).
-#[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDetailsRetrieve))]
-pub async fn retrieve_merchant_account_details(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    mid: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::MerchantsAccountDetailsRetrieve;
-    let merchant_id = mid.into_inner();
-    let payload = admin::MerchantId {
-        merchant_id: merchant_id.clone(),
-    };
-    api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, _user: (), req, _| get_merchant_account_details(state, req),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    )
-    .await
-}
-
-/// Merchant Account - Get Details
-///
-/// Get merchant account details (recon_status and product_type).
-#[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDetailsRetrieve))]
-pub async fn retrieve_merchant_account_details(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    mid: web::Path<common_utils::id_type::MerchantId>,
-) -> HttpResponse {
-    let flow = Flow::MerchantsAccountDetailsRetrieve;
-    let merchant_id = mid.into_inner();
-    let payload = admin::MerchantId {
-        merchant_id: merchant_id.clone(),
-    };
-    api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, _user: (), req, _| get_merchant_account_details(state, req),
-        &auth::DashboardNoPermissionAuth,
-        api_locking::LockAction::NotApplicable,
-    )
-    .await
-}
-
 #[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
 pub async fn merchant_account_list(
