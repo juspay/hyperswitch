@@ -182,10 +182,19 @@ where
                     }
                 }
 
-                let router_data_response = router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response = match router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status.clone() {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 let connector_response = extract_connector_response_from_ucs(
                     payment_get_response.connector_response.as_ref(),
                 );
