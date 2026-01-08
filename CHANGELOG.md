@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.08.0
+
+### Features
+
+- **authentication:** Add pending authentication status to authentication attempt count ([#10833](https://github.com/juspay/hyperswitch/pull/10833)) ([`8df6cfb`](https://github.com/juspay/hyperswitch/commit/8df6cfbb71cd759bf4f49ca70e8f484fc804d0c0))
+- **connector:** [worldpaymodular] worldpay modular connector ([#10795](https://github.com/juspay/hyperswitch/pull/10795)) ([`46bb969`](https://github.com/juspay/hyperswitch/commit/46bb9693bad799f6e8313e329bfd195c4cb4815a))
+
+**Full Changelog:** [`2026.01.07.0...2026.01.08.0`](https://github.com/juspay/hyperswitch/compare/2026.01.07.0...2026.01.08.0)
+
+- - -
+
+## 2026.01.07.0
+
+### Features
+
+- **analytics:**
+  - Add compatibility for payout with anaylitics api ([#10479](https://github.com/juspay/hyperswitch/pull/10479)) ([`31a8859`](https://github.com/juspay/hyperswitch/commit/31a88598bbf229e1a2b35e14790b972f438f3769))
+  - Infer payout_audit table for payout analytics ([#10842](https://github.com/juspay/hyperswitch/pull/10842)) ([`4593f6a`](https://github.com/juspay/hyperswitch/commit/4593f6ab852fcf285e7291825babd0923b6da602))
+- **platform:**
+  - Add processor_merchant_id and initiator fields to payments response ([#10804](https://github.com/juspay/hyperswitch/pull/10804)) ([`a9f1280`](https://github.com/juspay/hyperswitch/commit/a9f1280427fba0d993782f8a602561c5b1157c46))
+  - Update PostUpdateTracker to accept processor ([#10743](https://github.com/juspay/hyperswitch/pull/10743)) ([`b4ce93e`](https://github.com/juspay/hyperswitch/commit/b4ce93e0b5a2161ceb2931367a52614c7099bb16))
+
+### Bug Fixes
+
+- **router:** Use intent to populate setup_future_usage in router_data ([#10829](https://github.com/juspay/hyperswitch/pull/10829)) ([`71d5343`](https://github.com/juspay/hyperswitch/commit/71d5343f451a73701f6274c4d675ca0c9d83402d))
+
+### Refactors
+
+- **payment_methods:** Add cvc token PM V2 APIs ([#10787](https://github.com/juspay/hyperswitch/pull/10787)) ([`4df0779`](https://github.com/juspay/hyperswitch/commit/4df077919dc8fb72977ad160d7061ef367db9c96))
+
+### Miscellaneous Tasks
+
+- **barclaycard:** Introduce Authentication Flows for Barclaycard ([#10810](https://github.com/juspay/hyperswitch/pull/10810)) ([`7487ad6`](https://github.com/juspay/hyperswitch/commit/7487ad642b081271dc276ff7ca88acda70ca97c9))
+- **payments:** Token generation and consumption changes in v2 ([#10835](https://github.com/juspay/hyperswitch/pull/10835)) ([`9f5da8f`](https://github.com/juspay/hyperswitch/commit/9f5da8feabfd2a7733b3c89ef8f168a06338a52d))
+
+**Full Changelog:** [`2026.01.05.1...2026.01.07.0`](https://github.com/juspay/hyperswitch/compare/2026.01.05.1...2026.01.07.0)
+
+- - -
+
 ## 2026.01.05.1
 
 ### Features

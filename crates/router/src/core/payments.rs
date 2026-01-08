@@ -301,13 +301,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -376,13 +370,7 @@ where
 
             let payment_data = payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?;
 
             (payment_data, connector_response_data)
@@ -404,7 +392,7 @@ where
         .payment_token
         .as_ref()
         .zip(Some(payment_data.get_payment_attempt().payment_method_type))
-        .map(ParentPaymentMethodToken::return_key_for_token)
+        .map(|(token, _)| ParentPaymentMethodToken::return_key_for_token(token))
         .async_map(|key_for_token| async move {
             let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
                 .await
@@ -518,13 +506,7 @@ where
 
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
-        .update_tracker(
-            state,
-            payment_data,
-            router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
+        .update_tracker(state, platform.get_processor(), payment_data, router_data)
         .await?;
 
     Ok((
@@ -911,10 +893,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1079,10 +1060,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
+                            platform.get_processor(),
                             payment_data,
                             router_data,
-                            platform.get_processor().get_key_store(),
-                            platform.get_processor().get_account().storage_scheme,
                             &locale,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             routable_connectors,
@@ -1427,10 +1407,9 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
+            platform.get_processor(),
             payment_data,
             router_data,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
             &locale,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             routable_connectors,
@@ -1542,13 +1521,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(vec) => todo!(),
@@ -1681,13 +1654,7 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .update_tracker(
-                    state,
-                    payment_data,
-                    router_data,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .update_tracker(state, platform.get_processor(), payment_data, router_data)
                 .await?
         }
         ConnectorCallType::Retryable(_) => todo!(),
