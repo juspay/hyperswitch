@@ -66,9 +66,9 @@ use hyperswitch_domain_models::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSyncData,
-        RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostAuthenticateData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
         SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
@@ -372,6 +372,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -2088,6 +2089,24 @@ impl CustomerData for ConnectorCustomerData {
         // mandate_reference_id is not needed here as we do not need to check for existing mandates.
         self.customer_acceptance.is_some()
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+}
+
+pub trait PaymentsPostAuthenticateRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostAuthenticateRequestData for PaymentsPostAuthenticateData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
     }
 }
 
@@ -7328,6 +7347,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         frm_metadata: data.frm_metadata.clone(),
         dispute_id: data.dispute_id.clone(),
         refund_id: data.refund_id.clone(),
+        payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
         additional_merchant_data: data.additional_merchant_data.clone(),

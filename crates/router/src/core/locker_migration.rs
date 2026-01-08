@@ -67,6 +67,7 @@ pub async fn rust_locker_migration(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     for customer in domain_customers {
         let result = db
@@ -121,7 +122,7 @@ pub async fn call_to_locker(
         .await;
 
         let card = match card {
-            Ok(card) => card,
+            Ok(card) => card.get_card(),
             Err(err) => {
                 logger::error!("Failed to fetch card from Basilisk HS locker : {:?}", err);
                 continue;

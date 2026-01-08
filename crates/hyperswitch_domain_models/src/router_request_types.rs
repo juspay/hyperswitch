@@ -542,6 +542,7 @@ pub struct CreateOrderRequestData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub webhook_url: Option<String>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub router_return_url: Option<String>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -565,6 +566,7 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
             currency: data.currency,
             payment_method_data: Some(data.payment_method_data),
@@ -582,6 +584,7 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
 
     fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
             currency: data.currency,
             payment_method_data: None,
@@ -743,11 +746,13 @@ pub struct PaymentsPostAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -761,9 +766,11 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             minor_amount: Some(data.minor_amount),
             email: data.email,
             currency: Some(data.currency),
+            capture_method: data.capture_method,
             browser_info: data.browser_info,
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
+            metadata: data.connector_meta.map(Secret::new),
         })
     }
 }
@@ -1035,6 +1042,12 @@ impl ResponseId {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found"),
+        }
+    }
+    pub fn get_optional_response_id(&self) -> Option<String> {
+        match self {
+            Self::ConnectorTransactionId(id) | Self::EncodedData(id) => Some(id.to_string()),
+            Self::NoResponseId => None,
         }
     }
 }

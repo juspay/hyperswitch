@@ -259,14 +259,23 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
+    /// This will populate raw customer details in payment intent (processor context)
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        request: Option<&CustomerDetails>,
+        processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError>;
+
+    #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
         request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -278,6 +287,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
+
+    /// Update customer information at provider level
+    /// This handles connector_customer_id updates in the Customer table
+    async fn update_customer<'a>(
+        &'a self,
+        _db: &'a SessionState,
+        _provider: &domain::Provider,
+        _customer: Option<domain::Customer>,
+        _updated_customer: Option<storage::CustomerUpdate>,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 
     #[cfg(feature = "v2")]
     /// This will run the decision manager for the payment
@@ -490,11 +511,9 @@ pub trait UpdateTracker<F, D, Req>: Send {
         &'b self,
         db: &'b SessionState,
         req_state: ReqState,
+        processor: &domain::Processor,
         payment_data: D,
         customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        updated_customer: Option<storage::CustomerUpdate>,
-        merchant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
@@ -532,10 +551,9 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
@@ -547,10 +565,9 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
+        processor: &domain::Processor,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync,
@@ -584,14 +601,24 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _request: Option<&CustomerDetails>,
+        _processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -600,6 +627,8 @@ where
         errors::StorageError,
     > {
         let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
             Some(customer_id) => {
@@ -670,14 +699,24 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _request: Option<&CustomerDetails>,
+        _processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -686,6 +725,8 @@ where
         errors::StorageError,
     > {
         let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
 
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
@@ -773,14 +814,24 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _request: Option<&CustomerDetails>,
+        _processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -789,6 +840,8 @@ where
         errors::StorageError,
     > {
         let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
 
         let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
             None => None,
@@ -874,6 +927,17 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectReque
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Data = D>,
 {
+    #[instrument(skip_all)]
+    async fn populate_raw_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _request: Option<&CustomerDetails>,
+        _processor: &domain::Processor,
+    ) -> CustomResult<(), errors::StorageError> {
+        Ok(())
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -881,8 +945,7 @@ where
         _state: &SessionState,
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _provider: &domain::Provider,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
