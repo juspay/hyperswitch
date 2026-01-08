@@ -192,7 +192,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "1b5c7aa1-8a73-4137-aa55-766cc50849f6.json.gpg"
+          S3_SOURCE_FILE_NAME: "5f8efbc0-d4c5-43a5-b72f-7dec292ecac7.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
