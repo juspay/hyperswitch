@@ -1656,18 +1656,19 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                let payment_id = match req.query_param.clone() {
-                    QueryType::Payment { payment_id } => payment_id,
-                    QueryType::Refund { payment_id, .. } => payment_id,
-                    QueryType::Dispute { payment_id, .. } => payment_id,
+                let (payment_id, payout_id) = match req.query_param.clone() {
+                    QueryType::Payment { payment_id } => (Some(payment_id), None),
+                    QueryType::Refund { payment_id, .. } => (Some(payment_id), None),
+                    QueryType::Dispute { payment_id, .. } => (Some(payment_id), None),
+                    QueryType::Payout { payout_id } => (None, Some(payout_id)),
                 };
                 #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     payment_id,
+                    payout_id,
                     &state,
                     auth.platform.get_processor(),
                     profile_id,
@@ -1708,8 +1709,9 @@ pub mod routes {
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     req.payment_id.clone(),
+                    req.payout_id.clone(),
                     &state,
                     auth.platform.get_processor(),
                     profile_id,
@@ -2637,8 +2639,9 @@ pub mod routes {
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
                 let profile_id = Some(auth.profile.get_id().clone());
-                utils::check_if_profile_id_is_present_in_payment_intent(
+                utils::check_if_profile_id_is_present_in_intent_table(
                     req.payment_id.clone(),
+                    req.payout_id.clone(),
                     &state,
                     auth.platform.get_processor(),
                     profile_id,

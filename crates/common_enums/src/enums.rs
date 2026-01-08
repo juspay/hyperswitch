@@ -2072,6 +2072,13 @@ impl FutureUsage {
             Self::OnSession => false,
         }
     }
+    /// Indicates whether to save the payment method for future use when a customer is present.
+    pub fn is_on_session(self) -> bool {
+        match self {
+            Self::OffSession => false,
+            Self::OnSession => true,
+        }
+    }
 }
 
 #[derive(

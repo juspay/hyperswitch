@@ -145,6 +145,7 @@ impl ConnectorCommon for Shift4 {
             reason: None,
             attempt_status: None,
             connector_transaction_id: response.error.charge_id,
+            connector_response_reference_id: None,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.issuer_decline_code,
             network_error_message: response.error.advice_code,
@@ -498,11 +499,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
-            req.request.minor_amount.ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                }
-            })?,
+            req.request.minor_amount,
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {

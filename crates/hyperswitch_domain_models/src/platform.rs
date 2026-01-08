@@ -62,6 +62,45 @@ pub enum Initiator {
     Admin,
 }
 
+impl Initiator {
+    /// Converts the domain Initiator to CreatedBy for database storage.
+    ///
+    /// # Returns
+    /// - `Some(CreatedBy::Api)` for API initiators
+    /// - `Some(CreatedBy::Jwt)` for JWT initiators
+    /// - `None` for Admin initiators (CreatedBy doesn't have an Admin variant)
+    pub fn to_created_by(&self) -> Option<common_utils::types::CreatedBy> {
+        match self {
+            Self::Api { merchant_id, .. } => Some(common_utils::types::CreatedBy::Api {
+                merchant_id: merchant_id.get_string_repr().to_string(),
+            }),
+            Self::Jwt { user_id } => Some(common_utils::types::CreatedBy::Jwt {
+                user_id: user_id.clone(),
+            }),
+            Self::Admin => None,
+        }
+    }
+
+    /// Computes the initiator context for API responses.
+    ///
+    /// # Returns
+    /// - `Some(Platform)`: Platform merchant initiated the operation
+    /// - `Some(Connected)`: Connected merchant initiated the operation
+    /// - `None`: Standard merchant flow, JWT/Admin initiator, or no initiator
+    pub fn to_api_initiator(&self) -> Option<api_models::platform::Initiator> {
+        match self {
+            Self::Api {
+                merchant_account_type,
+                ..
+            } => {
+                // If this returns Option<Initiator>, just return it directly (NO extra Some)
+                api_models::platform::Initiator::from_merchant_account_type(*merchant_account_type)
+            }
+            Self::Jwt { .. } | Self::Admin => None,
+        }
+    }
+}
+
 /// Platform holds both Provider and Processor together.
 /// This struct makes it possible to distinguish the business owner for the org versus whose processor credentials are used for execution.
 /// For a standard merchant flow, provider == processor.
