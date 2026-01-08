@@ -130,6 +130,17 @@ where
                         payment_session_token_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
+
+                let router_data_response = match router_data_response {
+                    Ok(response) => Ok(response),
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status.clone() {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
