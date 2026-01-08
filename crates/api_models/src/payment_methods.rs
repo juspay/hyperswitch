@@ -2395,6 +2395,17 @@ pub struct PaymentMethodDeleteResponse {
     pub id: id_type::GlobalPaymentMethodId,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodDeleteSessionResponse {
+    /// The unique identifier of the Payment method
+    #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
+    pub payment_method_token: String,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for PaymentMethodDeleteSessionResponse {}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
