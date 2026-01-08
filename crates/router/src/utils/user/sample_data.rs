@@ -298,6 +298,7 @@ pub async fn generate_sample_data(
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            merchant_reference_id: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
