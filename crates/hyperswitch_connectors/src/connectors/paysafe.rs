@@ -129,12 +129,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                })?;
+        let minor_amount = req.request.minor_amount;
         let currency =
             req.request
                 .currency
@@ -242,6 +237,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "amount",
                 })?;
+
         let amount = MinorUnit::new(amount_value);
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));

@@ -2837,7 +2837,7 @@ pub trait PaymentsPreAuthenticateRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
 }
 impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
@@ -2860,8 +2860,8 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
         Ok(self.payment_method_data.clone())
     }
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        Ok(self.minor_amount)
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
@@ -2872,8 +2872,8 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -2902,13 +2902,13 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
