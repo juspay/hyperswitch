@@ -161,7 +161,14 @@ impl FeatureFrm<frm_api::Sale, FraudCheckSaleData> for FrmSaleRouterData {
         call_connector_action: payments::CallConnectorAction,
         processor: &domain::Processor,
     ) -> RouterResult<Self> {
-        decide_frm_flow(&mut self, state, connector, call_connector_action, processor).await
+        decide_frm_flow(
+            &mut self,
+            state,
+            connector,
+            call_connector_action,
+            processor,
+        )
+        .await
     }
 }
 
