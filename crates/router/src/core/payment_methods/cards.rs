@@ -4893,6 +4893,7 @@ pub async fn get_bank_from_vault(
                     &pm_parsed,
                     Some(customer_id.to_owned()),
                     key_store,
+                    None,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4994,6 +4995,7 @@ impl TempLockerCardSupport {
             Some(value2),
             payment_token.to_string(),
             merchant_key_store.key.get_inner(),
+            None,
         )
         .await?;
         vault::add_delete_tokenized_data_task(

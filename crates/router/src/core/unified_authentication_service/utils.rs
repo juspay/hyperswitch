@@ -324,6 +324,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
+                            None,
                         )
                     })
                     .await
@@ -393,6 +394,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
+                            None,
                         )
                     })
                     .await

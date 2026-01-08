@@ -2246,6 +2246,7 @@ async fn external_authentication_incoming_webhook_flow(
                         .get_string_repr()
                         .to_string(),
                     platform.get_processor().get_key_store().key.get_inner(),
+                    None,
                 )
             })
             .await

@@ -229,6 +229,7 @@ pub async fn update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
+                            None,
                         )
                     })
                     .await
@@ -290,6 +291,7 @@ pub async fn update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
+                            None,
                         )
                     })
                     .await
