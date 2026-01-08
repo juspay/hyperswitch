@@ -224,6 +224,26 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 Some(enums::FutureUsage::OffSession)
             );
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        // Skip payment method creation when on-session saving is not supported for the payment method
+        should_avoid_saving = if resp
+            .request
+            .setup_future_usage
+            .map(|usage| usage.is_on_session())
+            .unwrap_or(false)
+            && payment_data
+                .payment_attempt
+                .is_save_payment_method_not_supported_for_on_session(
+                    &state
+                        .conf
+                        .save_payment_method_on_session
+                        .unsupported_payment_methods,
+                ) {
+            true
+        } else {
+            should_avoid_saving
+        };
+
         if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
             let tokenization::SavePaymentMethodDataResponse {
