@@ -4085,7 +4085,7 @@ where
         .add_access_token(
             state,
             &connector,
-            platform,
+            platform.get_processor(),
             payment_data.get_creds_identifier(),
             &context,
         )
@@ -4516,7 +4516,7 @@ where
 
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        platform,
+        platform.get_processor(),
         &router_data,
         previous_gateway,
         call_connector_action.clone(),
@@ -4538,7 +4538,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
+        processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
@@ -4627,7 +4627,7 @@ where
         .add_access_token(
             state,
             &connector,
-            platform,
+            platform.get_processor(),
             payment_data.get_creds_identifier(),
             &gateway_context,
         )
@@ -5020,7 +5020,7 @@ where
     // do order creation
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        platform,
+        platform.get_processor(),
         &router_data,
         previous_gateway,
         call_connector_action.clone(),
@@ -5042,7 +5042,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
+        processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account_type_details.clone(),
@@ -5146,7 +5146,7 @@ where
 
         let (execution_path, updated_state) = should_call_unified_connector_service(
             state,
-            platform,
+            platform.get_processor(),
             &router_data,
             previous_gateway,
             call_connector_action.clone(),
@@ -5167,7 +5167,7 @@ where
 
         let gateway_context = gateway_context::RouterGatewayContext {
             creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-            platform: platform.clone(),
+            processor: platform.get_processor().clone(),
             header_payload: header_payload.clone(),
             lineage_ids,
             merchant_connector_account: merchant_connector_account_type_details.clone(),
@@ -5353,7 +5353,7 @@ where
 
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        platform,
+        platform.get_processor(),
         &router_data,
         None,
         call_connector_action.clone(),
@@ -5375,7 +5375,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
-        platform: platform.clone(),
+        processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
@@ -5390,7 +5390,7 @@ where
         .add_access_token(
             &updated_state,
             &connector,
-            platform,
+            platform.get_processor(),
             payment_data.get_creds_identifier(),
             &gateway_context,
         )
@@ -5535,7 +5535,7 @@ where
         ));
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,
@@ -5562,7 +5562,7 @@ where
         .add_access_token(
             state,
             &connector,
-            platform,
+            platform.get_processor(),
             payment_data.get_creds_identifier(),
             &default_gateway_context,
         )
@@ -5718,7 +5718,7 @@ where
         .await?;
 
     let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account.clone(),
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
@@ -6261,7 +6261,7 @@ where
             )
             .await?;
         let gateway_context = gateway_context::RouterGatewayContext::direct(
-            platform.clone(),
+            platform.get_processor().clone(),
             merchant_connector_account.clone(),
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -6492,7 +6492,7 @@ where
 {
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        platform,
+        platform.get_processor(),
         &router_data,
         None, // No previous gateway information required for session flow
         call_connector_action.clone(),
@@ -6514,7 +6514,7 @@ where
 
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier,
-        platform: platform.clone(),
+        processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
@@ -6844,7 +6844,7 @@ where
 
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.clone(),
+        platform.get_processor().clone(),
         merchant_connector_account.clone(),
         payment_data.get_payment_intent().merchant_id.clone(),
         profile_id,

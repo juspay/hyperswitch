@@ -168,7 +168,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
@@ -502,7 +502,7 @@ pub async fn call_unified_connector_service_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
@@ -531,7 +531,7 @@ pub async fn call_unified_connector_service_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
@@ -625,7 +625,7 @@ pub async fn call_unified_connector_service_post_authenticate(
     lineage_ids: grpc_client::LineageIds,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
     merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
@@ -653,7 +653,7 @@ pub async fn call_unified_connector_service_post_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        platform,
+        processor,
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
