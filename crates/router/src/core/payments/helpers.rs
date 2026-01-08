@@ -7066,11 +7066,6 @@ pub async fn lookup_merchant_advice_code_config(
         network_advice_code
     );
 
-    logger::debug!(
-        "Looking up merchant advice code - lookup_key: {}",
-        merchant_advice_lookup_key
-    );
-
     merchant_advice_codes_config
         .find_by_lookup_key(&merchant_advice_lookup_key)
         .map(|entry| entry.recommended_action)
