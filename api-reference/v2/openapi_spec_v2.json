@@ -19755,13 +19755,13 @@
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method_id"
+          "payment_method_token"
         ],
         "properties": {
-          "payment_method_id": {
+          "payment_method_token": {
             "type": "string",
-            "description": "The payment method id of the payment method to be updated",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "description": "The payment method token associated with the payment method to be updated",
+            "example": "token_9wcXDRVkfEtLEsSnYKgQ"
           }
         }
       },
