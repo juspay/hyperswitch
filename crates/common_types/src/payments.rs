@@ -972,9 +972,31 @@ pub struct PaymentIntentStateMetadata {
     pub total_refunded_amount: Option<MinorUnit>,
     /// Shows up the total disputed amount across all disputes for a particular payment
     pub total_disputed_amount: Option<MinorUnit>,
+    /// Post capture void response details
+    pub post_capture_void: Option<PostCaptureVoidResponse>,
 }
 
-impl PaymentIntentStateMetadat {
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Default,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PostCaptureVoidResponse {
+    /// Status of post capture void
+    #[schema(value_type = Option<PostCaptureVoidStatus>)]
+    pub status: common_enums::PostCaptureVoidStatus,
+}
+
+impl PaymentIntentStateMetadata {
     /// Builder method to set total_refunded_amount
     pub fn with_total_refunded_amount(mut self, amount: MinorUnit) -> Self {
         self.total_refunded_amount = Some(amount);
@@ -997,6 +1019,20 @@ impl PaymentIntentStateMetadat {
                 .get_amount_as_i64();
 
         MinorUnit::new(blocked_amount)
+    }
+
+    /// Check if post capture void is applied for the payment intent 
+    pub fn is_post_capture_void_applied(&self) -> bool {
+        matches!(
+            self.post_capture_void.as_ref().map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Success)
+                | Some(common_enums::PostCaptureVoidStatus::Pending)
+        )
+    }
+    /// Builder method to set post_capture_void data
+    pub fn set_post_capture_void_data(mut self, status: common_enums::PostCaptureVoidStatus) -> Self {
+        self.post_capture_void = Some(PostCaptureVoidResponse { status });
+        self
     }
 }
 

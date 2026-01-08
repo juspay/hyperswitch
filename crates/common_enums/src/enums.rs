@@ -10309,3 +10309,34 @@ pub enum VaultTokenType {
     #[strum(serialize = "cryptogram")]
     NetworkTokenCryptogram,
 }
+
+/// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Success,
+    #[default]
+    Pending,
+    Failed,
+}

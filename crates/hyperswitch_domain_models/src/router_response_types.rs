@@ -65,6 +65,9 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+    },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,

@@ -42,7 +42,7 @@ use crate::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
             },
-            tokenization,
+            tokenization,PaymentIntentStateMetadataExt,
             types::MultipleCaptureData,
             PaymentData, PaymentMethodChecker,
         },
@@ -1046,7 +1046,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b SessionState,
+        c: &'b SessionState,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -2094,6 +2094,33 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             None => (None, None, None),
                         },
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
+                            (None, None, None)
+                        }
+                        types::PaymentsResponseData::PostCaptureVoidResponse { post_capture_void_status } => {
+                                          let merchant_account = state
+        .find_merchant_account_by_merchant_id(&key_store.merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+        let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
+    );
+
+
+
+ PaymentIntentStateMetadataExt::from(
+                payment_data.payment_intent.state_metadata.clone().unwrap_or_default(),
+            )
+            .update_intent_state_metadata_for_post_capture_void(
+                &db,
+                &platform,
+                payment_data.payment_intent,
+                &post_capture_void_status,
+            )
+            .await?;
                             (None, None, None)
                         }
                     }

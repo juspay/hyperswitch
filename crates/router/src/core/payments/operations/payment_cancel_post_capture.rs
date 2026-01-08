@@ -209,6 +209,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 
         Ok(get_trackers_response)
     }
+
+    async fn validate_request_with_state(
+        &self,
+        state: &SessionState,
+        request: &api::PaymentsCancelPostCaptureRequest,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        // Validates that no refunds have been issued against the payment before allowing post-capture void
+        crate::utils::when(!payment_data.refunds.is_empty(), || {
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Post-capture void cannot be performed after a refund has been issued"
+                        .into()
+                }
+            ))
+        })?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
