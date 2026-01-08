@@ -54,6 +54,92 @@ const billingAddress = {
   },
 };
 
+const billingAddressNL = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "San Francisco",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+31",
+  },
+};
+
+const billingAddressAT = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "Vienna",
+    state: "Vienna",
+    zip: "1010",
+    country: "AT",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+43",
+  },
+};
+
+const billingAddressDE = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "Berlin",
+    state: "Berlin",
+    zip: "10115",
+    country: "DE",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+49",
+  },
+};
+
+const billingAddressPL = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "Warsaw",
+    state: "Mazovia",
+    zip: "00-001",
+    country: "PL",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+48",
+  },
+  email: "test@example.com",
+};
+
+const billingAddressBE = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "Brussels",
+    state: "Brussels",
+    zip: "1000",
+    country: "BE",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+32",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -223,8 +309,13 @@ export const connectorDetails = {
         body: {
           status: "cancelled",
         },
+<<<<<<< Updated upstream
       },
     },
+=======
+    },
+    }),
+>>>>>>> Stashed changes
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -263,7 +354,18 @@ export const connectorDetails = {
           status: "pending",
         },
       },
+<<<<<<< Updated upstream
     },
+=======
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "failed",
+          reason: "FRAUD",
+        },
+    },
+    }),
+>>>>>>> Stashed changes
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -288,8 +390,13 @@ export const connectorDetails = {
           status: "pending",
           reason: "FRAUD",
         },
+<<<<<<< Updated upstream
       },
     },
+=======
+    },
+    }),
+>>>>>>> Stashed changes
     SyncRefund: getCustomExchange({
       Request: {},
       Response: {
@@ -663,6 +770,114 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressNL,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressAT,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {},
+          },
+        },
+        billing: billingAddressDE,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: billingAddressDE,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "Unprocessable Entity",
+          error_message: "method"
+        },
+      },
+    },
+    Przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressPL,
+        currency: "PLN",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
