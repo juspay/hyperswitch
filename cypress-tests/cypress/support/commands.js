@@ -5163,7 +5163,7 @@ Cypress.Commands.add("updatePaymentStatusTest", (globalState, status = "pending"
   });
 });
 
-Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
+Cypress.Commands.add("sendWebhookTest", (globalState) => {
 
   const connectorId = globalState.get("connectorId");
   const connectorName = globalState.get("connectorName");
@@ -5187,7 +5187,7 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
 
       payloadStr = payloadStr.replace(
         /"{{\s*connector_transaction_id\s*}}"/g,
-        isNumeric ? String(numericId) : JSON.stringify(String(rawId))
+        isNumeric ? String(numericId) : JSON.stringify(String(connectorTransactionId))
       );
 
       const webhookPayload = JSON.parse(payloadStr);
