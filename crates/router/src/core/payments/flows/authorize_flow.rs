@@ -351,6 +351,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_request_data,
                     pre_authenticate_response_data,
                 );
+            let call_connector_action = if connector
+                .connector
+                .should_trigger_handle_response_without_body()
+            {
+                payments::CallConnectorAction::HandleResponseWithoutBody
+            } else {
+                payments::CallConnectorAction::Trigger
+            };
             let pre_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
                 _,
                 _,
@@ -362,6 +370,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
+                call_connector_action,
             ))
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
@@ -373,7 +382,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     pre_authenticate_response,
                 );
             let should_continue_after_preauthenticate = match connector.connector_name {
-                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
+                api_models::enums::Connector::Worldpayxml
+                | api_models::enums::Connector::Redsys => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         connector_metadata,
                         ..

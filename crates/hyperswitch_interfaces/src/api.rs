@@ -578,6 +578,11 @@ pub trait ConnectorSpecifications {
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
     }
+
+    /// Check if connector should trigger handle response without initiating a call to the connector
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        false
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type

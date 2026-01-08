@@ -1649,7 +1649,7 @@ pub fn build_redirection_form(
                         //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
                         // "#))
 
-                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action={base_url}>
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/StepUp">
                     <input type="hidden" name="JWT" value="{jwt}">
                 </form>"#)))
 

@@ -20160,7 +20160,6 @@
             "required": [
               "three_ds_method_url",
               "three_ds_method_data_submission",
-              "directory_server_id",
               "method_key"
             ],
             "properties": {
@@ -20179,7 +20178,8 @@
               },
               "directory_server_id": {
                 "type": "string",
-                "description": "ThreeDS Server ID"
+                "description": "ThreeDS Server ID",
+                "nullable": true
               },
               "message_version": {
                 "type": "string",
@@ -26919,6 +26919,11 @@
               }
             ],
             "nullable": true
+          },
+          "frm": {
+            "type": "string",
+            "description": "Fraud Session ID received from the DDC call",
+            "nullable": true
           }
         }
       },
@@ -27430,6 +27435,11 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "frm_id": {
+            "type": "string",
+            "description": "Fraud/Session ID returned in the DDC call",
             "nullable": true
           }
         }
@@ -27958,6 +27968,11 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "frm_id": {
+            "type": "string",
+            "description": "Fraud/Session ID returned in the DDC call",
             "nullable": true
           }
         }
@@ -29523,6 +29538,11 @@
               }
             ],
             "nullable": true
+          },
+          "frm_id": {
+            "type": "string",
+            "description": "Fraud/Session ID returned in the DDC call",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30892,6 +30912,11 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "frm_id": {
+            "type": "string",
+            "description": "Fraud/Session ID returned in the DDC call",
             "nullable": true
           }
         }

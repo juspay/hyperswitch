@@ -33,6 +33,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors};
 use josekit;
 use masking::Secret;
+use router_env::{self, Env};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -41,11 +42,11 @@ use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        RefundsResponseRouterData, ResponseRouterData, PaymentsPreAuthenticateResponseRouterData
     },
     utils::{
-        self as connector_utils, AddressDetailsData, CardData, ForeignTryFrom,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
+        ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsSyncRequestData, RouterData as _,
     },
 };
@@ -71,6 +72,8 @@ pub mod worldpayxml_constants {
     pub const WORLDPAYXML_DOC_TYPE: &str = r#"paymentService PUBLIC "-//Worldpay//DTD Worldpay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd""#;
     pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 64;
     pub const COOKIE: &str = "cookie";
+    pub const DDC_URL_TEST: &str = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/Collect";
+    pub const DDC_URL_LIVE: &str = "https://centinelapi.cardinalcommerce.com/V2/Cruise/Collect";
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -667,6 +670,68 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorldpayxmlDDCData {
+    pub three_ds_method_url: String,
+    pub three_ds_method_data: String,
+    pub message_version: Option<String>,
+    pub directory_server_id: Option<String>,
+    pub three_ds_method_data_submission: bool,
+}
+
+use hyperswitch_domain_models::types::PaymentsPreAuthenticateRouterData;
+
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
+    for PaymentsPreAuthenticateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>,
+    ) -> Result<Self, Self::Error> {
+        let metadata_for_jwt =
+            WorldpayxmlConnectorMetadataObject::try_from(item.data.connector_meta_data.as_ref())?;
+
+        let jwt = generate_jwt_for_ddc(metadata_for_jwt)?;
+
+        let three_ds_method_url = if router_env::env::which() == Env::Production {
+            worldpayxml_constants::DDC_URL_LIVE.to_string()
+        } else {
+            worldpayxml_constants::DDC_URL_TEST.to_string()
+        };
+
+        let three_ds_data = WorldpayxmlDDCData {
+            three_ds_method_url,
+            three_ds_method_data: jwt,
+            message_version: None,
+            directory_server_id: None,
+            three_ds_method_data_submission: true,
+        };
+
+        let connector_metadata = Some(
+            serde_json::to_value(&three_ds_data)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to serialize ThreeDsData")?,
+        );
+
+        let response = Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::NoResponseId,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
+            connector_metadata,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charges: None,
+        });
+        Ok(Self {
+            status: common_enums::AttemptStatus::AuthenticationPending,
+            response,
+            ..item.data
+        })
+    }
+}
+
 impl TryFrom<(&GooglePayWalletData, Option<enums::CaptureMethod>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -783,6 +848,41 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
 
 fn get_shopper_details(
     item: &PaymentsAuthorizeRouterData,
+    accept_header: Option<String>,
+    user_agent_header: Option<String>,
+) -> Result<Option<WorldpayxmlShopper>, errors::ConnectorError> {
+    let shopper_email = item.request.email.clone();
+    let browser_info = item
+        .request
+        .browser_info
+        .clone()
+        .as_ref()
+        .map(|browser_info| WPGBrowserData {
+            accept_header,
+            http_accept_language: browser_info.accept_language.clone(),
+            http_referer: browser_info.referer.clone(),
+            browser_language: browser_info.language.clone(),
+            browser_java_enabled: browser_info.java_enabled,
+            browser_java_script_enabled: browser_info.java_script_enabled,
+            browser_colour_depth: browser_info.color_depth,
+            browser_screen_height: browser_info.screen_height,
+            browser_screen_width: browser_info.screen_width,
+            user_agent_header,
+            time_zone: browser_info.time_zone,
+        });
+
+    if shopper_email.is_some() || browser_info.is_some() {
+        Ok(Some(WorldpayxmlShopper {
+            shopper_email_address: shopper_email,
+            browser: browser_info,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+fn get_shopper_details_cauth(
+    item: &PaymentsCompleteAuthorizeRouterData,
     accept_header: Option<String>,
     user_agent_header: Option<String>,
 ) -> Result<Option<WorldpayxmlShopper>, errors::ConnectorError> {
@@ -1370,6 +1470,15 @@ struct ChallengeJwt {
     objectify_payload: bool,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct DeviceDataCollectionJwt {
+    jti: String,
+    iat: u64,
+    iss: String,
+    #[serde(rename = "OrgUnitId")]
+    org_unit_id: String,
+}
+
 pub fn get_cookie_from_metadata(metadata: Option<Value>) -> Result<String, errors::ConnectorError> {
     let value = metadata
         .as_ref()
@@ -1387,9 +1496,12 @@ pub fn get_cookie_from_metadata(metadata: Option<Value>) -> Result<String, error
     Ok(cookie.to_string())
 }
 
-fn to_jwt_payload(
-    challenge: &ChallengeJwt,
-) -> common_utils::errors::CustomResult<josekit::jwt::JwtPayload, errors::ConnectorError> {
+fn to_jwt_payload<T>(
+    challenge: &T,
+) -> common_utils::errors::CustomResult<josekit::jwt::JwtPayload, errors::ConnectorError>
+where
+    T: Serialize,
+{
     let json_str = serde_json::to_string(challenge)
         .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
 
@@ -1400,6 +1512,55 @@ fn to_jwt_payload(
         .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
 
     Ok(jwt_payload)
+}
+
+fn generate_jwt_for_ddc(
+    metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
+) -> Result<String, errors::ConnectorError> {
+    let iat: u64 = chrono::Utc::now()
+        .timestamp()
+        .try_into()
+        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    let iss = metadata_for_jwt
+        .issuer_id
+        .ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: "connector_metadata.issuer_id",
+        })?;
+
+    let org_unit_id = metadata_for_jwt.organizational_unit_id.ok_or(
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "connector_metadata.organizational_unit_id",
+        },
+    )?;
+
+    let secret = metadata_for_jwt.jwt_mac_key.as_deref().ok_or(
+        errors::ConnectorError::MissingRequiredField {
+            field_name: "connector_metadata.jwt_mac_key",
+        },
+    )?;
+
+    let payload_json = DeviceDataCollectionJwt {
+        jti: uuid::Uuid::new_v4().to_string(),
+        iat,
+        iss,
+        org_unit_id,
+    };
+
+    let payload_json = to_jwt_payload(&payload_json)
+        .map_err(|_| errors::ConnectorError::ProcessingStepFailed(None))?;
+
+    let hmac_signer = josekit::jws::alg::hmac::HmacJwsAlgorithm::Hs256
+        .signer_from_bytes(secret.as_bytes())
+        .map_err(|_| errors::ConnectorError::ProcessingStepFailed(None))?;
+
+    let mut header = josekit::jws::JwsHeader::new();
+    header.set_algorithm("HS256");
+
+    let jwt = josekit::jwt::encode_with_signer(&payload_json, &header, &hmac_signer)
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+    Ok(jwt)
 }
 
 fn generate_challenge_jwt(
@@ -1626,42 +1787,160 @@ impl<F>
         }
     }
 }
-
-impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for PaymentService {
+impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth = WorldpayxmlAuthType::try_from(&item.connector_auth_type)
+    fn try_from(
+        item: WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        if !item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "PaymentsComplete flow for no-3ds cards".to_string(),
+                connector: "worldpayxml",
+            })?
+        }
+        // let submit: Option<Submit>;
+
+        let auth = WorldpayxmlAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let info_threed_secure = Some(Info3DSecure {
-            completed_authentication: CompletedAuthentication {},
-        });
+        let submit: Option<Submit> = if item
+            .router_data
+            .request
+            .get_redirect_response_payload()
+            .ok()
+            .is_none()
+        {
+            let order_code = if item.router_data.connector_request_reference_id.len()
+                <= worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+            {
+                Ok(item.router_data.connector_request_reference_id.clone())
+            } else {
+                Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Worldpayxml".to_string(),
+                    field_name: "order_code".to_string(),
+                    max_length: worldpayxml_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+                    received_length: item.router_data.connector_request_reference_id.len(),
+                })
+            }?;
 
-        let code = item.request.connector_transaction_id.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_transaction_id",
-            },
-        )?;
+            let capture_delay = if item.router_data.request.is_auto_capture()? {
+                Some(AutoCapture::On)
+            } else {
+                Some(AutoCapture::Off)
+            };
+            let description = item.router_data.description.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "description",
+                },
+            )?;
 
-        let session = Some(CompleteAuthSession {
-            id: Secret::new(code.clone()),
-        });
+            let additional_threeds_data = Some(AdditionalThreeDSData {
+                df_reference_id: item.router_data.request.frm_id.clone(),
+                javascript_enabled: true,
+                device_channel: "Browser".to_string(),
+                challenge_preference: ChallengePreference::ChallengeRequested,
+            });
+            let browser_info = item.router_data.request.get_browser_info()?;
+            let accept_header = browser_info.accept_header.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info.accept_header",
+                },
+            )?;
+            let user_agent_header = browser_info.user_agent.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info.user_agent",
+                },
+            )?;
 
-        let submit = Some(Submit {
-            order: Order {
-                order_code: code,
-                capture_delay: None,
-                description: None,
-                amount: None,
-                payment_details: None,
-                shopper: None,
-                shipping_address: None,
-                billing_address: None,
-                additional_threeds_data: None,
-                info_threed_secure,
-                session,
-            },
-        });
+            let session = Some(Session {
+                id: item.router_data.connector_request_reference_id.clone(),
+                shopper_ip_address: browser_info.clone().get_ip_address()?,
+            });
+
+            let exponent = item
+                .router_data
+                .request
+                .currency
+                .number_of_digits_after_decimal_point()
+                .to_string();
+            let amount = WorldpayXmlAmount {
+                currency_code: item.router_data.request.currency.to_owned(),
+                exponent,
+                value: item.amount.to_owned(),
+            };
+            let shopper = get_shopper_details_cauth(
+                item.router_data,
+                Some(accept_header),
+                Some(user_agent_header),
+            )?;
+            let billing_address = item
+                .router_data
+                .get_optional_billing()
+                .and_then(get_address_details);
+            let shipping_address = item
+                .router_data
+                .get_optional_shipping()
+                .and_then(get_address_details);
+            let payment_details = match item.router_data.request.payment_method_data.clone() {
+                Some(PaymentMethodData::Card(req_card)) => PaymentDetails::try_from((
+                    &req_card,
+                    item.router_data.request.capture_method,
+                    session,
+                ))?,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
+                ))?,
+            };
+
+            Some(Submit {
+                order: Order {
+                    order_code,
+                    capture_delay,
+                    description: Some(description),
+                    amount: Some(amount),
+                    payment_details: Some(payment_details),
+                    shopper,
+                    shipping_address,
+                    billing_address,
+                    additional_threeds_data,
+                    info_threed_secure: None,
+                    session: None,
+                },
+            })
+        } else {
+            let info_threed_secure: Option<Info3DSecure> = Some(Info3DSecure {
+                completed_authentication: CompletedAuthentication {},
+            });
+
+            let code = item
+                .router_data
+                .request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                })?;
+
+            let session = Some(CompleteAuthSession {
+                id: Secret::new(code.clone()),
+            });
+
+            Some(Submit {
+                order: Order {
+                    order_code: code,
+                    capture_delay: None,
+                    description: None,
+                    amount: None,
+                    payment_details: None,
+                    shopper: None,
+                    shipping_address: None,
+                    billing_address: None,
+                    additional_threeds_data: None,
+                    info_threed_secure,
+                    session,
+                },
+            })
+        };
 
         Ok(Self {
             version: worldpayxml_constants::WORLDPAYXML_VERSION.to_string(),
@@ -1674,12 +1953,18 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for PaymentService {
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>>
-    for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
+impl<F>
+    ForeignTryFrom<(
+        ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
+        Option<HeaderMap>,
+    )> for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
+    fn foreign_try_from(
+        (item, header): (
+            ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
+            Option<HeaderMap>,
+        ),
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
@@ -1703,6 +1988,80 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, Pay
                     order_status.order_code.clone(),
                 )
                 .map_err(|err| *err);
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            } else if let Some(challenge_required) = order_status.challenge_required {
+                let acs_url = challenge_required
+                    .three_ds_challenge_details
+                    .as_ref()
+                    .and_then(|details| details.acs_url.clone())
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from("Missing acs_url in challenge details".to_string()),
+                    ))?;
+                let payload = challenge_required
+                    .three_ds_challenge_details
+                    .as_ref()
+                    .and_then(|details| details.payload.clone())
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from("Missing payload in challenge details".to_string()),
+                    ))?;
+                let transaction_id = challenge_required
+                    .three_ds_challenge_details
+                    .as_ref()
+                    .and_then(|details| details.transaction_id_3ds.clone())
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from(
+                            "Missing transaction_id_3ds in challenge details".to_string(),
+                        ),
+                    ))?;
+                let return_url = item.data.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "return_url",
+                    },
+                )?;
+
+                let metadata_for_jwt = WorldpayxmlConnectorMetadataObject::try_from(
+                    item.data.connector_meta_data.as_ref(),
+                )?;
+
+                let jwt = generate_challenge_jwt(
+                    acs_url,
+                    payload,
+                    transaction_id,
+                    return_url,
+                    metadata_for_jwt,
+                )?;
+
+                let redirection_data = RedirectForm::WorldpayxmlRedirectForm { jwt };
+
+                let cookie = header.and_then(|header| {
+                    header
+                        .get_all("set-cookie")
+                        .iter()
+                        .filter_map(|value| value.to_str().ok())
+                        .find(|cookie| cookie.trim_start().starts_with("machine="))
+                        .map(|cookie| cookie.to_string())
+                });
+
+                let metadata = cookie.map(|value| json!({ "cookie": value }));
+
+                let status = common_enums::AttemptStatus::AuthenticationPending;
+                let response = Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        order_status.order_code.clone(),
+                    ),
+                    redirection_data: Box::new(Some(redirection_data)),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: metadata,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(order_status.order_code.clone()),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                });
+
                 Ok(Self {
                     status,
                     response,

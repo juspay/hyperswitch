@@ -13817,7 +13817,6 @@
             "required": [
               "three_ds_method_url",
               "three_ds_method_data_submission",
-              "directory_server_id",
               "method_key"
             ],
             "properties": {
@@ -13836,7 +13835,8 @@
               },
               "directory_server_id": {
                 "type": "string",
-                "description": "ThreeDS Server ID"
+                "description": "ThreeDS Server ID",
+                "nullable": true
               },
               "message_version": {
                 "type": "string",
@@ -20311,6 +20311,11 @@
                 "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
               }
             ],
+            "nullable": true
+          },
+          "frm": {
+            "type": "string",
+            "description": "Fraud Session ID received from the DDC call",
             "nullable": true
           }
         }

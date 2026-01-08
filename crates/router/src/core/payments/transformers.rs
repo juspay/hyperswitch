@@ -6119,6 +6119,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .transpose()?,
             tokenization: payment_data.payment_intent.tokenization,
             router_return_url,
+            frm_id: payment_data.frm_id.clone(),
         })
     }
 }

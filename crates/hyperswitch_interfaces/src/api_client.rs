@@ -199,6 +199,14 @@ where
             router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
+        common_enums::CallConnectorAction::HandleResponseWithoutBody => {
+            let response = types::Response {
+                headers: None,
+                response: Vec::new().into(),
+                status_code: 200,
+            };
+            connector_integration.handle_response(req, None, response)
+        }
         common_enums::CallConnectorAction::Trigger => {
             metrics::CONNECTOR_CALL_COUNT.add(
                 1,

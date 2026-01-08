@@ -728,6 +728,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBody,
 }
 
 #[derive(

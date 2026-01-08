@@ -875,6 +875,7 @@ pub struct CompleteAuthorizeData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
+    pub frm_id: Option<String>,
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,

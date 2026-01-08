@@ -7947,6 +7947,7 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
+    pub frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

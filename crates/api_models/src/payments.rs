@@ -1545,6 +1545,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Fraud/Session ID returned in the DDC call
+    #[schema(value_type = Option<String>)]
+    pub frm_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -6623,7 +6627,7 @@ pub enum IframeData {
         three_ds_method_data: Option<String>,
         /// ThreeDS Server ID
         #[smithy(value_type = "String")]
-        directory_server_id: String,
+        directory_server_id: Option<String>,
         /// ThreeDS Protocol version
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
@@ -6923,7 +6927,7 @@ pub struct SepaBankTransferInstructions {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct PaymentsConnectorThreeDsInvokeData {
-    pub directory_server_id: String,
+    pub directory_server_id: Option<String>,
     pub three_ds_method_url: String,
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
@@ -10698,6 +10702,9 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub client_secret: Secret<String>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+    /// Fraud Session ID received from the DDC call
+    #[schema(value_type = Option<String>)]
+    pub frm: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]

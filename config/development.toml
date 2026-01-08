@@ -38,7 +38,7 @@ pool_size = 5
 connection_timeout = 10
 
 [preprocessing_flow_config]
-authentication_bloated_connectors = "paypal,nmi,cybersource"
+authentication_bloated_connectors = "paypal,nmi,cybersource,worldpayxml"
 order_create_bloated_connectors = "trustpay,payme"
 
 [redis]
@@ -366,7 +366,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -1079,6 +1079,7 @@ deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 [connector_customer]
 payout_connector_list = "nomupay,stripe,wise"
