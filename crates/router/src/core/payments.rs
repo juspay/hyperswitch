@@ -4175,8 +4175,8 @@ where
                 .authentication_bloated_connectors
                 .contains(&connector.connector_name)
                 && payment_data
-                    .get_payment_attempt()
-                    .external_three_ds_authentication_attempted
+                    .get_payment_intent()
+                    .request_external_three_ds_authentication
                     != Some(true)
         }) {
         logger::info!(
