@@ -5127,16 +5127,15 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   });
 });
 
-Cypress.Commands.add("updatePaymentStatusTest", (globalState, reqData = {}) => {
+Cypress.Commands.add("updatePaymentStatusTest", (globalState, status = "pending") => {
   const merchantId = globalState.get("merchantId");
   const paymentId = globalState.get("paymentID");
 
   const body = {
-    attempt_status: "pending",
+    attempt_status: status,
     attempt_id: `${paymentId}_1`,
     merchant_id: merchantId,
     payment_id: paymentId,
-    ...reqData, // allow overrides if needed
   };
 
   cy.request({
@@ -5155,27 +5154,24 @@ Cypress.Commands.add("updatePaymentStatusTest", (globalState, reqData = {}) => {
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
 
-      // Use response.status, not resData.status
-      expect(response.status).to.eq(200);
 
-      // Optional sanity assertions
+      expect(response.status).to.eq(200);
       expect(response.body.payment_id).to.equal(paymentId);
       expect(response.body.merchant_id).to.equal(merchantId);
+      expect(response.body.attempt_status).to.equal(status);
     });
   });
 });
 
 Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
-  const { Request: reqData = {}, Response: resData = {} } = data;
 
   const connectorId = globalState.get("connectorId");
   const connectorName = globalState.get("connectorName");
   const merchantId = globalState.get("merchantId");
   const connectorTransactionId = globalState.get("connectorTransactionID");
 
-  // Default convention-based fixture path
-  const fixturePath =
-    reqData.fixture || `webhooks/${connectorName}_payment_success.json`;
+  // fixture path
+  const fixturePath =`webhooks/${connectorName}_payment_webhook.json`;
 
   return cy
     .fixture(fixturePath)
@@ -5185,8 +5181,7 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
 
       let payloadStr = JSON.stringify(payload);
 
-      const rawId = connectorTransactionId;
-      const numericId = Number(rawId);
+      const numericId = Number(connectorTransactionId);
       const isNumeric =
         !Number.isNaN(numericId) && connector_transaction_id_type == "number";
 
@@ -5217,14 +5212,11 @@ Cypress.Commands.add("sendWebhookTest", (globalState, data = {}) => {
             /(application|text)\//
           );
         }
-
-        const expectedStatus = resData?.status ?? 200;
-
-        if (response.status === expectedStatus) {
-          expect(response.status).to.equal(expectedStatus);
-        } else {
-          // Delegate to your shared error handler
-          defaultErrorHandler(response, resData);
+        
+        if (response.status !== 200) {
+          throw new Error(
+            `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
         }
       });
     });
