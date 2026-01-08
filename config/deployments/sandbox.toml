@@ -184,6 +184,9 @@ netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netce
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which have delayed session response
 
+[save_payment_method_on_session.unsupported_payment_methods]
+pay_later = ["klarna", "affirm"]
+
 [dummy_connector]
 enabled = true                                                          # Whether dummy connector is enabled or not
 assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"    # Base url for dummy connector assets
