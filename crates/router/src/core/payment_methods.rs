@@ -3818,14 +3818,17 @@ pub async fn payment_methods_session_retrieve(
             }).next()
         });
 
-    let expiry = associated_pm_token
-        .async_map(|token| utils::retrieve_payment_token_data(&state, token.clone()))
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method token data")
-        .ok()
-        .flatten()
+    let payment_method_token_data = if let Some(token) = &associated_pm_token {
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(&state)
+            .await
+            .attach_printable("Failed to retrieve payment method token data")
+            .ok()
+    } else {
+        None
+    };
+
+    let expiry = payment_method_token_data
         .and_then(|token_data| match token_data {
             storage::payment_method::PaymentTokenData::PermanentCard(card) => {
                 Some(card.payment_method_id)
@@ -3892,7 +3895,8 @@ pub async fn payment_methods_session_update_payment_method(
         })?;
 
     let payment_method_token_data =
-        utils::retrieve_payment_token_data(&state, request.payment_method_token.clone())
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&request.payment_method_token)
+            .get_data_for_token(&state)
             .await
             .attach_printable("Failed to retrieve payment method token data")?;
 
