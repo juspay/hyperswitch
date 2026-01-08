@@ -3769,7 +3769,7 @@ impl ForeignFrom<common_enums::CavvAlgorithm> for payments_grpc::CavvAlgorithm {
             common_enums::CavvAlgorithm::Two => Self::Two,
             common_enums::CavvAlgorithm::Three => Self::Three,
             common_enums::CavvAlgorithm::Four => Self::Four,
-            common_enums::CavvAlgorithm::A => Self::Four, // Map 'A' to Four as a fallback
+            common_enums::CavvAlgorithm::A => Self::A,
         }
     }
 }
