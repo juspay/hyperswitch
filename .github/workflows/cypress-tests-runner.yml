@@ -17,14 +17,14 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "braintree redsys nmi"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "nexixpay iatapay cashtocode"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "fiuu noon adyen"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "nuvei payload paypal"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "trustpay worldpay zift"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "worldpayxml finix cryptopay"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "peachpayments mollie"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "noon payload nmi"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "trustpay braintree adyen"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "iatapay cashtocode peachpayments"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "fiuu worldpay zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "aiwallex novalnet redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
