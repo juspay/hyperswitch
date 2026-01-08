@@ -218,7 +218,6 @@ run_tests() {
       printf "  ➜ Total connectors run: %d\n", count
       printf "  ➜ Successful: %d\n", pass
       printf "  ➜ Failed: %d\n", fail
-      printf "  ➜ Total execution time: %ds\n", total
     }' "$results_log"
   fi
 
