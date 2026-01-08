@@ -39,7 +39,7 @@ pub fn build_oidc_redirect_url(
 ) -> OidcResult<String> {
     Url::parse(redirect_uri)
         .map_err(|_| {
-            report!(OidcErrors::ServerError)
+            report!(OidcErrors::InvalidRequest)
                 .attach_printable("Invalid redirect_uri in OIDC authorize request")
         })
         .and_then(|base_url| {
