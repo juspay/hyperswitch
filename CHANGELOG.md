@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0-hotfix2
+
+### Features
+
+- **connector:** [worldpaymodular] worldpay modular connector ([#10857](https://github.com/juspay/hyperswitch/pull/10857)) ([`b2f2f63`](https://github.com/juspay/hyperswitch/commit/b2f2f63e26d97ce4bdd44da5999c1d62e7a36be1))
+
+**Full Changelog:** [`2025.12.25.0-hotfix1...2025.12.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0-hotfix1...2025.12.25.0-hotfix2)
+
+- - -
+
+## 2025.12.25.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [stripe] support customer-initiated mandate payments and send setup_future_usage for tokenized cards ([#10841](https://github.com/juspay/hyperswitch/pull/10841)) ([`aec306b`](https://github.com/juspay/hyperswitch/commit/aec306b6933f281044a090b0857d246e2935a058))
+- **router:** Use intent to populate setup_future_usage in router_data ([#10845](https://github.com/juspay/hyperswitch/pull/10845)) ([`78ddfdf`](https://github.com/juspay/hyperswitch/commit/78ddfdf6f116ef36d05ad6af3fbecf78ef994079))
+
+**Full Changelog:** [`2025.12.25.0...2025.12.25.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0...2025.12.25.0-hotfix1)
+
+- - -
+
 ## 2025.12.25.0
 
 ### Features
