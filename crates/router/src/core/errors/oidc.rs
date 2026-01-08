@@ -13,26 +13,16 @@ pub enum OidcErrors {
     UnauthorizedClient,
     #[error("Access denied")]
     AccessDenied,
-    #[error("Unsupported response type")]
-    UnsupportedResponseType,
     #[error("Invalid scope")]
     InvalidScope,
     #[error("OIDC server error")]
     ServerError,
-    #[error("Service temporarily unavailable")]
-    TemporarilyUnavailable,
     #[error("Invalid token request")]
     InvalidTokenRequest,
     #[error("Invalid client")]
     InvalidClient,
     #[error("Invalid grant")]
     InvalidGrant,
-    #[error("Unauthorized client for grant type")]
-    UnauthorizedClientForGrant,
-    #[error("Unsupported grant type")]
-    UnsupportedGrantType,
-    #[error("Invalid token scope")]
-    InvalidTokenScope,
 }
 
 impl OidcErrors {
@@ -42,16 +32,11 @@ impl OidcErrors {
             Self::InvalidRequest => "invalid_request",
             Self::UnauthorizedClient => "unauthorized_client",
             Self::AccessDenied => "access_denied",
-            Self::UnsupportedResponseType => "unsupported_response_type",
             Self::InvalidScope => "invalid_scope",
             Self::ServerError => "server_error",
-            Self::TemporarilyUnavailable => "temporarily_unavailable",
             Self::InvalidTokenRequest => "invalid_request",
             Self::InvalidClient => "invalid_client",
             Self::InvalidGrant => "invalid_grant",
-            Self::UnauthorizedClientForGrant => "unauthorized_client",
-            Self::UnsupportedGrantType => "unsupported_grant_type",
-            Self::InvalidTokenScope => "invalid_scope",
         }
     }
 
@@ -61,16 +46,11 @@ impl OidcErrors {
             Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
             Self::UnauthorizedClient => "The client is not authorized to request an authorization code using this method",
             Self::AccessDenied => "The resource owner or authorization server denied the request",
-            Self::UnsupportedResponseType => "The authorization server does not support obtaining an authorization code using this method",
             Self::InvalidScope => "The requested scope is invalid, unknown, or malformed",
             Self::ServerError => "The authorization server encountered an unexpected condition that prevented it from fulfilling the request",
-            Self::TemporarilyUnavailable => "The authorization server is currently unable to handle the request due to a temporary overloading or maintenance of the server",
             Self::InvalidTokenRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
             Self::InvalidClient => "Client authentication failed",
             Self::InvalidGrant => "The provided authorization grant is invalid, expired, revoked, or does not match the redirection URI used in the authorization request",
-            Self::UnauthorizedClientForGrant => "The authenticated client is not authorized to use this authorization grant type",
-            Self::UnsupportedGrantType => "The authorization grant type is not supported by the authorization server",
-            Self::InvalidTokenScope => "The requested scope is invalid, unknown, or malformed",
         }
     }
 
@@ -108,63 +88,33 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 self.get_rfc_formatted_message(),
                 None,
             )),
-            Self::UnsupportedResponseType => AER::BadRequest(ApiError::new(
+            Self::InvalidScope => AER::BadRequest(ApiError::new(
                 sub_code,
                 4,
                 self.get_rfc_formatted_message(),
                 None,
             )),
-            Self::InvalidScope => AER::BadRequest(ApiError::new(
+            Self::ServerError => AER::InternalServerError(ApiError::new(
                 sub_code,
                 5,
                 self.get_rfc_formatted_message(),
                 None,
             )),
-            Self::ServerError => AER::InternalServerError(ApiError::new(
+            Self::InvalidTokenRequest => AER::BadRequest(ApiError::new(
                 sub_code,
                 6,
                 self.get_rfc_formatted_message(),
                 None,
             )),
-            Self::TemporarilyUnavailable => AER::InternalServerError(ApiError::new(
+            Self::InvalidClient => AER::Unauthorized(ApiError::new(
                 sub_code,
                 7,
                 self.get_rfc_formatted_message(),
                 None,
             )),
-            Self::InvalidTokenRequest => AER::BadRequest(ApiError::new(
-                sub_code,
-                8,
-                self.get_rfc_formatted_message(),
-                None,
-            )),
-            Self::InvalidClient => AER::Unauthorized(ApiError::new(
-                sub_code,
-                9,
-                self.get_rfc_formatted_message(),
-                None,
-            )),
             Self::InvalidGrant => AER::BadRequest(ApiError::new(
                 sub_code,
-                10,
-                self.get_rfc_formatted_message(),
-                None,
-            )),
-            Self::UnauthorizedClientForGrant => AER::Unauthorized(ApiError::new(
-                sub_code,
-                11,
-                self.get_rfc_formatted_message(),
-                None,
-            )),
-            Self::UnsupportedGrantType => AER::BadRequest(ApiError::new(
-                sub_code,
-                12,
-                self.get_rfc_formatted_message(),
-                None,
-            )),
-            Self::InvalidTokenScope => AER::BadRequest(ApiError::new(
-                sub_code,
-                13,
+                8,
                 self.get_rfc_formatted_message(),
                 None,
             )),
