@@ -432,7 +432,7 @@ private_key = ""  # RSA private key used for signing ID tokens (Generate using: 
 [oidc.client.c1]
 client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
 client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
-redirect_uri = ""  # Redirect URI registered for the OIDC client 
+redirect_uri = ""  # Redirect URI registered for the OIDC client
 
 
 [bank_config.eps]
@@ -1067,9 +1067,6 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
-
-[preprocessing_flow_config]
-authentication_bloated_connectors = "redsys"
 
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }

@@ -658,7 +658,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
-                            && !payment_status
+                            && payment_status
                     }
                     _ => false,
                 },
