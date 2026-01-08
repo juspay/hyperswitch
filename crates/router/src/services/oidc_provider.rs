@@ -62,7 +62,7 @@ pub async fn get_jwks(state: SessionState) -> OidcResponse<&'static JwksResponse
                 keys.push(jwk);
             }
 
-            Ok::<_, error_stack::Report<OidcErrors>>(JwksResponse { keys })
+            Ok(JwksResponse { keys })
         })
         .map(ApplicationResponse::Json)
 }
@@ -116,7 +116,6 @@ async fn generate_and_store_authorization_code(
 
     oidc_utils::set_auth_code_in_redis(state, &auth_code, &auth_code_data)
         .await
-        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to store authorization code")?;
 
     Ok(auth_code)
@@ -136,7 +135,6 @@ pub async fn process_authorize_request(
 
     let redirect_url =
         oidc_utils::build_oidc_redirect_url(&payload.redirect_uri, &auth_code, &payload.state)
-            .change_context(OidcErrors::ServerError)
             .attach_printable("Failed to build redirect URL")?;
 
     #[cfg(feature = "v1")]
@@ -242,7 +240,6 @@ async fn generate_id_token(
 
     oidc_utils::sign_oidc_token(state, claims, "ID token")
         .await
-        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to sign ID token")
 }
 
@@ -275,7 +272,6 @@ async fn generate_access_token(
 
     oidc_utils::sign_oidc_token(state, claims, "access token")
         .await
-        .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to sign access token")
 }
 
