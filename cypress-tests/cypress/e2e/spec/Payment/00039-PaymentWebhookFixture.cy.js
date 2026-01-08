@@ -88,8 +88,7 @@ describe("Payment Webhook Tests", () => {
   });
 
   it("Update-payment_status", () => {
-    cy.updatePaymentStatusTest(globalState, "pending" );
-   
+    cy.updatePaymentStatusTest(globalState, "pending");
   });
 
   it("send-webhook", () => {

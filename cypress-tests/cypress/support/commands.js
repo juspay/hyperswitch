@@ -5127,51 +5127,52 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   });
 });
 
-Cypress.Commands.add("updatePaymentStatusTest", (globalState, status = "pending") => {
-  const merchantId = globalState.get("merchantId");
-  const paymentId = globalState.get("paymentID");
+Cypress.Commands.add(
+  "updatePaymentStatusTest",
+  (globalState, status = "pending") => {
+    const merchantId = globalState.get("merchantId");
+    const paymentId = globalState.get("paymentID");
 
-  const body = {
-    attempt_status: status,
-    attempt_id: `${paymentId}_1`,
-    merchant_id: merchantId,
-    payment_id: paymentId,
-  };
+    const body = {
+      attempt_status: status,
+      attempt_id: `${paymentId}_1`,
+      merchant_id: merchantId,
+      payment_id: paymentId,
+    };
 
-  cy.request({
-    method: "PUT",
-    url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-      "X-Merchant-Id": merchantId,
-    },
-    body,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+    cy.request({
+      method: "PUT",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/manual-update`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+        "X-Merchant-Id": merchantId,
+      },
+      body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
 
-
-      expect(response.status).to.eq(200);
-      expect(response.body.payment_id).to.equal(paymentId);
-      expect(response.body.merchant_id).to.equal(merchantId);
-      expect(response.body.attempt_status).to.equal(status);
+        expect(response.status).to.eq(200);
+        expect(response.body.payment_id).to.equal(paymentId);
+        expect(response.body.merchant_id).to.equal(merchantId);
+        expect(response.body.attempt_status).to.equal(status);
+      });
     });
-  });
-});
+  }
+);
 
 Cypress.Commands.add("sendWebhookTest", (globalState) => {
-
   const connectorId = globalState.get("connectorId");
   const connectorName = globalState.get("connectorName");
   const merchantId = globalState.get("merchantId");
   const connectorTransactionId = globalState.get("connectorTransactionID");
 
   // fixture path
-  const fixturePath =`webhooks/${connectorName}_payment_webhook.json`;
+  const fixturePath = `webhooks/${connectorName}_payment_webhook.json`;
 
   return cy
     .fixture(fixturePath)
@@ -5187,7 +5188,9 @@ Cypress.Commands.add("sendWebhookTest", (globalState) => {
 
       payloadStr = payloadStr.replace(
         /"{{\s*connector_transaction_id\s*}}"/g,
-        isNumeric ? String(numericId) : JSON.stringify(String(connectorTransactionId))
+        isNumeric
+          ? String(numericId)
+          : JSON.stringify(String(connectorTransactionId))
       );
 
       const webhookPayload = JSON.parse(payloadStr);
@@ -5212,7 +5215,7 @@ Cypress.Commands.add("sendWebhookTest", (globalState) => {
             /(application|text)\//
           );
         }
-        
+
         if (response.status !== 200) {
           throw new Error(
             `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`

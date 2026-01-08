@@ -2,7 +2,7 @@
   "_meta": {
     "connector_transaction_id_type": "number"
   },
-  "signature":"dGVzdF9zaWduYXR1cmU=",
+  "signature": "dGVzdF9zaWduYXR1cmU=",
   "orderId": "{{connector_transaction_id}}",
   "orderStatus": "AUTHORIZED",
   "eventType": "Fail",
