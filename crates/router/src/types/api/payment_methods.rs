@@ -23,7 +23,7 @@ pub use api_models::payment_methods::{
     MigrateCardDetail, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
     PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
+    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData,
     TokenizeCardRequest, TokenizeDataRequest, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizePaymentMethodRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
     TokenizedWalletValue2,

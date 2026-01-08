@@ -239,6 +239,8 @@ impl PaymentMethodsController for PmCards<'_> {
             #[cfg(feature = "payouts")]
             bank_transfer: None,
             card: None,
+            //Since card and bank_transfer both are None, payment_method_data will be None
+            payment_method_data: None,
             metadata: req.metadata.clone(),
             created: Some(common_utils::date_time::now()),
             recurring_enabled: Some(false),           //[#219]
@@ -945,7 +947,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 payment_method_type: pm.get_payment_method_subtype(),
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
-                card,
+                card: card.clone(),
+                payment_method_data: card.map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
                 // merge payload metadata with pm metadata
                 metadata: pm.get_payment_method_metadata(locker_metadata),
                 created: Some(pm.created_at),
@@ -1643,7 +1646,16 @@ pub async fn update_customer_payment_method(
     };
 
     // Currently update is supported only for cards and wallets
-    if let Some(card_update) = req.card.clone() {
+    // Priority: req.payment_method_data (new field) > req.card (deprecated field)
+    if let Some(card_update) = req
+        .payment_method_data
+        .clone()
+        .and_then(|pmd| match pmd {
+            api::PaymentMethodUpdateData::Card(card) => Some(card),
+            _ => None,
+        })
+        .or(req.card.clone())
+    {
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
             return Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Payment method is awaiting data so it cannot be updated".into()

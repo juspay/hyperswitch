@@ -1051,7 +1051,8 @@ async fn skip_saving_card_in_locker(
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
-                card: Some(card_detail),
+                card: Some(card_detail.clone()),
+                payment_method_data: Some(api::PaymentMethodResponseData::Card(Box::new(card_detail))),
                 recurring_enabled: Some(false),
                 installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -1074,6 +1075,8 @@ async fn skip_saving_card_in_locker(
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
                 card: None,
+                //Since card and bank_transfer both are None, payment_method_data will be None
+                payment_method_data: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: Some(false),
@@ -1138,6 +1141,8 @@ pub async fn save_in_locker_internal(
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card: None,
+                //Since card and bank_transfer both are None, payment_method_data will be None
+                payment_method_data: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: Some(false),
@@ -1208,7 +1213,8 @@ pub async fn save_in_locker_external(
             payment_method_id,
             payment_method: payment_method_request.payment_method,
             payment_method_type: payment_method_request.payment_method_type,
-            card: Some(card_detail),
+            card: Some(card_detail.clone()),
+            payment_method_data: Some(api::PaymentMethodResponseData::Card(Box::new(card_detail))),
             recurring_enabled: Some(false),
             installment_payment_enabled: Some(false),
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -1233,6 +1239,8 @@ pub async fn save_in_locker_external(
             #[cfg(feature = "payouts")]
             bank_transfer: None,
             card: None,
+            //Since card and bank_transfer both are None, payment_method_data will be None
+            payment_method_data: None,
             metadata: None,
             created: Some(common_utils::date_time::now()),
             recurring_enabled: Some(false),

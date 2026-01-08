@@ -2225,6 +2225,27 @@ impl IncomingWebhook for Adyen {
 
         Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
             card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str.clone()),
+                card_exp_year: Some(year_str.clone()),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                issuer_country_code: None,
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .clone()
+                    .map(|last4| last4.expose().to_string()),
+                card_network: adyen::from_payment_method_variant(
+                    notif
+                        .additional_data
+                        .payment_method_variant
+                        .clone()
+                        .map(|network| network.expose()),
+                ),
+            }),
+            payment_method_data: Some(api_models::payment_methods::PaymentMethodUpdateData::Card(api_models::payment_methods::CardDetailUpdate{
                 card_exp_month: Some(month_str),
                 card_exp_year: Some(year_str),
                 card_holder_name: None,
@@ -2242,7 +2263,7 @@ impl IncomingWebhook for Adyen {
                         .payment_method_variant
                         .map(|network| network.expose()),
                 ),
-            }),
+            })),
             wallet: None,
             client_secret: None,
         }))

@@ -832,6 +832,25 @@ pub async fn get_merchant_config_for_eligibility_check(
     }
 }
 
+pub async fn is_new_merchant_config( 
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &merchant_id.is_new_merchant_check(),
+            Some("false".to_string()),
+        )
+        .await;
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
 pub async fn get_sdk_next_action_for_payment_method_list(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,

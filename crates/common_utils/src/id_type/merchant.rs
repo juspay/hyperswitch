@@ -232,6 +232,11 @@ impl MerchantId {
         format!("should_perform_eligibility_{}", self.get_string_repr())
     }
 
+    /// Get is new merchant check key for payment method
+    pub fn is_new_merchant_check(&self) -> String {
+        format!("is_new_merchant_{}", self.get_string_repr())
+    }
+
     /// Get should store eligibility check data for authentication
     pub fn get_should_store_eligibility_check_data_for_authentication(&self) -> String {
         format!(

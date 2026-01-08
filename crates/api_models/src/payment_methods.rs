@@ -35,14 +35,20 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.card.card_issuer field to set the issuer name
     #[schema(example = "Citibank")]
     pub payment_method_issuer: Option<String>,
 
     /// A standard code representing the issuer of payment method
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.card.card_issuer_code field to set the issuer code
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
     /// Card Details
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.card field to set the card details
     #[schema(example = json!({
     "card_number": "4111111145551142",
     "card_exp_month": "10",
@@ -59,15 +65,21 @@ pub struct PaymentMethodCreate {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// The card network
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.card.card_network field to set the card network
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
 
     /// Payment method details from locker
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.bank_transfer field to set the bank transfer details
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Payment method details from locker
+    /// This field is deprecated and will be removed in future releases
+    /// Please use payment_method_data.wallet field to set the wallet details
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Wallet>)]
     pub wallet: Option<payouts::Wallet>,
@@ -76,6 +88,7 @@ pub struct PaymentMethodCreate {
     /// in order to call /payment_methods
     /// Client secret will be generated whenever a new
     /// payment method is created
+    /// This field will be deprecated in future releases
     pub client_secret: Option<String>,
 
     /// Payment method data to be passed in case of client
@@ -482,6 +495,7 @@ impl PaymentMethodCreate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
     /// Card Details
+    /// This field will be deprecated soon, please use `payment_method_data` field instead
     #[schema(example = json!({
     "card_number": "4111111145551142",
     "card_exp_month": "10",
@@ -490,7 +504,11 @@ pub struct PaymentMethodUpdate {
     pub card: Option<CardDetailUpdate>,
 
     /// Wallet Details
+    /// This field will be deprecated soon, please use `payment_method_data` field instead
     pub wallet: Option<PaymentMethodDataWalletInfo>,
+
+    /// Payment method data details to be updated for the payment_method
+    pub payment_method_data: Option<PaymentMethodUpdateData>,
 
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
@@ -517,6 +535,16 @@ pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+pub enum PaymentMethodUpdateData {
+    Card(CardDetailUpdate),
+    Wallet(PaymentMethodDataWalletInfo),
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -534,6 +562,11 @@ pub enum PaymentMethodCreateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    // #[cfg(feature = "payouts")]
+    // Wallet(payouts::Wallet),
+    // #[cfg(feature = "payouts")]
+    // BankTransfer(payouts::Bank),
+
 }
 
 #[cfg(feature = "v1")]
@@ -897,6 +930,18 @@ impl CardDetailUpdate {
     }
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+pub enum PaymentMethodResponseData {
+    Card(Box<CardDetailFromLocker>),
+    #[cfg(feature = "payouts")]
+    BankTransfer(payouts::Bank),
+
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -930,8 +975,12 @@ pub struct PaymentMethodResponse {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Card details from card locker
+    /// This field will be deprecated soon, please use `payment_method_data` field instead
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
+
+    /// The payment method details related to the payment method
+    pub payment_method_data: Option<PaymentMethodResponseData>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
@@ -955,6 +1004,7 @@ pub struct PaymentMethodResponse {
     pub created: Option<time::PrimitiveDateTime>,
 
     /// Payment method details from locker
+    /// This field will be deprecated soon, please use `payment_method_data` field instead
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     #[serde(skip_serializing_if = "Option::is_none")]

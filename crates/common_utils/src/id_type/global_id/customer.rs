@@ -34,6 +34,20 @@ impl TryFrom<GlobalCustomerId> for crate::id_type::CustomerId {
     }
 }
 
+impl TryFrom<crate::id_type::CustomerId> for GlobalCustomerId {
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn try_from(value: crate::id_type::CustomerId) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
+        
+        let global_id = super::GlobalId::from_string(std::borrow::Cow::from(value.get_string_repr().to_owned()))
+            .change_context(errors::ValidationError::IncorrectValueProvided {
+                field_name: "customer_id",
+            })?;
+        Ok(Self(global_id))
+    }
+}
+
 impl crate::events::ApiEventMetric for GlobalCustomerId {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::Customer {
