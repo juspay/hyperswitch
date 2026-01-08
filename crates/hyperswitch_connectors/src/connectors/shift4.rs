@@ -1093,8 +1093,9 @@ impl ConnectorSpecifications for Shift4 {
                 request_data,
                 auth_type,
             } => auth_type.is_three_ds() && request_data.is_card(),
-            // No alternate flow for complete authorize
-            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            // No alternate flow for complete authorize and SetupMandate
+            api::CurrentFlowInfo::SetupMandate { auth_type }
+            | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
