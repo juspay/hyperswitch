@@ -3818,23 +3818,14 @@ pub async fn payment_methods_session_retrieve(
             }).next()
         });
 
-    let payment_method_token_data = if let Some(token) = &associated_pm_token {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(token)
-            .get_data_for_token(&state)
-            .await
-            .attach_printable("Failed to retrieve payment method token data")
-            .ok()
-    } else {
-        None
-    };
-
-    let expiry = payment_method_token_data
-        .and_then(|token_data| match token_data {
-            storage::payment_method::PaymentTokenData::PermanentCard(card) => {
-                Some(card.payment_method_id)
-            }
-            _ => None,
+    let expiry = associated_pm_token
+        .async_map(|pm_token| {
+            utils::retrieve_payment_method_id_from_payment_method_token_data(&state, pm_token)
         })
+        .await
+        .transpose()
+        .ok()
+        .flatten()
         .async_map(|pm_id| {
             vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(&state, pm_id.to_owned())
         })
@@ -3894,20 +3885,12 @@ pub async fn payment_methods_session_update_payment_method(
             message: "No associated payment method found in the session".to_string(),
         })?;
 
-    let payment_method_token_data =
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&request.payment_method_token)
-            .get_data_for_token(&state)
-            .await
-            .attach_printable("Failed to retrieve payment method token data")?;
-
-    let payment_method_id = match payment_method_token_data {
-        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
-            Some(card.payment_method_id)
-        }
-        _ => None,
-    }
-    .get_required_value("payment_method_id from payment method token data")
-    .attach_printable("Failed to get payment method id from payment method token data")?;
+    let payment_method_id = utils::retrieve_payment_method_id_from_payment_method_token_data(
+        &state,
+        request.payment_method_token.clone(),
+    )
+    .await
+    .attach_printable("Failed to retrieve payment method id from payment method token data")?;
 
     // Stage 1: Update CVC in redis if provided
     let card_cvc = request.fetch_card_cvc_update();
@@ -3992,18 +3975,12 @@ pub async fn payment_methods_session_delete_payment_method(
     })
     .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let payment_method_token_data = utils::retrieve_payment_token_data(&state, pm_token.clone())
-        .await
-        .attach_printable("Failed to retrieve payment method token data")?;
-
-    let payment_method_id = match payment_method_token_data {
-        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
-            Some(card.payment_method_id)
-        }
-        _ => None,
-    }
-    .get_required_value("payment_method_id from payment method token data")
-    .attach_printable("Failed to get payment method id from payment method token data")?;
+    let payment_method_id =
+        utils::retrieve_payment_method_id_from_payment_method_token_data(&state, pm_token.clone())
+            .await
+            .attach_printable(
+                "Failed to retrieve payment method id from payment method token data",
+            )?;
 
     delete_payment_method_core(&state, payment_method_id, &platform, &profile)
         .await
