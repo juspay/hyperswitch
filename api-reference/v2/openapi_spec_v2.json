@@ -2973,6 +2973,47 @@
         ]
       }
     },
+    "/v2/payment-methods/details/{id}": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Get Payment Method Token Data",
+        "description": "Retrieve the Payment method id associated with a payment method.",
+        "operationId": "Get Payment Method Token Data",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method Token Data Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodGetTokenDetailsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found | Payment method token either expired or does not exist"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -19301,6 +19342,25 @@
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          }
+        }
+      },
+      "PaymentMethodGetTokenDetailsResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "token"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The payment method ID associated with the token",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "token": {
+            "type": "string",
+            "description": "The tokenization id associated with the payment method",
+            "example": "token_CSum555d9YxDOpGwYq6q"
           }
         }
       },
