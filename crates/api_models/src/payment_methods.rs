@@ -2395,6 +2395,17 @@ pub struct PaymentMethodDeleteResponse {
     pub id: id_type::GlobalPaymentMethodId,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodDeleteSessionResponse {
+    /// The unique identifier of the Payment method
+    #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
+    pub payment_method_token: String,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for PaymentMethodDeleteSessionResponse {}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
@@ -3416,11 +3427,30 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 }
 
 #[cfg(feature = "v2")]
+impl PaymentMethodSessionUpdateSavedPaymentMethod {
+    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
+        match &self.payment_method_update_request.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn is_payment_method_metadata_update(&self) -> bool {
+        match &self.payment_method_update_request.payment_method_data {
+            Some(PaymentMethodUpdateData::Card(card_update)) => {
+                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
+            }
+            _ => false,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
-    /// The payment method id of the payment method to be updated
-    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
-    pub payment_method_id: id_type::GlobalPaymentMethodId,
+    /// The payment method token associated with the payment method to be updated
+    #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
+    pub payment_method_token: String,
 }
 
 #[cfg(feature = "v2")]
