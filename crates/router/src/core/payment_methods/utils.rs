@@ -832,7 +832,7 @@ pub async fn get_merchant_config_for_eligibility_check(
     }
 }
 
-pub async fn is_new_merchant_config( 
+pub async fn is_new_merchant_config(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {

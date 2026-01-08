@@ -566,7 +566,6 @@ pub enum PaymentMethodCreateData {
     // Wallet(payouts::Wallet),
     // #[cfg(feature = "payouts")]
     // BankTransfer(payouts::Bank),
-
 }
 
 #[cfg(feature = "v1")]
@@ -939,7 +938,6 @@ pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
     #[cfg(feature = "payouts")]
     BankTransfer(payouts::Bank),
-
 }
 
 #[cfg(feature = "v2")]

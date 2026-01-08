@@ -282,7 +282,8 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
             card: card_details.clone(),
-            payment_method_data: card_details.map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
+            payment_method_data: card_details
+                .map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
             recurring_enabled: Some(false),
             installment_payment_enabled: Some(false),
             payment_experience: None,

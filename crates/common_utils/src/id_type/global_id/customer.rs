@@ -39,11 +39,13 @@ impl TryFrom<crate::id_type::CustomerId> for GlobalCustomerId {
 
     fn try_from(value: crate::id_type::CustomerId) -> Result<Self, Self::Error> {
         use error_stack::ResultExt;
-        
-        let global_id = super::GlobalId::from_string(std::borrow::Cow::from(value.get_string_repr().to_owned()))
-            .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "customer_id",
-            })?;
+
+        let global_id = super::GlobalId::from_string(std::borrow::Cow::from(
+            value.get_string_repr().to_owned(),
+        ))
+        .change_context(errors::ValidationError::IncorrectValueProvided {
+            field_name: "customer_id",
+        })?;
         Ok(Self(global_id))
     }
 }

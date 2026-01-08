@@ -948,7 +948,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
                 card: card.clone(),
-                payment_method_data: card.map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
+                payment_method_data: card
+                    .map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
                 // merge payload metadata with pm metadata
                 metadata: pm.get_payment_method_metadata(locker_metadata),
                 created: Some(pm.created_at),

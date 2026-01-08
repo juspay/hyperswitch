@@ -274,7 +274,8 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             card: card_detail_from_locker.clone(),
-            payment_method_data: card_detail_from_locker.map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
+            payment_method_data: card_detail_from_locker
+                .map(|card| api::PaymentMethodResponseData::Card(Box::new(card))),
             recurring_enabled: Some(true),
             installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
