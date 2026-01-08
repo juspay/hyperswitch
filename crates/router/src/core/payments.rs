@@ -74,15 +74,16 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
+use routing::RoutingStage;
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use routing::RoutingStage;
 use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
 pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
@@ -10379,7 +10380,8 @@ where
         let algorithm_ref = routing_algorithm
             .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
 
         algorithm_ref.algorithm_id
@@ -10400,7 +10402,7 @@ where
         .await
         .map_err(|e| {
             e.change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("static routing failed")
+                .attach_printable("euclid: static routing failed")
         })?;
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -10421,7 +10423,7 @@ where
                 .await
                 .map_err(|e| {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("dynamic routing failed")
+                        .attach_printable("euclid: dynamic routing failed")
                 })?;
         }
     }
@@ -10438,11 +10440,11 @@ where
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )
-            .map(|cd| cd.into())
+            .map(|connector_data| connector_data.into())
         })
         .collect::<CustomResult<Vec<_>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received")?;
+        .attach_printable("euclid: Invalid connector name received")?;
 
     decide_multiplex_connector_for_normal_or_recurring_payment(
         state,
@@ -13543,3 +13545,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         self.payment_attempt.cancellation_reason = cancellation_reason;
     }
 }
+
+
+
+
