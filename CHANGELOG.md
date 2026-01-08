@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.12.25.0-hotfix3
+
+### Bug Fixes
+
+- **router:** Prevent creation of saved klarna and affirm payment methods ([#10869](https://github.com/juspay/hyperswitch/pull/10869)) ([`3c57d31`](https://github.com/juspay/hyperswitch/commit/3c57d31dd801908d04e717ee036059bb2bb7a249))
+
+**Full Changelog:** [`2025.12.25.0-hotfix2...2025.12.25.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.12.25.0-hotfix2...2025.12.25.0-hotfix3)
+
+- - -
+
 ## 2025.12.25.0-hotfix2
 
 ### Features
