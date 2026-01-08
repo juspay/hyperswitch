@@ -309,13 +309,8 @@ export const connectorDetails = {
         body: {
           status: "cancelled",
         },
-<<<<<<< Updated upstream
       },
     },
-=======
-    },
-    }),
->>>>>>> Stashed changes
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -354,18 +349,7 @@ export const connectorDetails = {
           status: "pending",
         },
       },
-<<<<<<< Updated upstream
     },
-=======
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "failed",
-          reason: "FRAUD",
-        },
-    },
-    }),
->>>>>>> Stashed changes
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -390,13 +374,8 @@ export const connectorDetails = {
           status: "pending",
           reason: "FRAUD",
         },
-<<<<<<< Updated upstream
       },
     },
-=======
-    },
-    }),
->>>>>>> Stashed changes
     SyncRefund: getCustomExchange({
       Request: {},
       Response: {
