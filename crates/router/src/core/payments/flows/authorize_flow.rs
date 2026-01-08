@@ -484,13 +484,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             // Extract connector_transaction_id from PreAuthenticate response
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata: Some(metadata),
+                ..
             }) = &pre_authenticate_router_data.response
             {
                 // Store authentication_data in metadata for next step
-                if let Some(metadata) = connector_metadata {
-                    authorize_request_data.metadata = Some(metadata.clone());
-                }
+                authorize_request_data.metadata = Some(metadata.clone());
             }
 
             let mut authorize_router_data =
@@ -612,13 +611,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             // Extract connector_transaction_id from Authenticate response
             if let Ok(types::PaymentsResponseData::TransactionResponse {
-                connector_metadata, ..
+                connector_metadata: Some(metadata),
+                ..
             }) = &authenticate_router_data.response
             {
                 // Store authentication_data in metadata for next step
-                if let Some(metadata) = connector_metadata {
-                    authorize_request_data.metadata = Some(metadata.clone());
-                }
+                authorize_request_data.metadata = Some(metadata.clone());
             }
 
             let authorize_router_data =

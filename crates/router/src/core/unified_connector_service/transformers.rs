@@ -816,7 +816,7 @@ impl
             .request
             .authentication_data
             .clone()
-            .map(|ucs_auth_data| payments_grpc::AuthenticationData::foreign_try_from(ucs_auth_data))
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
@@ -917,7 +917,7 @@ impl
             .request
             .authentication_data
             .clone()
-            .map(|ucs_auth_data| payments_grpc::AuthenticationData::foreign_try_from(ucs_auth_data))
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
         Ok(Self {
