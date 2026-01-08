@@ -609,11 +609,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
-            req.request.minor_amount.ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "minor_amount",
-                }
-            })?,
+            req.request.minor_amount,
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {

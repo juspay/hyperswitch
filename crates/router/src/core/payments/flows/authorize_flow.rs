@@ -366,12 +366,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
-            let authorize_router_data =
+            let mut authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     pre_authenticate_router_data,
                     authorize_request_data,
                     pre_authenticate_response,
                 );
+            if let Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2,
+                related_transaction_id,
+            }) = &authorize_router_data.response
+            {
+                let (enrolled_for_3ds, related_transaction_id) =
+                    (*enrolled_v2, related_transaction_id.clone());
+                authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+                authorize_router_data.request.related_transaction_id = related_transaction_id;
+            }
             let should_continue_after_preauthenticate = match connector.connector_name {
                 // connector specific handling to decide whether to continue with authorize or not should not be done here
                 // this is just a temporary fix for Redsys and Shift4 connectors
@@ -392,6 +402,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
+                api_models::enums::Connector::Nuvei => true,
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))

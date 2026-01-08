@@ -215,6 +215,9 @@ payout_connector_list = "nomupay,stripe,wise"
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response
 
+[save_payment_method_on_session.unsupported_payment_methods]
+pay_later = ["klarna", "affirm"]
+
 [zero_mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
@@ -913,6 +916,7 @@ billwerk = {long_lived_token = false, payment_method = "card"}
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
+paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
 
 [webhooks]
 outgoing_enabled = true
