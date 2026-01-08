@@ -49,6 +49,58 @@ impl Processor {
     }
 }
 
+/// Initiator = The entity that initiated the operation.
+#[derive(Clone, Debug)]
+pub enum Initiator {
+    Api {
+        merchant_id: common_utils::id_type::MerchantId,
+        merchant_account_type: common_enums::MerchantAccountType,
+    },
+    Jwt {
+        user_id: String,
+    },
+    Admin,
+}
+
+impl Initiator {
+    /// Converts the domain Initiator to CreatedBy for database storage.
+    ///
+    /// # Returns
+    /// - `Some(CreatedBy::Api)` for API initiators
+    /// - `Some(CreatedBy::Jwt)` for JWT initiators
+    /// - `None` for Admin initiators (CreatedBy doesn't have an Admin variant)
+    pub fn to_created_by(&self) -> Option<common_utils::types::CreatedBy> {
+        match self {
+            Self::Api { merchant_id, .. } => Some(common_utils::types::CreatedBy::Api {
+                merchant_id: merchant_id.get_string_repr().to_string(),
+            }),
+            Self::Jwt { user_id } => Some(common_utils::types::CreatedBy::Jwt {
+                user_id: user_id.clone(),
+            }),
+            Self::Admin => None,
+        }
+    }
+
+    /// Computes the initiator context for API responses.
+    ///
+    /// # Returns
+    /// - `Some(Platform)`: Platform merchant initiated the operation
+    /// - `Some(Connected)`: Connected merchant initiated the operation
+    /// - `None`: Standard merchant flow, JWT/Admin initiator, or no initiator
+    pub fn to_api_initiator(&self) -> Option<api_models::platform::Initiator> {
+        match self {
+            Self::Api {
+                merchant_account_type,
+                ..
+            } => {
+                // If this returns Option<Initiator>, just return it directly (NO extra Some)
+                api_models::platform::Initiator::from_merchant_account_type(*merchant_account_type)
+            }
+            Self::Jwt { .. } | Self::Admin => None,
+        }
+    }
+}
+
 /// Platform holds both Provider and Processor together.
 /// This struct makes it possible to distinguish the business owner for the org versus whose processor credentials are used for execution.
 /// For a standard merchant flow, provider == processor.
@@ -56,6 +108,7 @@ impl Processor {
 pub struct Platform {
     provider: Box<Provider>,
     processor: Box<Processor>,
+    initiator: Option<Initiator>,
 }
 
 impl Platform {
@@ -67,12 +120,14 @@ impl Platform {
         provider_key_store: MerchantKeyStore,
         processor_account: MerchantAccount,
         processor_key_store: MerchantKeyStore,
+        initiator: Option<Initiator>,
     ) -> Self {
         let provider = Provider::new(provider_account, provider_key_store);
         let processor = Processor::new(processor_account, processor_key_store);
         Self {
             provider: Box::new(provider),
             processor: Box::new(processor),
+            initiator,
         }
     }
 
@@ -84,5 +139,11 @@ impl Platform {
     /// Returns a reference to the processor.
     pub fn get_processor(&self) -> &Processor {
         &self.processor
+    }
+
+    /// Returns a reference to the initiator.
+    /// Returns None if the initiator is not known or not applicable.
+    pub fn get_initiator(&self) -> Option<&Initiator> {
+        self.initiator.as_ref()
     }
 }

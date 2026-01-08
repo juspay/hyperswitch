@@ -903,7 +903,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Mifinity
             | enums::PaymentMethodType::Breadpay
             | enums::PaymentMethodType::UpiQr
-            | enums::PaymentMethodType::OpenBanking => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::OpenBanking
+            | enums::PaymentMethodType::NetworkToken => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1528,7 +1529,8 @@ fn create_stripe_payment_method(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                 "stripe",
             ))
@@ -1920,7 +1922,17 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_method_types,
             setup_future_usage,
         ) = if payment_method_token.is_some() {
-            (None, None, StripeBillingAddress::default(), None, None)
+            let setup_future_usage = validate_and_get_setup_future_usage(
+                item.request.setup_future_usage,
+                item.request.payment_method_type,
+            )?;
+            (
+                None,
+                None,
+                StripeBillingAddress::default(),
+                None,
+                setup_future_usage,
+            )
         } else {
             match item
                 .request
@@ -1987,10 +1999,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::OpenBanking(_)
                         | PaymentMethodData::CardToken(_)
                         | PaymentMethodData::NetworkToken(_)
-                        | PaymentMethodData::Card(_) => Err(ConnectorError::NotSupported {
-                            message: "Network tokenization for payment method".to_string(),
-                            connector: "Stripe",
-                        })?,
+                        | PaymentMethodData::Card(_)
+                        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                            Err(ConnectorError::NotSupported {
+                                message: "Network tokenization for payment method".to_string(),
+                                connector: "Stripe",
+                            })?
+                        }
                     };
 
                     (
@@ -3886,6 +3901,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -3923,6 +3939,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -4215,6 +4232,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -4599,7 +4617,8 @@ impl
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                 ))?
@@ -4871,6 +4890,7 @@ fn get_stripe_payments_response_data(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: Some(response_id),
+        connector_response_reference_id: None,
         network_advice_code: response
             .as_ref()
             .and_then(|res| res.network_advice_code.clone()),

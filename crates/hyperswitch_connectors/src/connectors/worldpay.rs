@@ -181,6 +181,7 @@ impl ConnectorCommon for Worldpay {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -240,7 +241,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.minor_amount.unwrap_or_default(),
+            req.request.minor_amount,
             req,
         ))?;
         let connector_req =
@@ -294,7 +295,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 http_code: res.status_code,
             },
             optional_correlation_id,
-            data.request.amount.unwrap_or(0),
+            data.request.amount,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -496,6 +497,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

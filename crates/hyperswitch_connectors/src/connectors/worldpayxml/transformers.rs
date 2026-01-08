@@ -1111,6 +1111,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, PaymentService>> for RefundsRout
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1178,7 +1179,9 @@ fn get_attempt_status(
         }
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
         LastEvent::Cancelled => Ok(common_enums::AttemptStatus::Voided),
-        LastEvent::Captured | LastEvent::Settled => Ok(common_enums::AttemptStatus::Charged),
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
+            Ok(common_enums::AttemptStatus::Charged)
+        }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
@@ -1591,6 +1594,7 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(order_status.order_code),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1614,6 +1618,7 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1722,6 +1727,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, Pay
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(order_status.order_code),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1745,6 +1751,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, Pay
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1805,6 +1812,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1865,6 +1873,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1922,6 +1931,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: None,
+                                connector_response_reference_id: None,
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
@@ -1989,6 +1999,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -2232,6 +2243,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2335,6 +2347,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2526,6 +2539,7 @@ fn process_payment_response(
             status_code: http_code,
             attempt_status: None,
             connector_transaction_id: Some(order_code.clone()),
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2678,7 +2692,7 @@ pub fn get_payment_webhook_event(status: LastEvent) -> api_models::webhooks::Inc
         LastEvent::Authorised | LastEvent::SentForAuthorisation => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
         }
-        LastEvent::Captured | LastEvent::Settled => {
+        LastEvent::Captured | LastEvent::Settled | LastEvent::SettledByMerchant => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
         }
         LastEvent::Refunded | LastEvent::RefundedByMerchant => {

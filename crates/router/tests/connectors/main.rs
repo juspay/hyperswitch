@@ -88,6 +88,7 @@ mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;
+mod payjustnowinstore;
 mod payload;
 mod payme;
 mod payone;
@@ -126,6 +127,7 @@ mod utils;
 mod vgs;
 mod volt;
 mod wellsfargo;
+mod worldpaymodular;
 mod worldpayvantiv;
 mod zift;
 // mod wellsfargopayout;

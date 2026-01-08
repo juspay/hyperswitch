@@ -761,13 +761,6 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
     fn try_from(
         item: &TesouroRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Tesouro",
-            })?
-        }
-
         let auth = TesouroAuthType::try_from(&item.router_data.connector_auth_type)?;
         let acceptor_id = auth.get_acceptor_id();
         let transaction_reference =
@@ -777,6 +770,12 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
         let mut original_purchase_date = None;
         let payment_method_details = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
+                if item.router_data.is_three_ds() {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Cards 3DS".to_string(),
+                        connector: "Tesouro",
+                    })?
+                }
                 get_card_payment_method(card, item.router_data.request.is_mandate_payment())
             }
             PaymentMethodData::MandatePayment => {
@@ -880,6 +879,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 ))?,
             },
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -1125,6 +1125,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: Some(transaction_id.clone()),
+                                connector_response_reference_id: None,
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
@@ -1181,6 +1182,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1222,6 +1224,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1305,6 +1308,7 @@ impl<F>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1342,6 +1346,7 @@ impl<F>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1429,6 +1434,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                     status_code: item.http_code,
                                     attempt_status: None,
                                     connector_transaction_id: Some(transaction_id.clone()),
+                                    connector_response_reference_id: None,
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
@@ -1473,6 +1479,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1510,6 +1517,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1568,6 +1576,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                     status_code: item.http_code,
                                     attempt_status: None,
                                     connector_transaction_id: Some(transaction_id.clone()),
+                                    connector_response_reference_id: None,
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
@@ -1612,6 +1621,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1649,6 +1659,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1741,6 +1752,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                                     status_code: item.http_code,
                                     attempt_status: None,
                                     connector_transaction_id: None,
+                                    connector_response_reference_id: None,
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
@@ -1777,6 +1789,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1813,6 +1826,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1961,6 +1975,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(connector_transaction_id),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -2009,6 +2024,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -2081,6 +2097,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -2119,6 +2136,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
