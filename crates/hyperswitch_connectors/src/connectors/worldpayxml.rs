@@ -1422,6 +1422,7 @@ impl ConnectorSpecifications for Worldpayxml {
             } => *auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
 

@@ -42,7 +42,7 @@ use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData, PaymentsPreAuthenticateResponseRouterData
+        PaymentsPreAuthenticateResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,

@@ -250,6 +250,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 pre_authenticate_router_data,
                 connector,
                 gateway_context,
+                common_enums::CallConnectorAction::Trigger,
             ))
             .await?;
             let pre_authenticate_response = pre_authenticate_router_data.response.clone();
