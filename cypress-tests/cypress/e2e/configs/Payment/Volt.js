@@ -79,7 +79,7 @@ export const connectorDetails = {
     ListRevokeMandate: listRevokeMandate,
   },
   bank_redirect_pm: {
-    OpenBankingUk: getCustomExchange({
+    OpenBankingUk: {
       Request: {
         payment_method: "bank_redirect",
         amount: 6000,
@@ -104,6 +104,6 @@ export const connectorDetails = {
           connector: "volt",
         },
       },
-    }),
+    },
   },
 };

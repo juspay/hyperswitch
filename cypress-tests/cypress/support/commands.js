@@ -1268,20 +1268,6 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
         expect(item).to.not.have.property("additional_merchant_data");
         expect(item).to.not.have.property("connector_wallets_details");
       });
-
-      const connectorName = globalState.get("connectorId");
-      if (connectorName) {
-        const matchedConnector = response.body.find(
-          (connector) => connector.connector_name === connectorName
-        );
-
-        if (matchedConnector?.merchant_connector_id) {
-          globalState.set(
-            "merchantConnectorId",
-            matchedConnector.merchant_connector_id
-          );
-        }
-      }
     });
   });
 });
