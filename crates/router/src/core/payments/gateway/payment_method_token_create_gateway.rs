@@ -139,7 +139,7 @@ where
                     Ok(response) => Ok(response),
                     Err(err) => {
                         logger::debug!("Error in UCS router data response");
-                        if let Some(attempt_status) = err.attempt_status.clone() {
+                        if let Some(attempt_status) = err.attempt_status {
                             router_data.status = attempt_status;
                         }
                         Err(err)
