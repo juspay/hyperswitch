@@ -1,18 +1,4 @@
-import { getCustomExchange } from "./Modifiers";
-
-const billingAddress = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
-    city: "San Fransico",
-    state: "California",
-    zip: "94122",
-    country: "GB",
-    first_name: "john",
-    last_name: "doe",
-  },
-};
+import { standardBillingAddress } from "./Commons";
 
 const zeroAuthResponse = {
   status: 501,
@@ -93,7 +79,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: billingAddress,
+        billing: standardBillingAddress,
       },
       Response: {
         status: 200,
