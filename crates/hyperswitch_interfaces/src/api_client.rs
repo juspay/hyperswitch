@@ -200,7 +200,7 @@ where
             router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
-        common_enums::CallConnectorAction::HandleResponseWithoutBody => {
+        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {
             let response = types::Response {
                 headers: None,
                 response: Vec::new().into(),

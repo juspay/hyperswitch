@@ -692,7 +692,7 @@ impl
         let handle_response = match call_connector_action {
             common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
             common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBody => None,
+            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => None,
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::UCSConsumeResponse(_)
             | common_enums::CallConnectorAction::Avoid

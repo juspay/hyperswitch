@@ -355,7 +355,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 .connector
                 .should_trigger_handle_response_without_body()
             {
-                payments::CallConnectorAction::HandleResponseWithoutBody
+                payments::CallConnectorAction::HandleResponseWithoutBuildRequest
             } else {
                 payments::CallConnectorAction::Trigger
             };
