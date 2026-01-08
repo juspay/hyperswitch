@@ -40,7 +40,7 @@ pub use payment_methods::configs::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
-use rand::Rng;
+use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -740,13 +740,8 @@ impl OidcSettings {
     }
 
     pub fn get_signing_key(&self) -> Option<&OidcKey> {
-        let len = self.key.len();
-        if len == 0 {
-            return None;
-        }
         let mut rng = rand::thread_rng();
-        let random_index = rng.gen_range(0..len);
-        self.key.values().nth(random_index)
+        self.key.values().choose_stable(&mut rng)
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {

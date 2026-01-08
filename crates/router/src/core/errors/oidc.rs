@@ -56,21 +56,21 @@ impl OidcErrors {
     }
 
     /// Returns the RFC 6749 compliant error description
-    pub fn get_error_message(&self) -> String {
+    pub fn get_error_message(&self) -> &'static str {
         match self {
-            Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed".to_string(),
-            Self::UnauthorizedClient => "The client is not authorized to request an authorization code using this method".to_string(),
-            Self::AccessDenied => "The resource owner or authorization server denied the request".to_string(),
-            Self::UnsupportedResponseType => "The authorization server does not support obtaining an authorization code using this method".to_string(),
-            Self::InvalidScope => "The requested scope is invalid, unknown, or malformed".to_string(),
-            Self::ServerError => "The authorization server encountered an unexpected condition that prevented it from fulfilling the request".to_string(),
-            Self::TemporarilyUnavailable => "The authorization server is currently unable to handle the request due to a temporary overloading or maintenance of the server".to_string(),
-            Self::InvalidTokenRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed".to_string(),
-            Self::InvalidClient => "Client authentication failed".to_string(),
-            Self::InvalidGrant => "The provided authorization grant is invalid, expired, revoked, or does not match the redirection URI used in the authorization request".to_string(),
-            Self::UnauthorizedClientForGrant => "The authenticated client is not authorized to use this authorization grant type".to_string(),
-            Self::UnsupportedGrantType => "The authorization grant type is not supported by the authorization server".to_string(),
-            Self::InvalidTokenScope => "The requested scope is invalid, unknown, or malformed".to_string(),
+            Self::InvalidRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
+            Self::UnauthorizedClient => "The client is not authorized to request an authorization code using this method",
+            Self::AccessDenied => "The resource owner or authorization server denied the request",
+            Self::UnsupportedResponseType => "The authorization server does not support obtaining an authorization code using this method",
+            Self::InvalidScope => "The requested scope is invalid, unknown, or malformed",
+            Self::ServerError => "The authorization server encountered an unexpected condition that prevented it from fulfilling the request",
+            Self::TemporarilyUnavailable => "The authorization server is currently unable to handle the request due to a temporary overloading or maintenance of the server",
+            Self::InvalidTokenRequest => "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed",
+            Self::InvalidClient => "Client authentication failed",
+            Self::InvalidGrant => "The provided authorization grant is invalid, expired, revoked, or does not match the redirection URI used in the authorization request",
+            Self::UnauthorizedClientForGrant => "The authenticated client is not authorized to use this authorization grant type",
+            Self::UnsupportedGrantType => "The authorization grant type is not supported by the authorization server",
+            Self::InvalidTokenScope => "The requested scope is invalid, unknown, or malformed",
         }
     }
 

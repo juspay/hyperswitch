@@ -7,7 +7,6 @@ use api_models::{
     },
     payments::RedirectionResponse,
 };
-use common_utils::pii;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
@@ -97,10 +96,6 @@ async fn generate_and_store_authorization_code(
         .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to fetch user from database")?;
 
-    let user_email = pii::Email::try_from(user_from_db.email.peek().to_string())
-        .change_context(OidcErrors::ServerError)
-        .attach_printable("Failed to parse user email")?;
-
     let auth_code =
         common_utils::crypto::generate_cryptographically_secure_random_string(AUTH_CODE_LENGTH);
 
@@ -110,7 +105,7 @@ async fn generate_and_store_authorization_code(
         redirect_uri: payload.redirect_uri.clone(),
         scope: payload.scope.clone(),
         nonce: payload.nonce.clone(),
-        email: user_email,
+        email: user_from_db.email,
         is_verified: user_from_db.is_verified,
     };
 
