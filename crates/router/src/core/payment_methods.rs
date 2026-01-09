@@ -888,8 +888,14 @@ pub async fn get_card_nt_eligibility(
     state: &SessionState,
     req: api::NetworkTokenEligibilityRequest,
     _platform: &domain::Platform,
-    _profile: &domain::Profile,
+    profile: &domain::Profile,
 ) -> RouterResponse<api::GetNetworkTokenEiligibilityResponse> {
+    when(!profile.is_network_tokenization_enabled, || {
+        Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Network tokenization is not enabled for this profile".to_string()
+        }))
+    })?;
+
     let response = network_tokenization::make_nt_eligibility_call(state, req)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
