@@ -3526,7 +3526,7 @@ pub struct PaymentMethodSessionResponse {
     pub authentication_details: Option<AuthenticationDetails>,
 
     /// The payment method that was created using this payment method session
-    #[schema(value_type = Option<Vec<String>>)]
+    #[schema(value_type = Option<Vec<AssociatedPaymentMethods>>)]
     pub associated_payment_methods:
         Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
 

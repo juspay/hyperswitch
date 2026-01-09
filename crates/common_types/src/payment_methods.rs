@@ -271,7 +271,7 @@ pub struct PspTokenization {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum AssociatedPaymentMethodTokenType {
     /// Payment Method Session Token
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
     PaymentMethodSessionToken(String),
 }
 

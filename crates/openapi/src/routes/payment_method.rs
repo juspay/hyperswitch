@@ -591,7 +591,7 @@ pub async fn tokenize_card_using_pm_api() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment Method created", body = PaymentMethodResponse),
+      (status = 200, description = "Payment Method created", body = PaymentMethodSessionResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payment Method Session",

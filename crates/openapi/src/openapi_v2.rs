@@ -212,6 +212,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payment_methods::PaymentMethodsEnabled,
         common_types::payment_methods::PspTokenization,
         common_types::payment_methods::NetworkTokenization,
+        common_types::payment_methods::AssociatedPaymentMethods,
+        common_types::payment_methods::AssociatedPaymentMethodTokenType,
         common_types::refunds::SplitRefund,
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,

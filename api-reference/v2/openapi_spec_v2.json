@@ -3324,7 +3324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodSessionResponse"
                 }
               }
             }
@@ -4215,7 +4215,8 @@
           },
           "email": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "example": "customer@gmail.com"
           }
         }
       },
@@ -5377,6 +5378,46 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "AssociatedPaymentMethodTokenType": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_session_token"
+                ]
+              },
+              "data": {
+                "type": "string",
+                "description": "Payment Method Session Token",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+              }
+            }
+          }
+        ],
+        "description": "Token type for Payment Method Session associated payment methods",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "AssociatedPaymentMethods": {
+        "type": "object",
+        "description": "Details of associated payment methods for Payment Methods Session",
+        "required": [
+          "payment_method_token"
+        ],
+        "properties": {
+          "payment_method_token": {
+            "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
           }
         }
       },
@@ -7784,47 +7825,55 @@
             "format": "int32",
             "description": "Color depth supported by the browser",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0,
+            "example": 24
           },
           "java_enabled": {
             "type": "boolean",
             "description": "Whether java is enabled in the browser",
-            "nullable": true
+            "nullable": true,
+            "example": true
           },
           "java_script_enabled": {
             "type": "boolean",
             "description": "Whether javascript is enabled in the browser",
-            "nullable": true
+            "nullable": true,
+            "example": true
           },
           "language": {
             "type": "string",
             "description": "Language supported",
-            "nullable": true
+            "nullable": true,
+            "example": "en-US"
           },
           "screen_height": {
             "type": "integer",
             "format": "int32",
             "description": "The screen height in pixels",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0,
+            "example": 1080
           },
           "screen_width": {
             "type": "integer",
             "format": "int32",
             "description": "The screen width in pixels",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0,
+            "example": 1920
           },
           "time_zone": {
             "type": "integer",
             "format": "int32",
             "description": "Time zone of the client",
-            "nullable": true
+            "nullable": true,
+            "example": -120
           },
           "ip_address": {
             "type": "string",
             "description": "Ip address of the client",
-            "nullable": true
+            "nullable": true,
+            "example": "192.168.0.1"
           },
           "accept_header": {
             "type": "string",
@@ -7835,32 +7884,38 @@
           "user_agent": {
             "type": "string",
             "description": "User-agent of the browser",
-            "nullable": true
+            "nullable": true,
+            "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
           },
           "os_type": {
             "type": "string",
             "description": "The os type of the client device",
-            "nullable": true
+            "nullable": true,
+            "example": "Windows"
           },
           "os_version": {
             "type": "string",
             "description": "The os version of the client device",
-            "nullable": true
+            "nullable": true,
+            "example": "10"
           },
           "device_model": {
             "type": "string",
             "description": "The device model of the client",
-            "nullable": true
+            "nullable": true,
+            "example": "Dell XPS 15"
           },
           "accept_language": {
             "type": "string",
             "description": "Accept-language of the browser",
-            "nullable": true
+            "nullable": true,
+            "example": "en-US,en;q=0.9"
           },
           "referer": {
             "type": "string",
             "description": "Identifier of the source that initiated the request.",
-            "nullable": true
+            "nullable": true,
+            "example": "https://www.example.com"
           }
         }
       },
@@ -11602,41 +11657,49 @@
         "properties": {
           "code": {
             "type": "string",
-            "description": "The error code"
+            "description": "The error code",
+            "example": "400"
           },
           "message": {
             "type": "string",
-            "description": "The error message"
+            "description": "The error message",
+            "example": "Invalid request parameters."
           },
           "reason": {
             "type": "string",
             "description": "The detailed error reason that was returned by the connector.",
-            "nullable": true
+            "nullable": true,
+            "example": "The card has expired."
           },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
-            "nullable": true
+            "nullable": true,
+            "example": "card_expired"
           },
           "unified_message": {
             "type": "string",
             "description": "The unified error message across all connectors.\nIf there is a translation available, this will have the translated message",
-            "nullable": true
+            "nullable": true,
+            "example": "The card has expired."
           },
           "network_advice_code": {
             "type": "string",
             "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
-            "nullable": true
+            "nullable": true,
+            "example": "01"
           },
           "network_decline_code": {
             "type": "string",
             "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
-            "nullable": true
+            "nullable": true,
+            "example": "05"
           },
           "network_error_message": {
             "type": "string",
             "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
-            "nullable": true
+            "nullable": true,
+            "example": "Error validating request."
           }
         }
       },
@@ -16392,10 +16455,12 @@
             ],
             "properties": {
               "redirect_to_url": {
-                "type": "string"
+                "type": "string",
+                "example": "https://redirect.url.com"
               },
               "type": {
                 "type": "string",
+                "example": "redirect_to_url",
                 "enum": [
                   "redirect_to_url"
                 ]
@@ -19828,7 +19893,8 @@
           },
           "tokenization_data": {
             "description": "Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data",
-            "nullable": true
+            "nullable": true,
+            "example": "{nt_token}"
           }
         }
       },
@@ -19886,12 +19952,14 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "example": "cs_0195b34da95d75239c6a4bf514458896"
           },
           "return_url": {
             "type": "string",
             "description": "The return url to which the user should be redirected to",
-            "nullable": true
+            "nullable": true,
+            "example": "https://example.com/return_url"
           },
           "next_action": {
             "allOf": [
@@ -19912,7 +19980,7 @@
           "associated_payment_methods": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AssociatedPaymentMethods"
             },
             "description": "The payment method that was created using this payment method session",
             "nullable": true
@@ -24364,7 +24432,8 @@
           },
           "connector_id": {
             "type": "string",
-            "description": "The merchant connector id to be used for tokenization"
+            "description": "The merchant connector id to be used for tokenization",
+            "example": "mca_qF0IiyMWK7ZiVL4GBJIE"
           }
         }
       },
