@@ -156,6 +156,7 @@ impl ConnectorCommon for Adyen {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1027,12 +1028,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                 field_name: "currency",
             })?,
         };
-        let amount = match data.request.minor_amount {
-            Some(amount) => amount,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?,
-        };
+        let amount = data.request.minor_amount;
 
         let amount = convert_amount(self.amount_converter, amount, currency)?;
 
@@ -1045,6 +1041,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1274,6 +1271,7 @@ impl
                     status_code: res.status_code,
                     attempt_status: Some(enums::AttemptStatus::Failure),
                     connector_transaction_id: Some(response.psp_reference),
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

@@ -947,6 +947,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::PriorityLogicData,
         api_models::user::PlatformAccountCreateRequest,
         api_models::user::PlatformAccountCreateResponse,
+        api_models::platform::Initiator,
         common_utils::id_type::CustomerId,
         common_utils::id_type::SubscriptionId,
         common_utils::id_type::MerchantId,
