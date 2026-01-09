@@ -220,7 +220,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -229,7 +229,6 @@ pub async fn update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
-                            None,
                         )
                     })
                     .await
@@ -282,7 +281,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -291,7 +290,6 @@ pub async fn update_trackers<F: Clone, Req>(
                                 .get_string_repr()
                                 .to_string(),
                             merchant_key_store.key.get_inner(),
-                            None,
                         )
                     })
                     .await

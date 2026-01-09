@@ -2236,7 +2236,7 @@ async fn external_authentication_incoming_webhook_flow(
         authentication_details
             .authentication_value
             .async_map(|auth_val| {
-                payment_methods::vault::create_tokenize(
+                payment_methods::vault::create_tokenize_without_expiry(
                     &state,
                     auth_val.expose(),
                     None,
@@ -2246,7 +2246,6 @@ async fn external_authentication_incoming_webhook_flow(
                         .get_string_repr()
                         .to_string(),
                     platform.get_processor().get_key_store().key.get_inner(),
-                    None,
                 )
             })
             .await

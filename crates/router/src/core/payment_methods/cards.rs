@@ -4989,13 +4989,12 @@ impl TempLockerCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        let lookup_key = vault::create_tokenize(
+        let lookup_key = vault::create_tokenize_without_expiry(
             state,
             value1,
             Some(value2),
             payment_token.to_string(),
             merchant_key_store.key.get_inner(),
-            None,
         )
         .await?;
         vault::add_delete_tokenized_data_task(

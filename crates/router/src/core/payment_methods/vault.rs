@@ -1153,7 +1153,6 @@ impl Vault {
         customer_id: Option<id_type::CustomerId>,
         pm: enums::PaymentMethod,
         merchant_key_store: &domain::MerchantKeyStore,
-        intent_fulfillment_time: Option<i64>,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -1167,13 +1166,12 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_without_expiry(
             state,
             value1,
             Some(value2),
             lookup_key,
             merchant_key_store.key.get_inner(),
-            intent_fulfillment_time,
         )
         .await?;
         add_delete_tokenized_data_task(
@@ -1227,7 +1225,7 @@ impl Vault {
         let lookup_key =
             token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_with_expiry(
             state,
             value1,
             Some(value2),
@@ -1264,7 +1262,38 @@ fn get_redis_locker_key(lookup_key: &str) -> String {
 }
 
 #[instrument(skip(state, value1, value2))]
-pub async fn create_tokenize(
+pub async fn create_tokenize_without_expiry(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<String> {
+    create_tokenize(state, value1, value2, lookup_key, encryption_key, None).await
+}
+
+#[instrument(skip(state, value1, value2))]
+pub async fn create_tokenize_with_expiry(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+    expiry_time: Option<i64>,
+) -> RouterResult<String> {
+    create_tokenize(
+        state,
+        value1,
+        value2,
+        lookup_key,
+        encryption_key,
+        expiry_time,
+    )
+    .await
+}
+
+#[instrument(skip(state, value1, value2))]
+async fn create_tokenize(
     state: &routes::SessionState,
     value1: String,
     value2: Option<String>,

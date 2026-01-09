@@ -2065,7 +2065,6 @@ pub async fn retrieve_payment_method_with_temporary_token(
                     payment_intent.customer_id.to_owned(),
                     enums::PaymentMethod::Card,
                     merchant_key_store,
-                    None,
                 )
                 .await?;
 
@@ -3141,11 +3140,6 @@ pub async fn store_in_vault_and_generate_ppmt(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<String> {
-    let intent_fulfillment_time = business_profile
-        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
-        .map(|fulfillment_time| std::cmp::min(fulfillment_time, consts::DEFAULT_FULFILLMENT_TIME))
-        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
-
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
         None,
@@ -3153,7 +3147,6 @@ pub async fn store_in_vault_and_generate_ppmt(
         payment_intent.customer_id.to_owned(),
         payment_method,
         merchant_key_store,
-        Some(intent_fulfillment_time),
     )
     .await?;
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
@@ -3163,6 +3156,10 @@ pub async fn store_in_vault_and_generate_ppmt(
             payment_method,
         ))
     });
+
+    let intent_fulfillment_time = business_profile
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
         key_for_hyperswitch_token
